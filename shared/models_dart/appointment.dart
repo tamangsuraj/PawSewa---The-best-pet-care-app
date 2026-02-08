@@ -4,6 +4,7 @@ class Appointment {
   final String owner;
   final String veterinarian;
   final DateTime date;
+  final String timeSlot;
   final String status;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -14,6 +15,7 @@ class Appointment {
     required this.owner,
     required this.veterinarian,
     required this.date,
+    required this.timeSlot,
     required this.status,
     this.createdAt,
     this.updatedAt,
@@ -32,6 +34,7 @@ class Appointment {
           ? json['veterinarian'] 
           : json['veterinarian']?['_id'] ?? '',
       date: DateTime.parse(json['date']),
+      timeSlot: json['timeSlot'] ?? '',
       status: json['status'] ?? 'pending',
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 
@@ -49,6 +52,7 @@ class Appointment {
       'owner': owner,
       'veterinarian': veterinarian,
       'date': date.toIso8601String(),
+      'timeSlot': timeSlot,
       'status': status,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),

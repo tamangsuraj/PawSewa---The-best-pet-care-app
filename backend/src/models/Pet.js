@@ -15,17 +15,13 @@ const petSchema = new mongoose.Schema(
     species: {
       type: String,
       required: [true, 'Species is required'],
-      trim: true,
+      enum: ['Dog', 'Cat', 'Bird', 'Other'],
     },
     breed: {
       type: String,
       trim: true,
     },
     age: {
-      type: Number,
-      min: 0,
-    },
-    weight: {
       type: Number,
       min: 0,
     },

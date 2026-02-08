@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema(
       enum: ['pet_owner', 'veterinarian', 'admin'],
       default: 'pet_owner',
     },
+    phone: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

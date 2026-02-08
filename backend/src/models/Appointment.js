@@ -21,6 +21,10 @@ const appointmentSchema = new mongoose.Schema(
       type: Date,
       required: [true, 'Appointment date is required'],
     },
+    timeSlot: {
+      type: String,
+      required: [true, 'Time slot is required'],
+    },
     status: {
       type: String,
       enum: ['pending', 'confirmed', 'completed', 'cancelled'],

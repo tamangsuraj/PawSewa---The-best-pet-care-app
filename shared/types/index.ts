@@ -7,19 +7,21 @@ export interface IUser {
   email: string;
   password: string;
   role: UserRole;
+  phone?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Pet Types
+export type PetSpecies = 'Dog' | 'Cat' | 'Bird' | 'Other';
+
 export interface IPet {
   _id: string;
   owner: string | IUser;
   name: string;
-  species: string;
+  species: PetSpecies;
   breed?: string;
   age?: number;
-  weight?: number;
   image?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +36,7 @@ export interface IAppointment {
   owner: string | IUser;
   veterinarian: string | IUser;
   date: Date;
+  timeSlot: string;
   status: AppointmentStatus;
   createdAt: Date;
   updatedAt: Date;

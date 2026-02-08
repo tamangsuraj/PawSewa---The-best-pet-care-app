@@ -5,7 +5,6 @@ class Pet {
   final String species;
   final String? breed;
   final int? age;
-  final double? weight;
   final String? image;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -17,7 +16,6 @@ class Pet {
     required this.species,
     this.breed,
     this.age,
-    this.weight,
     this.image,
     this.createdAt,
     this.updatedAt,
@@ -33,7 +31,6 @@ class Pet {
       species: json['species'] ?? '',
       breed: json['breed'],
       age: json['age']?.toInt(),
-      weight: json['weight']?.toDouble(),
       image: json['image'],
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 
@@ -52,10 +49,34 @@ class Pet {
       'species': species,
       'breed': breed,
       'age': age,
-      'weight': weight,
       'image': image,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
+  }
+}
+
+enum PetSpecies {
+  dog('Dog'),
+  cat('Cat'),
+  bird('Bird'),
+  other('Other');
+
+  final String value;
+  const PetSpecies(this.value);
+
+  static PetSpecies fromString(String species) {
+    switch (species) {
+      case 'Dog':
+        return PetSpecies.dog;
+      case 'Cat':
+        return PetSpecies.cat;
+      case 'Bird':
+        return PetSpecies.bird;
+      case 'Other':
+        return PetSpecies.other;
+      default:
+        return PetSpecies.other;
+    }
   }
 }

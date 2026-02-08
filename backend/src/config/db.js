@@ -6,9 +6,9 @@ const connectDB = async () => {
       tls: true,
       tlsAllowInvalidCertificates: true,
     });
-    console.log('🐾 PawSewa Database Connected!');
+    console.log('🐾 PawSewa Database Connected Successfully!');
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('❌ MongoDB Connection Error:', error.message);
     process.exit(1);
   }
 };
