@@ -1,0 +1,833 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../core/storage_service.dart';
+import '../core/constants.dart';
+import '../core/api_client.dart';
+import 'login_screen.dart';
+import 'profile_editor_screen.dart';
+import 'all_pets_screen.dart';
+
+class VetDashboardScreen extends StatefulWidget {
+  const VetDashboardScreen({super.key});
+
+  @override
+  State<VetDashboardScreen> createState() => _VetDashboardScreenState();
+}
+
+class _VetDashboardScreenState extends State<VetDashboardScreen> {
+  final _storage = StorageService();
+  final _apiClient = ApiClient();
+  String _userName = 'Staff Member';
+  String _userRole = 'veterinarian';
+  Map<String, dynamic>? _userData;
+  int _newAssignmentsCount = 0;
+  int _currentAssignmentsCount = 0;
+  int _completedCasesCount = 0;
+  int _totalCasesCount = 0;
+  bool _isLoadingAssignments = false;
+  bool _isLoadingStats = false;
+  String _selectedFilter = 'today'; // today, week, 48hours, month
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _loadNewAssignments();
+    _loadStats();
+  }
+
+  Future<void> _loadUserData() async {
+    final userDataString = await _storage.getUser();
+    if (userDataString != null) {
+      try {
+        final userData = jsonDecode(userDataString);
+        setState(() {
+          _userData = userData;
+          _userName = userData['name'] ?? 'Staff Member';
+          _userRole = userData['role'] ?? 'veterinarian';
+        });
+      } catch (e) {
+        print('Error parsing user data: $e');
+      }
+    }
+  }
+
+  Future<void> _loadNewAssignments() async {
+    if (_userRole != 'veterinarian') return;
+    
+    setState(() {
+      _isLoadingAssignments = true;
+    });
+
+    try {
+      final response = await _apiClient.getMyAssignments();
+      if (response.statusCode == 200) {
+        final cases = response.data['data'] ?? [];
+        setState(() {
+          _newAssignmentsCount = cases.length;
+          _isLoadingAssignments = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading assignments: $e');
+      setState(() {
+        _isLoadingAssignments = false;
+      });
+    }
+  }
+
+  Future<void> _loadStats() async {
+    if (_userRole != 'veterinarian') return;
+    
+    setState(() {
+      _isLoadingStats = true;
+    });
+
+    try {
+      final response = await _apiClient.getMyAssignments();
+      if (response.statusCode == 200) {
+        final allCases = response.data['data'] ?? [];
+        
+        // Filter based on selected time range
+        final now = DateTime.now();
+        final filteredCases = allCases.where((caseData) {
+          final assignedAt = caseData['assignedAt'] != null 
+              ? DateTime.parse(caseData['assignedAt']) 
+              : null;
+          
+          if (assignedAt == null) return false;
+          
+          switch (_selectedFilter) {
+            case 'today':
+              return assignedAt.year == now.year &&
+                     assignedAt.month == now.month &&
+                     assignedAt.day == now.day;
+            case '48hours':
+              return now.difference(assignedAt).inHours <= 48;
+            case 'week':
+              return now.difference(assignedAt).inDays <= 7;
+            case 'month':
+              return now.difference(assignedAt).inDays <= 30;
+            default:
+              return true;
+          }
+        }).toList();
+
+        // Count by status
+        final currentCases = filteredCases.where((c) => 
+          c['status'] == 'assigned' || c['status'] == 'in_progress'
+        ).length;
+        
+        final completedCases = filteredCases.where((c) => 
+          c['status'] == 'completed'
+        ).length;
+
+        setState(() {
+          _currentAssignmentsCount = currentCases;
+          _completedCasesCount = completedCases;
+          _totalCasesCount = filteredCases.length;
+          _isLoadingStats = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading stats: $e');
+      setState(() {
+        _isLoadingStats = false;
+      });
+    }
+  }
+
+  void _changeFilter(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    _loadStats();
+  }
+
+  String _getFilterLabel() {
+    switch (_selectedFilter) {
+      case 'today':
+        return 'Today';
+      case '48hours':
+        return 'Past 48 Hours';
+      case 'week':
+        return 'This Week';
+      case 'month':
+        return 'This Month';
+      default:
+        return 'Today';
+    }
+  }
+
+  String _getRoleTitle() {
+    switch (_userRole) {
+      case 'veterinarian':
+        return 'PawSewa Partner';
+      case 'shop_owner':
+        return 'Shop Partner Portal';
+      case 'care_service':
+        return 'Care Partner Portal';
+      case 'rider':
+        return 'Delivery Partner Portal';
+      default:
+        return 'PawSewa Partner';
+    }
+  }
+
+  IconData _getRoleIcon() {
+    switch (_userRole) {
+      case 'veterinarian':
+        return Icons.medical_services;
+      case 'shop_owner':
+        return Icons.store;
+      case 'care_service':
+        return Icons.home_work;
+      case 'rider':
+        return Icons.delivery_dining;
+      default:
+        return Icons.work;
+    }
+  }
+
+  List<Map<String, dynamic>> _getRoleStats() {
+    switch (_userRole) {
+      case 'veterinarian':
+        return [
+          {'icon': Icons.assignment, 'title': 'Current Cases', 'value': _currentAssignmentsCount.toString(), 'color': Colors.blue},
+          {'icon': Icons.check_circle, 'title': 'Completed', 'value': _completedCasesCount.toString(), 'color': Colors.green},
+          {'icon': Icons.folder, 'title': 'Total Cases', 'value': _totalCasesCount.toString(), 'color': Colors.orange},
+          {'icon': Icons.notifications_active, 'title': 'New Alerts', 'value': _newAssignmentsCount.toString(), 'color': Colors.red},
+        ];
+      case 'shop_owner':
+        return [
+          {'icon': Icons.shopping_cart, 'title': 'Orders', 'value': '0', 'color': Colors.blue},
+          {'icon': Icons.inventory, 'title': 'Products', 'value': '0', 'color': Colors.green},
+          {'icon': Icons.attach_money, 'title': 'Revenue', 'value': '\$0', 'color': Colors.orange},
+          {'icon': Icons.trending_up, 'title': 'Sales', 'value': '0', 'color': Colors.purple},
+        ];
+      case 'care_service':
+        return [
+          {'icon': Icons.book_online, 'title': 'Bookings', 'value': '0', 'color': Colors.blue},
+          {'icon': Icons.pets, 'title': 'Pets', 'value': '0', 'color': Colors.green},
+          {'icon': Icons.cleaning_services, 'title': 'Grooming', 'value': '0', 'color': Colors.orange},
+          {'icon': Icons.hotel, 'title': 'Boarding', 'value': '0', 'color': Colors.purple},
+        ];
+      case 'rider':
+        return [
+          {'icon': Icons.local_shipping, 'title': 'Deliveries', 'value': '0', 'color': Colors.blue},
+          {'icon': Icons.pending, 'title': 'Pending', 'value': '0', 'color': Colors.orange},
+          {'icon': Icons.check_circle, 'title': 'Completed', 'value': '0', 'color': Colors.green},
+          {'icon': Icons.attach_money, 'title': 'Earnings', 'value': '\$0', 'color': Colors.purple},
+        ];
+      default:
+        return [];
+    }
+  }
+
+  List<Map<String, dynamic>> _getRoleActions() {
+    switch (_userRole) {
+      case 'veterinarian':
+        return [
+          {'icon': Icons.person_outline, 'title': 'Edit Profile', 'subtitle': 'Update your professional profile', 'route': 'profile', 'badge': 0},
+          {'icon': Icons.assignment, 'title': 'My Assignments', 'subtitle': 'View your assigned cases', 'route': 'assignments', 'badge': _newAssignmentsCount},
+          {'icon': Icons.calendar_today, 'title': 'View Schedule', 'subtitle': 'Check today\'s appointments', 'route': null, 'badge': 0},
+        ];
+      case 'shop_owner':
+        return [
+          {'icon': Icons.add_shopping_cart, 'title': 'New Order', 'subtitle': 'Process a new order', 'route': null, 'badge': 0},
+          {'icon': Icons.inventory_2, 'title': 'Manage Inventory', 'subtitle': 'Update product stock', 'route': null, 'badge': 0},
+          {'icon': Icons.analytics, 'title': 'View Analytics', 'subtitle': 'Check sales reports', 'route': null, 'badge': 0},
+        ];
+      case 'care_service':
+        return [
+          {'icon': Icons.add_circle, 'title': 'New Booking', 'subtitle': 'Add a new booking', 'route': null, 'badge': 0},
+          {'icon': Icons.calendar_month, 'title': 'View Calendar', 'subtitle': 'Check facility schedule', 'route': null, 'badge': 0},
+          {'icon': Icons.pets, 'title': 'Pet Records', 'subtitle': 'View pet information', 'route': null, 'badge': 0},
+        ];
+      case 'rider':
+        return [
+          {'icon': Icons.map, 'title': 'View Map', 'subtitle': 'See delivery locations', 'route': null, 'badge': 0},
+          {'icon': Icons.list, 'title': 'Active Deliveries', 'subtitle': 'Check pending tasks', 'route': null, 'badge': 0},
+          {'icon': Icons.history, 'title': 'Delivery History', 'subtitle': 'View completed deliveries', 'route': null, 'badge': 0},
+        ];
+      default:
+        return [];
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    await _storage.clearAll();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(AppConstants.secondaryColor),
+      appBar: AppBar(
+        title: Text(
+          AppConstants.appName,
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: const Color(AppConstants.primaryColor),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: _handleLogout,
+            tooltip: 'Logout',
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(AppConstants.primaryColor),
+                      const Color(AppConstants.accentColor),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            _getRoleIcon(),
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _getRoleTitle(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                              Text(
+                                _userName,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // New Assignments Alert (for veterinarian partners)
+              if (_userRole == 'veterinarian' && _newAssignmentsCount > 0)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.red.shade600,
+                        Colors.red.shade700,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: InkWell(
+                    onTap: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AllPetsScreen()),
+                      );
+                      if (result == true || mounted) {
+                        _loadNewAssignments(); // Reload after viewing
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.notification_important,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'New Case Assignment!',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'You have $_newAssignmentsCount ${_newAssignmentsCount == 1 ? 'case' : 'cases'} waiting for you',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Quick Stats
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${_getFilterLabel()}\'s Overview',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(AppConstants.accentColor),
+                    ),
+                  ),
+                  if (_userRole == 'veterinarian')
+                    PopupMenuButton<String>(
+                      onSelected: _changeFilter,
+                      icon: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(AppConstants.primaryColor),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.filter_list, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Filter',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'today',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.today,
+                                size: 18,
+                                color: _selectedFilter == 'today' 
+                                    ? const Color(AppConstants.primaryColor) 
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Today',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: _selectedFilter == 'today' 
+                                      ? FontWeight.w600 
+                                      : FontWeight.normal,
+                                  color: _selectedFilter == 'today' 
+                                      ? const Color(AppConstants.primaryColor) 
+                                      : Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: '48hours',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 18,
+                                color: _selectedFilter == '48hours' 
+                                    ? const Color(AppConstants.primaryColor) 
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Past 48 Hours',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: _selectedFilter == '48hours' 
+                                      ? FontWeight.w600 
+                                      : FontWeight.normal,
+                                  color: _selectedFilter == '48hours' 
+                                      ? const Color(AppConstants.primaryColor) 
+                                      : Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'week',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.date_range,
+                                size: 18,
+                                color: _selectedFilter == 'week' 
+                                    ? const Color(AppConstants.primaryColor) 
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'This Week',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: _selectedFilter == 'week' 
+                                      ? FontWeight.w600 
+                                      : FontWeight.normal,
+                                  color: _selectedFilter == 'week' 
+                                      ? const Color(AppConstants.primaryColor) 
+                                      : Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'month',
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_month,
+                                size: 18,
+                                color: _selectedFilter == 'month' 
+                                    ? const Color(AppConstants.primaryColor) 
+                                    : Colors.grey,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'This Month',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: _selectedFilter == 'month' 
+                                      ? FontWeight.w600 
+                                      : FontWeight.normal,
+                                  color: _selectedFilter == 'month' 
+                                      ? const Color(AppConstants.primaryColor) 
+                                      : Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Stats Grid
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 1.3,
+                children: _getRoleStats().map((stat) {
+                  return _buildStatCard(
+                    icon: stat['icon'] as IconData,
+                    title: stat['title'] as String,
+                    value: stat['value'] as String,
+                    color: stat['color'] as Color,
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 32),
+
+              // Quick Actions
+              Text(
+                'Quick Actions',
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(AppConstants.accentColor),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              ..._getRoleActions().map((action) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildActionButton(
+                    icon: action['icon'] as IconData,
+                    title: action['title'] as String,
+                    subtitle: action['subtitle'] as String,
+                    badge: action['badge'] as int? ?? 0,
+                    onTap: () async {
+                      final route = action['route'] as String?;
+                      if (route == 'profile') {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ProfileEditorScreen()),
+                        );
+                        if (result == true) {
+                          _loadUserData(); // Reload user data after profile update
+                        }
+                      } else if (route == 'assignments') {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AllPetsScreen()),
+                        );
+                        if (result == true || mounted) {
+                          _loadNewAssignments(); // Reload after viewing
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Feature coming soon!')),
+                        );
+                      }
+                    },
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(AppConstants.accentColor),
+            ),
+          ),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    int badge = 0,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(AppConstants.primaryColor).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: const Color(AppConstants.primaryColor),
+                    size: 24,
+                  ),
+                ),
+                if (badge > 0)
+                  Positioned(
+                    right: -6,
+                    top: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      child: Text(
+                        badge > 99 ? '99+' : badge.toString(),
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(AppConstants.accentColor),
+                          ),
+                        ),
+                      ),
+                      if (badge > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            badge.toString(),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.grey[400],
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

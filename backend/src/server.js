@@ -16,6 +16,14 @@ const connectDB = require('./config/db');
 // Error handling middleware
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
+// Routes
+const userRoutes = require('./routes/userRoutes');
+const petRoutes = require('./routes/petRoutes');
+const vetRoutes = require('./routes/vetRoutes');
+const authRoutes = require('./routes/authRoutes');
+const caseRoutes = require('./routes/caseRoutes');
+const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
+
 // Models (for testing endpoints)
 const User = require('./models/User');
 
@@ -38,12 +46,31 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// CORS - Professional configuration
+// CORS - Professional configuration (Allow mobile devices on local network)
 const corsOptions = {
-  origin: [
-    'http://localhost:3001', // PawSewa Website
-    'http://localhost:3002', // PawSewa Admin Panel
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost and local network IPs
+    const allowedOrigins = [
+      'http://localhost:3001',
+      'http://localhost:3002',
+      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
+      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Private network
+    ];
+    
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') return pattern === origin;
+      return pattern.test(origin);
+    });
+    
+    if (isAllowed || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   allowedHeaders: ['Authorization', 'Content-Type'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -51,12 +78,36 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body Parser - Parse JSON with size limit (prevent DoS attacks)
-app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ============================================
 // ROUTES
 // ============================================
+
+// Root welcome route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: '🐾 Welcome to PawSewa API',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/api/v1/health',
+      auth: '/api/v1/auth',
+      users: '/api/v1/users',
+      pets: '/api/v1/pets',
+      vets: '/api/v1/vets'
+    }
+  });
+});
+
+// API Routes
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/pets', petRoutes);
+app.use('/api/v1/vets', vetRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/cases', caseRoutes);
+app.use('/api/v1/service-requests', serviceRequestRoutes);
 
 // Health Check & Diagnostics
 app.get('/api/v1/health', (req, res) => {
@@ -124,8 +175,9 @@ app.use(errorHandler);
 // START SERVER
 // ============================================
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS enabled for: http://localhost:3001, http://localhost:3002`);
+  console.log(`🌐 CORS enabled for localhost and local network`);
+  console.log(`📱 Mobile devices can connect via: http://192.168.1.8:${PORT}`);
 });
