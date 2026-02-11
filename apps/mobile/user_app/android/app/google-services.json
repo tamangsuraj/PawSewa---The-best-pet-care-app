@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "188502859936",
+    "project_id": "pawsewa-25997",
+    "storage_bucket": "pawsewa-25997.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188502859936:android:6d4d072833a605f61ce9c5",
+        "android_client_info": {
+          "package_name": "com.pawsewa.user_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "188502859936-440q29m0o4cf2agtqcp40djepgc7kmcn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pawsewa.user_app",
+            "certificate_hash": "504e05f87f1a4b682f9c0a4e83b798288fc21005"
+          }
+        },
+        {
+          "client_id": "188502859936-doe0igj265poprfntbg3hkq8coo3kndu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXXtiBkFoUoBHBhGzT3ZXmHpJXK-qLzk8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "188502859936-doe0igj265poprfntbg3hkq8coo3kndu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "188502859936-drkp1e545sir86v72ujd6smbm4otjv6k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.pawsewa"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

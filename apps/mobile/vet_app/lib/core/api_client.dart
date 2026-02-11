@@ -1,10 +1,17 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'storage_service.dart';
 import 'constants.dart';
 
 class ApiClient {
   late final Dio _dio;
   final StorageService _storage = StorageService();
+
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint(message);
+    }
+  }
 
   ApiClient() {
     _dio = Dio(
@@ -24,14 +31,14 @@ class ApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           // Log request
-          print('[API] *** Request ***');
-          print('[API] uri: ${options.uri}');
-          print('[API] method: ${options.method}');
-          print('[API] headers:\n${options.headers.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}');
+          _log('[API] *** Request ***');
+          _log('[API] uri: ${options.uri}');
+          _log('[API] method: ${options.method}');
+          _log('[API] headers:\n${options.headers.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}');
           if (options.data != null) {
-            print('[API] data:\n[API] ${options.data}');
+            _log('[API] data:\n[API] ${options.data}');
           }
-          print('[API]');
+          _log('[API]');
 
           // Attach token if available
           final token = await _storage.getToken();
@@ -43,28 +50,28 @@ class ApiClient {
         },
         onResponse: (response, handler) {
           // Log response
-          print('[API] *** Response ***');
-          print('[API] uri: ${response.requestOptions.uri}');
-          print('[API] statusCode: ${response.statusCode}');
-          print('[API] Response Text:\n[API] ${response.data}');
-          print('[API]');
+          _log('[API] *** Response ***');
+          _log('[API] uri: ${response.requestOptions.uri}');
+          _log('[API] statusCode: ${response.statusCode}');
+          _log('[API] Response Text:\n[API] ${response.data}');
+          _log('[API]');
           
           return handler.next(response);
         },
         onError: (error, handler) {
           // Log error
-          print('[API] *** DioException ***:');
-          print('[API] uri: ${error.requestOptions.uri}');
-          print('[API] ${error.toString()}');
+          _log('[API] *** DioException ***:');
+          _log('[API] uri: ${error.requestOptions.uri}');
+          _log('[API] ${error.toString()}');
           if (error.response != null) {
-            print('[API] *** Response ***');
-            print('[API] uri: ${error.response!.requestOptions.uri}');
-            print('[API] statusCode: ${error.response!.statusCode}');
-            print('[API] statusMessage: ${error.response!.statusMessage}');
-            print('[API] headers:\n${error.response!.headers.map.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}');
-            print('[API] Response Text:\n[API] ${error.response!.data}');
+            _log('[API] *** Response ***');
+            _log('[API] uri: ${error.response!.requestOptions.uri}');
+            _log('[API] statusCode: ${error.response!.statusCode}');
+            _log('[API] statusMessage: ${error.response!.statusMessage}');
+            _log('[API] headers:\n${error.response!.headers.map.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}');
+            _log('[API] Response Text:\n[API] ${error.response!.data}');
           }
-          print('[API]');
+          _log('[API]');
           
           return handler.next(error);
         },
@@ -116,5 +123,41 @@ class ApiClient {
   // Get all pets (for staff to view)
   Future<Response> getAllPets() async {
     return await _dio.get('/pets');
+  }
+
+  // New: get my assigned service tasks (service request flow)
+  Future<Response> getMyServiceTasks() async {
+    return await _dio.get('/service-requests/my/tasks');
+  }
+
+  // New: generic status update for service requests
+  Future<Response> updateServiceStatus({
+    required String requestId,
+    required String status,
+    String? visitNotes,
+    String? reason,
+  }) async {
+    return await _dio.patch(
+      '/service-requests/status/$requestId',
+      data: <String, dynamic>{
+        'status': status,
+        if (visitNotes != null && visitNotes.isNotEmpty) 'visitNotes': visitNotes,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      },
+    );
+  }
+
+  // New: update my live location (for vets/riders)
+  Future<Response> updateMyLiveLocation({
+    required double lat,
+    required double lng,
+  }) async {
+    return await _dio.patch(
+      '/users/me/location',
+      data: {
+        'lat': lat,
+        'lng': lng,
+      },
+    );
   }
 }

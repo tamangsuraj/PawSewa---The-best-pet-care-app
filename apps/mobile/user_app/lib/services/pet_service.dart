@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
@@ -40,7 +41,9 @@ class PetService {
 
       throw Exception('Failed to load pets');
     } catch (e) {
-      print('Error fetching pets: $e');
+      if (kDebugMode) {
+        debugPrint('Error fetching pets: $e');
+      }
       rethrow;
     }
   }
@@ -127,7 +130,9 @@ class PetService {
 
       throw Exception('Failed to create pet: ${response.body}');
     } catch (e) {
-      print('Error creating pet: $e');
+      if (kDebugMode) {
+        debugPrint('Error creating pet: $e');
+      }
       rethrow;
     }
   }
@@ -215,7 +220,9 @@ class PetService {
 
       throw Exception('Failed to update pet: ${response.body}');
     } catch (e) {
-      print('Error updating pet: $e');
+      if (kDebugMode) {
+        debugPrint('Error updating pet: $e');
+      }
       rethrow;
     }
   }
@@ -236,7 +243,9 @@ class PetService {
         throw Exception('Failed to delete pet');
       }
     } catch (e) {
-      print('Error deleting pet: $e');
+      if (kDebugMode) {
+        debugPrint('Error deleting pet: $e');
+      }
       rethrow;
     }
   }

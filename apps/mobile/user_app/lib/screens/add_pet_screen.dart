@@ -368,7 +368,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _selectedSpecies,
+                  initialValue: _selectedSpecies,
                   hint: Text(
                     'Select species',
                     style: TextStyle(color: Colors.grey[400]),
@@ -521,7 +521,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                           ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: _selectedGender,
+                            initialValue: _selectedGender,
                             hint: Text(
                               'Select',
                               style: TextStyle(color: Colors.grey[400]),

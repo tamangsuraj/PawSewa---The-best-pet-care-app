@@ -119,21 +119,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final shortest = size.width < size.height ? size.width : size.height;
+    final padding = (size.width * 0.06).clamp(16.0, 28.0);
+    final logoSize = (shortest * 0.22).clamp(72.0, 120.0);
     return Scaffold(
       backgroundColor: const Color(AppConstants.secondaryColor),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding * 1.2),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   // Logo/Icon with Medical Theme
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: logoSize,
+                    height: logoSize,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -146,22 +151,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                          color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                           blurRadius: 15,
                           offset: const Offset(0, 5),
                         ),
                       ],
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.medical_services,
-                      size: 50,
+                      size: logoSize * 0.5,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // App Name
-                  Text(
+                  SizedBox(height: size.height * 0.025),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
                     AppConstants.appName,
                     style: GoogleFonts.poppins(
                       fontSize: 32,
@@ -169,7 +174,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: const Color(AppConstants.primaryColor),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  ),
+                  SizedBox(height: size.height * 0.01),
                   Text(
                     'Partner Portal',
                     style: GoogleFonts.poppins(
@@ -178,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  SizedBox(height: size.height * 0.04),
                   
                   // Email Field
                   TextFormField(
@@ -196,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
-                          color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                          color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
@@ -219,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: size.height * 0.02),
                   
                   // Password Field
                   TextFormField(
@@ -246,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(
-                          color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                          color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
@@ -266,16 +272,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: size.height * 0.03),
                   
                   // Login Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(AppConstants.primaryColor),
+                        padding: EdgeInsets.symmetric(
+                          vertical: (size.height * 0.018).clamp(16.0, 24.0),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -293,16 +301,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  SizedBox(height: size.height * 0.025),
                   
                   // Info Text
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(AppConstants.primaryColor).withOpacity(0.05),
+                      color: const Color(AppConstants.primaryColor).withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                        color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                       ),
                     ),
                     child: Row(

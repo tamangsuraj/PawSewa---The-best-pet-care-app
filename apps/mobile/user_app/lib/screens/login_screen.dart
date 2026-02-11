@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _storage = StorageService();
   final _googleAuth = GoogleAuthService();
   final _permissionService = PermissionService();
-  
+
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
@@ -85,9 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Login failed';
-        
+
         // Check if error is about unverified email
-        if (e.toString().contains('verify your email') || 
+        if (e.toString().contains('verify your email') ||
             e.toString().contains('403')) {
           // Redirect to OTP verification screen
           Navigator.of(context).push(
@@ -100,24 +100,25 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           return;
         }
-        
+
         // Provide helpful error messages
-        if (e.toString().contains('connection timeout') || 
+        if (e.toString().contains('connection timeout') ||
             e.toString().contains('SocketException')) {
-          errorMessage = 'Cannot connect to server.\n'
+          errorMessage =
+              'Cannot connect to server.\n'
               'Make sure:\n'
               '1. Your phone and computer are on the same WiFi\n'
               '2. Backend is running on ${AppConstants.baseUrl}\n'
               '3. Windows Firewall allows port 3000';
-        } else if (e.toString().contains('401') || 
-                   e.toString().contains('Invalid credentials')) {
+        } else if (e.toString().contains('401') ||
+            e.toString().contains('Invalid credentials')) {
           errorMessage = 'Invalid email or password';
         } else if (e.toString().contains('404')) {
           errorMessage = 'Server endpoint not found';
         } else {
           errorMessage = 'Error: ${e.toString()}';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -138,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final result = await _googleAuth.signInWithGoogle();
-      
+
       if (result == null) {
         // User cancelled
         return;
@@ -179,15 +180,16 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Google Sign-In failed';
-        
-        if (e.toString().contains('connection timeout') || 
+
+        if (e.toString().contains('connection timeout') ||
             e.toString().contains('SocketException')) {
-          errorMessage = 'Cannot connect to server.\n'
+          errorMessage =
+              'Cannot connect to server.\n'
               'Make sure backend is running on ${AppConstants.baseUrl}';
         } else {
           errorMessage = 'Error: ${e.toString()}';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -205,43 +207,51 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final shortest = size.width < size.height ? size.width : size.height;
+    final padding = (size.width * 0.06).clamp(16.0, 28.0);
+    final logoSize = (shortest * 0.22).clamp(72.0, 120.0);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6CA), // Secondary color
+      backgroundColor: const Color(0xFFF5E6CA),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: EdgeInsets.symmetric(
+              horizontal: padding,
+              vertical: padding * 1.2,
+            ),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo/Icon
                   Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(AppConstants.primaryColor),
+                    width: logoSize,
+                    height: logoSize,
+                    decoration: const BoxDecoration(
+                      color: Color(AppConstants.primaryColor),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.pets,
-                      size: 50,
+                      size: logoSize * 0.5,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  
-                  // App Name
-                  Text(
-                    AppConstants.appName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(AppConstants.primaryColor),
+                  SizedBox(height: size.height * 0.025),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      AppConstants.appName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(AppConstants.primaryColor),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: size.height * 0.01),
                   Text(
                     'Pet Owner Portal',
                     style: GoogleFonts.poppins(
@@ -249,8 +259,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: const Color(AppConstants.accentColor),
                     ),
                   ),
-                  const SizedBox(height: 40),
-                  
+                  SizedBox(height: size.height * 0.04),
+
                   // Email Field
                   TextFormField(
                     controller: _emailController,
@@ -274,8 +284,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
-                  
+                  SizedBox(height: size.height * 0.02),
+
                   // Password Field
                   TextFormField(
                     controller: _passwordController,
@@ -285,7 +295,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() => _obscurePassword = !_obscurePassword);
@@ -304,16 +316,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
-                  
+                  SizedBox(height: size.height * 0.03),
+
                   // Login Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(AppConstants.primaryColor),
+                        padding: EdgeInsets.symmetric(
+                          vertical: (size.height * 0.018).clamp(16.0, 24.0),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -330,17 +344,16 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
+                  SizedBox(height: size.height * 0.02),
+
                   // Register Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         'Don\'t have an account? ',
-                        style: GoogleFonts.poppins(
-                          color: Colors.black87,
-                        ),
+                        style: GoogleFonts.poppins(color: Colors.black87),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -360,8 +373,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
-                  
+                  SizedBox(height: size.height * 0.035),
+
                   // Divider
                   Row(
                     children: [
@@ -379,16 +392,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Expanded(child: Divider(thickness: 1)),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  
+                  SizedBox(height: size.height * 0.025),
+
                   // Google Sign-In Button
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
                     child: OutlinedButton.icon(
                       onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.grey, width: 1.5),
+                        padding: EdgeInsets.symmetric(
+                          vertical: (size.height * 0.018).clamp(16.0, 24.0),
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -400,10 +415,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Image.network(
-                              'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-                              height: 24,
-                              width: 24,
+                          : const Icon(
+                              Icons.g_mobiledata,
+                              size: 28,
+                              color: Colors.redAccent,
                             ),
                       label: Text(
                         'Continue with Google',

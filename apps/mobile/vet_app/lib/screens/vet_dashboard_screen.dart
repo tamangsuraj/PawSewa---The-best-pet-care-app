@@ -1,6 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../core/storage_service.dart';
 import '../core/constants.dart';
 import '../core/api_client.dart';
@@ -20,14 +25,17 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   final _apiClient = ApiClient();
   String _userName = 'Staff Member';
   String _userRole = 'veterinarian';
-  Map<String, dynamic>? _userData;
   int _newAssignmentsCount = 0;
+  int _ongoingCasesCount = 0;
   int _currentAssignmentsCount = 0;
   int _completedCasesCount = 0;
   int _totalCasesCount = 0;
   bool _isLoadingAssignments = false;
   bool _isLoadingStats = false;
   String _selectedFilter = 'today'; // today, week, 48hours, month
+
+  bool _shareLocation = false;
+  Timer? _locationTimer;
 
   @override
   void initState() {
@@ -37,18 +45,98 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     _loadStats();
   }
 
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _toggleLocationSharing(bool value) async {
+    setState(() {
+      _shareLocation = value;
+    });
+
+    _locationTimer?.cancel();
+
+    if (!value) {
+      return;
+    }
+
+    // Check location permission & services once when enabling
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location services are disabled. Please enable GPS.')),
+          );
+        }
+        setState(() {
+          _shareLocation = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied. Cannot share live location.')),
+          );
+        }
+        setState(() {
+          _shareLocation = false;
+        });
+        return;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error checking location permission: $e');
+      }
+      setState(() {
+        _shareLocation = false;
+      });
+      return;
+    }
+
+    // Periodically push current GPS position
+    _locationTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
+      try {
+        final position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
+        );
+        await _apiClient.updateMyLiveLocation(
+          lat: position.latitude,
+          lng: position.longitude,
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Failed to send live location: $e');
+        }
+      }
+    });
+  }
+
   Future<void> _loadUserData() async {
     final userDataString = await _storage.getUser();
     if (userDataString != null) {
       try {
         final userData = jsonDecode(userDataString);
         setState(() {
-          _userData = userData;
           _userName = userData['name'] ?? 'Staff Member';
           _userRole = userData['role'] ?? 'veterinarian';
         });
       } catch (e) {
-        print('Error parsing user data: $e');
+      if (kDebugMode) {
+        debugPrint('Error parsing user data: $e');
+      }
       }
     }
   }
@@ -64,13 +152,20 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       final response = await _apiClient.getMyAssignments();
       if (response.statusCode == 200) {
         final cases = response.data['data'] ?? [];
+        // Count only NEW assignments (assigned status, not yet started)
+        final newCases = cases.where((c) => c['status'] == 'assigned').length;
+        // Count ongoing cases (in_progress status)
+        final ongoingCases = cases.where((c) => c['status'] == 'in_progress').length;
         setState(() {
-          _newAssignmentsCount = cases.length;
+          _newAssignmentsCount = newCases;
+          _ongoingCasesCount = ongoingCases;
           _isLoadingAssignments = false;
         });
       }
     } catch (e) {
-      print('Error loading assignments: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading assignments: $e');
+      }
       setState(() {
         _isLoadingAssignments = false;
       });
@@ -89,9 +184,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       if (response.statusCode == 200) {
         final allCases = response.data['data'] ?? [];
         
-        // Filter based on selected time range
         final now = DateTime.now();
-        final filteredCases = allCases.where((caseData) {
+        
+        // Filter current cases (assigned + in_progress) by assignedAt
+        final currentCases = allCases.where((caseData) {
+          final status = caseData['status'];
+          if (status != 'assigned' && status != 'in_progress') return false;
+          
           final assignedAt = caseData['assignedAt'] != null 
               ? DateTime.parse(caseData['assignedAt']) 
               : null;
@@ -112,26 +211,46 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             default:
               return true;
           }
-        }).toList();
-
-        // Count by status
-        final currentCases = filteredCases.where((c) => 
-          c['status'] == 'assigned' || c['status'] == 'in_progress'
-        ).length;
+        }).length;
         
-        final completedCases = filteredCases.where((c) => 
-          c['status'] == 'completed'
-        ).length;
+        // Filter completed cases by completedAt
+        final completedCases = allCases.where((caseData) {
+          final status = caseData['status'];
+          if (status != 'completed') return false;
+          
+          final completedAt = caseData['completedAt'] != null 
+              ? DateTime.parse(caseData['completedAt']) 
+              : null;
+          
+          if (completedAt == null) return false;
+          
+          switch (_selectedFilter) {
+            case 'today':
+              return completedAt.year == now.year &&
+                     completedAt.month == now.month &&
+                     completedAt.day == now.day;
+            case '48hours':
+              return now.difference(completedAt).inHours <= 48;
+            case 'week':
+              return now.difference(completedAt).inDays <= 7;
+            case 'month':
+              return now.difference(completedAt).inDays <= 30;
+            default:
+              return true;
+          }
+        }).length;
 
         setState(() {
           _currentAssignmentsCount = currentCases;
           _completedCasesCount = completedCases;
-          _totalCasesCount = filteredCases.length;
+          _totalCasesCount = currentCases + completedCases;
           _isLoadingStats = false;
         });
       }
     } catch (e) {
-      print('Error loading stats: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading stats: $e');
+      }
       setState(() {
         _isLoadingStats = false;
       });
@@ -231,7 +350,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return [
           {'icon': Icons.person_outline, 'title': 'Edit Profile', 'subtitle': 'Update your professional profile', 'route': 'profile', 'badge': 0},
           {'icon': Icons.assignment, 'title': 'My Assignments', 'subtitle': 'View your assigned cases', 'route': 'assignments', 'badge': _newAssignmentsCount},
-          {'icon': Icons.calendar_today, 'title': 'View Schedule', 'subtitle': 'Check today\'s appointments', 'route': null, 'badge': 0},
+          {'icon': Icons.location_searching, 'title': _shareLocation ? 'Sharing Live Location' : 'Share Live Location', 'subtitle': 'Help owners track your arrival (Kathmandu only)', 'route': 'toggle_location', 'badge': 0},
         ];
       case 'shop_owner':
         return [
@@ -289,7 +408,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: EdgeInsets.all(
+            (MediaQuery.sizeOf(context).width * 0.055).clamp(12.0, 28.0),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -309,7 +430,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                      color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -323,7 +444,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
@@ -341,7 +462,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 _getRoleTitle(),
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               Text(
@@ -362,6 +483,19 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               ),
               const SizedBox(height: 32),
 
+              if (_userRole == 'veterinarian' && _isLoadingAssignments)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: const LinearProgressIndicator(
+                      minHeight: 6,
+                      color: Color(AppConstants.primaryColor),
+                      backgroundColor: Color(AppConstants.secondaryColor),
+                    ),
+                  ),
+                ),
+
               // New Assignments Alert (for veterinarian partners)
               if (_userRole == 'veterinarian' && _newAssignmentsCount > 0)
                 Container(
@@ -379,7 +513,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.red.withOpacity(0.3),
+                        color: Colors.red.withValues(alpha: 77 / 255),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -391,8 +525,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         context,
                         MaterialPageRoute(builder: (_) => const AllPetsScreen()),
                       );
-                      if (result == true || mounted) {
+                      if (!mounted) return;
+                      if (result == true) {
                         _loadNewAssignments(); // Reload after viewing
+                        _loadStats();
                       }
                     },
                     child: Row(
@@ -400,7 +536,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -426,7 +562,88 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 'You have $_newAssignmentsCount ${_newAssignmentsCount == 1 ? 'case' : 'cases'} waiting for you',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Ongoing Cases Alert (for veterinarian partners)
+              if (_userRole == 'veterinarian' && _ongoingCasesCount > 0)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.orange.shade600,
+                        Colors.orange.shade700,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withValues(alpha: 77 / 255),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: InkWell(
+                    onTap: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AllPetsScreen()),
+                      );
+                      if (result == true || mounted) {
+                        _loadNewAssignments();
+                        _loadStats();
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.pending_actions,
+                            color: Colors.white,
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Ongoing Cases',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                'You have $_ongoingCasesCount ${_ongoingCasesCount == 1 ? 'case' : 'cases'} in progress',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                             ],
@@ -590,6 +807,19 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               ),
               const SizedBox(height: 16),
 
+              if (_userRole == 'veterinarian' && _isLoadingStats)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: const LinearProgressIndicator(
+                      minHeight: 6,
+                      color: Color(AppConstants.primaryColor),
+                      backgroundColor: Color(AppConstants.secondaryColor),
+                    ),
+                  ),
+                ),
+
               // Stats Grid
               GridView.count(
                 shrinkWrap: true,
@@ -646,6 +876,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         if (result == true || mounted) {
                           _loadNewAssignments(); // Reload after viewing
                         }
+                      } else if (route == 'toggle_location') {
+                        await _toggleLocationSharing(!_shareLocation);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Feature coming soon!')),
@@ -654,7 +886,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     },
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -675,7 +907,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -724,7 +956,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -738,7 +970,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(AppConstants.primaryColor).withOpacity(0.1),
+                    color: const Color(AppConstants.primaryColor).withValues(alpha: 26 / 255),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(

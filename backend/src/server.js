@@ -1,6 +1,9 @@
 // Load environment variables FIRST
 require('dotenv').config();
 
+const { execSync } = require('child_process');
+const os = require('os');
+
 // Core dependencies
 const express = require('express');
 const mongoose = require('mongoose');
@@ -23,6 +26,8 @@ const vetRoutes = require('./routes/vetRoutes');
 const authRoutes = require('./routes/authRoutes');
 const caseRoutes = require('./routes/caseRoutes');
 const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const locationRoutes = require('./routes/locationRoutes');
 
 // Models (for testing endpoints)
 const User = require('./models/User');
@@ -108,6 +113,8 @@ app.use('/api/v1/vets', vetRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/service-requests', serviceRequestRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/location', locationRoutes);
 
 // Health Check & Diagnostics
 app.get('/api/v1/health', (req, res) => {
@@ -174,6 +181,20 @@ app.use(errorHandler);
 // ============================================
 // START SERVER
 // ============================================
+
+// On Windows, try to allow port 3000 so Android emulator (10.0.2.2) can connect. Requires admin once.
+function tryAllowWindowsFirewall() {
+  if (os.platform() !== 'win32') return;
+  try {
+    execSync('netsh advfirewall firewall delete rule name="PawSewa Backend"', { stdio: 'ignore', timeout: 2000 });
+    execSync('netsh advfirewall firewall add rule name="PawSewa Backend" dir=in action=allow protocol=TCP localport=3000', { stdio: 'ignore', timeout: 2000 });
+    console.log('🔥 Firewall: port 3000 allowed for emulator.');
+  } catch (_) {
+    console.log('💡 If Android emulator cannot connect, run as Administrator: backend/scripts/allow-port-3000.bat');
+  }
+}
+
+tryAllowWindowsFirewall();
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);

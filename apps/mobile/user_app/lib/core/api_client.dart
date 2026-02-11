@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'constants.dart';
 import 'storage_service.dart';
 
@@ -16,8 +17,8 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConstants.baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -31,12 +32,12 @@ class ApiClient {
         onRequest: (options, handler) async {
           // Get token from secure storage
           final token = await _storage.getToken();
-          
+
           if (token != null && token.isNotEmpty) {
             // Attach Bearer token to Authorization header
             options.headers['Authorization'] = 'Bearer $token';
           }
-          
+
           return handler.next(options);
         },
         onError: (error, handler) async {
@@ -46,7 +47,7 @@ class ApiClient {
             await _storage.clearAll();
             // You can add navigation to login here if needed
           }
-          
+
           return handler.next(error);
         },
       ),
@@ -58,7 +59,11 @@ class ApiClient {
         requestBody: true,
         responseBody: true,
         error: true,
-        logPrint: (obj) => print('[API] $obj'),
+        logPrint: (obj) {
+          if (kDebugMode) {
+            debugPrint('[API] $obj');
+          }
+        },
       ),
     );
   }
@@ -67,19 +72,13 @@ class ApiClient {
   Future<Response> login(String email, String password) async {
     return await _dio.post(
       '/users/login',
-      data: {
-        'email': email,
-        'password': password,
-      },
+      data: {'email': email, 'password': password},
     );
   }
 
   // Register
   Future<Response> register(Map<String, dynamic> userData) async {
-    return await _dio.post(
-      '/users',
-      data: userData,
-    );
+    return await _dio.post('/users', data: userData);
   }
 
   // Get user profile
@@ -113,8 +112,12 @@ class ApiClient {
   }
 
   // Get pets
-  Future<Response> getPets() async {
+  Future<Response> getMyPets() async {
     return await _dio.get('/pets/my-pets');
+  }
+
+  Future<Response> getPets() async {
+    return await getMyPets();
   }
 
   // Create case (request assistance)
@@ -125,5 +128,20 @@ class ApiClient {
   // Get my cases
   Future<Response> getMyCases() async {
     return await _dio.get('/cases/my/requests');
+  }
+
+  // Create service request (OSM-enabled flow)
+  Future<Response> createServiceRequest(Map<String, dynamic> data) async {
+    return await _dio.post('/service-requests', data: data);
+  }
+
+  // Get my service requests
+  Future<Response> getMyServiceRequests() async {
+    return await _dio.get('/service-requests/my/requests');
+  }
+
+  // Live tracking for a specific service request
+  Future<Response> getServiceRequestLive(String requestId) async {
+    return await _dio.get('/service-requests/$requestId/live');
   }
 }

@@ -29,12 +29,17 @@ const createCase = asyncHandler(async (req, res) => {
     throw new Error('You can only create cases for your own pets');
   }
 
-  // Create case
+  // Case model expects location as string; app may send { address, coordinates }
+  const locationStr =
+    typeof location === 'string'
+      ? location
+      : (location && location.address) || JSON.stringify(location || {});
+
   const newCase = await Case.create({
     customer: req.user._id,
     pet: petId,
     issueDescription,
-    location,
+    location: locationStr,
     status: 'pending',
   });
 
@@ -137,9 +142,9 @@ const getMyAssignments = asyncHandler(async (req, res) => {
     throw new Error('Only veterinarians can access assignments');
   }
 
+  // Return ALL cases assigned to this vet (including completed)
   const cases = await Case.find({ 
-    assignedVet: req.user._id,
-    status: { $in: ['assigned', 'in_progress'] }
+    assignedVet: req.user._id
   })
     .populate('customer', 'name email phone')
     .populate('pet', 'name breed age image')

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import 'service_task_detail_screen.dart';
 
 class AllPetsScreen extends StatefulWidget {
   const AllPetsScreen({super.key});
@@ -30,7 +33,8 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     });
 
     try {
-      final response = await _apiClient.getMyAssignments();
+      // Prefer new service-request based tasks if available
+      final response = await _apiClient.getMyServiceTasks();
       if (response.statusCode == 200) {
         setState(() {
           _allCases = response.data['data'] ?? [];
@@ -67,6 +71,46 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     c['status'] == 'completed'
   ).length;
 
+  bool _hasCoordinates(Map<String, dynamic> caseData) {
+    final loc = caseData['location'];
+    if (loc is Map && loc['coordinates'] != null) {
+      final coords = loc['coordinates'];
+      final lat = coords['lat'];
+      final lng = coords['lng'];
+      return lat != null && lng != null;
+    }
+    return false;
+  }
+
+  Future<void> _openInMaps(Map<String, dynamic> caseData) async {
+    final loc = caseData['location'];
+    if (loc is! Map || loc['coordinates'] == null) return;
+    final coords = loc['coordinates'] as Map<String, dynamic>;
+    final lat = coords['lat'] as num?;
+    final lng = coords['lng'] as num?;
+    if (lat == null || lng == null) return;
+
+    final latStr = lat.toString();
+    final lngStr = lng.toString();
+
+    // OpenStreetMap URL with marker
+    final uri = Uri.parse(
+      'https://www.openstreetmap.org/?mlat=$latStr&mlon=$lngStr#map=16/$latStr/$lngStr',
+    );
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Could not open maps app',
+            style: GoogleFonts.poppins(),
+          ),
+        ),
+      );
+    }
+  }
+
   // Calculate urgency based on how long ago the case was assigned
   String _getUrgency(Map<String, dynamic> caseData) {
     if (caseData['assignedAt'] == null) return 'normal';
@@ -86,21 +130,68 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
   }
 
   Future<void> _completeCase(String caseId) async {
+    // Open a dialog to capture visit notes before completion
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(
+            'Complete Visit',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          content: TextField(
+            controller: controller,
+            maxLines: 5,
+            decoration: InputDecoration(
+              labelText: 'Visit Notes',
+              hintText: 'Summarize diagnosis, treatment, and follow-up advice...',
+              labelStyle: GoogleFonts.poppins(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text('Cancel', style: GoogleFonts.poppins()),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(AppConstants.primaryColor),
+              ),
+              child: Text(
+                'Save & Complete',
+                style: GoogleFonts.poppins(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
     try {
-      final response = await _apiClient.completeCase(caseId);
+      final response = await _apiClient.updateServiceStatus(
+        requestId: caseId,
+        status: 'completed',
+        visitNotes: controller.text.trim(),
+      );
       if (response.statusCode == 200) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Case completed successfully!', style: GoogleFonts.poppins()),
+            content: Text('Visit completed and notes saved!', style: GoogleFonts.poppins()),
             backgroundColor: Colors.green,
           ),
         );
         _loadCases(); // Reload cases
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to complete case: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to complete visit: $e', style: GoogleFonts.poppins()),
           backgroundColor: Colors.red,
         ),
       );
@@ -109,20 +200,25 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
 
   Future<void> _startCase(String caseId) async {
     try {
-      final response = await _apiClient.startCase(caseId);
+      final response = await _apiClient.updateServiceStatus(
+        requestId: caseId,
+        status: 'in_progress',
+      );
       if (response.statusCode == 200) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Case started!', style: GoogleFonts.poppins()),
+            content: Text('Visit started!', style: GoogleFonts.poppins()),
             backgroundColor: Colors.blue,
           ),
         );
         _loadCases(); // Reload cases
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start case: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to start visit: $e', style: GoogleFonts.poppins()),
           backgroundColor: Colors.red,
         ),
       );
@@ -316,9 +412,9 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 26 / 255),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 77 / 255)),
       ),
       child: Column(
         children: [
@@ -403,7 +499,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
 
   Widget _buildCaseCard(Map<String, dynamic> caseData) {
     final pet = caseData['pet'];
-    final customer = caseData['customer'];
+    final owner = caseData['user'];
     final status = caseData['status'] ?? 'pending';
     final urgency = _getUrgency(caseData);
 
@@ -452,25 +548,38 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       }
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: urgencyColor != null 
-            ? Border.all(color: urgencyColor, width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: urgencyColor?.withOpacity(0.2) ?? Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () async {
+        final refreshed = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ServiceTaskDetailScreen(task: caseData),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        );
+        if (refreshed == true) {
+          _loadCases();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: urgencyColor != null
+              ? Border.all(color: urgencyColor, width: 2)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: urgencyColor?.withValues(alpha: 0.2) ?? Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Urgency Alert Banner (if urgent)
@@ -479,7 +588,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: urgencyColor.withOpacity(0.1),
+                  color: urgencyColor.withValues(alpha: 26 / 255),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: urgencyColor, width: 2),
                 ),
@@ -518,7 +627,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withValues(alpha: 26 / 255),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -539,7 +648,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: const Color(AppConstants.primaryColor).withOpacity(0.1),
+                    color: const Color(AppConstants.primaryColor).withValues(alpha: 26 / 255),
                     borderRadius: BorderRadius.circular(12),
                     image: pet?['image'] != null
                         ? DecorationImage(
@@ -583,7 +692,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Customer Info
+            // Owner Info
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -598,7 +707,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       const Icon(Icons.person, size: 16, color: Color(AppConstants.primaryColor)),
                       const SizedBox(width: 8),
                       Text(
-                        customer?['name'] ?? 'Unknown',
+                        owner?['name'] ?? 'Unknown',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -606,14 +715,14 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       ),
                     ],
                   ),
-                  if (customer?['phone'] != null) ...[
+                  if (owner?['phone'] != null) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         const Icon(Icons.phone, size: 16, color: Color(AppConstants.primaryColor)),
                         const SizedBox(width: 8),
                         Text(
-                          customer['phone'],
+                          owner['phone'],
                           style: GoogleFonts.poppins(fontSize: 13),
                         ),
                       ],
@@ -624,9 +733,9 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Issue Description
+            // Issue / notes
             Text(
-              'Issue:',
+              'Notes:',
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -635,7 +744,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              caseData['issueDescription'] ?? 'No description',
+              caseData['notes'] ?? 'No description',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: Colors.grey[800],
@@ -643,18 +752,45 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Location
+            // Location (address + optional "Open in Maps")
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.location_on, size: 16, color: Color(AppConstants.primaryColor)),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(
-                    caseData['location'] ?? 'No location',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        (caseData['location'] is Map && caseData['location']?['address'] != null)
+                            ? caseData['location']['address'] as String
+                            : (caseData['location']?.toString() ?? 'No location'),
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (_hasCoordinates(caseData))
+                        TextButton.icon(
+                          onPressed: () => _openInMaps(caseData),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.map, size: 16, color: Color(AppConstants.primaryColor)),
+                          label: Text(
+                            'Open in Maps',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: const Color(AppConstants.primaryColor),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
@@ -675,7 +811,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                     ),
                   ),
                   child: Text(
-                    'Start Case',
+                    'Start Visit',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -697,7 +833,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                     ),
                   ),
                   child: Text(
-                    'Mark as Complete',
+                    'Complete Visit',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -708,6 +844,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
               ),
             ],
           ],
+        ),
         ),
       ),
     );

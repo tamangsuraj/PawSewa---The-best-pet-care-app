@@ -54,6 +54,15 @@ dependencies:
   # HTTP for Cloudinary upload
   http: ^1.2.0
 
+  # Deep links / external maps
+  url_launcher: ^6.2.6
+  # GPS location (for live tracking & background-aware updates)
+  geolocator: ^13.0.1
+  permission_handler: ^11.3.1
+  # Maps & coordinates (OpenStreetMap)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -76,10 +85,12 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
+  # Map / staff icons
+  # When you add custom PNG/SVG markers, list them here, for example:
   # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  #   - assets/icons/vet.png
+  #   - assets/icons/rider_box.png
+  #   - assets/icons/paw_customer.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

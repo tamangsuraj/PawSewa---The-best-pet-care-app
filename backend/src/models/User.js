@@ -123,6 +123,13 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    liveLocation: {
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+      updatedAt: { type: Date },
+    },
     otp: {
       type: String,
     },

@@ -1,8 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:dio/dio.dart';
+
 import '../core/api_client.dart';
-import '../core/storage_service.dart';
 import '../core/constants.dart';
 
 class RequestAssistanceScreen extends StatefulWidget {
@@ -15,14 +17,33 @@ class RequestAssistanceScreen extends StatefulWidget {
 class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _apiClient = ApiClient();
-  final _storage = StorageService();
   final _issueController = TextEditingController();
-  final _locationController = TextEditingController();
+  final _locationDetailsController = TextEditingController();
 
   List<dynamic> _pets = [];
   String? _selectedPetId;
   bool _isLoading = false;
   bool _loadingPets = true;
+
+  // Map / geofencing state
+  final MapController _mapController = MapController();
+  LatLng _mapCenter = const LatLng(27.7, 85.32);
+  LatLng? _confirmedLatLng;
+  String? _confirmedAddress;
+  String? _geoWarning;
+  bool _isConfirmingLocation = false;
+
+  static const double _minLat = 27.55;
+  static const double _maxLat = 27.82;
+  static const double _minLng = 85.18;
+  static const double _maxLng = 85.55;
+
+  bool get _isInsideKathmandu {
+    final LatLng pos = _confirmedLatLng ?? _mapCenter;
+    final lat = pos.latitude;
+    final lng = pos.longitude;
+    return lat >= _minLat && lat <= _maxLat && lng >= _minLng && lng <= _maxLng;
+  }
 
   @override
   void initState() {
@@ -33,7 +54,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
   @override
   void dispose() {
     _issueController.dispose();
-    _locationController.dispose();
+    _locationDetailsController.dispose();
     super.dispose();
   }
 
@@ -54,6 +75,57 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
     }
   }
 
+  Future<void> _confirmLocation() async {
+    setState(() {
+      _isConfirmingLocation = true;
+      _geoWarning = null;
+    });
+
+    try {
+      final lat = _mapCenter.latitude;
+      final lng = _mapCenter.longitude;
+
+      final dio = Dio();
+      final response = await dio.get(
+        'https://nominatim.openstreetmap.org/reverse',
+        queryParameters: {
+          'format': 'jsonv2',
+          'lat': lat,
+          'lon': lng,
+        },
+        options: Options(
+          headers: const {
+            'User-Agent': 'PawSewa Mobile App (pawsewa.app)',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final displayName = response.data['display_name'] as String?;
+        setState(() {
+          _confirmedLatLng = LatLng(lat, lng);
+          _confirmedAddress = displayName ?? 'Pinned location ($lat, $lng)';
+          if (!_isInsideKathmandu) {
+            _geoWarning =
+                'This location appears to be outside Kathmandu Valley. Emergency service may not be available.';
+          } else {
+            _geoWarning = null;
+          }
+        });
+      } else {
+        _showError('Failed to confirm location. Please try again.');
+      }
+    } catch (e) {
+      _showError('Failed to confirm location: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isConfirmingLocation = false;
+        });
+      }
+    }
+  }
+
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -64,15 +136,36 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
       return;
     }
 
+    if (_confirmedLatLng == null || _confirmedAddress == null || _confirmedAddress!.isEmpty) {
+      _showError('Please confirm your location on the map.');
+      return;
+    }
+
+    if (!_isInsideKathmandu) {
+      _showError('Emergency assistance is currently limited to Kathmandu Valley.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      final extraLocationDetails = _locationDetailsController.text.trim();
+      final combinedAddress = extraLocationDetails.isEmpty
+          ? _confirmedAddress!
+          : '${_confirmedAddress!}\nDetails: $extraLocationDetails';
+
       final response = await _apiClient.createCase({
         'petId': _selectedPetId,
         'issueDescription': _issueController.text.trim(),
-        'location': _locationController.text.trim(),
+        'location': {
+          'address': combinedAddress,
+          'coordinates': {
+            'lat': _confirmedLatLng!.latitude,
+            'lng': _confirmedLatLng!.longitude,
+          },
+        },
       });
 
       if (response.statusCode == 201) {
@@ -284,7 +377,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: DropdownButtonFormField<String>(
-                            value: _selectedPetId,
+                            initialValue: _selectedPetId,
                             decoration: InputDecoration(
                               prefixIcon: const Icon(
                                 Icons.pets,
@@ -322,7 +415,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                                         height: 32,
                                         decoration: BoxDecoration(
                                           color: const Color(AppConstants.primaryColor)
-                                              .withOpacity(0.1),
+                                              .withValues(alpha: 26 / 255),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: const Icon(
@@ -411,9 +504,9 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Location
+                        // Location with map pin + extra details
                         Text(
-                          'Your Location',
+                          'Your Location (Kathmandu Valley)',
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -421,14 +514,161 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        SizedBox(
+                          height: 260,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(
+                              children: [
+                                FlutterMap(
+                                  mapController: _mapController,
+                                  options: MapOptions(
+                                    initialCenter: _mapCenter,
+                                    initialZoom: 13,
+                                    onPositionChanged: (pos, hasGesture) {
+                                      final center = pos.center;
+                                      setState(() {
+                                        _mapCenter = center;
+                                      });
+                                    },
+                                  ),
+                                  children: [
+                                    TileLayer(
+                                      urlTemplate:
+                                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                      subdomains: const ['a', 'b', 'c'],
+                                      userAgentPackageName: 'com.pawsewa.user_app',
+                                    ),
+                                    if (_confirmedLatLng != null)
+                                      MarkerLayer(
+                                        markers: [
+                                          Marker(
+                                            point: _confirmedLatLng!,
+                                            width: 30,
+                                            height: 30,
+                                            child: const Icon(
+                                              Icons.location_on,
+                                              color: Color(AppConstants.primaryColor),
+                                              size: 30,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                                // Fixed center pin
+                                IgnorePointer(
+                                  child: Center(
+                                    child: Transform.translate(
+                                      offset: const Offset(0, -18),
+                                      child: Icon(
+                                        Icons.location_on,
+                                        color: const Color(AppConstants.primaryColor),
+                                        size: 34,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pan the map to move the pin, then confirm to lock the address.',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: Colors.grey[800],
+                                    ),
+                                  ),
+                                  if (_confirmedAddress != null &&
+                                      _confirmedAddress!.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Selected: $_confirmedAddress',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: Colors.grey[900],
+                                        ),
+                                      ),
+                                    ),
+                                  if (_geoWarning != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        _geoWarning!,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: Colors.red[700],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed:
+                                  _isConfirmingLocation ? null : _confirmLocation,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    const Color(AppConstants.primaryColor),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: _isConfirmingLocation
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.check),
+                              label: Text(
+                                'Confirm',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Extra location details (optional)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         TextFormField(
-                          controller: _locationController,
+                          controller: _locationDetailsController,
+                          maxLines: 2,
                           style: GoogleFonts.poppins(),
                           decoration: InputDecoration(
-                            hintText: 'Enter your address',
+                            hintText: 'Apartment, landmark, entrance instructions...',
                             hintStyle: GoogleFonts.poppins(color: Colors.grey[400]),
                             prefixIcon: const Icon(
-                              Icons.location_on,
+                              Icons.notes,
                               color: Color(AppConstants.primaryColor),
                             ),
                             filled: true,
@@ -438,12 +678,6 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter your location';
-                            }
-                            return null;
-                          },
                         ),
                         const SizedBox(height: 32),
 

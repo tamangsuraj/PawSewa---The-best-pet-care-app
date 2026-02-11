@@ -198,6 +198,47 @@ const verifyOTP = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Update live location for staff (vet, rider, etc.)
+ * @route   PATCH /api/v1/users/me/location
+ * @access  Private (non-pet_owner)
+ */
+const updateMyLiveLocation = asyncHandler(async (req, res) => {
+  const { lat, lng } = req.body;
+
+  if (typeof lat !== 'number' || typeof lng !== 'number') {
+    res.status(400);
+    throw new Error('Latitude and longitude are required and must be numbers');
+  }
+
+  if (!req.user || ['pet_owner'].includes(req.user.role)) {
+    res.status(403);
+    throw new Error('Only staff accounts can update live location');
+  }
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  user.liveLocation = {
+    coordinates: { lat, lng },
+    updatedAt: new Date(),
+  };
+
+  await user.save();
+
+  res.json({
+    success: true,
+    data: {
+      coordinates: user.liveLocation.coordinates,
+      updatedAt: user.liveLocation.updatedAt,
+    },
+  });
+});
+
+/**
  * @desc    Resend OTP
  * @route   POST /api/v1/users/resend-otp
  * @access  Public
@@ -683,4 +724,5 @@ module.exports = {
   getUserById,
   getUserFullProfile,
   updateStaffProfile,
+  updateMyLiveLocation,
 };

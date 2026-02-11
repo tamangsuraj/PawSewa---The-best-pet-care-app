@@ -32,6 +32,10 @@ router.route('/profile')
 // Staff routes (Veterinarian)
 router.put('/staff/profile', protect, updateStaffProfile);
 
+// Live location updates (staff / riders)
+const { updateMyLiveLocation } = require('../controllers/userController');
+router.patch('/me/location', protect, updateMyLiveLocation);
+
 // Admin routes
 router.get('/admin/stats', protect, admin, getDashboardStats);
 router.post('/admin/create', protect, admin, adminCreateUser); // Admin creates any role

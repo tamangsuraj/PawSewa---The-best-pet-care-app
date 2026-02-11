@@ -472,10 +472,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Image.network(
-                              'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-                              height: 24,
-                              width: 24,
+                          : const Icon(
+                              Icons.g_mobiledata,
+                              size: 28,
+                              color: Colors.redAccent,
                             ),
                       label: Text(
                         'Continue with Google',

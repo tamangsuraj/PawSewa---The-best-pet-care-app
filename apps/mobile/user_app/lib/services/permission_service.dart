@@ -16,6 +16,7 @@ class PermissionService {
     }
 
     if (status.isDenied) {
+      if (!context.mounted) return false;
       // Show custom dialog explaining why we need permission
       final shouldRequest = await _showPermissionDialog(context);
       
@@ -29,6 +30,7 @@ class PermissionService {
     }
 
     if (status.isPermanentlyDenied) {
+      if (!context.mounted) return false;
       // Show dialog to open app settings
       await _showSettingsDialog(context);
       return false;
@@ -51,7 +53,7 @@ class PermissionService {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF703418).withOpacity(0.1),
+                  color: const Color(0xFF703418).withValues(alpha: 26 / 255),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -71,7 +72,9 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         });
       }
     } catch (e) {
-      print('Error loading profile: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading profile: $e');
+      }
     }
   }
 
@@ -109,7 +112,9 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         return jsonData['secure_url'];
       }
     } catch (e) {
-      print('Cloudinary upload error: $e');
+      if (kDebugMode) {
+        debugPrint('Cloudinary upload error: $e');
+      }
     }
     return null;
   }
@@ -226,7 +231,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     children: [
                       CircleAvatar(
                         radius: 60,
-                        backgroundColor: const Color(AppConstants.primaryColor).withOpacity(0.1),
+                        backgroundColor: const Color(AppConstants.primaryColor).withValues(alpha: 26 / 255),
                         backgroundImage: _selectedImage != null
                             ? FileImage(_selectedImage!)
                             : (_profilePictureUrl != null ? NetworkImage(_profilePictureUrl!) : null) as ImageProvider?,
@@ -290,10 +295,10 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(AppConstants.primaryColor).withOpacity(0.05),
+                  color: const Color(AppConstants.primaryColor).withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(AppConstants.primaryColor).withOpacity(0.3),
+                    color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                   ),
                 ),
                 child: Row(
@@ -393,7 +398,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: DropdownButtonFormField<String>(
-        value: _selectedSpecialty,
+        initialValue: _selectedSpecialty,
         decoration: InputDecoration(
           labelText: 'Specialty',
           labelStyle: GoogleFonts.poppins(),
