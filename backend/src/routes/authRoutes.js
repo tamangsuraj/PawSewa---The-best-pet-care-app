@@ -3,9 +3,17 @@ const router = express.Router();
 const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { loginUser } = require('../controllers/userController');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Email/password login alias for mobile/web clients
+// @route   POST /api/v1/auth/login
+// @desc    Proxy to regular loginUser controller
+// @access  Public
+router.post('/login', loginUser);
+
+// Google OAuth login
 // @route   POST /api/v1/auth/google
 // @desc    Google OAuth authentication
 // @access  Public

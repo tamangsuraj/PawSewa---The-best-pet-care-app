@@ -229,6 +229,23 @@ const updateMyLiveLocation = asyncHandler(async (req, res) => {
 
   await user.save();
 
+  // Emit staff_moved to each request room where this staff is assigned
+  const io = require('../sockets/socketStore').getIO();
+  if (io) {
+    const ServiceRequest = require('../models/ServiceRequest');
+    const requests = await ServiceRequest.find({
+      assignedStaff: req.user._id,
+      status: { $in: ['assigned', 'in_progress'] },
+    }).select('_id user').lean();
+    for (const r of requests) {
+      io.to('request:' + r._id.toString()).emit('staff_moved', {
+        requestId: r._id.toString(),
+        coordinates: { lat, lng },
+        updatedAt: user.liveLocation.updatedAt,
+      });
+    }
+  }
+
   res.json({
     success: true,
     data: {

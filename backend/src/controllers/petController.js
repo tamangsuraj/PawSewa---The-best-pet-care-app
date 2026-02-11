@@ -75,6 +75,7 @@ const createPet = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getMyPets = asyncHandler(async (req, res) => {
+  console.log('[Pets] /api/v1/pets/my-pets request at', new Date().toISOString(), 'user:', req.user?._id?.toString());
   const pets = await Pet.find({ owner: req.user._id }).sort({ createdAt: -1 });
 
   res.json({

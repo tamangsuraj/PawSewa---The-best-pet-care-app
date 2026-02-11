@@ -13,6 +13,9 @@ const {
   getServiceRequestStats,
   getServiceRequestLive,
   updateServiceRequestStatus,
+  getRequestMessages,
+  submitReview,
+  getPrescription,
 } = require('../controllers/serviceRequestController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -36,5 +39,8 @@ router.patch('/:id/assign', protect, admin, assignServiceRequest); // Assign req
 // Request details (accessible by owner, assigned staff, or admin)
 router.get('/:id', protect, getServiceRequestById);
 router.get('/:id/live', protect, getServiceRequestLive);
+router.get('/:id/messages', protect, getRequestMessages);
+router.post('/:id/review', protect, submitReview);
+router.get('/:id/prescription', protect, getPrescription);
 
 module.exports = router;

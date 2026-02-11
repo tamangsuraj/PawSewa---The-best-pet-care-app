@@ -9,50 +9,71 @@ const asyncHandler = require('express-async-handler');
  * @access  Private (Pet Owner)
  */
 const createCase = asyncHandler(async (req, res) => {
-  const { petId, issueDescription, location } = req.body;
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  console.log('New Request from', userAgent + ':', JSON.stringify(req.body || {}, null, 2));
 
-  // Validate required fields
-  if (!petId || !issueDescription || !location) {
-    res.status(400);
-    throw new Error('Please provide pet, issue description, and location');
+  const body = req.body || {};
+  // Accept both camelCase (website) and snake_case (some clients)
+  const petId = body.petId ?? body.pet_id;
+  const issueDescription = body.issueDescription ?? body.issue_description;
+  const location = body.location;
+
+  if (!petId || !issueDescription || location == null || (typeof location === 'string' && location.trim() === '')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide pet, issue description, and location',
+    });
   }
 
-  // Verify pet belongs to user
   const pet = await Pet.findById(petId);
   if (!pet) {
-    res.status(404);
-    throw new Error('Pet not found');
+    return res.status(404).json({ success: false, message: 'Pet not found' });
   }
 
   if (pet.owner.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error('You can only create cases for your own pets');
+    return res.status(403).json({ success: false, message: 'You can only create cases for your own pets' });
   }
 
-  // Case model expects location as string; app may send { address, coordinates }
   const locationStr =
     typeof location === 'string'
-      ? location
-      : (location && location.address) || JSON.stringify(location || {});
+      ? location.trim()
+      : (location && typeof location === 'object' && location.address != null)
+        ? String(location.address)
+        : JSON.stringify(location || {});
 
-  const newCase = await Case.create({
-    customer: req.user._id,
-    pet: petId,
-    issueDescription,
-    location: locationStr,
-    status: 'pending',
-  });
+  try {
+    const newCase = await Case.create({
+      customer: req.user._id,
+      pet: petId,
+      issueDescription: String(issueDescription),
+      location: locationStr,
+      status: 'pending',
+    });
 
-  // Populate pet and customer data
-  const populatedCase = await Case.findById(newCase._id)
-    .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image');
+    const populatedCase = await Case.findById(newCase._id)
+      .populate('customer', 'name email phone')
+      .populate('pet', 'name breed age image');
 
-  res.status(201).json({
-    success: true,
-    message: 'Case submitted! Our team is assigning the best available Veterinarian to you.',
-    data: populatedCase,
-  });
+    console.log('[POST /cases] Created case', newCase._id, 'for user', req.user._id);
+    return res.status(201).json({
+      success: true,
+      message: 'Case submitted! Our team is assigning the best available Veterinarian to you.',
+      data: populatedCase,
+    });
+  } catch (error) {
+    console.error('[POST /cases] error:', error?.message ?? error);
+    console.error('[POST /cases] stack:', error?.stack);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ success: false, message: error.message || 'Validation failed' });
+    }
+    if (error.name === 'CastError') {
+      return res.status(400).json({ success: false, message: 'Invalid data format' });
+    }
+    return res.status(500).json({
+      success: false,
+      message: 'Could not create case. Please try again.',
+    });
+  }
 });
 
 /**

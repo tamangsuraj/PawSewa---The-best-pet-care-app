@@ -1,8 +1,15 @@
 class AppConstants {
-  // API Configuration for Physical Device
-  // Use your computer's local IP address (192.168.1.8)
-  // For emulator, use: 10.0.2.2
-  static const String baseUrl = "http://192.168.1.8:3000/api/v1";
+  // API Configuration
+  //
+  // Use the SAME host as the customer app so both hit the same backend.
+  // - Physical device: your PC's LAN IP (example: 192.168.1.5)
+  // - Android emulator: use 10.0.2.2 to reach host machine's localhost
+  static const bool kUseEmulator = false;
+  static const String _host = "192.168.1.5"; // your PC IP (same Wi‑Fi as phone)
+
+  static const String baseUrl = kUseEmulator
+      ? "http://10.0.2.2:3000/api/v1"
+      : "http://$_host:3000/api/v1";
   
   // App Identity
   static const String appName = "PawSewa Partner";

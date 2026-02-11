@@ -9,6 +9,11 @@ class AppConstants {
       ? "http://10.0.2.2:3000/api/v1"
       : "http://$_host:3000/api/v1";
 
+  /// Socket.io server URL (same host as API, no path). Use your PC IP on device.
+  static const String socketUrl = kUseEmulator
+      ? "http://10.0.2.2:3000"
+      : "http://$_host:3000";
+
   // App Identity
   static const String appName = "PawSewa";
   static const String appRole = "pet_owner";
@@ -17,8 +22,24 @@ class AppConstants {
   static const String tokenKey = "user_auth_token";
   static const String userKey = "user_data";
 
-  // Brand Colors
-  static const int primaryColor = 0xFF703418; // Brown
-  static const int secondaryColor = 0xFFF5E6CA; // Cream
+  // Brand Colors (2026 Bento / Modern)
+  static const int primaryColor = 0xFF703418; // PawSewa Brown
+  static const int secondaryColor = 0xFFFFFFFF; // Pure white
   static const int accentColor = 0xFFA67B5B; // Light Brown
+  /// Cream/Sand background for Bento dashboards (#F5F5F1)
+  static const int bentoBackgroundColor = 0xFFF5F5F1;
+
+  /// User-facing status labels for service requests (My Services dashboard)
+  static const Map<String, String> serviceRequestStatusLabels = {
+    'pending': 'Reviewing Request',
+    'assigned': 'Staff Confirmed',
+    'in_progress': 'Service in Progress',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled',
+  };
+
+  /// Status label for display; falls back to backend value if unknown
+  static String serviceRequestStatusLabel(String status) {
+    return serviceRequestStatusLabels[status] ?? status.replaceAll('_', ' ');
+  }
 }

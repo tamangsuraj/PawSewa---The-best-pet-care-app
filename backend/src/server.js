@@ -3,10 +3,12 @@ require('dotenv').config();
 
 const { execSync } = require('child_process');
 const os = require('os');
+const http = require('http');
 
 // Core dependencies
 const express = require('express');
 const mongoose = require('mongoose');
+const { Server: SocketServer } = require('socket.io');
 
 // Security & Utility Middleware
 const helmet = require('helmet');
@@ -28,13 +30,53 @@ const caseRoutes = require('./routes/caseRoutes');
 const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const locationRoutes = require('./routes/locationRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const careRoutes = require('./routes/careRoutes');
+const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 // Models (for testing endpoints)
 const User = require('./models/User');
 
 // Initialize Express application
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
+
+// Socket.io (CORS: allow same origins as HTTP + emulator / admin)
+const io = new SocketServer(server, {
+  cors: {
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const allowed =
+        origin.startsWith('http://localhost:') ||
+        /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
+        /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
+      callback(null, allowed);
+    },
+    credentials: true,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Authorization', 'Content-Type'],
+  },
+  pingTimeout: 20000,
+  pingInterval: 10000,
+});
+
+const { socketAuthMiddleware } = require('./sockets/socketAuth');
+const { registerChatHandler } = require('./sockets/chatHandler');
+const { setIO } = require('./sockets/socketStore');
+
+io.use(socketAuthMiddleware);
+
+io.on('connection', (socket) => {
+  const userId = socket.user?._id?.toString();
+  if (userId) {
+    socket.join('user:' + userId);
+  }
+});
+
+registerChatHandler(io);
+setIO(io);
 
 // Connect to Database
 connectDB();
@@ -51,40 +93,28 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// CORS - Professional configuration (Allow mobile devices on local network)
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Allow localhost and local network IPs
-    const allowedOrigins = [
-      'http://localhost:3001',
-      'http://localhost:3002',
-      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
-      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Private network
-    ];
-    
-    const isAllowed = allowedOrigins.some(pattern => {
-      if (typeof pattern === 'string') return pattern === origin;
-      return pattern.test(origin);
-    });
-    
-    if (isAllowed || !origin) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  allowedHeaders: ['Authorization', 'Content-Type'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-};
-app.use(cors(corsOptions));
+// CORS - temporarily allow all origins to rule out connectivity issues between
+// mobile app (192.168.x.x) and web (localhost). Tighten this in production.
+app.use(
+  cors({
+    origin: '*',
+    credentials: true,
+    allowedHeaders: ['Authorization', 'Content-Type'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  })
+);
 
 // Body Parser - Parse JSON with size limit (prevent DoS attacks)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Global request logger (simple) + structured API logger
+app.use((req, res, next) => {
+  console.log(`[HTTP] ${req.method} ${req.url}`);
+  next();
+});
+const apiLogMiddleware = require('./middleware/apiLogMiddleware');
+app.use(apiLogMiddleware);
 
 // ============================================
 // ROUTES
@@ -115,6 +145,10 @@ app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/service-requests', serviceRequestRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/location', locationRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/care', careRoutes);
+app.use('/api/v1', productRoutes);
+app.use('/api/v1/orders', orderRoutes);
 
 // Health Check & Diagnostics
 app.get('/api/v1/health', (req, res) => {
@@ -126,6 +160,11 @@ app.get('/api/v1/health', (req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
   });
+});
+
+// Simple ping route to verify reachability from devices/browsers
+app.get('/api/v1/test', (req, res) => {
+  res.status(200).json({ message: 'Server is reachable!' });
 });
 
 // Legacy health check (for backward compatibility)
@@ -175,7 +214,7 @@ app.get('/api/test-db', async (req, res) => {
 // 404 Not Found Handler (must be after all routes)
 app.use(notFound);
 
-// Global Error Handler (must be last)
+// Global Error Handler (must be last) - logs err.stack to console for debugging 500s
 app.use(errorHandler);
 
 // ============================================
@@ -196,9 +235,10 @@ function tryAllowWindowsFirewall() {
 
 tryAllowWindowsFirewall();
 
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 CORS enabled for localhost and local network`);
-  console.log(`📱 Mobile devices can connect via: http://192.168.1.8:${PORT}`);
+  console.log(`🔌 Socket.io attached (JWT auth, user rooms, request chat)`);
+  console.log(`📱 Mobile devices can connect via: http://<your-ip>:${PORT}`);
 });

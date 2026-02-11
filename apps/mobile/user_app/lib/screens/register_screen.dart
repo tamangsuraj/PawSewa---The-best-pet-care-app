@@ -28,7 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _storage = StorageService();
   final _googleAuth = GoogleAuthService();
   final _permissionService = PermissionService();
-  
+
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
@@ -85,23 +85,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Registration failed';
-        
-        if (e.toString().contains('connection timeout') || 
+
+        if (e.toString().contains('connection timeout') ||
             e.toString().contains('SocketException')) {
-          errorMessage = 'Cannot connect to server.\n'
+          errorMessage =
+              'Cannot connect to server.\n'
               'Make sure:\n'
               '1. Your phone and computer are on the same WiFi\n'
               '2. Backend is running on ${AppConstants.baseUrl}\n'
               '3. Windows Firewall allows port 3000';
-        } else if (e.toString().contains('409') || 
-                   e.toString().contains('already exists')) {
+        } else if (e.toString().contains('409') ||
+            e.toString().contains('already exists')) {
           errorMessage = 'Email already registered. Please login instead.';
         } else if (e.toString().contains('400')) {
           errorMessage = 'Invalid registration data. Please check all fields.';
         } else {
           errorMessage = 'Error: ${e.toString()}';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -122,7 +123,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       final result = await _googleAuth.signInWithGoogle();
-      
+
       if (result == null) {
         // User cancelled
         return;
@@ -163,15 +164,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Google Sign-In failed';
-        
-        if (e.toString().contains('connection timeout') || 
+
+        if (e.toString().contains('connection timeout') ||
             e.toString().contains('SocketException')) {
-          errorMessage = 'Cannot connect to server.\n'
+          errorMessage =
+              'Cannot connect to server.\n'
               'Make sure backend is running on ${AppConstants.baseUrl}';
         } else {
           errorMessage = 'Error: ${e.toString()}';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
@@ -190,7 +192,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6CA), // Secondary color
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -215,7 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // App Name
                   Text(
                     AppConstants.appName,
@@ -234,7 +236,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  
+
                   // Name Field
                   TextFormField(
                     controller: _nameController,
@@ -260,7 +262,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Email Field
                   TextFormField(
                     controller: _emailController,
@@ -285,7 +287,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Phone Field (Optional)
                   TextFormField(
                     controller: _phoneController,
@@ -302,8 +304,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     validator: (value) {
                       if (value != null && value.isNotEmpty) {
-                        final cleanPhone = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-                        if (cleanPhone.length != 10 || !RegExp(r'^\d+$').hasMatch(cleanPhone)) {
+                        final cleanPhone = value.replaceAll(
+                          RegExp(r'[\s\-\(\)]'),
+                          '',
+                        );
+                        if (cleanPhone.length != 10 ||
+                            !RegExp(r'^\d+$').hasMatch(cleanPhone)) {
                           return 'Phone must be 10 digits';
                         }
                       }
@@ -311,7 +317,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Password Field
                   TextFormField(
                     controller: _passwordController,
@@ -321,7 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() => _obscurePassword = !_obscurePassword);
@@ -344,7 +352,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Confirm Password Field
                   TextFormField(
                     controller: _confirmPasswordController,
@@ -354,10 +362,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                          _obscureConfirmPassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
-                          setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
+                          setState(
+                            () => _obscureConfirmPassword =
+                                !_obscureConfirmPassword,
+                          );
                         },
                       ),
                       border: OutlineInputBorder(
@@ -377,7 +390,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Register Button
                   SizedBox(
                     width: double.infinity,
@@ -403,16 +416,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Login Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: GoogleFonts.poppins(
-                          color: Colors.black87,
-                        ),
+                        style: GoogleFonts.poppins(color: Colors.black87),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -433,7 +444,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  
+
                   // Divider
                   Row(
                     children: [
@@ -452,7 +463,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Google Sign-In Button
                   SizedBox(
                     width: double.infinity,

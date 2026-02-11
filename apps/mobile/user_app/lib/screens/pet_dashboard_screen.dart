@@ -9,13 +9,13 @@ import '../widgets/pet_card.dart';
 import 'login_screen.dart';
 import 'add_pet_screen.dart';
 import 'request_assistance_screen.dart';
-import 'my_cases_screen.dart';
-import 'my_service_requests_screen.dart';
+import 'my_requests_screen.dart';
 import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
 import 'messages/messages_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
+import '../services/socket_service.dart';
 
 class PetDashboardScreen extends StatefulWidget {
   const PetDashboardScreen({super.key});
@@ -32,6 +32,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   bool _isLoading = true;
   String _userName = 'Pet Owner';
   int _currentIndex = 0;
+  int _lastBottomBarIndex =
+      0; // when on Messages, bottom bar shows this as selected
 
   @override
   void initState() {
@@ -84,6 +86,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   }
 
   Future<void> _handleLogout() async {
+    SocketService.instance.disconnect();
     await _storage.clearAll();
     if (!mounted) return;
     Navigator.of(
@@ -226,11 +229,12 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
+      backgroundColor: Colors.white,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header: profile + Edit Profile
+            // Header: profile + Edit Profile (like reference)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               child: Row(
@@ -251,6 +255,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           _userName,
@@ -259,6 +264,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Material(
@@ -290,9 +296,10 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
               ),
             ),
             const Divider(height: 1),
-            // Menu items
-            Expanded(
+            // Menu items – scrollable to prevent overflow
+            Flexible(
               child: ListView(
+                shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
                   _drawerItem(
@@ -523,7 +530,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => const MyCasesScreen(),
+                                    builder: (_) => const MyRequestsScreen(),
                                   ),
                                 );
                               },
@@ -543,7 +550,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                                 color: Colors.white,
                               ),
                               label: Text(
-                                'My Cases',
+                                'My Requests',
                                 style: GoogleFonts.poppins(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
@@ -553,40 +560,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MyServiceRequestsScreen(),
-                              ),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            backgroundColor: Colors.white,
-                          ),
-                          icon: const Icon(
-                            Icons.medical_information,
-                            color: Color(AppConstants.primaryColor),
-                          ),
-                          label: Text(
-                            'My Service Requests',
-                            style: GoogleFonts.poppins(
-                              color: const Color(AppConstants.primaryColor),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -690,7 +663,97 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
     );
   }
 
-  bool _isNavSelected(int index) => _currentIndex == index;
+  Widget _buildBottomNavBar() {
+    const warmSurface = Color(0xFFFAF7F2);
+    const primary = Color(AppConstants.primaryColor);
+    const accent = Color(AppConstants.accentColor);
+    final navIndex = _currentIndex == 3
+        ? _lastBottomBarIndex
+        : (_currentIndex <= 2
+              ? _currentIndex
+              : _currentIndex == 4
+              ? 3
+              : 4);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: warmSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: 0.04),
+            blurRadius: 24,
+            offset: const Offset(0, -4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
+            child: BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: navIndex,
+              onTap: (index) {
+                setState(() {
+                  _lastBottomBarIndex = index;
+                  _currentIndex = index <= 2 ? index : (index == 3 ? 4 : 5);
+                });
+              },
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              selectedItemColor: primary,
+              unselectedItemColor: accent.withValues(alpha: 0.7),
+              selectedLabelStyle: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              unselectedLabelStyle: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+              showUnselectedLabels: true,
+              iconSize: 24,
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_outlined, size: 24),
+                  activeIcon: Icon(Icons.home_rounded, size: 24),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.medical_services_outlined, size: 24),
+                  activeIcon: Icon(Icons.medical_services_rounded, size: 24),
+                  label: 'Services',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.storefront_outlined, size: 24),
+                  activeIcon: Icon(Icons.storefront_rounded, size: 24),
+                  label: 'Shop',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.favorite_outline, size: 24),
+                  activeIcon: Icon(Icons.favorite_rounded, size: 24),
+                  label: 'Care',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.pets, size: 24),
+                  activeIcon: Icon(Icons.pets, size: 24),
+                  label: 'My Pets',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -728,6 +791,25 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _currentIndex == 3
+                  ? Icons.chat_bubble
+                  : Icons.chat_bubble_outline,
+              color: _currentIndex == 3
+                  ? const Color(AppConstants.primaryColor)
+                  : Colors.grey[700],
+              size: 24,
+            ),
+            onPressed: () {
+              setState(() {
+                _currentIndex = 3;
+              });
+            },
+            tooltip: 'Messages',
+          ),
+        ],
       ),
       body: _buildCurrentTab(),
       floatingActionButton: _currentIndex == 0
@@ -744,92 +826,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
               ),
             )
           : null,
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              currentIndex: _currentIndex,
-              onTap: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              selectedItemColor: const Color(AppConstants.primaryColor),
-              unselectedItemColor: Colors.grey[600],
-              selectedLabelStyle: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-              showUnselectedLabels: true,
-              items: [
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    _isNavSelected(0) ? Icons.home : Icons.home_outlined,
-                    size: 22,
-                  ),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    _isNavSelected(1)
-                        ? Icons.medical_services
-                        : Icons.medical_services_outlined,
-                    size: 22,
-                  ),
-                  label: 'Services',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    _isNavSelected(2)
-                        ? Icons.storefront
-                        : Icons.storefront_outlined,
-                    size: 22,
-                  ),
-                  label: 'Shop',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    _isNavSelected(3)
-                        ? Icons.chat_bubble
-                        : Icons.chat_bubble_outline,
-                    size: 22,
-                  ),
-                  label: 'Messages',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    _isNavSelected(4) ? Icons.favorite : Icons.favorite_outline,
-                    size: 22,
-                  ),
-                  label: 'Care',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.pets, size: 22),
-                  label: 'My Pets',
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
 }

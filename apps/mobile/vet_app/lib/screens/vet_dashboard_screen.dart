@@ -12,6 +12,8 @@ import '../core/api_client.dart';
 import 'login_screen.dart';
 import 'profile_editor_screen.dart';
 import 'all_pets_screen.dart';
+import 'service_task_detail_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class VetDashboardScreen extends StatefulWidget {
   const VetDashboardScreen({super.key});
@@ -37,12 +39,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   bool _shareLocation = false;
   Timer? _locationTimer;
 
+  List<dynamic> _serviceTasks = [];
+  bool _loadingServiceTasks = false;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _loadNewAssignments();
     _loadStats();
+    _loadServiceTasks();
   }
 
   @override
@@ -68,7 +74,11 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       if (!serviceEnabled) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location services are disabled. Please enable GPS.')),
+            const SnackBar(
+              content: Text(
+                'Location services are disabled. Please enable GPS.',
+              ),
+            ),
           );
         }
         setState(() {
@@ -86,7 +96,11 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           permission == LocationPermission.denied) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Location permission denied. Cannot share live location.')),
+            const SnackBar(
+              content: Text(
+                'Location permission denied. Cannot share live location.',
+              ),
+            ),
           );
         }
         setState(() {
@@ -134,16 +148,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           _userRole = userData['role'] ?? 'veterinarian';
         });
       } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Error parsing user data: $e');
-      }
+        if (kDebugMode) {
+          debugPrint('Error parsing user data: $e');
+        }
       }
     }
   }
 
   Future<void> _loadNewAssignments() async {
     if (_userRole != 'veterinarian') return;
-    
+
     setState(() {
       _isLoadingAssignments = true;
     });
@@ -155,7 +169,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         // Count only NEW assignments (assigned status, not yet started)
         final newCases = cases.where((c) => c['status'] == 'assigned').length;
         // Count ongoing cases (in_progress status)
-        final ongoingCases = cases.where((c) => c['status'] == 'in_progress').length;
+        final ongoingCases = cases
+            .where((c) => c['status'] == 'in_progress')
+            .length;
         setState(() {
           _newAssignmentsCount = newCases;
           _ongoingCasesCount = ongoingCases;
@@ -174,7 +190,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
 
   Future<void> _loadStats() async {
     if (_userRole != 'veterinarian') return;
-    
+
     setState(() {
       _isLoadingStats = true;
     });
@@ -183,25 +199,25 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       final response = await _apiClient.getMyAssignments();
       if (response.statusCode == 200) {
         final allCases = response.data['data'] ?? [];
-        
+
         final now = DateTime.now();
-        
+
         // Filter current cases (assigned + in_progress) by assignedAt
         final currentCases = allCases.where((caseData) {
           final status = caseData['status'];
           if (status != 'assigned' && status != 'in_progress') return false;
-          
-          final assignedAt = caseData['assignedAt'] != null 
-              ? DateTime.parse(caseData['assignedAt']) 
+
+          final assignedAt = caseData['assignedAt'] != null
+              ? DateTime.parse(caseData['assignedAt'])
               : null;
-          
+
           if (assignedAt == null) return false;
-          
+
           switch (_selectedFilter) {
             case 'today':
               return assignedAt.year == now.year &&
-                     assignedAt.month == now.month &&
-                     assignedAt.day == now.day;
+                  assignedAt.month == now.month &&
+                  assignedAt.day == now.day;
             case '48hours':
               return now.difference(assignedAt).inHours <= 48;
             case 'week':
@@ -212,23 +228,23 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               return true;
           }
         }).length;
-        
+
         // Filter completed cases by completedAt
         final completedCases = allCases.where((caseData) {
           final status = caseData['status'];
           if (status != 'completed') return false;
-          
-          final completedAt = caseData['completedAt'] != null 
-              ? DateTime.parse(caseData['completedAt']) 
+
+          final completedAt = caseData['completedAt'] != null
+              ? DateTime.parse(caseData['completedAt'])
               : null;
-          
+
           if (completedAt == null) return false;
-          
+
           switch (_selectedFilter) {
             case 'today':
               return completedAt.year == now.year &&
-                     completedAt.month == now.month &&
-                     completedAt.day == now.day;
+                  completedAt.month == now.month &&
+                  completedAt.day == now.day;
             case '48hours':
               return now.difference(completedAt).inHours <= 48;
             case 'week':
@@ -262,6 +278,231 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       _selectedFilter = filter;
     });
     _loadStats();
+  }
+
+  Future<void> _loadServiceTasks() async {
+    if (_userRole != 'veterinarian') return;
+    setState(() => _loadingServiceTasks = true);
+    try {
+      final response = await _apiClient.getMyServiceTasks();
+      if (response.statusCode == 200 && mounted) {
+        setState(() {
+          _serviceTasks = response.data['data'] ?? [];
+          _loadingServiceTasks = false;
+        });
+      } else if (mounted) {
+        setState(() => _loadingServiceTasks = false);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Error loading service tasks: $e');
+      if (mounted) setState(() => _loadingServiceTasks = false);
+    }
+  }
+
+  List<dynamic> get _todaysServiceTasks {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+    return _serviceTasks.where((t) {
+      final d = t['scheduledTime'] ?? t['preferredDate'];
+      if (d == null) return false;
+      final dt = DateTime.tryParse(d.toString());
+      return dt != null && !dt.isBefore(todayStart) && dt.isBefore(todayEnd);
+    }).toList()..sort((a, b) {
+      final da = DateTime.tryParse(
+        (a['scheduledTime'] ?? a['preferredDate']).toString(),
+      );
+      final db = DateTime.tryParse(
+        (b['scheduledTime'] ?? b['preferredDate']).toString(),
+      );
+      if (da == null || db == null) return 0;
+      return da.compareTo(db);
+    });
+  }
+
+  List<dynamic> get _upcoming48hServiceTasks {
+    final now = DateTime.now();
+    final end = now.add(const Duration(hours: 48));
+    return _serviceTasks.where((t) {
+      final status = t['status'];
+      if (status == 'completed' || status == 'cancelled') return false;
+      final d = t['scheduledTime'] ?? t['preferredDate'];
+      if (d == null) return false;
+      final dt = DateTime.tryParse(d.toString());
+      return dt != null && dt.isAfter(now) && dt.isBefore(end);
+    }).toList()..sort((a, b) {
+      final da = DateTime.tryParse(
+        (a['scheduledTime'] ?? a['preferredDate']).toString(),
+      );
+      final db = DateTime.tryParse(
+        (b['scheduledTime'] ?? b['preferredDate']).toString(),
+      );
+      if (da == null || db == null) return 0;
+      return da.compareTo(db);
+    });
+  }
+
+  Future<void> _callOwner(String? phone) async {
+    if (phone == null || phone.isEmpty) return;
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Widget _buildDutyTaskCard(
+    BuildContext context,
+    dynamic task, {
+    bool compact = false,
+  }) {
+    final pet = task['pet'] as Map<String, dynamic>?;
+    final user = task['user'] as Map<String, dynamic>?;
+    final serviceType = task['serviceType'] ?? 'Service';
+    final scheduledTime = task['scheduledTime'] ?? task['preferredDate'];
+    String timeLabel = '';
+    if (scheduledTime != null) {
+      final dt = DateTime.tryParse(scheduledTime.toString());
+      if (dt != null) {
+        timeLabel =
+            '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+        if (!compact) timeLabel = '${dt.day}/${dt.month} $timeLabel';
+      }
+    }
+    final primary = const Color(AppConstants.primaryColor);
+    final card = Container(
+      padding: EdgeInsets.all(compact ? 10 : 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              if (timeLabel.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    timeLabel,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: primary,
+                    ),
+                  ),
+                ),
+              if (timeLabel.isNotEmpty) const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  pet?['name'] ?? 'Pet',
+                  style: GoogleFonts.poppins(
+                    fontSize: compact ? 14 : 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[900],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            serviceType,
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ServiceTaskDetailScreen(
+                            task: Map<String, dynamic>.from(task),
+                          ),
+                        ),
+                      ).then((_) => _loadServiceTasks());
+                    },
+                    icon: const Icon(Icons.map_rounded, size: 18),
+                    label: Text(
+                      'Open in Map',
+                      style: GoogleFonts.poppins(fontSize: 12),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: primary,
+                      side: BorderSide(color: primary),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _callOwner(user?['phone'] as String?),
+                  icon: const Icon(Icons.phone_rounded),
+                  color: primary,
+                  style: IconButton.styleFrom(
+                    backgroundColor: primary.withValues(alpha: 0.12),
+                  ),
+                  tooltip: 'Call Owner',
+                ),
+              ],
+            ),
+          ] else
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ServiceTaskDetailScreen(
+                        task: Map<String, dynamic>.from(task),
+                      ),
+                    ),
+                  ).then((_) => _loadServiceTasks());
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  children: [
+                    Icon(Icons.map_rounded, size: 16, color: primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Open map',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (compact) return card;
+    return Padding(padding: const EdgeInsets.only(bottom: 12), child: card);
   }
 
   String _getFilterLabel() {
@@ -313,31 +554,111 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     switch (_userRole) {
       case 'veterinarian':
         return [
-          {'icon': Icons.assignment, 'title': 'Current Cases', 'value': _currentAssignmentsCount.toString(), 'color': Colors.blue},
-          {'icon': Icons.check_circle, 'title': 'Completed', 'value': _completedCasesCount.toString(), 'color': Colors.green},
-          {'icon': Icons.folder, 'title': 'Total Cases', 'value': _totalCasesCount.toString(), 'color': Colors.orange},
-          {'icon': Icons.notifications_active, 'title': 'New Alerts', 'value': _newAssignmentsCount.toString(), 'color': Colors.red},
+          {
+            'icon': Icons.assignment,
+            'title': 'Current Cases',
+            'value': _currentAssignmentsCount.toString(),
+            'color': Colors.blue,
+          },
+          {
+            'icon': Icons.check_circle,
+            'title': 'Completed',
+            'value': _completedCasesCount.toString(),
+            'color': Colors.green,
+          },
+          {
+            'icon': Icons.folder,
+            'title': 'Total Cases',
+            'value': _totalCasesCount.toString(),
+            'color': Colors.orange,
+          },
+          {
+            'icon': Icons.notifications_active,
+            'title': 'New Alerts',
+            'value': _newAssignmentsCount.toString(),
+            'color': Colors.red,
+          },
         ];
       case 'shop_owner':
         return [
-          {'icon': Icons.shopping_cart, 'title': 'Orders', 'value': '0', 'color': Colors.blue},
-          {'icon': Icons.inventory, 'title': 'Products', 'value': '0', 'color': Colors.green},
-          {'icon': Icons.attach_money, 'title': 'Revenue', 'value': '\$0', 'color': Colors.orange},
-          {'icon': Icons.trending_up, 'title': 'Sales', 'value': '0', 'color': Colors.purple},
+          {
+            'icon': Icons.shopping_cart,
+            'title': 'Orders',
+            'value': '0',
+            'color': Colors.blue,
+          },
+          {
+            'icon': Icons.inventory,
+            'title': 'Products',
+            'value': '0',
+            'color': Colors.green,
+          },
+          {
+            'icon': Icons.attach_money,
+            'title': 'Revenue',
+            'value': '\$0',
+            'color': Colors.orange,
+          },
+          {
+            'icon': Icons.trending_up,
+            'title': 'Sales',
+            'value': '0',
+            'color': Colors.purple,
+          },
         ];
       case 'care_service':
         return [
-          {'icon': Icons.book_online, 'title': 'Bookings', 'value': '0', 'color': Colors.blue},
-          {'icon': Icons.pets, 'title': 'Pets', 'value': '0', 'color': Colors.green},
-          {'icon': Icons.cleaning_services, 'title': 'Grooming', 'value': '0', 'color': Colors.orange},
-          {'icon': Icons.hotel, 'title': 'Boarding', 'value': '0', 'color': Colors.purple},
+          {
+            'icon': Icons.book_online,
+            'title': 'Bookings',
+            'value': '0',
+            'color': Colors.blue,
+          },
+          {
+            'icon': Icons.pets,
+            'title': 'Pets',
+            'value': '0',
+            'color': Colors.green,
+          },
+          {
+            'icon': Icons.cleaning_services,
+            'title': 'Grooming',
+            'value': '0',
+            'color': Colors.orange,
+          },
+          {
+            'icon': Icons.hotel,
+            'title': 'Boarding',
+            'value': '0',
+            'color': Colors.purple,
+          },
         ];
       case 'rider':
         return [
-          {'icon': Icons.local_shipping, 'title': 'Deliveries', 'value': '0', 'color': Colors.blue},
-          {'icon': Icons.pending, 'title': 'Pending', 'value': '0', 'color': Colors.orange},
-          {'icon': Icons.check_circle, 'title': 'Completed', 'value': '0', 'color': Colors.green},
-          {'icon': Icons.attach_money, 'title': 'Earnings', 'value': '\$0', 'color': Colors.purple},
+          {
+            'icon': Icons.local_shipping,
+            'title': 'Deliveries',
+            'value': '0',
+            'color': Colors.blue,
+          },
+          {
+            'icon': Icons.pending,
+            'title': 'Pending',
+            'value': '0',
+            'color': Colors.orange,
+          },
+          {
+            'icon': Icons.check_circle,
+            'title': 'Completed',
+            'value': '0',
+            'color': Colors.green,
+          },
+          {
+            'icon': Icons.attach_money,
+            'title': 'Earnings',
+            'value': '\$0',
+            'color': Colors.purple,
+          },
         ];
       default:
         return [];
@@ -348,27 +669,101 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     switch (_userRole) {
       case 'veterinarian':
         return [
-          {'icon': Icons.person_outline, 'title': 'Edit Profile', 'subtitle': 'Update your professional profile', 'route': 'profile', 'badge': 0},
-          {'icon': Icons.assignment, 'title': 'My Assignments', 'subtitle': 'View your assigned cases', 'route': 'assignments', 'badge': _newAssignmentsCount},
-          {'icon': Icons.location_searching, 'title': _shareLocation ? 'Sharing Live Location' : 'Share Live Location', 'subtitle': 'Help owners track your arrival (Kathmandu only)', 'route': 'toggle_location', 'badge': 0},
+          {
+            'icon': Icons.person_outline,
+            'title': 'Edit Profile',
+            'subtitle': 'Update your professional profile',
+            'route': 'profile',
+            'badge': 0,
+          },
+          {
+            'icon': Icons.assignment,
+            'title': 'My Assignments',
+            'subtitle': 'View your assigned cases',
+            'route': 'assignments',
+            'badge': _newAssignmentsCount,
+          },
+          {
+            'icon': Icons.location_searching,
+            'title': _shareLocation
+                ? 'Sharing Live Location'
+                : 'Share Live Location',
+            'subtitle': 'Help owners track your arrival (Kathmandu only)',
+            'route': 'toggle_location',
+            'badge': 0,
+          },
         ];
       case 'shop_owner':
         return [
-          {'icon': Icons.add_shopping_cart, 'title': 'New Order', 'subtitle': 'Process a new order', 'route': null, 'badge': 0},
-          {'icon': Icons.inventory_2, 'title': 'Manage Inventory', 'subtitle': 'Update product stock', 'route': null, 'badge': 0},
-          {'icon': Icons.analytics, 'title': 'View Analytics', 'subtitle': 'Check sales reports', 'route': null, 'badge': 0},
+          {
+            'icon': Icons.add_shopping_cart,
+            'title': 'New Order',
+            'subtitle': 'Process a new order',
+            'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.inventory_2,
+            'title': 'Manage Inventory',
+            'subtitle': 'Update product stock',
+            'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.analytics,
+            'title': 'View Analytics',
+            'subtitle': 'Check sales reports',
+            'route': null,
+            'badge': 0,
+          },
         ];
       case 'care_service':
         return [
-          {'icon': Icons.add_circle, 'title': 'New Booking', 'subtitle': 'Add a new booking', 'route': null, 'badge': 0},
-          {'icon': Icons.calendar_month, 'title': 'View Calendar', 'subtitle': 'Check facility schedule', 'route': null, 'badge': 0},
-          {'icon': Icons.pets, 'title': 'Pet Records', 'subtitle': 'View pet information', 'route': null, 'badge': 0},
+          {
+            'icon': Icons.add_circle,
+            'title': 'New Booking',
+            'subtitle': 'Add a new booking',
+            'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.calendar_month,
+            'title': 'View Calendar',
+            'subtitle': 'Check facility schedule',
+            'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.pets,
+            'title': 'Pet Records',
+            'subtitle': 'View pet information',
+            'route': null,
+            'badge': 0,
+          },
         ];
       case 'rider':
         return [
-          {'icon': Icons.map, 'title': 'View Map', 'subtitle': 'See delivery locations', 'route': null, 'badge': 0},
-          {'icon': Icons.list, 'title': 'Active Deliveries', 'subtitle': 'Check pending tasks', 'route': null, 'badge': 0},
-          {'icon': Icons.history, 'title': 'Delivery History', 'subtitle': 'View completed deliveries', 'route': null, 'badge': 0},
+          {
+            'icon': Icons.map,
+            'title': 'View Map',
+            'subtitle': 'See delivery locations',
+            'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.list,
+            'title': 'Active Deliveries',
+            'subtitle': 'Check pending tasks',
+            'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.history,
+            'title': 'Delivery History',
+            'subtitle': 'View completed deliveries',
+            'route': null,
+            'badge': 0,
+          },
         ];
       default:
         return [];
@@ -378,9 +773,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   Future<void> _handleLogout() async {
     await _storage.clearAll();
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
     }
   }
 
@@ -430,7 +825,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
+                      color: const Color(
+                        AppConstants.primaryColor,
+                      ).withValues(alpha: 77 / 255),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -503,10 +900,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Colors.red.shade600,
-                        Colors.red.shade700,
-                      ],
+                      colors: [Colors.red.shade600, Colors.red.shade700],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -523,7 +917,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     onTap: () async {
                       final result = await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AllPetsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const AllPetsScreen(),
+                        ),
                       );
                       if (!mounted) return;
                       if (result == true) {
@@ -585,10 +981,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [
-                        Colors.orange.shade600,
-                        Colors.orange.shade700,
-                      ],
+                      colors: [Colors.orange.shade600, Colors.orange.shade700],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -605,7 +998,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     onTap: () async {
                       final result = await Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AllPetsScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const AllPetsScreen(),
+                        ),
                       );
                       if (result == true || mounted) {
                         _loadNewAssignments();
@@ -659,6 +1054,97 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   ),
                 ),
 
+              // Duty Dashboard: Today's Tasks & Upcoming 48h (service requests)
+              if (_userRole == 'veterinarian') ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Duty Dashboard',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(AppConstants.primaryColor),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_loadingServiceTasks)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 16),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(AppConstants.primaryColor),
+                        ),
+                      ),
+                    ),
+                  )
+                else ...[
+                  if (_todaysServiceTasks.isNotEmpty) ...[
+                    Text(
+                      'Today\'s Tasks',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._todaysServiceTasks.map(
+                      (task) => _buildDutyTaskCard(context, task),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (_upcoming48hServiceTasks.isNotEmpty) ...[
+                    Text(
+                      'Upcoming (48h)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 120,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _upcoming48hServiceTasks.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: SizedBox(
+                              width: 220,
+                              child: _buildDutyTaskCard(
+                                context,
+                                _upcoming48hServiceTasks[index],
+                                compact: true,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_todaysServiceTasks.isEmpty &&
+                      _upcoming48hServiceTasks.isEmpty &&
+                      _serviceTasks.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Text(
+                        'No tasks today or in the next 48 hours.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 16),
+              ],
+
               // Quick Stats
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -675,7 +1161,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     PopupMenuButton<String>(
                       onSelected: _changeFilter,
                       icon: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(AppConstants.primaryColor),
                           borderRadius: BorderRadius.circular(8),
@@ -683,7 +1172,11 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.filter_list, color: Colors.white, size: 16),
+                            const Icon(
+                              Icons.filter_list,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Filter',
@@ -704,19 +1197,19 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                               Icon(
                                 Icons.today,
                                 size: 18,
-                                color: _selectedFilter == 'today' 
-                                    ? const Color(AppConstants.primaryColor) 
+                                color: _selectedFilter == 'today'
+                                    ? const Color(AppConstants.primaryColor)
                                     : Colors.grey,
                               ),
                               const SizedBox(width: 12),
                               Text(
                                 'Today',
                                 style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == 'today' 
-                                      ? FontWeight.w600 
+                                  fontWeight: _selectedFilter == 'today'
+                                      ? FontWeight.w600
                                       : FontWeight.normal,
-                                  color: _selectedFilter == 'today' 
-                                      ? const Color(AppConstants.primaryColor) 
+                                  color: _selectedFilter == 'today'
+                                      ? const Color(AppConstants.primaryColor)
                                       : Colors.black,
                                 ),
                               ),
@@ -730,19 +1223,19 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                               Icon(
                                 Icons.access_time,
                                 size: 18,
-                                color: _selectedFilter == '48hours' 
-                                    ? const Color(AppConstants.primaryColor) 
+                                color: _selectedFilter == '48hours'
+                                    ? const Color(AppConstants.primaryColor)
                                     : Colors.grey,
                               ),
                               const SizedBox(width: 12),
                               Text(
                                 'Past 48 Hours',
                                 style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == '48hours' 
-                                      ? FontWeight.w600 
+                                  fontWeight: _selectedFilter == '48hours'
+                                      ? FontWeight.w600
                                       : FontWeight.normal,
-                                  color: _selectedFilter == '48hours' 
-                                      ? const Color(AppConstants.primaryColor) 
+                                  color: _selectedFilter == '48hours'
+                                      ? const Color(AppConstants.primaryColor)
                                       : Colors.black,
                                 ),
                               ),
@@ -756,19 +1249,19 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                               Icon(
                                 Icons.date_range,
                                 size: 18,
-                                color: _selectedFilter == 'week' 
-                                    ? const Color(AppConstants.primaryColor) 
+                                color: _selectedFilter == 'week'
+                                    ? const Color(AppConstants.primaryColor)
                                     : Colors.grey,
                               ),
                               const SizedBox(width: 12),
                               Text(
                                 'This Week',
                                 style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == 'week' 
-                                      ? FontWeight.w600 
+                                  fontWeight: _selectedFilter == 'week'
+                                      ? FontWeight.w600
                                       : FontWeight.normal,
-                                  color: _selectedFilter == 'week' 
-                                      ? const Color(AppConstants.primaryColor) 
+                                  color: _selectedFilter == 'week'
+                                      ? const Color(AppConstants.primaryColor)
                                       : Colors.black,
                                 ),
                               ),
@@ -782,19 +1275,19 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                               Icon(
                                 Icons.calendar_month,
                                 size: 18,
-                                color: _selectedFilter == 'month' 
-                                    ? const Color(AppConstants.primaryColor) 
+                                color: _selectedFilter == 'month'
+                                    ? const Color(AppConstants.primaryColor)
                                     : Colors.grey,
                               ),
                               const SizedBox(width: 12),
                               Text(
                                 'This Month',
                                 style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == 'month' 
-                                      ? FontWeight.w600 
+                                  fontWeight: _selectedFilter == 'month'
+                                      ? FontWeight.w600
                                       : FontWeight.normal,
-                                  color: _selectedFilter == 'month' 
-                                      ? const Color(AppConstants.primaryColor) 
+                                  color: _selectedFilter == 'month'
+                                      ? const Color(AppConstants.primaryColor)
                                       : Colors.black,
                                 ),
                               ),
@@ -863,7 +1356,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       if (route == 'profile') {
                         final result = await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ProfileEditorScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileEditorScreen(),
+                          ),
                         );
                         if (result == true) {
                           _loadUserData(); // Reload user data after profile update
@@ -871,7 +1366,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       } else if (route == 'assignments') {
                         final result = await Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AllPetsScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const AllPetsScreen(),
+                          ),
                         );
                         if (result == true || mounted) {
                           _loadNewAssignments(); // Reload after viewing
@@ -928,10 +1425,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           ),
           Text(
             title,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -970,7 +1464,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(AppConstants.primaryColor).withValues(alpha: 26 / 255),
+                    color: const Color(
+                      AppConstants.primaryColor,
+                    ).withValues(alpha: 26 / 255),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -1026,7 +1522,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       ),
                       if (badge > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(12),
@@ -1052,11 +1551,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.grey[400],
-              size: 16,
-            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
           ],
         ),
       ),

@@ -41,4 +41,34 @@ class LayoutUtils {
     final scale = (w < h ? w : h) / 400;
     return (base * scale.clamp(0.7, 1.5)).roundToDouble();
   }
+
+  /// Bento card: rounded corners, soft shadow, no harsh borders
+  static BoxDecoration bentoCardDecoration(
+    BuildContext context, {
+    Color? color,
+  }) {
+    return BoxDecoration(
+      color: color ?? Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.04),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.02),
+          blurRadius: 6,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  /// Whether the point is in the "thumb-friendly" bottom 40% of the screen
+  static bool isInThumbZone(BuildContext context, Offset globalPosition) {
+    final h = height(context);
+    final y = globalPosition.dy;
+    return y > h * 0.6;
+  }
 }

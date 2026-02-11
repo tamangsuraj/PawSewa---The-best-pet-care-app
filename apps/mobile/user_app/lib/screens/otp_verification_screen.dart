@@ -73,9 +73,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const PetDashboardScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const PetDashboardScreen()),
             (route) => false,
           );
         }
@@ -127,7 +125,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6CA),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: const Color(0xFF703418),
         title: const Text('Verify Email'),
@@ -161,10 +159,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               // Subtitle
               Text(
                 'We\'ve sent a 6-digit code to',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
@@ -190,12 +185,19 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red[700],
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: TextStyle(color: Colors.red[700], fontSize: 14),
+                          style: TextStyle(
+                            color: Colors.red[700],
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -213,12 +215,19 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle_outline, color: Colors.green[700], size: 20),
+                      Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.green[700],
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           _successMessage!,
-                          style: TextStyle(color: Colors.green[700], fontSize: 14),
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -235,9 +244,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   fontWeight: FontWeight.bold,
                   letterSpacing: 16,
                 ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                ],
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: InputDecoration(
                   hintText: '000000',
                   hintStyle: TextStyle(
@@ -256,7 +263,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF703418), width: 2),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF703418),
+                      width: 2,
+                    ),
                   ),
                   counterText: '',
                 ),
@@ -270,10 +280,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: 8),
               Text(
                 'Code expires in 10 minutes',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -295,7 +302,9 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : const Text(
@@ -312,10 +321,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 children: [
                   Text(
                     'Didn\'t receive the code?',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 8),
                   TextButton(

@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'core/api_client.dart';
 import 'core/storage_service.dart';
 import 'core/constants.dart';
+import 'services/socket_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
+import 'cart/cart_service.dart';
 
 void main() {
   // Initialize API client
   ApiClient().initialize();
-  
-  runApp(const MyApp());
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartService()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -49,15 +59,17 @@ class _SplashScreenState extends State<SplashScreen> {
   Future<void> _checkLoginStatus() async {
     final storage = StorageService();
     final isLoggedIn = await storage.isLoggedIn();
-    
+
     await Future.delayed(const Duration(seconds: 1));
-    
+
     if (mounted) {
+      if (isLoggedIn) {
+        SocketService.instance.connect();
+      }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => isLoggedIn 
-              ? const PetDashboardScreen() 
-              : const LoginScreen(),
+          builder: (_) =>
+              isLoggedIn ? const PetDashboardScreen() : const LoginScreen(),
         ),
       );
     }
@@ -66,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6CA),
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -78,11 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: const Color(AppConstants.primaryColor),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.pets,
-                size: 60,
-                color: Colors.white,
-              ),
+              child: const Icon(Icons.pets, size: 60, color: Colors.white),
             ),
             const SizedBox(height: 24),
             const Text(

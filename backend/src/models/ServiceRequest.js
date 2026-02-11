@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { ALL_STATUSES } = require('../constants/serviceRequestStatus');
 
 const KATHMANDU_BOUNDS = {
   minLat: 27.55,
@@ -57,7 +58,7 @@ const serviceRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'assigned', 'in_progress', 'completed', 'cancelled'],
+      enum: ALL_STATUSES,
       default: 'pending',
     },
     assignedStaff: {
@@ -93,6 +94,28 @@ const serviceRequestSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000,
     },
+    // Owner-submitted review after completion
+    review: {
+      rating: { type: Number, min: 1, max: 5 },
+      comment: { type: String, trim: true, maxlength: 1000 },
+      submittedAt: { type: Date },
+    },
+    // Optional prescription document URL (set by staff; owner can download)
+    prescriptionUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'pending', 'paid', 'failed'],
+      default: 'unpaid',
+    },
+    paymentGateway: {
+      type: String,
+      enum: ['khalti', 'esewa', null],
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -105,65 +128,51 @@ serviceRequestSchema.index({ assignedStaff: 1, status: 1 });
 serviceRequestSchema.index({ preferredDate: 1, status: 1 });
 serviceRequestSchema.index({ pet: 1, preferredDate: 1, status: 1 });
 
-// Pre-save middleware:
+// Pre-save middleware (async: use throw/return, do not use next())
 // 1) Validate location is inside Kathmandu Valley
 // 2) Prevent duplicate pending requests for same pet on same date
-serviceRequestSchema.pre('save', async function (next) {
-  // Only check on new documents
-  if (!this.isNew) {
-    return next();
+serviceRequestSchema.pre('save', async function () {
+  if (!this.isNew) return;
+
+  // 1) Validate geofence (Kathmandu Valley)
+  const { location } = this;
+  const lat = location?.coordinates?.lat;
+  const lng = location?.coordinates?.lng;
+
+  if (typeof lat !== 'number' || typeof lng !== 'number') {
+    const err = new Error('Valid location coordinates are required');
+    err.statusCode = 400;
+    throw err;
   }
 
-  try {
-    // 1) Validate geofence (Kathmandu Valley)
-    const { location } = this;
-    const lat = location?.coordinates?.lat;
-    const lng = location?.coordinates?.lng;
+  const insideKathmandu =
+    lat >= KATHMANDU_BOUNDS.minLat &&
+    lat <= KATHMANDU_BOUNDS.maxLat &&
+    lng >= KATHMANDU_BOUNDS.minLng &&
+    lng <= KATHMANDU_BOUNDS.maxLng;
 
-    if (typeof lat !== 'number' || typeof lng !== 'number') {
-      const error = new Error('Valid location coordinates are required');
-      error.statusCode = 400;
-      return next(error);
-    }
+  if (!insideKathmandu) {
+    const err = new Error('Service is restricted to Kathmandu Valley');
+    err.statusCode = 400;
+    throw err;
+  }
 
-    const insideKathmandu =
-      lat >= KATHMANDU_BOUNDS.minLat &&
-      lat <= KATHMANDU_BOUNDS.maxLat &&
-      lng >= KATHMANDU_BOUNDS.minLng &&
-      lng <= KATHMANDU_BOUNDS.maxLng;
+  // 2) Duplicate check: same pet, same date, pending
+  const startOfDay = new Date(this.preferredDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(this.preferredDate);
+  endOfDay.setHours(23, 59, 59, 999);
 
-    if (!insideKathmandu) {
-      const error = new Error('Service is restricted to Kathmandu Valley');
-      error.statusCode = 400;
-      return next(error);
-    }
+  const existingRequest = await this.constructor.findOne({
+    pet: this.pet,
+    preferredDate: { $gte: startOfDay, $lte: endOfDay },
+    status: 'pending',
+  });
 
-    // 2) Check if there's already a pending request for this pet on this date
-    // Check if there's already a pending request for this pet on this date
-    const startOfDay = new Date(this.preferredDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(this.preferredDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const existingRequest = await this.constructor.findOne({
-      pet: this.pet,
-      preferredDate: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
-      status: 'pending',
-    });
-
-    if (existingRequest) {
-      const error = new Error('A request for this pet is already under review for this date.');
-      error.statusCode = 400;
-      return next(error);
-    }
-
-    next();
-  } catch (error) {
-    next(error);
+  if (existingRequest) {
+    const err = new Error('A request for this pet is already under review for this date.');
+    err.statusCode = 400;
+    throw err;
   }
 });
 

@@ -7,9 +7,13 @@ const notFound = (req, res, next) => {
 
 // Global Error Handler - Catches all errors and returns clean JSON response
 const errorHandler = (err, req, res, next) => {
+  // Always log the real error to console so 500s can be debugged from the terminal
+  console.error('[Error Handler]', err.message);
+  console.error(err.stack);
+
   // If status code is 200 (default), set it to 500 (Internal Server Error)
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  
+
   res.status(statusCode).json({
     success: false,
     message: err.message,

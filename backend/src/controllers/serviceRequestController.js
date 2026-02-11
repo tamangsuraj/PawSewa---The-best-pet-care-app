@@ -1,8 +1,22 @@
 const ServiceRequest = require('../models/ServiceRequest');
+const ServiceRequestMessage = require('../models/ServiceRequestMessage');
+const Chat = require('../models/Chat');
 const Pet = require('../models/Pet');
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const { notifyServiceRequestAssignment } = require('../utils/notificationService');
+const { SERVICE_REQUEST_STATUS } = require('../constants/serviceRequestStatus');
+const { getIO } = require('../sockets/socketStore');
+
+function emitStatusChange(requestId, status, ownerId, previousStatus) {
+  const io = getIO();
+  if (!io) return;
+  const payload = { requestId, status, previousStatus };
+  io.to('request:' + requestId).emit('status_change', payload);
+  if (ownerId) {
+    io.to('user:' + ownerId.toString()).emit('status_change', payload);
+  }
+}
 
 // Simple Nominatim-based validator for Kathmandu addresses.
 // NOTE: This is best-effort only – if the service is unavailable, we don't block the request.
@@ -58,64 +72,109 @@ async function validateKathmanduAddressWithNominatim({ address, lat, lng }) {
  * @access  Private (Pet Owner)
  */
 const createServiceRequest = asyncHandler(async (req, res) => {
-  const { petId, serviceType, preferredDate, timeWindow, notes, location } = req.body;
-
-  // Validate required fields
-  if (!petId || !serviceType || !preferredDate || !timeWindow) {
-    res.status(400);
-    throw new Error('Please provide pet, service type, preferred date, and time window');
-  }
-
-  if (
-    !location ||
-    !location.address ||
-    !location.coordinates ||
-    typeof location.coordinates.lat !== 'number' ||
-    typeof location.coordinates.lng !== 'number'
-  ) {
-    res.status(400);
-    throw new Error('Please provide a valid service location with coordinates');
-  }
-
-  // Verify pet belongs to user
-  const pet = await Pet.findById(petId);
-  if (!pet) {
-    res.status(404);
-    throw new Error('Pet not found');
-  }
-
-  if (pet.owner.toString() !== req.user._id.toString()) {
-    res.status(403);
-    throw new Error('You can only create service requests for your own pets');
-  }
-
-  // Validate date is in the future
-  const requestDate = new Date(preferredDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  if (requestDate < today) {
-    res.status(400);
-    throw new Error('Preferred date must be in the future');
-  }
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  console.log('New Request from', userAgent + ':', JSON.stringify(req.body || {}, null, 2));
+  console.log('Incoming Request Body:', JSON.stringify(req.body || {}, null, 2));
 
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+    const body = req.body || {};
+    // Accept both camelCase (petId) and snake_case (pet_id) for compatibility
+    const petId = body.petId ?? body.pet_id;
+    const serviceType = body.serviceType ?? body.service_type;
+    const preferredDate = body.preferredDate ?? body.preferred_date;
+    const timeWindow = body.timeWindow ?? body.time_window;
+    const notes = body.notes;
+    const locationRaw = body.location;
+
+    // Validate required fields
+    if (!petId || !serviceType || !preferredDate || !timeWindow) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide pet, service type, preferred date, and time window',
+      });
+    }
+
+    // Accept location as: { address, coordinates: { lat, lng } } OR { address, coordinates: { latitude, longitude } }
+    if (!locationRaw || typeof locationRaw !== 'object') {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid service location with address and coordinates',
+      });
+    }
+    const address = locationRaw.address != null ? String(locationRaw.address) : null;
+    const coords = locationRaw.coordinates && typeof locationRaw.coordinates === 'object' ? locationRaw.coordinates : null;
+    if (!address || !coords) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid service location with address and coordinates',
+      });
+    }
+    const lat = Number(coords.lat ?? coords.latitude);
+    const lng = Number(coords.lng ?? coords.longitude);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Location coordinates must be valid numbers (use lat/lng or latitude/longitude)',
+      });
+    }
+    const location = {
+      address,
+      coordinates: { lat, lng },
+    };
+
+    // Verify pet belongs to user (petId may be string; Mongoose accepts it)
+    let pet;
+    try {
+      pet = await Pet.findById(petId);
+    } catch (castErr) {
+      if (castErr.name === 'CastError') {
+        return res.status(400).json({ success: false, message: 'Invalid pet id format' });
+      }
+      throw castErr;
+    }
+    if (!pet) {
+      return res.status(404).json({ success: false, message: 'Pet not found' });
+    }
+
+    if (pet.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You can only create service requests for your own pets' });
+    }
+
+    // Validate date is in the future
+    const requestDate = new Date(preferredDate);
+    if (Number.isNaN(requestDate.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid preferred date format (use YYYY-MM-DD)' });
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (requestDate < today) {
+      return res.status(400).json({ success: false, message: 'Preferred date must be in the future' });
+    }
+
     // Create service request (pre-save middleware will check for duplicates)
-    const serviceRequest = await ServiceRequest.create({
+    const createPayload = {
       user: req.user._id,
       pet: petId,
-      serviceType,
+      serviceType: String(serviceType),
       preferredDate: requestDate,
-      timeWindow,
-      notes,
+      timeWindow: String(timeWindow),
       location,
-      status: 'pending',
-    });
+      status: SERVICE_REQUEST_STATUS.PENDING,
+    };
+    if (notes != null && notes !== '') {
+      createPayload.notes = String(notes);
+    }
+    const serviceRequest = await ServiceRequest.create(createPayload);
 
-    // Populate pet and user data
+    // Populate pet and user data (pet.photoUrl is the schema field; UIs may use image as alias)
     const populatedRequest = await ServiceRequest.findById(serviceRequest._id)
       .populate('user', 'name email phone')
-      .populate('pet', 'name breed age image');
+      .populate('pet', 'name breed age photoUrl');
+
+    console.log('[POST /service-requests] Created request', serviceRequest._id, 'status:', serviceRequest.status, 'user:', req.user._id);
 
     res.status(201).json({
       success: true,
@@ -123,12 +182,32 @@ const createServiceRequest = asyncHandler(async (req, res) => {
       data: populatedRequest,
     });
   } catch (error) {
-    // Handle duplicate request error from pre-save middleware
+    console.error('[POST /service-requests] error:', error?.message ?? error);
+    console.error('[POST /service-requests] stack:', error?.stack);
+
+    // Pre-save middleware or our validation: return 400 with message
     if (error.statusCode === 400) {
-      res.status(400);
-      throw new Error(error.message);
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
     }
-    throw error;
+    // Mongoose validation/cast errors → 400 (descriptive Bad Request instead of 500)
+    if (error.name === 'ValidationError') {
+      const message = error.message || 'Validation failed';
+      return res.status(400).json({ success: false, message });
+    }
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid data format (e.g. pet id or date)',
+      });
+    }
+    // Unexpected errors still return 500 but are now visible in terminal
+    return res.status(500).json({
+      success: false,
+      message: 'Could not create service request. Please try again.',
+    });
   }
 });
 
@@ -165,9 +244,11 @@ const getAllServiceRequests = asyncHandler(async (req, res) => {
 
   const requests = await ServiceRequest.find(filter)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age photoUrl')
     .populate('assignedStaff', 'name email phone specialty specialization')
     .sort({ createdAt: -1 });
+
+  console.log('Admin fetching orders:', requests.length, { status: filter.status, serviceType: filter.serviceType, date: filter.preferredDate ? 'set' : 'any' });
 
   res.json({
     success: true,
@@ -191,7 +272,7 @@ const getMyServiceRequests = asyncHandler(async (req, res) => {
   }
 
   const requests = await ServiceRequest.find(filter)
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age photoUrl')
     .populate('assignedStaff', 'name phone specialty specialization')
     .sort({ createdAt: -1 });
 
@@ -208,12 +289,21 @@ const getMyServiceRequests = asyncHandler(async (req, res) => {
  * @access  Private (Staff)
  */
 const getMyAssignedRequests = asyncHandler(async (req, res) => {
+  // Staff app (vet/rider) should be able to see both active (assigned + in_progress)
+  // and completed tasks for their own history.
   const requests = await ServiceRequest.find({
     assignedStaff: req.user._id,
-    status: { $in: ['assigned', 'in_progress'] },
+    status: {
+      $in: [
+        SERVICE_REQUEST_STATUS.ASSIGNED,
+        SERVICE_REQUEST_STATUS.IN_PROGRESS,
+        SERVICE_REQUEST_STATUS.COMPLETED,
+      ],
+    },
   })
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image medicalHistory species')
+    .populate('pet', 'name breed age photoUrl medicalHistory species')
+    .populate('assignedStaff', 'name email phone specialty specialization')
     .sort({ preferredDate: 1 });
 
   res.json({
@@ -305,7 +395,7 @@ const getServiceRequestLive = asyncHandler(async (req, res) => {
 const getServiceRequestById = asyncHandler(async (req, res) => {
   const request = await ServiceRequest.findById(req.params.id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age photoUrl')
     .populate('assignedStaff', 'name email phone specialty specialization');
 
   if (!request) {
@@ -395,10 +485,26 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
 
   await request.save();
 
+  // Auto-create chat room for this service request (customer + assigned staff)
+  try {
+    await Chat.findOneAndUpdate(
+      { serviceRequest: request._id },
+      {
+        $setOnInsert: {
+          participants: [request.user, staffId],
+        },
+      },
+      { upsert: true, new: true }
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[assignServiceRequest] chat upsert failed:', err?.message || err);
+  }
+
   // Populate for response
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age photoUrl')
     .populate('assignedStaff', 'name email phone specialty specialization profilePicture');
 
   const ownerId = request.user;
@@ -415,6 +521,8 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
     scheduledTimeLabel: scheduledLabel,
     staffName: staff.name,
   });
+
+  emitStatusChange(request._id.toString(), 'assigned', ownerId?.toString?.() || ownerId, 'pending');
 
   res.json({
     success: true,
@@ -447,12 +555,15 @@ const startServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('Service request must be in assigned status to start');
   }
 
+  const previousStatus = request.status;
   request.status = 'in_progress';
   await request.save();
 
+  emitStatusChange(request._id.toString(), 'in_progress', request.user?.toString?.() || request.user, previousStatus);
+
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image');
+    .populate('pet', 'name breed age photoUrl');
 
   res.json({
     success: true,
@@ -515,9 +626,11 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
     }
   }
 
+  emitStatusChange(request._id.toString(), 'completed', request.user?.toString?.() || request.user, 'in_progress');
+
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image medicalHistory species');
+    .populate('pet', 'name breed age photoUrl medicalHistory species');
 
   res.json({
     success: true,
@@ -620,9 +733,11 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  emitStatusChange(request._id.toString(), status, request.user?.toString?.() || request.user, current);
+
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image medicalHistory species')
+    .populate('pet', 'name breed age photoUrl medicalHistory species')
     .populate('assignedStaff', 'name phone role');
 
   res.json({
@@ -661,6 +776,7 @@ const cancelServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('Cannot cancel a completed or already cancelled service request');
   }
 
+  const previousStatus = request.status;
   request.status = 'cancelled';
   request.cancelledAt = new Date();
   if (reason) {
@@ -669,9 +785,11 @@ const cancelServiceRequest = asyncHandler(async (req, res) => {
 
   await request.save();
 
+  emitStatusChange(request._id.toString(), 'cancelled', request.user?.toString?.() || request.user, previousStatus);
+
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age image');
+    .populate('pet', 'name breed age photoUrl');
 
   res.json({
     success: true,
@@ -718,6 +836,96 @@ const getServiceRequestStats = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get chat messages for a service request (owner, assigned staff, or admin)
+ * @route   GET /api/v1/service-requests/:id/messages
+ * @access  Private
+ */
+const getRequestMessages = asyncHandler(async (req, res) => {
+  const request = await ServiceRequest.findById(req.params.id).select('user assignedStaff').lean();
+  if (!request) {
+    res.status(404);
+    throw new Error('Service request not found');
+  }
+  const uid = req.user._id.toString();
+  const isOwner = request.user?.toString() === uid;
+  const isStaff = request.assignedStaff?.toString() === uid;
+  const isAdmin = req.user.role === 'admin';
+  if (!isOwner && !isStaff && !isAdmin) {
+    res.status(403);
+    throw new Error('Not authorized to view messages for this request');
+  }
+  const messages = await ServiceRequestMessage.find({ serviceRequest: req.params.id })
+    .populate('sender', 'name')
+    .sort({ createdAt: 1 })
+    .lean();
+  res.json({ success: true, data: messages });
+});
+
+/**
+ * @desc    Submit review for a completed service request (owner only)
+ * @route   POST /api/v1/service-requests/:id/review
+ * @access  Private (Owner)
+ */
+const submitReview = asyncHandler(async (req, res) => {
+  const request = await ServiceRequest.findById(req.params.id);
+  if (!request) {
+    res.status(404);
+    throw new Error('Service request not found');
+  }
+  if (request.user.toString() !== req.user._id.toString()) {
+    res.status(403);
+    throw new Error('Only the request owner can submit a review');
+  }
+  if (request.status !== 'completed') {
+    res.status(400);
+    throw new Error('Can only review completed requests');
+  }
+  if (request.review?.submittedAt) {
+    res.status(400);
+    throw new Error('Review already submitted');
+  }
+  const { rating, comment } = req.body || {};
+  if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+    res.status(400);
+    throw new Error('Rating must be a number between 1 and 5');
+  }
+  request.review = {
+    rating,
+    comment: typeof comment === 'string' ? comment.trim() : '',
+    submittedAt: new Date(),
+  };
+  await request.save();
+  res.json({
+    success: true,
+    message: 'Thank you for your review!',
+    data: { review: request.review },
+  });
+});
+
+/**
+ * @desc    Get prescription URL for a completed request (owner, staff, or admin)
+ * @route   GET /api/v1/service-requests/:id/prescription
+ * @access  Private
+ */
+const getPrescription = asyncHandler(async (req, res) => {
+  const request = await ServiceRequest.findById(req.params.id).select('user assignedStaff status prescriptionUrl').lean();
+  if (!request) {
+    res.status(404);
+    throw new Error('Service request not found');
+  }
+  const uid = req.user._id.toString();
+  const isOwner = request.user?.toString() === uid;
+  const isStaff = request.assignedStaff?.toString() === uid;
+  const isAdmin = req.user.role === 'admin';
+  if (!isOwner && !isStaff && !isAdmin) {
+    res.status(403);
+    throw new Error('Not authorized to view prescription for this request');
+  }
+  const url = request.prescriptionUrl || null;
+  res.json({ success: true, data: { prescriptionUrl: url } });
+});
+
 module.exports = {
   createServiceRequest,
   getAllServiceRequests,
@@ -731,4 +939,7 @@ module.exports = {
   cancelServiceRequest,
   getServiceRequestStats,
   updateServiceRequestStatus,
+  getRequestMessages,
+  submitReview,
+  getPrescription,
 };

@@ -212,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final padding = (size.width * 0.06).clamp(16.0, 28.0);
     final logoSize = (shortest * 0.22).clamp(72.0, 120.0);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5E6CA),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

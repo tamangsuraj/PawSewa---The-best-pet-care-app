@@ -120,7 +120,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       return;
     }
 
-    if (_confirmedLatLng == null || _confirmedAddress == null || _confirmedAddress!.isEmpty) {
+    if (_confirmedLatLng == null ||
+        _confirmedAddress == null ||
+        _confirmedAddress!.isEmpty) {
       _showError('Please confirm your location on the map.');
       return;
     }
@@ -143,7 +145,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
         'serviceType': _selectedServiceType,
         'preferredDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
         'timeWindow': _selectedTimeWindow,
-        'notes': _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        'notes': _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
         'location': {
           'address': combinedAddress,
           'coordinates': {
@@ -159,7 +163,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Row(
               children: [
                 Container(
@@ -205,8 +211,19 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           ),
         );
       } else {
-        _showError('Failed to submit request (status: ${response.statusCode}).');
+        // Show server message when present (e.g. "A request for this pet is already under review for this date.")
+        final data = response.data;
+        final String message = (data is Map && data['message'] != null)
+            ? data['message'].toString()
+            : 'Failed to submit request (status: ${response.statusCode}).';
+        _showError(message);
       }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final String message = (data is Map && data['message'] != null)
+          ? data['message'].toString()
+          : (e.message ?? 'Failed to submit request.');
+      _showError(message);
     } catch (e) {
       _showError('Failed to submit request: $e');
     } finally {
@@ -331,7 +348,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     Expanded(
                       child: Container(
                         height: 2,
-                        color: i == labels.length - 1 ? Colors.transparent : color,
+                        color: i == labels.length - 1
+                            ? Colors.transparent
+                            : color,
                       ),
                     ),
                   ],
@@ -401,10 +420,15 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(AppConstants.primaryColor).withValues(alpha: 26 / 255),
+                    color: const Color(
+                      AppConstants.primaryColor,
+                    ).withValues(alpha: 26 / 255),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.pets, color: Color(AppConstants.primaryColor)),
+                  child: const Icon(
+                    Icons.pets,
+                    color: Color(AppConstants.primaryColor),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -431,7 +455,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   ),
                 ),
                 Icon(
-                  isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                  isSelected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
                   color: isSelected
                       ? const Color(AppConstants.primaryColor)
                       : Colors.grey.shade400,
@@ -502,13 +528,18 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                       const SizedBox(height: 2),
                       Text(
                         description,
-                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
                       ),
                     ],
                   ),
                 ),
                 Icon(
-                  isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                  isSelected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
                   color: isSelected
                       ? const Color(AppConstants.primaryColor)
                       : Colors.grey.shade400,
@@ -531,7 +562,10 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Preferred date', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          Text(
+            'Preferred date',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           InkWell(
             onTap: () async {
@@ -567,12 +601,19 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today, color: Color(AppConstants.primaryColor), size: 20),
+                  const Icon(
+                    Icons.calendar_today,
+                    color: Color(AppConstants.primaryColor),
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       dateLabel,
-                      style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[900]),
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey[900],
+                      ),
                     ),
                   ),
                   const Icon(Icons.chevron_right, color: Colors.grey),
@@ -581,7 +622,10 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Time window', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          Text(
+            'Time window',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -595,7 +639,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 inputDecorationTheme: InputDecorationTheme(
                   filled: true,
                   fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey.shade300),
@@ -619,7 +665,10 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'Kathmandu only',
-                      style: GoogleFonts.poppins(fontSize: 11, color: Colors.red),
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.red,
+                      ),
                     ),
                   ],
                 ),
@@ -646,7 +695,8 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         subdomains: const ['a', 'b', 'c'],
                         userAgentPackageName: 'com.pawsewa.user_app',
                       ),
@@ -694,14 +744,21 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   children: [
                     Text(
                       'Pan the map to move the pin, then confirm to lock the address.',
-                      style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[800]),
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: Colors.grey[800],
+                      ),
                     ),
-                    if (_confirmedAddress != null && _confirmedAddress!.isNotEmpty)
+                    if (_confirmedAddress != null &&
+                        _confirmedAddress!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           'Selected: $_confirmedAddress',
-                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[900]),
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[900],
+                          ),
                         ),
                       ),
                     if (_geoWarning != null)
@@ -709,7 +766,10 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           _geoWarning!,
-                          style: GoogleFonts.poppins(fontSize: 11, color: Colors.red[700]),
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.red[700],
+                          ),
                         ),
                       ),
                   ],
@@ -721,19 +781,30 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(AppConstants.primaryColor),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 icon: _isConfirmingLocation
                     ? const SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.check),
                 label: Text(
                   'Confirm location',
-                  style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -751,16 +822,24 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
               hintText: 'Apartment, landmark, entrance instructions...',
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey.shade300),
               ),
-              prefixIcon: const Icon(Icons.location_on, color: Color(AppConstants.primaryColor)),
+              prefixIcon: const Icon(
+                Icons.location_on,
+                color: Color(AppConstants.primaryColor),
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          Text('Notes (optional)', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          Text(
+            'Notes (optional)',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _notesController,
@@ -769,7 +848,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
               hintText: 'Any additional details for the partner',
               filled: true,
               fillColor: Colors.white,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey.shade300),
@@ -792,7 +873,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       if (_currentStep == 2) {
         // Require confirmed location inside Kathmandu for final submission
         if (_isConfirmingLocation) return false;
-        if (_confirmedLatLng == null || _confirmedAddress == null || _confirmedAddress!.isEmpty) {
+        if (_confirmedLatLng == null ||
+            _confirmedAddress == null ||
+            _confirmedAddress!.isEmpty) {
           return false;
         }
         if (!_isInsideKathmandu) return false;
@@ -824,9 +907,14 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: Colors.grey.shade300),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Back', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Back',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -845,13 +933,18 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   backgroundColor: const Color(AppConstants.primaryColor),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: _isSubmitting
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : Text(
                         isLast ? 'Submit' : 'Next',
@@ -872,7 +965,10 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       appBar: AppBar(
         title: Text(
           'Book Service',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
         elevation: 0,
@@ -880,7 +976,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+              child: CircularProgressIndicator(
+                color: Color(AppConstants.primaryColor),
+              ),
             )
           : Column(
               children: [
