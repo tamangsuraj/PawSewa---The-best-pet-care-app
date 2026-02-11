@@ -15,7 +15,7 @@ const chatSchema = new mongoose.Schema(
     serviceRequest: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ServiceRequest',
-      unique: true,
+      unique: true, // unique index is declared here; no need to declare again below
       required: true,
     },
     participants: [
@@ -34,8 +34,6 @@ const chatSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-chatSchema.index({ serviceRequest: 1 }, { unique: true });
 
 module.exports = mongoose.model('Chat', chatSchema);
 

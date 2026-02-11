@@ -13,6 +13,7 @@ import 'login_screen.dart';
 import 'profile_editor_screen.dart';
 import 'all_pets_screen.dart';
 import 'service_task_detail_screen.dart';
+import 'shop_inventory_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VetDashboardScreen extends StatefulWidget {
@@ -697,16 +698,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return [
           {
             'icon': Icons.add_shopping_cart,
-            'title': 'New Order',
-            'subtitle': 'Process a new order',
-            'route': null,
+            'title': 'Shop Inventory',
+            'subtitle': 'Add and manage products',
+            'route': 'shop_inventory',
             'badge': 0,
           },
           {
             'icon': Icons.inventory_2,
             'title': 'Manage Inventory',
             'subtitle': 'Update product stock',
-            'route': null,
+            'route': 'shop_inventory',
             'badge': 0,
           },
           {
@@ -1375,6 +1376,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         }
                       } else if (route == 'toggle_location') {
                         await _toggleLocationSharing(!_shareLocation);
+                      } else if (route == 'shop_inventory') {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ShopInventoryScreen(),
+                          ),
+                        );
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Feature coming soon!')),

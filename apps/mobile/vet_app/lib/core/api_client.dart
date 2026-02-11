@@ -160,4 +160,53 @@ class ApiClient {
       },
     );
   }
+
+  // Shop / product management for shop owners & admins
+  Future<Response> getProducts() async {
+    return await _dio.get('/products');
+  }
+
+  Future<Response> getCategories() async {
+    return await _dio.get('/categories');
+  }
+
+  Future<Response> createCategory(String name) async {
+    return await _dio.post(
+      '/categories',
+      data: {'name': name},
+    );
+  }
+
+  Future<Response> createProduct({
+    required String name,
+    required String price,
+    required String stockQuantity,
+    required String categoryId,
+    String? description,
+    bool isAvailable = true,
+  }) async {
+    return await _dio.post(
+      '/products',
+      data: <String, dynamic>{
+        'name': name,
+        'price': price,
+        'stockQuantity': stockQuantity,
+        'category': categoryId,
+        'description': description ?? '',
+        'isAvailable': isAvailable,
+      },
+    );
+  }
+
+  Future<Response> updateProductStock({
+    required String productId,
+    required String stockQuantity,
+  }) async {
+    return await _dio.patch(
+      '/products/$productId',
+      data: <String, dynamic>{
+        'stockQuantity': stockQuantity,
+      },
+    );
+  }
 }

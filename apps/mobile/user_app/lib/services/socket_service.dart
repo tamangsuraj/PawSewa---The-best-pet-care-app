@@ -41,13 +41,15 @@ class SocketService {
       _socket = io.io(
         url,
         io.OptionBuilder()
-            .setTransports(['websocket'])
+            // Allow both websocket and polling so the client can fall back
+            // instead of timing out if pure websocket is blocked.
+            .setTransports(['websocket', 'polling'])
             .setAuth({'token': token})
             .enableAutoConnect()
             .enableReconnection()
-            .setReconnectionAttempts(10)
+            .setReconnectionAttempts(20)
             .setReconnectionDelay(1000)
-            .setReconnectionDelayMax(5000)
+            .setReconnectionDelayMax(10000)
             .build(),
       );
 

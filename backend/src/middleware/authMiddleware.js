@@ -81,4 +81,17 @@ const admin = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin };
+/**
+ * Admin or Shop Owner middleware - allows both 'admin' and 'shop_owner' roles.
+ * Useful for shared management features like product catalogue.
+ */
+const adminOrShopOwner = (req, res, next) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'shop_owner')) {
+    next();
+  } else {
+    res.status(403);
+    throw new Error('Not authorized (admin or shop owner required)');
+  }
+};
+
+module.exports = { protect, admin, adminOrShopOwner };
