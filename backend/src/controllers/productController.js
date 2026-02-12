@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const cloudinary = require('../config/cloudinary');
 
 // Admin: POST /api/v1/categories
 // Body: { name: string }
@@ -36,6 +37,45 @@ const createCategory = asyncHandler(async (req, res) => {
     data: category,
   });
 });
+
+// When client sends application/octet-stream (e.g. Flutter Dio), infer image type from filename.
+function inferImageMime(mimetype, originalname) {
+  if (mimetype && mimetype.startsWith('image/')) return mimetype;
+  if (!originalname) return 'image/jpeg';
+  const ext = originalname.split('.').pop().toLowerCase();
+  const map = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp' };
+  return map[ext] || 'image/jpeg';
+}
+
+// Upload a single buffer to Cloudinary (product folder).
+// Returns { url, error } where url is set on success, error is set on failure (for surfacing to client).
+function uploadProductImageBuffer(buffer, mimetype) {
+  return new Promise((resolve) => {
+    if (!buffer || !Buffer.isBuffer(buffer)) {
+      return resolve({ url: null, error: 'No buffer' });
+    }
+    const base64 = buffer.toString('base64');
+    const dataUri = `data:${mimetype || 'image/jpeg'};base64,${base64}`;
+    cloudinary.uploader.upload(
+      dataUri,
+      {
+        folder: 'pawsewa/products',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
+        transformation: [{ width: 800, height: 800, crop: 'limit' }],
+      },
+      (err, result) => {
+        if (err) {
+          console.error('[Product image upload]', err.message);
+          return resolve({ url: null, error: err.message });
+        }
+        resolve({
+          url: result && result.secure_url ? result.secure_url : null,
+          error: null,
+        });
+      }
+    );
+  });
+}
 
 // Admin: POST /api/v1/products
 // Body (multipart/form-data):
@@ -73,13 +113,33 @@ const createProduct = asyncHandler(async (req, res) => {
     });
   }
 
+  const files = Array.isArray(req.files) ? req.files : [];
   const images = [];
-  if (Array.isArray(req.files)) {
-    for (const file of req.files) {
+  const uploadWarnings = [];
+  let firstUploadError = null;
+
+  if (files.length > 0) {
+    const withBuffer = files.filter((f) => f.buffer);
+    if (withBuffer.length === 0) {
+      console.warn('[Product create] Received', files.length, 'files but none have buffer (field name must be "images"). Check client sends multipart/form-data with boundary, not Content-Type: application/json or plain multipart/form-data.');
+    }
+    for (const file of files) {
       if (file.path) {
         images.push(file.path);
+      } else if (file.buffer) {
+        const mimetype = inferImageMime(file.mimetype, file.originalname);
+        const { url, error } = await uploadProductImageBuffer(file.buffer, mimetype);
+        if (url) {
+          images.push(url);
+        } else {
+          uploadWarnings.push(file.originalname || 'image');
+          if (error && !firstUploadError) firstUploadError = error;
+          console.warn('[Product create] Image upload failed:', file.originalname, error);
+        }
       }
     }
+  } else {
+    console.warn('[Product create] No files in req.files. Client must send FormData with field "images" and must not set Content-Type to application/json.');
   }
 
   const product = await Product.create({
@@ -99,10 +159,22 @@ const createProduct = asyncHandler(async (req, res) => {
 
   const populated = await Product.findById(product._id).populate('category', 'name slug');
 
+  let message = 'Product created successfully';
+  if (uploadWarnings.length > 0) {
+    message =
+      firstUploadError && firstUploadError.includes('Stale request')
+        ? 'Product created but image upload failed: server clock is out of sync with Cloudinary. Sync this server\'s time (NTP) then edit the product to add the image again.'
+        : 'Product created successfully. Some images could not be uploaded (e.g. server clock—sync with NTP and try editing the product to add images).';
+  }
+
   res.status(201).json({
     success: true,
-    message: 'Product created successfully',
+    message,
     data: populated,
+    ...(uploadWarnings.length > 0 && {
+      uploadSkipped: uploadWarnings,
+      uploadError: process.env.NODE_ENV !== 'production' ? firstUploadError : undefined,
+    }),
   });
 });
 
@@ -158,6 +230,10 @@ const updateProduct = asyncHandler(async (req, res) => {
     for (const file of req.files) {
       if (file.path) {
         images.push(file.path);
+      } else if (file.buffer) {
+        const mimetype = inferImageMime(file.mimetype, file.originalname);
+        const { url } = await uploadProductImageBuffer(file.buffer, mimetype);
+        if (url) images.push(url);
       }
     }
     product.images = images;
@@ -219,7 +295,8 @@ const getProducts = asyncHandler(async (req, res) => {
       .populate('category', 'name slug')
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
-      .limit(limitNum),
+      .limit(limitNum)
+      .lean(),
     Product.countDocuments(filter),
   ]);
 

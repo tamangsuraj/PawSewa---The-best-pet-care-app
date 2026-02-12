@@ -11,7 +11,7 @@ const {
   getCategories,
 } = require('../controllers/productController');
 const { protect, adminOrShopOwner } = require('../middleware/authMiddleware');
-const upload = require('../middleware/upload');
+const { uploadProductImages } = require('../middleware/upload');
 
 // Public catalogue endpoints (used by customer app)
 router.get('/products', getProducts);
@@ -20,8 +20,8 @@ router.get('/categories', getCategories);
 
 // Admin management endpoints
 router.post('/categories', protect, adminOrShopOwner, createCategory);
-router.post('/products', protect, adminOrShopOwner, upload.array('images', 5), createProduct);
-router.patch('/products/:id', protect, adminOrShopOwner, upload.array('images', 5), updateProduct);
+router.post('/products', protect, adminOrShopOwner, uploadProductImages.array('images', 5), createProduct);
+router.patch('/products/:id', protect, adminOrShopOwner, uploadProductImages.array('images', 5), updateProduct);
 router.delete('/products/:id', protect, adminOrShopOwner, deleteProduct);
 
 module.exports = router;

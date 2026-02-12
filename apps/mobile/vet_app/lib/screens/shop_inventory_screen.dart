@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -27,6 +29,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
   String? _selectedCategoryId;
   bool _isAvailable = true;
   bool _saving = false;
+  final ImagePicker _picker = ImagePicker();
+  List<XFile> _selectedImages = [];
 
   @override
   void initState() {
@@ -86,20 +90,39 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       _saving = true;
     });
     try {
-      await _apiClient.createProduct(
-        name: _nameController.text.trim(),
-        price: _priceController.text.trim(),
-        stockQuantity: _stockController.text.trim(),
-        categoryId: _selectedCategoryId!,
-        description: _descriptionController.text.trim(),
-        isAvailable: _isAvailable,
-      );
+      final formData = FormData();
+      formData.fields.addAll([
+        MapEntry('name', _nameController.text.trim()),
+        MapEntry('price', _priceController.text.trim()),
+        MapEntry('stockQuantity', _stockController.text.trim()),
+        MapEntry('category', _selectedCategoryId!),
+        MapEntry('description', _descriptionController.text.trim()),
+        MapEntry('isAvailable', _isAvailable ? 'true' : 'false'),
+      ]);
+
+      for (final image in _selectedImages) {
+        // Ensure filename has an extension so backend can infer MIME (mobile often sends application/octet-stream)
+        final name = image.name.trim().isNotEmpty ? image.name : 'image';
+        final filename = name.contains('.') ? name : '$name.jpg';
+        formData.files.add(
+          MapEntry(
+            'images',
+            await MultipartFile.fromFile(
+              image.path,
+              filename: filename,
+            ),
+          ),
+        );
+      }
+
+      await _apiClient.createProductForm(formData);
       if (!mounted) return;
       _nameController.clear();
       _priceController.clear();
       _stockController.clear();
       _descriptionController.clear();
       _isAvailable = true;
+      _selectedImages = [];
       await _loadData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,6 +211,52 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                     controller: _nameController,
                     label: 'Name *',
                     hint: 'Product name',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Images (optional)',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          final images = await _picker.pickMultiImage(
+                            imageQuality: 85,
+                          );
+                          if (images.isNotEmpty) {
+                            setState(() {
+                              _selectedImages = images;
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: Text(
+                          'Choose Images',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _selectedImages.isEmpty
+                              ? 'No images selected'
+                              : '${_selectedImages.length} image(s) selected',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 2,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Row(

@@ -29,16 +29,14 @@ class ServicesScreen extends StatelessWidget {
             SizedBox(height: size.height * 0.01),
             Text(
               'Request emergency help or book appointments for your pets.',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
             ),
             SizedBox(height: size.height * 0.03),
             _ServiceCard(
               icon: Icons.medical_services,
               title: 'Request Assistance',
-              subtitle: 'Emergency vet assistance – describe the issue and we’ll assign a vet.',
+              subtitle:
+                  'Emergency vet assistance – describe the issue and we’ll assign a vet.',
               color: Colors.red.shade600,
               onTap: () {
                 Navigator.push(
@@ -53,14 +51,13 @@ class ServicesScreen extends StatelessWidget {
             _ServiceCard(
               icon: Icons.calendar_today,
               title: 'Book Appointment',
-              subtitle: 'Schedule a visit: checkup, vaccination, or consultation.',
+              subtitle:
+                  'Schedule a visit: checkup, vaccination, or consultation.',
               color: const Color(AppConstants.primaryColor),
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => const BookServiceScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const BookServiceScreen()),
                 );
               },
             ),
@@ -110,11 +107,10 @@ class _ServiceCard extends StatelessWidget {
                 ),
                 child: Icon(icon, size: 32, color: color),
               ),
-              SizedBox(width: size.width * 0.04),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       title,
@@ -123,17 +119,14 @@ class _ServiceCard extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: size.height * 0.005),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         color: Colors.grey[700],
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),

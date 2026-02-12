@@ -30,6 +30,12 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // For FormData (e.g. product with images), remove Content-Type so Dio sets multipart/form-data.
+          // BaseOptions use application/json; sending that with FormData would break server parsing.
+          if (options.data is FormData) {
+            options.headers.remove(Headers.contentTypeHeader);
+          }
+
           // Log request
           _log('[API] *** Request ***');
           _log('[API] uri: ${options.uri}');
@@ -177,25 +183,9 @@ class ApiClient {
     );
   }
 
-  Future<Response> createProduct({
-    required String name,
-    required String price,
-    required String stockQuantity,
-    required String categoryId,
-    String? description,
-    bool isAvailable = true,
-  }) async {
-    return await _dio.post(
-      '/products',
-      data: <String, dynamic>{
-        'name': name,
-        'price': price,
-        'stockQuantity': stockQuantity,
-        'category': categoryId,
-        'description': description ?? '',
-        'isAvailable': isAvailable,
-      },
-    );
+  Future<Response> createProductForm(FormData formData) async {
+    // Content-Type is cleared for FormData in the interceptor so Dio sets multipart/form-data.
+    return await _dio.post('/products', data: formData);
   }
 
   Future<Response> updateProductStock({
