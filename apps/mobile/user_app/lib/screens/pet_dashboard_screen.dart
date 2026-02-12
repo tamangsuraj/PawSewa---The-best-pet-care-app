@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/constants.dart';
 import '../core/storage_service.dart';
@@ -139,22 +140,26 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Digital ID Card for PawID
+              // Digital ID Card for PawID + QR
               if (pet.pawId != null && pet.pawId!.isNotEmpty)
                 GestureDetector(
                   onLongPress: () async {
                     final id = pet.pawId!;
+                    // Capture context-dependent objects before the async gap.
+                    final messenger = ScaffoldMessenger.of(context);
+                    final canPop = Navigator.of(context).canPop();
+
                     await Clipboard.setData(ClipboardData(text: id));
+                    if (!mounted || !canPop) return;
+
                     HapticFeedback.lightImpact();
-                    if (Navigator.of(context).canPop()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('PawID copied: $id'),
-                          duration: const Duration(seconds: 2),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('PawID copied: $id'),
+                        duration: const Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                   },
                   child: Container(
                     width: double.infinity,
@@ -207,13 +212,36 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Long press to copy and share with your vet.',
+                                'Long press to copy or let your vet scan the QR.',
                                 style: GoogleFonts.poppins(
                                   fontSize: 11,
                                   color: Colors.brown[600],
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: const Color(0xFFE2D3B5),
+                            ),
+                          ),
+                          child: QrImageView(
+                            data: pet.pawId!,
+                            size: 72,
+                            eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square,
+                              color: Color(AppConstants.primaryColor),
+                            ),
+                            dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: Color(AppConstants.primaryColor),
+                            ),
                           ),
                         ),
                       ],
@@ -686,57 +714,61 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                           ),
                         )
                       : _pets.isEmpty
-                      ? Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
+                          ? Container(
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.pets,
-                                size: 64,
-                                color: Color(AppConstants.primaryColor),
+                              child: Column(
+                                children: [
+                                  const Icon(
+                                    Icons.pets,
+                                    size: 64,
+                                    color: Color(AppConstants.primaryColor),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No Pets Yet',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          const Color(AppConstants.accentColor),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Add your first pet to get started!',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No Pets Yet',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(AppConstants.accentColor),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add your first pet to get started!',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        )
-                      : Column(
-                          children: _pets
-                              .map(
-                                (pet) => PetCard(
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              physics:
+                                  const NeverScrollableScrollPhysics(),
+                              itemCount: _pets.length,
+                              itemBuilder: (context, index) {
+                                final pet = _pets[index];
+                                return PetCard(
                                   pet: pet,
                                   onTap: () => _showPetDetails(pet),
-                                ),
-                              )
-                              .toList(),
-                        ),
+                                );
+                              },
+                            ),
                 ],
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
@@ -136,28 +137,55 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                         const SizedBox(height: 4),
                         if (pet?['pawId'] != null &&
                             (pet?['pawId'] as String).isNotEmpty)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 4),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7EC),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: themeColor,
-                                width: 1.2,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF7EC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: themeColor,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Text(
+                                  'ID: ${pet?['pawId']}',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: themeColor,
+                                  ),
+                                ),
                               ),
-                            ),
-                            child: Text(
-                              'ID: ${pet?['pawId']}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: themeColor,
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2D3B5),
+                                  ),
+                                ),
+                                child: QrImageView(
+                                  data: pet?['pawId'] as String,
+                                  size: 48,
+                                  eyeStyle: QrEyeStyle(
+                                    eyeShape: QrEyeShape.square,
+                                    color: themeColor,
+                                  ),
+                                  dataModuleStyle: QrDataModuleStyle(
+                                    dataModuleShape: QrDataModuleShape.square,
+                                    color: themeColor,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                         Text(
                           [
