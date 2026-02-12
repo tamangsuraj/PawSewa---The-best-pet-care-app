@@ -84,17 +84,7 @@ class _ShopScreenState extends State<ShopScreen> {
     return SafeArea(
       child: Scaffold(
         backgroundColor: const Color(AppConstants.bentoBackgroundColor),
-        appBar: AppBar(
-          title: Text(
-            'Shop',
-            style: GoogleFonts.poppins(
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          backgroundColor: primary,
-          elevation: 0,
-        ),
+        // No colored app bar – search + chips act as the header inline.
         body: Column(
           children: [
             Padding(
@@ -142,17 +132,34 @@ class _ShopScreenState extends State<ShopScreen> {
                             )
                           : Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: GridView.builder(
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio: 0.72,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 8,
-                                ),
-                                itemCount: _products.length,
-                                itemBuilder: (context, index) {
-                                  final p = _products[index] as Map<String, dynamic>;
-                                  return _buildProductCard(p, primary);
+                              // Use LayoutBuilder to compute a responsive childAspectRatio
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  const crossAxisCount = 2;
+                                  const spacing = 8.0;
+                                  final totalSpacing =
+                                      spacing * (crossAxisCount - 1); // horizontal gaps
+                                  final itemWidth =
+                                      (constraints.maxWidth - totalSpacing) / crossAxisCount;
+
+                                  // Card height = square image + approx text / padding area
+                                  const extraHeight = 110.0;
+                                  final itemHeight = itemWidth + extraHeight;
+                                  final aspectRatio = itemWidth / itemHeight;
+
+                                  return GridView.builder(
+                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      childAspectRatio: aspectRatio,
+                                      crossAxisSpacing: spacing,
+                                      mainAxisSpacing: spacing,
+                                    ),
+                                    itemCount: _products.length,
+                                    itemBuilder: (context, index) {
+                                      final p = _products[index] as Map<String, dynamic>;
+                                      return _buildProductCard(p, primary);
+                                    },
+                                  );
                                 },
                               ),
                             ),
@@ -218,7 +225,9 @@ class _ShopScreenState extends State<ShopScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
+          // Fixed aspect ratio (1:1 square) to match Cloudinary's 800x800 transform
+          AspectRatio(
+            aspectRatio: 1.0,
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: imageUrl == null
@@ -232,6 +241,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       width: double.infinity,
+                      height: double.infinity,
                     ),
             ),
           ),

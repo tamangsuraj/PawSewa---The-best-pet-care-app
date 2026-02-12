@@ -13,6 +13,9 @@ const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '';
 const ESEWA_INIT_URL = process.env.ESEWA_INIT_URL || '';
 const ESEWA_VERIFY_SECRET = process.env.ESEWA_SECRET_KEY || '';
 const ESEWA_PRODUCT_CODE = process.env.ESEWA_PRODUCT_CODE || '';
+// Optional server-to-server verification endpoint for eSewa.
+// Example (check latest docs): https://epay.esewa.com.np/api/epay/transaction/status/
+const ESEWA_VERIFY_URL = process.env.ESEWA_VERIFY_URL || '';
 
 /**
  * Helper: promote ServiceRequest to \"confirmed\" + mark paymentStatus
@@ -270,7 +273,76 @@ const verifyEsewa = asyncHandler(async (req, res) => {
 
   payment.rawGatewayPayload = decoded;
 
+  // Optional additional server-to-server verification with eSewa before
+  // marking the payment as completed. This ensures we never rely solely
+  // on client-provided success flags.
   if (status === 'COMPLETE') {
+    // Cross-check amount against our Payment record
+    const decodedAmount = Number(total_amount);
+    const recordedAmount = Number(payment.amount);
+    if (!Number.isFinite(decodedAmount) || decodedAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment amount in callback payload',
+      });
+    }
+    if (Number.isFinite(recordedAmount) && recordedAmount > 0 && decodedAmount !== recordedAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment amount mismatch between eSewa and our records',
+      });
+    }
+
+    // If a verify URL is configured, call eSewa directly to confirm
+    if (ESEWA_VERIFY_URL) {
+      try {
+        const verifyResp = await axios.post(
+          ESEWA_VERIFY_URL,
+          {
+            product_code: product_code || ESEWA_PRODUCT_CODE,
+            total_amount,
+            transaction_uuid,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          },
+        );
+
+        const gatewayStatus = verifyResp.data?.status;
+        const gatewayAmount = Number(verifyResp.data?.total_amount);
+
+        if (gatewayStatus !== 'COMPLETE') {
+          payment.status = 'failed';
+          await payment.save();
+          return res.status(400).json({
+            success: false,
+            message: `Payment not completed on gateway (status: ${gatewayStatus})`,
+          });
+        }
+
+        if (
+          Number.isFinite(gatewayAmount) &&
+          gatewayAmount > 0 &&
+          gatewayAmount !== decodedAmount
+        ) {
+          payment.status = 'failed';
+          await payment.save();
+          return res.status(400).json({
+            success: false,
+            message: 'Payment amount mismatch between eSewa verification and callback payload',
+          });
+        }
+      } catch (err) {
+        console.error('eSewa verification error:', err.message);
+        return res.status(502).json({
+          success: false,
+          message: 'Failed to verify payment with eSewa gateway',
+        });
+      }
+    }
+
     await markPaymentCompleted({ paymentId: payment._id });
     return res.json({ success: true, message: 'Payment completed' });
   }

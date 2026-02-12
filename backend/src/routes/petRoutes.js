@@ -7,6 +7,7 @@ const {
   updatePet,
   deletePet,
   adminCreatePetForCustomer,
+  getAllPets,
 } = require('../controllers/petController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
@@ -15,6 +16,7 @@ const upload = require('../middleware/upload');
 router.post('/', protect, upload.single('photo'), createPet);
 router.post('/admin/:userId', protect, admin, upload.single('photo'), adminCreatePetForCustomer);
 router.get('/my-pets', protect, getMyPets);
+router.get('/admin', protect, admin, getAllPets);
 router.get('/:id', protect, getPetById);
 router.put('/:id', protect, upload.single('photo'), updatePet);
 router.delete('/:id', protect, deletePet);

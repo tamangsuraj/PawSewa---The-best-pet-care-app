@@ -24,6 +24,16 @@ class MyApp extends StatelessWidget {
           primary: const Color(AppConstants.primaryColor),
           secondary: const Color(AppConstants.accentColor),
         ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: Color(AppConstants.primaryColor),
+          foregroundColor: Colors.white,
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(AppConstants.primaryColor),
+            foregroundColor: Colors.white,
+          ),
+        ),
         textTheme: GoogleFonts.poppinsTextTheme(),
         useMaterial3: true,
       ),

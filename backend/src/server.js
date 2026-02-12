@@ -14,12 +14,14 @@ const { Server: SocketServer } = require('socket.io');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cors = require('cors');
+const mongoSanitize = require('express-mongo-sanitize');
 
 // Database connection
 const connectDB = require('./config/db');
 
 // Error handling middleware
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { generalApiLimiter } = require('./middleware/rateLimiters');
 
 // Routes
 const userRoutes = require('./routes/userRoutes');
@@ -107,6 +109,16 @@ app.use(
 // Body Parser - Parse JSON with size limit (prevent DoS attacks)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Sanitize MongoDB operators from user input to mitigate NoSQL injection
+app.use(
+  mongoSanitize({
+    replaceWith: '_',
+  }),
+);
+
+// Global rate limit for all API routes
+app.use('/api/v1', generalApiLimiter);
 
 // Global request logger (simple) + structured API logger
 app.use((req, res, next) => {

@@ -20,6 +20,14 @@ const serviceRequestSchema = new mongoose.Schema(
       ref: 'Pet',
       required: [true, 'Pet is required'],
     },
+    // Denormalised snapshot of the pet's PawID so that
+    // admins/staff can identify the pet even if the pet
+    // record is later modified or deleted.
+    petPawId: {
+      type: String,
+      index: true,
+      trim: true,
+    },
     serviceType: {
       type: String,
       enum: ['Appointment', 'Health Checkup', 'Vaccination'],

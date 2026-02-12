@@ -71,6 +71,9 @@ const protect = async (req, res, next) => {
 /**
  * Admin middleware - Check if user has admin role
  * Must be used after protect middleware
+ *
+ * Prefer using the more flexible authorize(...) helper for new routes,
+ * but keep this for backward compatibility.
  */
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
@@ -94,4 +97,22 @@ const adminOrShopOwner = (req, res, next) => {
   }
 };
 
-module.exports = { protect, admin, adminOrShopOwner };
+/**
+ * Generic role-based authorization helper.
+ * Usage: router.get('/admin', protect, authorize('admin'), handler)
+ */
+const authorize = (...roles) => (req, res, next) => {
+  if (!req.user) {
+    res.status(401);
+    throw new Error('Not authorized, user not found on request');
+  }
+
+  if (!roles.includes(req.user.role)) {
+    res.status(403);
+    throw new Error('Not authorized for this action');
+  }
+
+  next();
+};
+
+module.exports = { protect, admin, adminOrShopOwner, authorize };

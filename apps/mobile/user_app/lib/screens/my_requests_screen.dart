@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
@@ -471,9 +472,17 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       child: pet != null && (pet['image'] != null || pet['photoUrl'] != null)
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                (pet['photoUrl'] ?? pet['image']).toString(),
+                              child: CachedNetworkImage(
+                                imageUrl: (pet['photoUrl'] ?? pet['image']).toString(),
                                 fit: BoxFit.cover,
+                                placeholder: (context, url) => const Center(
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                errorWidget: (context, url, error) => const Icon(
+                                  Icons.pets,
+                                  color: Color(AppConstants.primaryColor),
+                                  size: 26,
+                                ),
                               ),
                             )
                           : const Icon(Icons.pets, color: Color(AppConstants.primaryColor), size: 26),

@@ -371,92 +371,101 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                     )
                   else
-                    ..._products.map((p) {
-                      final product = p as Map<String, dynamic>;
-                      final id = product['_id']?.toString() ?? '';
-                      final name = product['name']?.toString() ?? 'Product';
-                      final price = (product['price'] as num?)?.toDouble() ?? 0;
-                      final stock = product['stockQuantity']?.toString() ?? '0';
-                      final isAvailable = product['isAvailable'] == true;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    name,
-                                    style: GoogleFonts.poppins(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'NPR ${price.toStringAsFixed(0)} • Stock: $stock',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    isAvailable ? 'Active' : 'Inactive',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      color: isAvailable ? Colors.green : Colors.red,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () async {
-                                final controller =
-                                    TextEditingController(text: stock);
-                                final result = await showDialog<String>(
-                                  context: context,
-                                  builder: (ctx) {
-                                    return AlertDialog(
-                                      title: const Text('Update Stock'),
-                                      content: TextField(
-                                        controller: controller,
-                                        keyboardType: TextInputType.number,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Stock quantity',
-                                        ),
+                    ListView.builder(
+                      itemCount: _products.length,
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      itemBuilder: (context, index) {
+                        final product =
+                            _products[index] as Map<String, dynamic>;
+                        final id = product['_id']?.toString() ?? '';
+                        final name = product['name']?.toString() ?? 'Product';
+                        final price =
+                            (product['price'] as num?)?.toDouble() ?? 0;
+                        final stock =
+                            product['stockQuantity']?.toString() ?? '0';
+                        final isAvailable = product['isAvailable'] == true;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () =>
-                                              Navigator.of(ctx).pop(),
-                                          child: const Text('Cancel'),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'NPR ${price.toStringAsFixed(0)} • Stock: $stock',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      isAvailable ? 'Active' : 'Inactive',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        color:
+                                            isAvailable ? Colors.green : Colors.red,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit),
+                                onPressed: () async {
+                                  final controller =
+                                      TextEditingController(text: stock);
+                                  final result = await showDialog<String>(
+                                    context: context,
+                                    builder: (ctx) {
+                                      return AlertDialog(
+                                        title: const Text('Update Stock'),
+                                        content: TextField(
+                                          controller: controller,
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Stock quantity',
+                                          ),
                                         ),
-                                        TextButton(
-                                          onPressed: () => Navigator.of(ctx)
-                                              .pop(controller.text.trim()),
-                                          child: const Text('Save'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                                if (result != null && result.isNotEmpty) {
-                                  await _updateStock(id, result);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.of(ctx)
+                                                .pop(controller.text.trim()),
+                                            child: const Text('Save'),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                  if (result != null && result.isNotEmpty) {
+                                    await _updateStock(id, result);
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                 ],
               ),
             ),

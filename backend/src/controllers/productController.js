@@ -61,7 +61,17 @@ function uploadProductImageBuffer(buffer, mimetype) {
       {
         folder: 'pawsewa/products',
         allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
-        transformation: [{ width: 800, height: 800, crop: 'limit' }],
+        // Crop to exactly 800x800 square, smart crop focuses on main subject
+        transformation: [
+          { 
+            width: 800, 
+            height: 800, 
+            crop: 'fill',        // Fill exact dimensions, crop if needed
+            gravity: 'auto',     // Smart crop: focus on main subject/face
+            quality: 'auto:good', // Optimize file size while maintaining quality
+            fetch_format: 'auto'  // Auto-select best format (WebP when supported)
+          }
+        ],
       },
       (err, result) => {
         if (err) {

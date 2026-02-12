@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/constants.dart';
@@ -136,7 +137,89 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Digital ID Card for PawID
+              if (pet.pawId != null && pet.pawId!.isNotEmpty)
+                GestureDetector(
+                  onLongPress: () async {
+                    final id = pet.pawId!;
+                    await Clipboard.setData(ClipboardData(text: id));
+                    HapticFeedback.lightImpact();
+                    if (Navigator.of(context).canPop()) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('PawID copied: $id'),
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7EC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(AppConstants.primaryColor),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(AppConstants.primaryColor)
+                                .withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.badge,
+                            color: Color(AppConstants.primaryColor),
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Digital Paw ID',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(AppConstants.primaryColor),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              SelectableText(
+                                pet.pawId ?? '',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.brown[800],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Long press to copy and share with your vet.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: Colors.brown[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               _buildDetailRow('Species', pet.species),
               if (pet.breed != null && pet.breed!.isNotEmpty)
                 _buildDetailRow('Breed', pet.breed!),

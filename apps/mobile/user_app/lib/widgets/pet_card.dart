@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/pet.dart';
 import '../core/constants.dart';
 
@@ -78,25 +79,18 @@ class PetCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: pet.photoUrl != null && pet.photoUrl!.isNotEmpty
-                    ? Image.network(
-                        pet.photoUrl!,
+                    ? CachedNetworkImage(
+                        imageUrl: pet.photoUrl!,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Text(
-                              _getSpeciesEmoji(),
-                              style: const TextStyle(fontSize: 40),
-                            ),
-                          );
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          );
-                        },
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        errorWidget: (context, url, error) => Center(
+                          child: Text(
+                            _getSpeciesEmoji(),
+                            style: const TextStyle(fontSize: 40),
+                          ),
+                        ),
                       )
                     : Center(
                         child: Text(
@@ -143,6 +137,32 @@ class PetCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
+
+                  // Digital PawID badge (small)
+                  if (pet.pawId != null && pet.pawId!.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7EC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(AppConstants.primaryColor),
+                          width: 1,
+                        ),
+                      ),
+                      child: Text(
+                        'ID: ${pet.pawId}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(AppConstants.primaryColor),
+                        ),
+                      ),
+                    ),
 
                   // Breed
                   if (pet.breed != null && pet.breed!.isNotEmpty)

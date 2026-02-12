@@ -38,21 +38,22 @@ class SocketService {
     try {
       final url = AppConstants.socketUrl;
       _socket?.dispose();
-      _socket = io.io(
-        url,
-        io.OptionBuilder()
-            // Allow both websocket and polling so the client can fall back
-            // instead of timing out if pure websocket is blocked.
-            .setTransports(['websocket', 'polling'])
-            .setAuth({'token': token})
-            .enableAutoConnect()
-            .enableReconnection()
-            .setReconnectionAttempts(20)
-            .setReconnectionDelay(1000)
-            .setReconnectionDelayMax(10000)
-            .build(),
-      );
+      // Build options and add longer timeout (ms). Default is often ~20s; 60s helps on slow/mobile networks.
+      final built = io.OptionBuilder()
+          // Try polling first so initial handshake uses HTTP (more reliable on mobile/firewalls).
+          .setTransports(['polling', 'websocket'])
+          .setAuth({'token': token})
+          .enableAutoConnect()
+          .enableReconnection()
+          .setReconnectionAttempts(20)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(10000)
+          .build();
+      final opts = Map<String, dynamic>.from(built);
+      opts['timeout'] = 60000; // 60 seconds connection timeout (engine.io)
+      _socket = io.io(url, opts);
 
+      bool connectErrorLogged = false;
       _socket!.onConnect((_) {
         if (kDebugMode) debugPrint('[SocketService] Connected');
         _connecting = false;
@@ -70,8 +71,11 @@ class SocketService {
       });
 
       _socket!.onConnectError((err) {
-        if (kDebugMode) debugPrint('[SocketService] ConnectError: $err');
         _connecting = false;
+        if (kDebugMode && !connectErrorLogged) {
+          connectErrorLogged = true;
+          debugPrint('[SocketService] ConnectError: $err (reconnecting in background; ensure device and backend are on same network, and baseUrl in constants.dart points to your PC IP)');
+        }
       });
 
       _socket!.on('new_message', (data) {

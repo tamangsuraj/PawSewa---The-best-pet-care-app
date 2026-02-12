@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
+import '../services/location_service.dart';
 
 class ServiceTaskDetailScreen extends StatefulWidget {
   final Map<String, dynamic> task;
@@ -24,6 +25,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   LatLng? _customerLocation;
   LatLng? _vetLocation;
   StreamSubscription<Position>? _positionSub;
+  final LocationService _locationService = LocationService();
 
   @override
   void initState() {
@@ -49,15 +51,8 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
     }
 
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.denied) {
+      final hasPermission = await _locationService.ensureLocationPermission(context);
+      if (!hasPermission) {
         return;
       }
 
@@ -139,6 +134,31 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 4),
+                        if (pet?['pawId'] != null &&
+                            (pet?['pawId'] as String).isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7EC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: themeColor,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Text(
+                              'ID: ${pet?['pawId']}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: themeColor,
+                              ),
+                            ),
+                          ),
                         Text(
                           [
                             pet?['species'] ?? 'Unknown species',
@@ -249,8 +269,8 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                                   width: 40,
                                   height: 40,
                                   child: const Icon(
-                                    Icons.location_on,
-                                    color: Colors.red,
+                                    Icons.home_filled,
+                                    color: Color(AppConstants.primaryColor),
                                     size: 34,
                                   ),
                                 ),

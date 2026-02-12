@@ -158,6 +158,9 @@ const createServiceRequest = asyncHandler(async (req, res) => {
     const createPayload = {
       user: req.user._id,
       pet: petId,
+      // Store a snapshot of the pet's PawID so staff/admins
+      // can quickly identify which pet is arriving.
+      petPawId: pet.pawId || undefined,
       serviceType: String(serviceType),
       preferredDate: requestDate,
       timeWindow: String(timeWindow),
@@ -172,7 +175,7 @@ const createServiceRequest = asyncHandler(async (req, res) => {
     // Populate pet and user data (pet.photoUrl is the schema field; UIs may use image as alias)
     const populatedRequest = await ServiceRequest.findById(serviceRequest._id)
       .populate('user', 'name email phone')
-      .populate('pet', 'name breed age photoUrl');
+      .populate('pet', 'name breed age photoUrl pawId');
 
     console.log('[POST /service-requests] Created request', serviceRequest._id, 'status:', serviceRequest.status, 'user:', req.user._id);
 
@@ -244,7 +247,7 @@ const getAllServiceRequests = asyncHandler(async (req, res) => {
 
   const requests = await ServiceRequest.find(filter)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age photoUrl')
+    .populate('pet', 'name breed age photoUrl pawId')
     .populate('assignedStaff', 'name email phone specialty specialization')
     .sort({ createdAt: -1 });
 
@@ -272,7 +275,7 @@ const getMyServiceRequests = asyncHandler(async (req, res) => {
   }
 
   const requests = await ServiceRequest.find(filter)
-    .populate('pet', 'name breed age photoUrl')
+    .populate('pet', 'name breed age photoUrl pawId')
     .populate('assignedStaff', 'name phone specialty specialization')
     .sort({ createdAt: -1 });
 
@@ -302,7 +305,7 @@ const getMyAssignedRequests = asyncHandler(async (req, res) => {
     },
   })
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age photoUrl medicalHistory species')
+    .populate('pet', 'name breed age photoUrl medicalHistory species pawId')
     .populate('assignedStaff', 'name email phone specialty specialization')
     .sort({ preferredDate: 1 });
 
@@ -395,7 +398,7 @@ const getServiceRequestLive = asyncHandler(async (req, res) => {
 const getServiceRequestById = asyncHandler(async (req, res) => {
   const request = await ServiceRequest.findById(req.params.id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age photoUrl')
+    .populate('pet', 'name breed age photoUrl pawId')
     .populate('assignedStaff', 'name email phone specialty specialization');
 
   if (!request) {
@@ -630,7 +633,7 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age photoUrl medicalHistory species');
+    .populate('pet', 'name breed age photoUrl medicalHistory species pawId');
 
   res.json({
     success: true,
@@ -737,7 +740,7 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age photoUrl medicalHistory species')
+    .populate('pet', 'name breed age photoUrl medicalHistory species pawId')
     .populate('assignedStaff', 'name phone role');
 
   res.json({
@@ -789,7 +792,7 @@ const cancelServiceRequest = asyncHandler(async (req, res) => {
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
-    .populate('pet', 'name breed age photoUrl');
+    .populate('pet', 'name breed age photoUrl pawId');
 
   res.json({
     success: true,

@@ -262,8 +262,9 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
   }
 
   Widget _buildErrorState() {
+    // Scrollable + centered error UI to avoid overflow on small screens / long messages.
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

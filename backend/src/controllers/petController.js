@@ -86,6 +86,39 @@ const getMyPets = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get all pets (admin) with optional search by name, species, breed, or pawId
+ * @route   GET /api/v1/pets/admin
+ * @access  Private/Admin
+ */
+const getAllPets = asyncHandler(async (req, res) => {
+  const { search } = req.query;
+
+  const filter = {};
+
+  if (search && typeof search === 'string') {
+    // Case-insensitive regex search. This allows queries like
+    // "paw-2026" or "PAW-2026-K7W2" to match PawIDs.
+    const regex = new RegExp(search, 'i');
+    filter.$or = [
+      { name: regex },
+      { species: regex },
+      { breed: regex },
+      { pawId: regex },
+    ];
+  }
+
+  const pets = await Pet.find(filter)
+    .populate('owner', 'name email phone')
+    .sort({ createdAt: -1 });
+
+  res.json({
+    success: true,
+    count: pets.length,
+    data: pets,
+  });
+});
+
+/**
  * @desc    Get single pet by ID
  * @route   GET /api/v1/pets/:id
  * @access  Private
@@ -302,4 +335,5 @@ module.exports = {
   updatePet,
   deletePet,
   adminCreatePetForCustomer,
+   getAllPets,
 };

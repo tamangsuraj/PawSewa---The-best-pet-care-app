@@ -208,23 +208,23 @@ class _ServiceRequestTrackingScreenState
                             markers: [
                               // Customer pin (request location)
                               Marker(
-                                point: _customerLocation!,
-                                width: 36,
-                                height: 36,
-                                child: const Icon(
-                                  Icons.location_on,
-                                  color: Colors.red,
-                                  size: 32,
-                                ),
+                              point: _customerLocation!,
+                              width: 36,
+                              height: 36,
+                              child: const Icon(
+                                Icons.home_filled,
+                                color: Color(AppConstants.primaryColor),
+                                size: 30,
                               ),
+                            ),
                               if (_staffLocation != null)
                                 Marker(
                                   point: _staffLocation!,
                                   width: 32,
                                   height: 32,
                                   child: const Icon(
-                                    Icons.my_location,
-                                    color: Colors.blue,
+                                    Icons.delivery_dining,
+                                    color: Color(AppConstants.primaryColor),
                                     size: 26,
                                   ),
                                 ),

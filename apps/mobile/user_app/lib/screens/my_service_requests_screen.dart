@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
@@ -483,8 +484,9 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   const SizedBox(height: 28),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
+                      child: ElevatedButton.icon(
                       onPressed: () {
+                        HapticFeedback.lightImpact();
                         Navigator.push(
                           context,
                           MaterialPageRoute(

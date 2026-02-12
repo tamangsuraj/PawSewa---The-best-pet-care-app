@@ -17,10 +17,11 @@ const {
   updateStaffProfile,
 } = require('../controllers/userController');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { authLimiter } = require('../middleware/rateLimiters');
 
-// Public routes
-router.post('/', registerUser); // Public registration (pet_owner only)
-router.post('/login', loginUser);
+// Public routes (rate-limited for brute-force protection)
+router.post('/', authLimiter, registerUser); // Public registration (pet_owner only)
+router.post('/login', authLimiter, loginUser);
 router.post('/verify-otp', verifyOTP); // Verify OTP
 router.post('/resend-otp', resendOTP); // Resend OTP
 

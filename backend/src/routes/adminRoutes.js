@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { assignServiceRequest } = require('../controllers/serviceRequestController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 const StaffLocation = require('../models/StaffLocation');
 const ServiceRequest = require('../models/ServiceRequest');
 const CareRequest = require('../models/CareRequest');
@@ -10,13 +10,14 @@ const Order = require('../models/Order');
 
 // Admin dispatcher routes
 // Mirror of PATCH /api/v1/service-requests/:id/assign, but namespaced for admin
-router.patch('/requests/:id/assign', protect, admin, assignServiceRequest);
+// RBAC: Only admins can assign requests via this namespace.
+router.patch('/requests/:id/assign', protect, authorize('admin'), assignServiceRequest);
 
 // Global live map data for admin dashboard:
 // - All active staff (vets, riders, etc.) with recent (TTL-backed) locations
 // - All pending/assigned customer service request pins
 // - All active Care+ requests (blue paw pins)
-router.get('/live-map', protect, admin, async (req, res, next) => {
+router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
   try {
     const [staffLocations, pendingRequests, careRequests, productOrders] = await Promise.all([
       StaffLocation.find({}).populate('staff', 'name role phone'),

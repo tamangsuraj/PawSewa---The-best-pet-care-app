@@ -13,6 +13,7 @@ class Pet {
   final String? behavioralNotes;
   final bool isVaccinated;
   final List<String> medicalHistory;
+  final String? pawId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -31,6 +32,7 @@ class Pet {
     this.behavioralNotes,
     this.isVaccinated = false,
     this.medicalHistory = const [],
+    this.pawId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -53,8 +55,13 @@ class Pet {
       medicalHistory: json['medicalHistory'] != null
           ? List<String>.from(json['medicalHistory'])
           : [],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      pawId: json['pawId'],
+      createdAt: DateTime.parse(
+        json['createdAt'] ?? DateTime.now().toIso8601String(),
+      ),
+      updatedAt: DateTime.parse(
+        json['updatedAt'] ?? DateTime.now().toIso8601String(),
+      ),
     );
   }
 
@@ -74,6 +81,7 @@ class Pet {
       'behavioralNotes': behavioralNotes,
       'isVaccinated': isVaccinated,
       'medicalHistory': medicalHistory,
+      'pawId': pawId,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
