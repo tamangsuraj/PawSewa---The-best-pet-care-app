@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/constants.dart';
@@ -779,7 +781,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   }
 
   Widget _buildBottomNavBar() {
-    const warmSurface = Color(0xFFFAF7F2);
     const primary = Color(AppConstants.primaryColor);
     const accent = Color(AppConstants.accentColor);
     final navIndex = _currentIndex == 3
@@ -787,82 +788,56 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
         : (_currentIndex <= 2
               ? _currentIndex
               : _currentIndex == 4
-              ? 3
-              : 4);
+                  ? 3
+                  : 4);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: warmSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: primary.withValues(alpha: 0.04),
-            blurRadius: 24,
-            offset: const Offset(0, -4),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        child: SafeArea(
-          top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
-            child: BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              currentIndex: navIndex,
-              onTap: (index) {
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: GNav(
+              rippleColor: primary.withValues(alpha: 0.1),
+              hoverColor: primary.withValues(alpha: 0.05),
+              gap: 6,
+              activeColor: primary,
+              iconSize: 24,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              duration: const Duration(milliseconds: 400),
+              tabBackgroundColor: primary.withValues(alpha: 0.1),
+              color: accent.withValues(alpha: 0.7),
+              textStyle: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              tabs: const [
+                GButton(icon: LucideIcons.home, text: 'Home'),
+                GButton(icon: LucideIcons.calendar, text: 'Services'),
+                GButton(icon: LucideIcons.shoppingBag, text: 'Shop'),
+                GButton(icon: LucideIcons.heart, text: 'Care'),
+                GButton(icon: LucideIcons.dog, text: 'My Pets'),
+              ],
+              selectedIndex: navIndex,
+              onTabChange: (index) {
+                HapticFeedback.lightImpact();
                 setState(() {
                   _lastBottomBarIndex = index;
                   _currentIndex = index <= 2 ? index : (index == 3 ? 4 : 5);
                 });
               },
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              selectedItemColor: primary,
-              unselectedItemColor: accent.withValues(alpha: 0.7),
-              selectedLabelStyle: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-              showUnselectedLabels: true,
-              iconSize: 24,
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_outlined, size: 24),
-                  activeIcon: Icon(Icons.home_rounded, size: 24),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.medical_services_outlined, size: 24),
-                  activeIcon: Icon(Icons.medical_services_rounded, size: 24),
-                  label: 'Services',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.storefront_outlined, size: 24),
-                  activeIcon: Icon(Icons.storefront_rounded, size: 24),
-                  label: 'Shop',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.favorite_outline, size: 24),
-                  activeIcon: Icon(Icons.favorite_rounded, size: 24),
-                  label: 'Care',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.pets, size: 24),
-                  activeIcon: Icon(Icons.pets, size: 24),
-                  label: 'My Pets',
-                ),
-              ],
             ),
           ),
         ),
@@ -873,7 +848,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       drawer: _buildDrawer(context),
       appBar: AppBar(
         leading: IconButton(
@@ -905,6 +880,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           IconButton(

@@ -31,11 +31,21 @@ class MyApp extends StatelessWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.white,
         primaryColor: const Color(AppConstants.primaryColor),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(AppConstants.primaryColor),
           primary: const Color(AppConstants.primaryColor),
           secondary: const Color(AppConstants.accentColor),
+          surface: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.transparent,
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(AppConstants.primaryColor),
@@ -47,7 +57,6 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.white,
           ),
         ),
-        useMaterial3: true,
       ),
       home: const SplashScreen(),
     );
