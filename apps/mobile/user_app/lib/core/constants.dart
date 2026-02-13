@@ -1,7 +1,7 @@
 class AppConstants {
-  // API base URL — pick one:
-  // • Physical device: your PC's LAN IP (same Wi‑Fi as phone). Example: 192.168.1.8
-  // • Android emulator: use 10.0.2.2 to reach host machine's localhost
+  // API base URL — backend runs on port 3000 (not 5000).
+  // • Physical device: set _host to your PC's IPv4 (same Wi‑Fi as phone). Use ipconfig (Windows) or ifconfig (Mac/Linux).
+  // • Android emulator: set kUseEmulator = true to use 10.0.2.2 (emulator's alias for host localhost).
   static const bool kUseEmulator =
       false; // true = Android emulator (10.0.2.2), false = physical device
   static const String _host = "192.168.1.5"; // your PC IP (same WiFi as phone)

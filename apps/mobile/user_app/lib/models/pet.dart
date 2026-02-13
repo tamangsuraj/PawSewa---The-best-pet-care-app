@@ -38,31 +38,81 @@ class Pet {
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) {
-    return Pet(
-      id: json['_id'] ?? '',
-      owner: json['owner'] ?? '',
-      name: json['name'] ?? '',
-      species: json['species'] ?? '',
-      breed: json['breed'],
-      dob: json['dob'] != null ? DateTime.parse(json['dob']) : null,
-      age: json['age'],
-      gender: json['gender'] ?? '',
-      weight: json['weight']?.toDouble(),
-      photoUrl: json['photoUrl'],
-      medicalConditions: json['medicalConditions'],
-      behavioralNotes: json['behavioralNotes'],
-      isVaccinated: json['isVaccinated'] ?? false,
-      medicalHistory: json['medicalHistory'] != null
-          ? List<String>.from(json['medicalHistory'])
-          : [],
-      pawId: json['pawId'],
-      createdAt: DateTime.parse(
-        json['createdAt'] ?? DateTime.now().toIso8601String(),
-      ),
-      updatedAt: DateTime.parse(
-        json['updatedAt'] ?? DateTime.now().toIso8601String(),
-      ),
-    );
+    try {
+      if (json.isEmpty) {
+        return Pet(
+          id: '',
+          owner: '',
+          name: '',
+          species: '',
+          gender: '',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }
+      final ownerVal = json['owner'];
+      final ownerStr = ownerVal is String
+          ? ownerVal
+          : ownerVal is Map
+          ? (ownerVal['_id'] ?? ownerVal['id'] ?? '').toString()
+          : ownerVal?.toString() ?? '';
+      final rawMedical = json['medicalHistory'];
+      List<String> medicalHistory = [];
+      if (rawMedical is List) {
+        medicalHistory = rawMedical
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
+      }
+      return Pet(
+        id: (json['_id'] ?? '').toString(),
+        owner: ownerStr,
+        name: (json['name'] ?? '').toString(),
+        species: (json['species'] ?? '').toString(),
+        breed: json['breed']?.toString(),
+        dob: json['dob'] != null
+            ? DateTime.tryParse(json['dob'].toString())
+            : null,
+        age: json['age'] is int
+            ? json['age'] as int
+            : json['age'] != null
+            ? int.tryParse(json['age'].toString())
+            : null,
+        gender: (json['gender'] ?? '').toString(),
+        weight: json['weight'] != null && json['weight'] is num
+            ? (json['weight'] as num).toDouble()
+            : double.tryParse(json['weight']?.toString() ?? ''),
+        photoUrl: json['photoUrl']?.toString(),
+        medicalConditions: json['medicalConditions']?.toString(),
+        behavioralNotes: json['behavioralNotes']?.toString(),
+        isVaccinated:
+            json['isVaccinated'] == true ||
+            json['isVaccinated']?.toString().toLowerCase() == 'true',
+        medicalHistory: medicalHistory,
+        pawId: json['pawId']?.toString(),
+        createdAt:
+            DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+            DateTime.now(),
+        updatedAt:
+            DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
+            DateTime.now(),
+      );
+    } catch (e, stack) {
+      assert(() {
+        // ignore: avoid_print
+        print('Pet.fromJson error: $e\n$stack');
+        return true;
+      }());
+      return Pet(
+        id: (json['_id'] ?? '').toString(),
+        owner: '',
+        name: (json['name'] ?? '').toString(),
+        species: (json['species'] ?? '').toString(),
+        gender: (json['gender'] ?? '').toString(),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    }
   }
 
   Map<String, dynamic> toJson() {

@@ -8,6 +8,19 @@ import 'package:provider/provider.dart';
 import '../../cart/cart_service.dart';
 import '../../core/constants.dart';
 
+/// One place result from Nominatim search.
+class _PlaceResult {
+  final String displayName;
+  final double lat;
+  final double lon;
+
+  _PlaceResult({
+    required this.displayName,
+    required this.lat,
+    required this.lon,
+  });
+}
+
 class DeliveryPinScreen extends StatefulWidget {
   const DeliveryPinScreen({super.key});
 
@@ -16,10 +29,92 @@ class DeliveryPinScreen extends StatefulWidget {
 }
 
 class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
-  final LatLng _center = const LatLng(27.7172, 85.3240);
+  static const LatLng _center = LatLng(27.7172, 85.3240);
+  final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
   LatLng? _pin;
   String? _address;
   bool _loadingAddress = false;
+  List<_PlaceResult> _searchResults = [];
+  bool _searching = false;
+
+  late final Dio _dio;
+
+  @override
+  void initState() {
+    super.initState();
+    _dio = Dio(
+      BaseOptions(
+        headers: const {'User-Agent': 'PawSewa Mobile App (pawsewa.app)'},
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _searchPlaces(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    setState(() => _searching = true);
+    try {
+      final resp = await _dio.get<List>(
+        'https://nominatim.openstreetmap.org/search',
+        queryParameters: {'q': q, 'format': 'json', 'limit': 5},
+      );
+      final list = resp.data;
+      if (!mounted) return;
+      if (list == null || list.isEmpty) {
+        setState(() {
+          _searchResults = [];
+          _searching = false;
+        });
+        return;
+      }
+      final results = <_PlaceResult>[];
+      for (final e in list) {
+        if (e is! Map) continue;
+        final lat = double.tryParse(e['lat']?.toString() ?? '');
+        final lon = double.tryParse(e['lon']?.toString() ?? '');
+        final name = e['display_name']?.toString() ?? '';
+        if (lat != null && lon != null && name.isNotEmpty) {
+          results.add(_PlaceResult(displayName: name, lat: lat, lon: lon));
+        }
+      }
+      setState(() {
+        _searchResults = results;
+        _searching = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _searching = false;
+        });
+      }
+    }
+  }
+
+  void _onSelectPlace(_PlaceResult place) {
+    _searchFocusNode.unfocus();
+    setState(() {
+      _pin = LatLng(place.lat, place.lon);
+      _address = place.displayName;
+      _searchResults = [];
+      _loadingAddress = false;
+    });
+    _searchController.clear();
+    _mapController.move(LatLng(place.lat, place.lon), 16);
+  }
 
   Future<void> _reverseGeocode(LatLng point) async {
     setState(() {
@@ -27,23 +122,29 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       _address = null;
     });
     try {
-      final url = Uri.https('nominatim.openstreetmap.org', '/reverse', {
-        'format': 'jsonv2',
-        'lat': point.latitude.toString(),
-        'lon': point.longitude.toString(),
-      }).toString();
-
-      final resp = await Dio().get(
-        url,
-        options: Options(
-          headers: {'User-Agent': 'PawSewa Mobile App (pawsewa.app)'},
-        ),
+      final resp = await _dio.get(
+        'https://nominatim.openstreetmap.org/reverse',
+        queryParameters: {
+          'format': 'jsonv2',
+          'lat': point.latitude.toString(),
+          'lon': point.longitude.toString(),
+        },
       );
-      _address = resp.data['display_name']?.toString();
+      final data = resp.data;
+      final addr = data is Map ? data['display_name']?.toString() : null;
+      if (mounted) {
+        setState(() {
+          _address = addr;
+          _loadingAddress = false;
+        });
+      }
     } catch (_) {
-      _address = null;
-    } finally {
-      if (mounted) setState(() => _loadingAddress = false);
+      if (mounted) {
+        setState(() {
+          _address = null;
+          _loadingAddress = false;
+        });
+      }
     }
   }
 
@@ -61,10 +162,10 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       return;
     }
     context.read<CartService>().setDeliveryLocation(
-          lat: _pin!.latitude,
-          lng: _pin!.longitude,
-          address: _address!,
-        );
+      lat: _pin!.latitude,
+      lng: _pin!.longitude,
+      address: _address!,
+    );
     Navigator.of(context).pop(true);
   }
 
@@ -85,8 +186,90 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Search e.g. Putalisadak, Kathmandu',
+                hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              style: GoogleFonts.poppins(),
+              onChanged: (value) {
+                if (value.trim().isEmpty) {
+                  setState(() => _searchResults = []);
+                  return;
+                }
+                Future.delayed(const Duration(milliseconds: 400), () {
+                  if (mounted &&
+                      _searchController.text.trim() == value.trim()) {
+                    _searchPlaces(value);
+                  }
+                });
+              },
+            ),
+          ),
+          if (_searchResults.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: _searchResults.length,
+                itemBuilder: (context, index) {
+                  final place = _searchResults[index];
+                  return ListTile(
+                    leading: Icon(
+                      Icons.place,
+                      color: const Color(AppConstants.primaryColor),
+                    ),
+                    title: Text(
+                      place.displayName,
+                      style: GoogleFonts.poppins(fontSize: 13),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => _onSelectPlace(place),
+                  );
+                },
+              ),
+            ),
           Expanded(
             child: FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
                 initialCenter: _center,
                 initialZoom: 14,
@@ -97,8 +280,10 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c'],
+                  urlTemplate:
+                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                  subdomains: const ['a', 'b', 'c', 'd'],
+                  userAgentPackageName: 'com.pawsewa.user_app',
                 ),
                 MarkerLayer(
                   markers: [
@@ -134,7 +319,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                   )
                 else
                   Text(
-                    'Tap on the map to place the delivery pin.',
+                    'Tap on the map to place the delivery pin, or search above.',
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       color: Colors.grey[600],
@@ -164,4 +349,3 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
     );
   }
 }
-

@@ -4,38 +4,55 @@ const Category = require('../models/Category');
 const cloudinary = require('../config/cloudinary');
 
 // Admin: POST /api/v1/categories
-// Body: { name: string }
+// Body (multipart): name (string, required), image (file, optional)
 const createCategory = asyncHandler(async (req, res) => {
-  const { name } = req.body || {};
+  try {
+    const name = (req.body && req.body.name) ? String(req.body.name).trim() : '';
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category name is required',
+      });
+    }
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
-  if (!name || !String(name).trim()) {
-    return res.status(400).json({
+    const existing = await Category.findOne({ slug }).lean();
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'A category with this name already exists',
+      });
+    }
+
+    let imageUrl = '';
+    const file = req.file;
+    if (file && file.buffer) {
+      const mimetype = inferImageMime(file.mimetype, file.originalname);
+      const { url } = await uploadCategoryImageBuffer(file.buffer, mimetype);
+      if (url) imageUrl = url;
+    }
+
+    const category = await Category.create({
+      name,
+      slug,
+      image: imageUrl,
+    });
+    res.status(201).json({
+      success: true,
+      message: 'Category created successfully',
+      data: category,
+    });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
       success: false,
-      message: 'Category name is required',
+      message: 'Failed to create category',
+      error: error.message,
     });
   }
-
-  const trimmed = String(name).trim();
-  const slug = trimmed
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  const existing = await Category.findOne({ slug }).lean();
-  if (existing) {
-    return res.status(400).json({
-      success: false,
-      message: 'A category with this name already exists',
-    });
-  }
-
-  const category = await Category.create({ name: trimmed, slug });
-
-  res.status(201).json({
-    success: true,
-    message: 'Category created successfully',
-    data: category,
-  });
 });
 
 // When client sends application/octet-stream (e.g. Flutter Dio), infer image type from filename.
@@ -87,6 +104,37 @@ function uploadProductImageBuffer(buffer, mimetype) {
   });
 }
 
+// Upload category image to Cloudinary (pawsewa/categories).
+function uploadCategoryImageBuffer(buffer, mimetype) {
+  return new Promise((resolve) => {
+    if (!buffer || !Buffer.isBuffer(buffer)) {
+      return resolve({ url: null, error: 'No buffer' });
+    }
+    const base64 = buffer.toString('base64');
+    const dataUri = `data:${mimetype || 'image/jpeg'};base64,${base64}`;
+    cloudinary.uploader.upload(
+      dataUri,
+      {
+        folder: 'pawsewa/categories',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp'],
+        transformation: [
+          { width: 400, height: 400, crop: 'fill', quality: 'auto:good' },
+        ],
+      },
+      (err, result) => {
+        if (err) {
+          console.error('[Category image upload]', err.message);
+          return resolve({ url: null, error: err.message });
+        }
+        resolve({
+          url: result && result.secure_url ? result.secure_url : null,
+          error: null,
+        });
+      }
+    );
+  });
+}
+
 // Admin: POST /api/v1/products
 // Body (multipart/form-data):
 // - name (string, required)
@@ -97,6 +145,7 @@ function uploadProductImageBuffer(buffer, mimetype) {
 // - isAvailable (optional, "true"/"false")
 // - images (one or more image files)
 const createProduct = asyncHandler(async (req, res) => {
+  try {
   const { name, description, price, stockQuantity, category, isAvailable } = req.body || {};
 
   if (!name || !price || !stockQuantity || !category) {
@@ -186,17 +235,27 @@ const createProduct = asyncHandler(async (req, res) => {
       uploadError: process.env.NODE_ENV !== 'production' ? firstUploadError : undefined,
     }),
   });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create product',
+      error: error.message,
+    });
+  }
 });
 
 // Admin: PATCH /api/v1/products/:id
 // Accepts same fields as createProduct; if new images are uploaded they replace the existing list.
 const updateProduct = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  try {
+  const { id } = req.params || {};
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Product ID required' });
+  }
   const product = await Product.findById(id);
-
   if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
+    return res.status(404).json({ success: false, message: 'Product not found' });
   }
 
   const { name, description, price, stockQuantity, category, isAvailable } = req.body || {};
@@ -253,88 +312,130 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   const populated = await Product.findById(product._id).populate('category', 'name slug');
 
-  res.json({
+  res.status(200).json({
     success: true,
     message: 'Product updated successfully',
     data: populated,
   });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update product',
+      error: error.message,
+    });
+  }
 });
 
 // Admin: DELETE /api/v1/products/:id
 const deleteProduct = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const product = await Product.findById(id);
-
-  if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Product ID required' });
+    }
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    await product.deleteOne();
+    res.status(200).json({
+      success: true,
+      message: 'Product deleted successfully',
+    });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete product',
+      error: error.message,
+    });
   }
-
-  await product.deleteOne();
-
-  res.json({
-    success: true,
-    message: 'Product deleted successfully',
-  });
 });
 
 // Public: GET /api/v1/products
 // Query: search, category, page, limit
 const getProducts = asyncHandler(async (req, res) => {
-  const { search, category, page = 1, limit = 20 } = req.query;
+  try {
+    const { search, category, page = 1, limit = 20 } = req.query;
 
-  const filter = { isAvailable: true };
-  if (category) {
-    const cat = await Category.findOne({ slug: category.toString() }).select('_id');
-    if (cat) {
-      filter.category = cat._id;
+    const filter = { isAvailable: true };
+    if (category) {
+      const cat = await Category.findOne({ slug: category.toString() }).select('_id');
+      if (cat) {
+        filter.category = cat._id;
+      }
     }
+
+    let query = Product.find(filter);
+
+    if (search && search.toString().trim() !== '') {
+      query = query.find({ $text: { $search: search.toString().trim() } });
+    }
+
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 20;
+
+    const [items, total] = await Promise.all([
+      query
+        .populate('category', 'name slug')
+        .sort({ createdAt: -1 })
+        .skip((pageNum - 1) * limitNum)
+        .limit(limitNum)
+        .lean(),
+      Product.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: items ?? [],
+      pagination: {
+        total: total ?? 0,
+        page: pageNum,
+        limit: limitNum,
+      },
+    });
+  } catch (err) {
+    console.error('SERVER CRASH:', err);
+    res.status(200).json({
+      success: true,
+      data: [],
+      pagination: { total: 0, page: 1, limit: 20 },
+    });
   }
-
-  let query = Product.find(filter);
-
-  if (search && search.toString().trim() !== '') {
-    query = query.find({ $text: { $search: search.toString().trim() } });
-  }
-
-  const pageNum = Number(page) || 1;
-  const limitNum = Number(limit) || 20;
-
-  const [items, total] = await Promise.all([
-    query
-      .populate('category', 'name slug')
-      .sort({ createdAt: -1 })
-      .skip((pageNum - 1) * limitNum)
-      .limit(limitNum)
-      .lean(),
-    Product.countDocuments(filter),
-  ]);
-
-  res.json({
-    success: true,
-    data: items,
-    pagination: {
-      total,
-      page: pageNum,
-      limit: limitNum,
-    },
-  });
 });
 
 // Public: GET /api/v1/products/:id
 const getProductById = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).populate('category', 'name slug');
-  if (!product) {
-    res.status(404);
-    throw new Error('Product not found');
+  try {
+    const id = req.params?.id;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Product ID required' });
+    }
+    const product = await Product.findById(id).populate('category', 'name slug').lean();
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    res.status(200).json({ success: true, data: product });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get product',
+      error: error.message,
+    });
   }
-  res.json({ success: true, data: product });
 });
 
 // Public: GET /api/v1/categories
 const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find({}).sort({ name: 1 });
-  res.json({ success: true, data: categories });
+  try {
+    const categories = await Category.find({}).sort({ name: 1 }).lean();
+    res.status(200).json({ success: true, data: categories ?? [] });
+  } catch (err) {
+    console.error('SERVER CRASH:', err);
+    res.status(200).json({ success: true, data: [] });
+  }
 });
 
 module.exports = {

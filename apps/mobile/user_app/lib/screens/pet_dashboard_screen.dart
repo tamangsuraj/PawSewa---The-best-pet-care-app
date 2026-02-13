@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_nav_bar/google_nav_bar.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/constants.dart';
@@ -36,8 +34,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   bool _isLoading = true;
   String _userName = 'Pet Owner';
   int _currentIndex = 0;
-  int _lastBottomBarIndex =
-      0; // when on Messages, bottom bar shows this as selected
+  int _lastBottomBarIndex = 0; // when on Messages, bottom bar shows this
 
   @override
   void initState() {
@@ -180,8 +177,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(AppConstants.primaryColor)
-                                .withValues(alpha: 0.08),
+                            color: const Color(
+                              AppConstants.primaryColor,
+                            ).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -229,9 +227,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: const Color(0xFFE2D3B5),
-                            ),
+                            border: Border.all(color: const Color(0xFFE2D3B5)),
                           ),
                           child: QrImageView(
                             data: pet.pawId!,
@@ -716,61 +712,59 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                           ),
                         )
                       : _pets.isEmpty
-                          ? Container(
-                              padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                      ? Container(
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
                               ),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.pets,
-                                    size: 64,
-                                    color: Color(AppConstants.primaryColor),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'No Pets Yet',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          const Color(AppConstants.accentColor),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Add your first pet to get started!',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.pets,
+                                size: 64,
+                                color: Color(AppConstants.primaryColor),
                               ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics:
-                                  const NeverScrollableScrollPhysics(),
-                              itemCount: _pets.length,
-                              itemBuilder: (context, index) {
-                                final pet = _pets[index];
-                                return PetCard(
-                                  pet: pet,
-                                  onTap: () => _showPetDetails(pet),
-                                );
-                              },
-                            ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Pets Yet',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(AppConstants.accentColor),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add your first pet to get started!',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _pets.length,
+                          itemBuilder: (context, index) {
+                            final pet = _pets[index];
+                            return PetCard(
+                              pet: pet,
+                              onTap: () => _showPetDetails(pet),
+                            );
+                          },
+                        ),
                 ],
               ),
             ),
@@ -780,65 +774,71 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
     );
   }
 
+  int _bottomBarSelectedIndex() {
+    if (_currentIndex == 3) return _lastBottomBarIndex;
+    if (_currentIndex <= 2) return _currentIndex;
+    return _currentIndex == 4 ? 3 : 4; // Care -> 3, My Pets -> 4
+  }
+
   Widget _buildBottomNavBar() {
     const primary = Color(AppConstants.primaryColor);
-    const accent = Color(AppConstants.accentColor);
-    final navIndex = _currentIndex == 3
-        ? _lastBottomBarIndex
-        : (_currentIndex <= 2
-              ? _currentIndex
-              : _currentIndex == 4
-                  ? 3
-                  : 4);
-
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
+    const iconSize = 20.0;
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 2, bottom: 4),
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _bottomBarSelectedIndex(),
+            onTap: (index) {
+              setState(() {
+                _lastBottomBarIndex = index;
+                _currentIndex = index <= 2 ? index : (index == 3 ? 4 : 5);
+              });
+            },
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            selectedItemColor: primary,
+            unselectedItemColor: Colors.grey[600],
+            selectedLabelStyle: GoogleFonts.poppins(
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.poppins(
+              fontSize: 9,
+              fontWeight: FontWeight.w500,
+            ),
+            showUnselectedLabels: true,
+            items: [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined, size: iconSize),
+                activeIcon: Icon(Icons.home, size: iconSize),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.calendar_today_outlined, size: iconSize),
+                activeIcon: Icon(Icons.calendar_today, size: iconSize),
+                label: 'Services',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.shopping_bag_outlined, size: iconSize),
+                activeIcon: Icon(Icons.shopping_bag, size: iconSize),
+                label: 'Shop',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.favorite_border, size: iconSize),
+                activeIcon: Icon(Icons.favorite, size: iconSize),
+                label: 'Care',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.pets, size: iconSize),
+                activeIcon: Icon(Icons.pets, size: iconSize),
+                label: 'My Pets',
               ),
             ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: GNav(
-              rippleColor: primary.withValues(alpha: 0.1),
-              hoverColor: primary.withValues(alpha: 0.05),
-              gap: 6,
-              activeColor: primary,
-              iconSize: 24,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              duration: const Duration(milliseconds: 400),
-              tabBackgroundColor: primary.withValues(alpha: 0.1),
-              color: accent.withValues(alpha: 0.7),
-              textStyle: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-              tabs: const [
-                GButton(icon: LucideIcons.home, text: 'Home'),
-                GButton(icon: LucideIcons.calendar, text: 'Services'),
-                GButton(icon: LucideIcons.shoppingBag, text: 'Shop'),
-                GButton(icon: LucideIcons.heart, text: 'Care'),
-                GButton(icon: LucideIcons.dog, text: 'My Pets'),
-              ],
-              selectedIndex: navIndex,
-              onTabChange: (index) {
-                HapticFeedback.lightImpact();
-                setState(() {
-                  _lastBottomBarIndex = index;
-                  _currentIndex = index <= 2 ? index : (index == 3 ? 4 : 5);
-                });
-              },
-            ),
           ),
         ),
       ),
@@ -848,7 +848,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(AppConstants.secondaryColor),
       drawer: _buildDrawer(context),
       appBar: AppBar(
         leading: IconButton(
@@ -864,14 +864,14 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
               AppConstants.appName,
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.bold,
-                fontSize: 15,
+                fontSize: 13,
                 color: Colors.black87,
               ),
             ),
             Text(
               _titleForIndex(),
               style: GoogleFonts.poppins(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: const Color(AppConstants.primaryColor),
               ),
@@ -886,24 +886,34 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
         actions: [
           IconButton(
             icon: Icon(
-              _currentIndex == 3
-                  ? Icons.chat_bubble
-                  : Icons.chat_bubble_outline,
+              _currentIndex == 3 ? Icons.chat_bubble : Icons.chat_bubble_outline,
               color: _currentIndex == 3
                   ? const Color(AppConstants.primaryColor)
                   : Colors.grey[700],
-              size: 24,
+              size: 20,
             ),
             onPressed: () {
-              setState(() {
-                _currentIndex = 3;
-              });
+              setState(() => _currentIndex = 3);
             },
             tooltip: 'Messages',
           ),
         ],
       ),
-      body: _buildCurrentTab(),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        switchInCurve: Curves.easeInOut,
+        switchOutCurve: Curves.easeInOut,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey<int>(_currentIndex),
+          child: _buildCurrentTab(),
+        ),
+      ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(
               onPressed: _navigateToAddPet,

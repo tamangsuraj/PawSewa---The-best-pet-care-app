@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -15,6 +18,9 @@ import '../cart/delivery_pin_screen.dart';
 // Delivery fee and free delivery threshold
 const double kDeliveryFee = 80;
 const double kFreeDeliveryAbove = 1000;
+
+// Hardcoded Favourites "category" – cannot be created/destroyed from admin
+const String kFavouritesSlug = '__favourites__';
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -32,6 +38,9 @@ class _ShopScreenState extends State<ShopScreen> {
   String _selectedCategoryName = 'All';
   bool _loading = true;
   String? _error;
+  String _searchQuery = '';
+  String? _filterCategory;
+  final Set<String> _favouriteIds = {};
 
   @override
   void initState() {
@@ -39,74 +48,299 @@ class _ShopScreenState extends State<ShopScreen> {
     _loadInitial();
   }
 
-  Future<void> _loadInitial() async {
+  Future<void> _loadInitial({bool isRetry = false}) async {
     try {
       setState(() {
         _loading = true;
         _error = null;
       });
-      final respCats = await _apiClient.getCategories();
+      // Load products first so we can show them even if categories fail
       final respProds = await _apiClient.getProducts();
       if (!mounted) return;
-      final cats = List<Map<String, dynamic>>.from(
-        (respCats.data['data'] as List<dynamic>? ?? []),
-      );
-      final prods = List<Map<String, dynamic>>.from(
-        (respProds.data['data'] as List<dynamic>? ?? []),
-      );
+      List<Map<String, dynamic>> prods = _parseListFromResponse(respProds.data);
+
+      List<Map<String, dynamic>> cats = [];
+      try {
+        final respCats = await _apiClient.getCategories();
+        if (mounted) {
+          cats = _parseListFromResponse(respCats.data);
+        }
+      } catch (_) {
+        // Categories optional: still show products with "All" only
+        if (kDebugMode) {
+          debugPrint('[Shop] Categories failed, showing products only');
+        }
+      }
+
+      Set<String> favIds = {};
+      try {
+        final respFav = await _apiClient.getFavourites();
+        if (mounted && respFav.data is Map && respFav.data['data'] is List) {
+          for (final p in respFav.data['data'] as List) {
+            if (p is Map && p['_id'] != null) {
+              favIds.add(p['_id'].toString());
+            }
+          }
+        }
+      } catch (_) {
+        if (kDebugMode) {
+          debugPrint('[Shop] Favourites failed (e.g. not logged in)');
+        }
+      }
+
+      if (!mounted) return;
       setState(() {
         _categories = cats;
         _products = prods;
         _selectedCategorySlug = '';
         _selectedCategoryName = 'All';
         _loading = false;
+        _favouriteIds.clear();
+        _favouriteIds.addAll(favIds);
       });
     } catch (e) {
+      if (kDebugMode && e is DioException) {
+        if (e.type == DioExceptionType.badResponse) {
+          debugPrint('[Shop] STATUS: ${e.response?.statusCode}');
+          debugPrint('[Shop] DATA: ${e.response?.data}');
+        }
+      }
       if (!mounted) return;
+      final isConnectionError =
+          e is DioException &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.sendTimeout);
+      if (isConnectionError && !isRetry) {
+        // Auto-retry once after delay (e.g. backend was still starting)
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+        _loadInitial(isRetry: true);
+        return;
+      }
       setState(() {
         _loading = false;
-        _error = 'Failed to load shop: $e';
+        _error = _friendlyShopError(e);
       });
     }
+  }
+
+  static List<Map<String, dynamic>> _parseListFromResponse(dynamic data) {
+    if (data is! Map) return [];
+    final raw = data['data'];
+    if (raw is List) {
+      return raw
+          .map(
+            (e) =>
+                e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{},
+          )
+          .toList();
+    }
+    return [];
+  }
+
+  static String _friendlyShopError(Object e) {
+    if (e is DioException) {
+      final msg = e.error?.toString();
+      if (msg != null && msg.isNotEmpty && msg != 'null') {
+        return msg;
+      }
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        return data['message'].toString();
+      }
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.sendTimeout) {
+        return 'Request timed out. Please check your connection and try again.';
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        return 'Cannot reach the server. Check your internet and that the backend is running. '
+            'Using an emulator? Set kUseEmulator to true in lib/core/constants.dart.';
+      }
+      if (e.type == DioExceptionType.badResponse) {
+        final code = e.response?.statusCode ?? 0;
+        if (code >= 500) {
+          return 'Server is busy or unreachable. Please try again in a moment.';
+        }
+        if (code == 401) {
+          return 'Please sign in again to view the shop.';
+        }
+        return 'Could not load shop. Please try again.';
+      }
+    }
+    return 'Could not load shop. Please check your connection and try again.';
   }
 
   Future<void> _loadProductsByCategory(String slug) async {
     try {
       setState(() => _loading = true);
-      final resp = await _apiClient.getProducts(
-        category: slug.isEmpty ? null : slug,
-      );
+      List<Map<String, dynamic>> prods;
+      if (slug == kFavouritesSlug) {
+        final resp = await _apiClient.getFavourites(
+          search: _searchQuery.isEmpty ? null : _searchQuery,
+          category: _filterCategory,
+        );
+        if (!mounted) return;
+        prods = _parseListFromResponse(resp.data);
+      } else {
+        final resp = await _apiClient.getProducts(
+          category: slug.isEmpty ? null : slug,
+          search: _searchQuery.isEmpty ? null : _searchQuery,
+        );
+        if (!mounted) return;
+        prods = _parseListFromResponse(resp.data);
+      }
+      String name = slug.isEmpty ? 'All' : slug;
+      if (slug == kFavouritesSlug) {
+        name = 'Favourites';
+      } else {
+        for (final c in _categories) {
+          if ((c['slug'] ?? '') == slug) {
+            name = c['name']?.toString() ?? slug;
+            break;
+          }
+        }
+      }
       if (!mounted) return;
-      final prods = List<Map<String, dynamic>>.from(
-        (resp.data['data'] as List<dynamic>? ?? []),
-      );
-      final cat = _categories.cast<Map<String, dynamic>?>().firstWhere(
-            (c) => (c?['slug'] ?? '') == slug,
-            orElse: () => null,
-          );
       setState(() {
         _products = prods;
         _selectedCategorySlug = slug;
-        _selectedCategoryName = cat?['name']?.toString() ?? slug;
+        _selectedCategoryName = name;
         _loading = false;
       });
     } catch (e) {
+      if (kDebugMode && e is DioException) {
+        if (e.type == DioExceptionType.badResponse) {
+          debugPrint('[Shop] STATUS: ${e.response?.statusCode}');
+          debugPrint('[Shop] DATA: ${e.response?.data}');
+        }
+      }
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Failed to load products: $e';
+        _error = _friendlyShopError(e);
       });
+    }
+  }
+
+  Future<void> _showSearchDialog() async {
+    final controller = TextEditingController(text: _searchQuery);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Search', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: 'Product name or description',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.search),
+          ),
+          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        ),
+        actions: [
+          if (_searchQuery.isNotEmpty)
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(''),
+              child: const Text('Clear'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(AppConstants.primaryColor),
+            ),
+            child: const Text('Search'),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return;
+    if (!mounted) return;
+    setState(() => _searchQuery = result);
+    _loadProductsByCategory(_selectedCategorySlug);
+  }
+
+  Future<void> _showFilterSheet() async {
+    final chosen = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'Filter by category',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ListTile(
+              title: const Text('All categories'),
+              onTap: () => Navigator.of(ctx).pop(null),
+            ),
+            ..._categories.map((c) {
+              final slug = c['slug']?.toString() ?? '';
+              final name = c['name']?.toString() ?? slug;
+              return ListTile(
+                title: Text(name),
+                onTap: () => Navigator.of(ctx).pop(slug),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _filterCategory = chosen);
+    if (_selectedCategorySlug == kFavouritesSlug) {
+      _loadProductsByCategory(kFavouritesSlug);
     }
   }
 
   void _openProductDetail(Map<String, dynamic> product) {
     HapticFeedback.lightImpact();
     final cart = context.read<CartService>();
+    final productId = product['_id']?.toString() ?? '';
+    final isFavourite = _favouriteIds.contains(productId);
     showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddToBasketSheet(product: product),
+      builder: (ctx) => _AddToBasketSheet(
+        product: product,
+        isFavourite: isFavourite,
+        onToggleFavourite: () async {
+          try {
+            if (_favouriteIds.contains(productId)) {
+              await _apiClient.removeFavourite(productId);
+              if (mounted) setState(() => _favouriteIds.remove(productId));
+            } else {
+              await _apiClient.addFavourite(productId);
+              if (mounted) setState(() => _favouriteIds.add(productId));
+            }
+          } catch (_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Could not update favourite'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        },
+      ),
     ).then((qty) {
       if (qty != null && qty > 0) {
         final id = product['_id']?.toString() ?? '';
@@ -115,6 +349,9 @@ class _ShopScreenState extends State<ShopScreen> {
         for (var i = 0; i < qty; i++) {
           cart.addItem(productId: id, name: name, price: price);
         }
+      }
+      if (mounted && _selectedCategorySlug == kFavouritesSlug) {
+        _loadProductsByCategory(kFavouritesSlug);
       }
     });
   }
@@ -221,7 +458,7 @@ class _ShopScreenState extends State<ShopScreen> {
               children: [
                 CustomScrollView(
                   slivers: [
-                    SliverToBoxAdapter(child: _buildDeliveryHeader()),
+                    SliverToBoxAdapter(child: _buildPromoAndSearchHeader()),
                     SliverToBoxAdapter(
                       child: _CategoryCircleStrip(
                         categories: _categories,
@@ -240,57 +477,102 @@ class _ShopScreenState extends State<ShopScreen> {
                             ),
                           )
                         : _error != null
-                            ? SliverFillRemaining(
-                                child: Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(24),
-                                    child: Text(
+                        ? SliverFillRemaining(
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
                                       _error!,
                                       style: GoogleFonts.poppins(
-                                        color: Colors.red,
+                                        color: Colors.red[700],
+                                        fontSize: 14,
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
-                                  ),
-                                ),
-                              )
-                            : _products.isEmpty
-                                ? SliverFillRemaining(
-                                    child: Center(
-                                      child: Text(
-                                        'No products found.',
-                                        style: GoogleFonts.poppins(
-                                          color: Colors.grey[600],
+                                    const SizedBox(height: 20),
+                                    FilledButton.icon(
+                                      onPressed: () {
+                                        setState(() => _error = null);
+                                        _loadInitial();
+                                      },
+                                      icon: const Icon(Icons.refresh, size: 20),
+                                      label: const Text('Retry'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          AppConstants.primaryColor,
                                         ),
                                       ),
                                     ),
-                                  )
-                                : SliverPadding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    sliver: SliverGrid(
-                                      gridDelegate:
-                                          const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        mainAxisSpacing: 12,
-                                        crossAxisSpacing: 12,
-                                        childAspectRatio: 0.68,
-                                      ),
-                                      delegate: SliverChildBuilderDelegate(
-                                        (context, index) {
-                                          final p = _products[index];
-                                          return _ProductCard(
-                                            product: p,
-                                            onTap: () => _openProductDetail(p),
-                                            onAddToCart: () => _openProductDetail(p),
-                                          );
-                                        },
-                                        childCount: _products.length,
-                                      ),
-                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        : _products.isEmpty
+                        ? SliverFillRemaining(
+                            child: Center(
+                              child: Text(
+                                'No products found.',
+                                style: GoogleFonts.poppins(
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          )
+                        : Builder(
+                            builder: (context) {
+                              const spacing = 3.0;
+                              const minSidePadding = 6.0;
+                              const maxCardWidth = 140.0;
+                              final screenWidth =
+                                  MediaQuery.sizeOf(context).width;
+                              final cardWidth = (screenWidth -
+                                      2 * minSidePadding -
+                                      2 * spacing)
+                                  .clamp(0.0, double.infinity) /
+                                  3;
+                              final cardWidthClamped =
+                                  cardWidth.clamp(0.0, maxCardWidth);
+                              const cardHeight = 212.0;
+                              final totalWidth =
+                                  3 * cardWidthClamped + 2 * spacing;
+                              final horizontalPadding = ((screenWidth -
+                                          totalWidth) /
+                                      2)
+                                  .clamp(0.0, double.infinity);
+                              return SliverPadding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: horizontalPadding,
+                                  vertical: 8,
+                                ),
+                                sliver: SliverGrid(
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    mainAxisSpacing: 4.0,
+                                    crossAxisSpacing: spacing,
+                                    childAspectRatio:
+                                        cardWidthClamped / cardHeight,
                                   ),
+                                  delegate: SliverChildBuilderDelegate((
+                                    context,
+                                    index,
+                                  ) {
+                                    final p = _products[index];
+                                    return _ProductCard(
+                                      product: p,
+                                      onTap: () => _openProductDetail(p),
+                                      onAddToCart: () =>
+                                          _openProductDetail(p),
+                                    );
+                                  }, childCount: _products.length),
+                                ),
+                              );
+                            },
+                          ),
                     const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ),
@@ -313,115 +595,35 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
-  Widget _buildDeliveryHeader() {
-    const primary = Color(AppConstants.primaryColor);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget _buildPromoAndSearchHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _ShopPromoBanner(),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
             children: [
-              Text(
-                'Delivering within ',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: Colors.black87,
+              Expanded(
+                child: _SearchFilterChip(
+                  icon: Icons.search_rounded,
+                  label: _searchQuery.isEmpty ? 'Search products' : _searchQuery,
+                  onTap: () => _showSearchDialog(),
                 ),
               ),
-              Text(
-                'a day',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: primary,
-                ),
+              const SizedBox(width: 10),
+                _SearchFilterChip(
+                icon: Icons.tune_rounded,
+                label: _filterCategory != null ? 'Filtered' : 'Filter',
+                onTap: () => _showFilterSheet(),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(Icons.access_time_rounded, size: 16, color: Colors.grey[700]),
-              const SizedBox(width: 4),
-              Text(
-                '10:00 AM to 5:00 PM',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text('•', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-              const SizedBox(width: 6),
-              Icon(Icons.delivery_dining_rounded,
-                  size: 16, color: Colors.grey[700]),
-              const SizedBox(width: 4),
-              Text(
-                'Rs. ${kDeliveryFee.toInt()}',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.grey[700],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF7EFE8),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: primary.withValues(alpha: 0.55),
-                width: 0.9,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: primary,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.percent_rounded,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Free delivery',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: primary,
-                        ),
-                      ),
-                      Text(
-                        'Enjoy FREE delivery on orders above Rs. ${kFreeDeliveryAbove.toInt()}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          color: Colors.grey[800],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+      ],
     );
   }
 
@@ -441,12 +643,265 @@ class _ShopScreenState extends State<ShopScreen> {
           const SizedBox(height: 4),
           Text(
             _categorySubtitle(),
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.grey[700],
-            ),
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Promo banner (auto-rotating) ───────────────────────────────────────────
+
+class _ShopPromoBanner extends StatefulWidget {
+  const _ShopPromoBanner();
+
+  @override
+  State<_ShopPromoBanner> createState() => _ShopPromoBannerState();
+}
+
+class _ShopPromoBannerState extends State<_ShopPromoBanner> {
+  final PageController _pageController = PageController();
+  Timer? _timer;
+  int _currentPage = 0;
+
+  static const int _slideCount = 3;
+  static const Duration _autoScrollDuration = Duration(seconds: 3);
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(_autoScrollDuration, (_) {
+      if (!_pageController.hasClients) return;
+      final next = (_currentPage + 1) % _slideCount;
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    const accent = Color(AppConstants.accentColor);
+
+    final slides = [
+      _PromoSlide(
+        gradient: const LinearGradient(
+          colors: [primary, accent],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.local_shipping_rounded,
+        title: 'Free delivery',
+        subtitle: 'On orders above Rs. ${kFreeDeliveryAbove.toInt()}',
+      ),
+      _PromoSlide(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF2D5016),
+            Colors.green.shade700,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.schedule_rounded,
+        title: 'Delivering within a day',
+        subtitle: '10:00 AM – 5:00 PM • Rs. ${kDeliveryFee.toInt()} delivery',
+      ),
+      _PromoSlide(
+        gradient: LinearGradient(
+          colors: [
+            Colors.orange.shade700,
+            Colors.deepOrange.shade400,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.pets_rounded,
+        title: 'Best for your pet',
+        subtitle: 'Quality food & care products',
+      ),
+    ];
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 132,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (i) => setState(() => _currentPage = i),
+            itemCount: _slideCount,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: slides[index],
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            _slideCount,
+            (i) => AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: _currentPage == i ? 18 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: _currentPage == i
+                    ? primary
+                    : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PromoSlide extends StatelessWidget {
+  final Gradient gradient;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _PromoSlide({
+    required this.gradient,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.white.withValues(alpha: 0.95),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Search / Filter chip ───────────────────────────────────────────────────
+
+class _SearchFilterChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SearchFilterChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    return Material(
+      color: Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 20, color: primary),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -487,6 +942,7 @@ class _CategoryCircleStrip extends StatelessWidget {
     const primary = Color(AppConstants.primaryColor);
     final allCat = <Map<String, dynamic>>[
       {'slug': '', 'name': 'All'},
+      {'slug': kFavouritesSlug, 'name': 'Favourites'},
       ...categories,
     ];
     return SizedBox(
@@ -501,7 +957,13 @@ class _CategoryCircleStrip extends StatelessWidget {
           final slug = c['slug']?.toString() ?? '';
           final name = c['name']?.toString() ?? slug;
           final isActive = slug == selectedSlug;
-          final imageUrl = slug.isEmpty ? null : _firstImageForCategory(slug);
+          // Prefer category's own image (from admin); fallback to first product image
+          final categoryImage = c['image']?.toString();
+          final imageUrl = slug.isEmpty
+              ? null
+              : (categoryImage != null && categoryImage.isNotEmpty
+                    ? categoryImage
+                    : _firstImageForCategory(slug));
           return GestureDetector(
             onTap: () => onChanged(slug),
             child: SizedBox(
@@ -527,17 +989,23 @@ class _CategoryCircleStrip extends StatelessWidget {
                               height: 60,
                               placeholder: (context, url) => Container(
                                 color: const Color(0xFFF5F0EB),
-                                child: Icon(Icons.pets, color: primary),
+                                child: Icon(Icons.pets, size: 28, color: primary),
                               ),
-                              errorWidget: (context, error, stackTrace) => Container(
-                                color: const Color(0xFFF5F0EB),
-                                child: Icon(Icons.pets, color: primary),
-                              ),
+                              errorWidget: (context, error, stackTrace) =>
+                                  Container(
+                                    color: const Color(0xFFF5F0EB),
+                                    child: Icon(Icons.pets, size: 28, color: primary),
+                                  ),
                             )
                           : Container(
                               color: const Color(0xFFF5F0EB),
                               child: Icon(
-                                slug.isEmpty ? Icons.grid_view : Icons.pets,
+                                slug == kFavouritesSlug
+                                    ? Icons.favorite_border
+                                    : slug.isEmpty
+                                        ? Icons.grid_view
+                                        : Icons.pets,
+                                size: 28,
                                 color: primary,
                               ),
                             ),
@@ -551,8 +1019,7 @@ class _CategoryCircleStrip extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
                       fontSize: 10,
-                      fontWeight:
-                          isActive ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                       color: isActive ? Colors.black87 : Colors.grey[700],
                     ),
                   ),
@@ -591,115 +1058,125 @@ class _ProductCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.max,
         children: [
-          Expanded(
-            flex: 3,
+          // Image area: light background, inner padding for frame
+          SizedBox(
+            height: 115,
+            width: double.infinity,
             child: GestureDetector(
               onTap: onTap,
               child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6F1EC),
-                  borderRadius: BorderRadius.circular(8),
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF5F0EB),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                 ),
-                child: imageUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: imageUrl != null
+                      ? CachedNetworkImage(
                           imageUrl: imageUrl,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           width: double.infinity,
                           height: double.infinity,
-                          placeholder: (context, url) => Center(
-                            child: Icon(Icons.pets, color: primary),
-                          ),
-                          errorWidget: (context, error, stackTrace) => Center(
-                            child: Icon(Icons.pets, color: primary),
-                          ),
-                        ),
-                      )
-                    : Center(child: Icon(Icons.pets, color: primary)),
+                          placeholder: (context, url) =>
+                              Center(child: Icon(Icons.pets, size: 24, color: primary)),
+                          errorWidget: (context, error, stackTrace) =>
+                              Center(child: Icon(Icons.pets, size: 40, color: primary)),
+                        )
+                      : Center(child: Icon(Icons.pets, size: 24, color: primary)),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (desc.isNotEmpty) ...[
-                  const SizedBox(height: 2),
+          // Text block: consistent padding, clear gap between description and price
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    desc.length > 40 ? '${desc.substring(0, 40)}...' : desc,
+                    name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: Colors.grey[600],
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
-                ],
-                const SizedBox(height: 6),
-                Row(
-                  children: [
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 2),
                     Text(
-                      'Rs. ${price.toStringAsFixed(0)}',
+                      desc,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: onAddToCart,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: primary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: primary.withValues(alpha: 0.4),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.add,
-                          size: 18,
-                          color: Colors.white,
-                        ),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey.shade600,
                       ),
                     ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Rs. ${price.toStringAsFixed(0)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: onAddToCart,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: primary.withValues(alpha: 0.3),
+                                blurRadius: 3,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -744,6 +1221,7 @@ class _FloatingCartBar extends StatelessWidget {
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
             ),
             const SizedBox(width: 8),
@@ -761,6 +1239,7 @@ class _FloatingCartBar extends StatelessWidget {
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
+                fontSize: 14,
               ),
             ),
             const Spacer(),
@@ -769,6 +1248,7 @@ class _FloatingCartBar extends StatelessWidget {
               style: GoogleFonts.poppins(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
+                fontSize: 14,
               ),
             ),
             const SizedBox(width: 4),
@@ -788,8 +1268,14 @@ class _FloatingCartBar extends StatelessWidget {
 
 class _AddToBasketSheet extends StatefulWidget {
   final Map<String, dynamic> product;
+  final bool isFavourite;
+  final VoidCallback onToggleFavourite;
 
-  const _AddToBasketSheet({required this.product});
+  const _AddToBasketSheet({
+    required this.product,
+    required this.isFavourite,
+    required this.onToggleFavourite,
+  });
 
   @override
   State<_AddToBasketSheet> createState() => _AddToBasketSheetState();
@@ -797,15 +1283,31 @@ class _AddToBasketSheet extends StatefulWidget {
 
 class _AddToBasketSheetState extends State<_AddToBasketSheet> {
   int _qty = 1;
+  late bool _isFavourite;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFavourite = widget.isFavourite;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AddToBasketSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isFavourite != widget.isFavourite) {
+      _isFavourite = widget.isFavourite;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
-    final images = widget.product['images'] as List<dynamic>? ?? [];
+    final product = widget.product;
+    final images = product['images'] as List<dynamic>? ?? [];
     final imageUrl = images.isNotEmpty ? images.first.toString() : null;
-    final name = widget.product['name']?.toString() ?? 'Product';
-    final desc = widget.product['description']?.toString() ?? '';
-    final price = (widget.product['price'] as num?)?.toDouble() ?? 0;
+    final name = product['name']?.toString() ?? 'Product';
+    final desc = product['description']?.toString() ?? '';
+    final price = (product['price'] as num?)?.toDouble() ?? 0;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.55,
@@ -852,7 +1354,10 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
               Expanded(
                 child: ListView(
                   controller: controller,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   children: [
                     Container(
                       height: 180,
@@ -866,20 +1371,25 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                               child: CachedNetworkImage(
                                 imageUrl: imageUrl,
                                 fit: BoxFit.contain,
-                                placeholder: (context, url) =>
-                                    Center(child: Icon(Icons.pets, color: primary)),
+                                placeholder: (context, url) => Center(
+                                  child: Icon(Icons.pets, color: primary),
+                                ),
                                 errorWidget: (context, error, stackTrace) =>
-                                    Center(child: Icon(Icons.pets, color: primary)),
+                                    Center(
+                                      child: Icon(Icons.pets, color: primary),
+                                    ),
                               ),
                             )
-                          : Center(child: Icon(Icons.pets, size: 60, color: primary)),
+                          : Center(
+                              child: Icon(Icons.pets, size: 80, color: primary),
+                            ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       name,
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w700,
-                        fontSize: 18,
+                        fontSize: 16,
                       ),
                     ),
                     if (desc.isNotEmpty) ...[
@@ -887,8 +1397,8 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                       Text(
                         desc.length > 50 ? '${desc.substring(0, 50)}...' : desc,
                         style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.grey[700],
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
                         ),
                       ),
                     ],
@@ -896,8 +1406,8 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                     Text(
                       'Rs. ${price.toStringAsFixed(0)}',
                       style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -906,8 +1416,8 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                         Text(
                           'Quantity',
                           style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
                           ),
                         ),
                         const Spacer(),
@@ -927,35 +1437,63 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                 top: false,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: GestureDetector(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.of(context).pop(_qty);
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      decoration: BoxDecoration(
-                        color: primary,
-                        borderRadius: BorderRadius.circular(999),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primary.withValues(alpha: 0.4),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            Navigator.of(context).pop(_qty);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            decoration: BoxDecoration(
+                              color: primary,
+                              borderRadius: BorderRadius.circular(999),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primary.withValues(alpha: 0.4),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
                           ),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      Material(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(999),
+                        child: InkWell(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            widget.onToggleFavourite();
+                            setState(() => _isFavourite = !_isFavourite);
+                          },
+                          borderRadius: BorderRadius.circular(999),
+                          child: Container(
+                            width: 48,
+                            alignment: Alignment.center,
+                            child: Icon(
+                              _isFavourite ? Icons.favorite : Icons.favorite_border,
+                              color: _isFavourite ? Colors.red : Colors.grey.shade600,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1004,7 +1542,7 @@ class _QtyPill extends StatelessWidget {
               '$qty',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600,
-                fontSize: 12,
+                fontSize: 10,
               ),
             ),
           ),
@@ -1094,7 +1632,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               Expanded(
                 child: ListView(
                   controller: controller,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   children: [
                     GestureDetector(
                       onTap: widget.onAddAddress,
@@ -1106,7 +1647,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.add_location_alt_outlined, color: primary),
+                            Icon(
+                              Icons.add_location_alt_outlined,
+                              color: primary,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -1119,8 +1663,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            Icon(Icons.chevron_right_rounded,
-                                color: Colors.black45),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Colors.black45,
+                            ),
                           ],
                         ),
                       ),
@@ -1206,11 +1752,15 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                               qty: item.quantity,
                               onMinus: () {
                                 cart.updateQuantity(
-                                    item.productId, item.quantity - 1);
+                                  item.productId,
+                                  item.quantity - 1,
+                                );
                               },
                               onPlus: () {
                                 cart.updateQuantity(
-                                    item.productId, item.quantity + 1);
+                                  item.productId,
+                                  item.quantity + 1,
+                                );
                               },
                             ),
                           ],
@@ -1247,8 +1797,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 ),
                               ),
                             ),
-                            Icon(Icons.chevron_right_rounded,
-                                color: Colors.black45),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Colors.black45,
+                            ),
                           ],
                         ),
                       ),
@@ -1268,7 +1820,11 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 6),
                     const Divider(height: 1, color: Color(0xFFE3E0DD)),
                     const SizedBox(height: 6),
-                    _billRow('Grand total', widget.grandTotal, isEmphasis: true),
+                    _billRow(
+                      'Grand total',
+                      widget.grandTotal,
+                      isEmphasis: true,
+                    ),
                     const SizedBox(height: 18),
                     Text(
                       'Payment method',
@@ -1299,8 +1855,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 ),
                               ),
                             ),
-                            Icon(Icons.chevron_right_rounded,
-                                color: Colors.black45),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: Colors.black45,
+                            ),
                           ],
                         ),
                       ),
@@ -1384,8 +1942,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 label == 'Today'
                     ? 'Selected'
                     : label == 'Tomorrow'
-                        ? 'Next day'
-                        : 'Later',
+                    ? 'Next day'
+                    : 'Later',
                 style: GoogleFonts.poppins(
                   fontSize: 10,
                   color: Colors.grey[700],
@@ -1456,21 +2014,106 @@ class _AddAddressSheet extends StatefulWidget {
   State<_AddAddressSheet> createState() => _AddAddressSheetState();
 }
 
+class _PlaceSuggestion {
+  final String displayName;
+  final double lat;
+  final double lon;
+  _PlaceSuggestion({
+    required this.displayName,
+    required this.lat,
+    required this.lon,
+  });
+}
+
 class _AddAddressSheetState extends State<_AddAddressSheet> {
   final _addressTitleController = TextEditingController();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _locationSearchController = TextEditingController();
+  final FocusNode _locationSearchFocus = FocusNode();
   LatLng _pin = const LatLng(27.7172, 85.3240);
   String? _address;
   bool _loadingAddress = false;
   final MapController _mapController = MapController();
+  List<_PlaceSuggestion> _locationSuggestions = [];
+  bool _locationSearching = false;
+  late final Dio _nominatimDio;
+
+  @override
+  void initState() {
+    super.initState();
+    _nominatimDio = Dio(
+      BaseOptions(
+        baseUrl: 'https://nominatim.openstreetmap.org',
+        headers: const {'User-Agent': 'PawSewa Mobile App (pawsewa.app)'},
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _addressTitleController.dispose();
     _nameController.dispose();
     _phoneController.dispose();
+    _locationSearchController.dispose();
+    _locationSearchFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _searchLocation(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) {
+      setState(() => _locationSuggestions = []);
+      return;
+    }
+    setState(() => _locationSearching = true);
+    try {
+      final resp = await _nominatimDio.get<List>(
+        '/search',
+        queryParameters: {'q': q, 'format': 'json', 'limit': 5},
+      );
+      final list = resp.data;
+      if (!mounted) return;
+      if (list == null || list.isEmpty) {
+        setState(() {
+          _locationSuggestions = [];
+          _locationSearching = false;
+        });
+        return;
+      }
+      final results = <_PlaceSuggestion>[];
+      for (final e in list) {
+        if (e is! Map) continue;
+        final lat = double.tryParse(e['lat']?.toString() ?? '');
+        final lon = double.tryParse(e['lon']?.toString() ?? '');
+        final name = e['display_name']?.toString() ?? '';
+        if (lat != null && lon != null && name.isNotEmpty) {
+          results.add(_PlaceSuggestion(displayName: name, lat: lat, lon: lon));
+        }
+      }
+      setState(() {
+        _locationSuggestions = results;
+        _locationSearching = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _locationSuggestions = [];
+          _locationSearching = false;
+        });
+      }
+    }
+  }
+
+  void _onSelectLocationSuggestion(_PlaceSuggestion place) {
+    _locationSearchFocus.unfocus();
+    setState(() {
+      _pin = LatLng(place.lat, place.lon);
+      _address = place.displayName;
+      _locationSuggestions = [];
+      _locationSearchController.clear();
+    });
+    _mapController.move(LatLng(place.lat, place.lon), 16);
   }
 
   Future<void> _reverseGeocode(LatLng point) async {
@@ -1482,9 +2125,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
       final dio = Dio(
         BaseOptions(
           baseUrl: 'https://nominatim.openstreetmap.org',
-          headers: const {
-            'User-Agent': 'PawSewa Mobile App (pawsewa.app)',
-          },
+          headers: const {'User-Agent': 'PawSewa Mobile App (pawsewa.app)'},
         ),
       );
       final resp = await dio.get(
@@ -1514,11 +2155,9 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   }
 
   Future<void> _openFullMapPicker() async {
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => const DeliveryPinScreen(),
-      ),
-    );
+    final result = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const DeliveryPinScreen()));
     if (result == true && mounted) {
       final cart = context.read<CartService>();
       setState(() {
@@ -1550,18 +2189,13 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
       return;
     }
     context.read<CartService>().setDeliveryLocation(
-          lat: _pin.latitude,
-          lng: _pin.longitude,
-          address: _address ?? '${_pin.latitude}, ${_pin.longitude}',
-        );
+      lat: _pin.latitude,
+      lng: _pin.longitude,
+      address: _address ?? '${_pin.latitude}, ${_pin.longitude}',
+    );
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Address saved.',
-          style: GoogleFonts.poppins(),
-        ),
-      ),
+      SnackBar(content: Text('Address saved.', style: GoogleFonts.poppins())),
     );
   }
 
@@ -1611,8 +2245,95 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
               Expanded(
                 child: ListView(
                   controller: controller,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   children: [
+                    TextField(
+                      controller: _locationSearchController,
+                      focusNode: _locationSearchFocus,
+                      decoration: InputDecoration(
+                        hintText: 'Search e.g. Putalisadak, Kathmandu',
+                        hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _locationSearching
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.grey.shade100,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                      ),
+                      style: GoogleFonts.poppins(),
+                      onChanged: (value) {
+                        if (value.trim().isEmpty) {
+                          setState(() => _locationSuggestions = []);
+                          return;
+                        }
+                        Future.delayed(const Duration(milliseconds: 400), () {
+                          if (mounted &&
+                              _locationSearchController.text.trim() ==
+                                  value.trim()) {
+                            _searchLocation(value);
+                          }
+                        });
+                      },
+                    ),
+                    if (_locationSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        constraints: const BoxConstraints(maxHeight: 160),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _locationSuggestions.length,
+                          itemBuilder: (context, index) {
+                            final place = _locationSuggestions[index];
+                            return ListTile(
+                              leading: Icon(
+                                Icons.place,
+                                color: primary,
+                                size: 22,
+                              ),
+                              title: Text(
+                                place.displayName,
+                                style: GoogleFonts.poppins(fontSize: 12),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () => _onSelectLocationSuggestion(place),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     SizedBox(
                       height: 170,
                       child: ClipRRect(
@@ -1627,8 +2348,8 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                           children: [
                             TileLayer(
                               urlTemplate:
-                                  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              subdomains: const ['a', 'b', 'c'],
+                                  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c', 'd'],
                               userAgentPackageName: 'com.pawsewa.user_app',
                             ),
                             MarkerLayer(
@@ -1747,7 +2468,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                       'SAVE ADDRESS',
                       style: GoogleFonts.poppins(
                         fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                        fontSize: 16,
                       ),
                     ),
                   ),
@@ -1814,7 +2535,10 @@ class _PromoSheet extends StatelessWidget {
               Expanded(
                 child: ListView(
                   controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   children: [
                     Row(
                       children: [
@@ -1855,7 +2579,7 @@ class _PromoSheet extends StatelessWidget {
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey.shade300,
-                            foregroundColor: Colors.grey.shade700,
+                            foregroundColor: Colors.grey[700],
                           ),
                           child: const Text('APPLY'),
                         ),
@@ -1905,10 +2629,7 @@ class _PaymentSheet extends StatefulWidget {
   final double amount;
   final VoidCallback onConfirmed;
 
-  const _PaymentSheet({
-    required this.amount,
-    required this.onConfirmed,
-  });
+  const _PaymentSheet({required this.amount, required this.onConfirmed});
 
   @override
   State<_PaymentSheet> createState() => _PaymentSheetState();
@@ -2018,11 +2739,11 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.85,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
+                            crossAxisCount: 3,
+                            childAspectRatio: 0.85,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                       itemCount: _localMethods.length,
                       itemBuilder: (context, index) {
                         final m = _localMethods[index];
@@ -2075,9 +2796,12 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
-                                    fontWeight:
-                                        isSelected ? FontWeight.w600 : FontWeight.w500,
-                                    color: isSelected ? primary : Colors.black87,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? primary
+                                        : Colors.black87,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -2127,11 +2851,11 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        childAspectRatio: 0.85,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
+                            crossAxisCount: 3,
+                            childAspectRatio: 0.85,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
                       itemCount: _internationalMethods.length,
                       itemBuilder: (context, index) {
                         final m = _internationalMethods[index];
@@ -2184,9 +2908,12 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.poppins(
                                     fontSize: 12,
-                                    fontWeight:
-                                        isSelected ? FontWeight.w600 : FontWeight.w500,
-                                    color: isSelected ? primary : Colors.black87,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? primary
+                                        : Colors.black87,
                                   ),
                                 ),
                                 const SizedBox(height: 4),

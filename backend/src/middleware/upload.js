@@ -66,6 +66,14 @@ const uploadProductImages = multer({
   fileFilter: productImageFileFilter,
 });
 
+// Category image: single file, memory storage (controller uploads to Cloudinary)
+const uploadCategoryImage = multer({
+  storage: memoryStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: productImageFileFilter,
+});
+
 module.exports = upload;
 module.exports.uploadProductImages = uploadProductImages;
+module.exports.uploadCategoryImage = uploadCategoryImage;
 module.exports.allowedMimeTypes = allowedMimeTypes;

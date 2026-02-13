@@ -54,19 +54,39 @@ class ApiClient {
             // You can add navigation to login here if needed
           }
 
-          // For timeouts and 5xx errors, return a friendlier error message
+          // For timeouts, 5xx, or bad response with no useful message, use a friendly error
           final statusCode = error.response?.statusCode ?? 0;
-          final isTimeout = error.type == DioExceptionType.connectionTimeout ||
+          final isTimeout =
+              error.type == DioExceptionType.connectionTimeout ||
               error.type == DioExceptionType.receiveTimeout ||
               error.type == DioExceptionType.sendTimeout;
           final isServerError = statusCode >= 500;
+          final data = error.response?.data;
+          final hasMessage = data is Map && data['message'] != null;
+          final badResponseWithNoMessage =
+              error.type == DioExceptionType.badResponse &&
+              (error.error == null || error.error.toString() == 'null') &&
+              !hasMessage;
 
-          if (isTimeout || isServerError) {
+          if (isTimeout || isServerError || badResponseWithNoMessage) {
+            String message =
+                'Server is busy or unreachable. Please try again in a moment.';
+            if (statusCode == 401) {
+              message = 'Please sign in again.';
+            } else if (error.type == DioExceptionType.connectionTimeout ||
+                error.type == DioExceptionType.receiveTimeout ||
+                error.type == DioExceptionType.sendTimeout) {
+              message =
+                  'Request timed out. Please check your connection and try again.';
+            } else if (error.type == DioExceptionType.connectionError) {
+              message =
+                  'Cannot reach the server. Check your internet connection.';
+            }
             final friendly = DioException(
               requestOptions: error.requestOptions,
               response: error.response,
               type: error.type,
-              error: 'Server is busy or unreachable. Please try again in a moment.',
+              error: message,
             );
             return handler.next(friendly);
           }
@@ -184,6 +204,29 @@ class ApiClient {
     return await _dio.get('/products/$id');
   }
 
+  // Favourites (requires auth)
+  Future<Response> getFavourites({String? search, String? category}) async {
+    return await _dio.get(
+      '/favourites',
+      queryParameters: {
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (category != null && category.isNotEmpty) 'category': category,
+      },
+    );
+  }
+
+  Future<Response> addFavourite(String productId) async {
+    return await _dio.post('/favourites', data: {'productId': productId});
+  }
+
+  Future<Response> removeFavourite(String productId) async {
+    return await _dio.delete('/favourites/$productId');
+  }
+
+  Future<Response> checkFavourite(String productId) async {
+    return await _dio.get('/favourites/check/$productId');
+  }
+
   Future<Response> createOrder(Map<String, dynamic> data) async {
     return await _dio.post('/orders', data: data);
   }
@@ -204,10 +247,7 @@ class ApiClient {
   }) async {
     return await _dio.post(
       '/payments/khalti/initiate',
-      data: {
-        'serviceRequestId': serviceRequestId,
-        'amount': amount,
-      },
+      data: {'serviceRequestId': serviceRequestId, 'amount': amount},
     );
   }
 
@@ -218,10 +258,7 @@ class ApiClient {
   }) async {
     return await _dio.post(
       '/payments/esewa/initiate',
-      data: {
-        'serviceRequestId': serviceRequestId,
-        'amount': amount,
-      },
+      data: {'serviceRequestId': serviceRequestId, 'amount': amount},
     );
   }
 

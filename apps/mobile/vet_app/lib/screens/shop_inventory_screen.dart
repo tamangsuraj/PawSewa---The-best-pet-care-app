@@ -32,6 +32,11 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
   final ImagePicker _picker = ImagePicker();
   List<XFile> _selectedImages = [];
 
+  // Add category
+  final _categoryNameController = TextEditingController();
+  XFile? _categoryImage;
+  bool _creatingCategory = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +49,51 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     _priceController.dispose();
     _stockController.dispose();
     _descriptionController.dispose();
+    _categoryNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _createCategory() async {
+    final name = _categoryNameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter category name')));
+      return;
+    }
+    setState(() => _creatingCategory = true);
+    try {
+      final formData = FormData();
+      formData.fields.add(MapEntry('name', name));
+      if (_categoryImage != null) {
+        final f = _categoryImage!;
+        final filename = f.name.trim().isNotEmpty && f.name.contains('.')
+            ? f.name
+            : 'category.jpg';
+        formData.files.add(
+          MapEntry(
+            'image',
+            await MultipartFile.fromFile(f.path, filename: filename),
+          ),
+        );
+      }
+      await _apiClient.createCategoryForm(formData);
+      if (!mounted) return;
+      _categoryNameController.clear();
+      setState(() => _categoryImage = null);
+      await _loadData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Category created')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to create category: $e')));
+    } finally {
+      if (mounted) setState(() => _creatingCategory = false);
+    }
   }
 
   Future<void> _loadData() async {
@@ -107,10 +156,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         formData.files.add(
           MapEntry(
             'images',
-            await MultipartFile.fromFile(
-              image.path,
-              filename: filename,
-            ),
+            await MultipartFile.fromFile(image.path, filename: filename),
           ),
         );
       }
@@ -130,9 +176,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create product: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to create product: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -150,14 +196,14 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       );
       await _loadData();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Stock updated')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update stock: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update stock: $e')));
     }
   }
 
@@ -169,18 +215,14 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       appBar: AppBar(
         title: Text(
           'Shop Inventory',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-          ),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         backgroundColor: primary,
         foregroundColor: Colors.white,
       ),
       backgroundColor: const Color(AppConstants.secondaryColor),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
+          ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
               child: ListView(
@@ -207,6 +249,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  _buildCategorySection(primary),
+                  const SizedBox(height: 16),
                   _buildTextField(
                     controller: _nameController,
                     label: 'Name *',
@@ -240,7 +284,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                         ),
                         child: Text(
                           'Choose Images',
-                          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -316,8 +362,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       Switch(
                         value: _isAvailable,
                         thumbColor: WidgetStateProperty.resolveWith<Color?>(
-                          (states) =>
-                              states.contains(WidgetState.selected) ? primary : null,
+                          (states) => states.contains(WidgetState.selected)
+                              ? primary
+                              : null,
                         ),
                         onChanged: (v) {
                           setState(() {
@@ -343,9 +390,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                       child: Text(
                         _saving ? 'Saving…' : 'Create Product',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -417,8 +462,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                       isAvailable ? 'Active' : 'Inactive',
                                       style: GoogleFonts.poppins(
                                         fontSize: 11,
-                                        color:
-                                            isAvailable ? Colors.green : Colors.red,
+                                        color: isAvailable
+                                            ? Colors.green
+                                            : Colors.red,
                                       ),
                                     ),
                                   ],
@@ -427,8 +473,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                               IconButton(
                                 icon: const Icon(Icons.edit),
                                 onPressed: () async {
-                                  final controller =
-                                      TextEditingController(text: stock);
+                                  final controller = TextEditingController(
+                                    text: stock,
+                                  );
                                   final result = await showDialog<String>(
                                     context: context,
                                     builder: (ctx) {
@@ -448,8 +495,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                             child: const Text('Cancel'),
                                           ),
                                           TextButton(
-                                            onPressed: () => Navigator.of(ctx)
-                                                .pop(controller.text.trim()),
+                                            onPressed: () => Navigator.of(
+                                              ctx,
+                                            ).pop(controller.text.trim()),
                                             child: const Text('Save'),
                                           ),
                                         ],
@@ -472,6 +520,87 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     );
   }
 
+  Widget _buildCategorySection(Color primary) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Add Category',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildTextField(
+            controller: _categoryNameController,
+            label: 'Category Name *',
+            hint: 'e.g. Food, Toys, Medicine',
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  final file = await _picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 85,
+                  );
+                  if (file != null) {
+                    setState(() => _categoryImage = file);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(
+                  'Choose Image',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _categoryImage == null
+                      ? 'No image selected'
+                      : 'Image selected',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _creatingCategory ? null : _createCategory,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+              child: Text(
+                _creatingCategory ? 'Creating…' : 'Create Category',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -486,11 +615,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
 }
-

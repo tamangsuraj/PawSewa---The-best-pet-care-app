@@ -25,26 +25,35 @@ class PetService {
   Future<List<Pet>> getMyPets() async {
     try {
       final token = await _getToken();
-      if (token == null) throw Exception('No authentication token found');
+      if (token == null) return [];
 
       final response = await _dio.get(
         '/pets/my-pets',
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode == 200 && response.data['success']) {
-        final List<dynamic> petsJson = response.data['data'];
-        return petsJson.map((json) => Pet.fromJson(json)).toList();
+        final data = response.data['data'];
+        if (data == null || data is! List) return [];
+        final List<Pet> result = [];
+        for (final item in data) {
+          try {
+            final map = item is Map ? Map<String, dynamic>.from(item) : null;
+            if (map != null) result.add(Pet.fromJson(map));
+          } catch (parseErr) {
+            if (kDebugMode) {
+              debugPrint('Error parsing pet: $parseErr');
+            }
+          }
+        }
+        return result;
       }
-
-      throw Exception('Failed to load pets');
+      return [];
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error fetching pets: $e');
       }
-      rethrow;
+      return [];
     }
   }
 
@@ -81,9 +90,15 @@ class PetService {
       if (dob != null) request.fields['dob'] = dob.toIso8601String();
       if (age != null) request.fields['age'] = age.toString();
       if (weight != null) request.fields['weight'] = weight.toString();
-      if (medicalConditions != null) request.fields['medicalConditions'] = medicalConditions;
-      if (behavioralNotes != null) request.fields['behavioralNotes'] = behavioralNotes;
-      if (isVaccinated != null) request.fields['isVaccinated'] = isVaccinated.toString();
+      if (medicalConditions != null) {
+        request.fields['medicalConditions'] = medicalConditions;
+      }
+      if (behavioralNotes != null) {
+        request.fields['behavioralNotes'] = behavioralNotes;
+      }
+      if (isVaccinated != null) {
+        request.fields['isVaccinated'] = isVaccinated.toString();
+      }
       if (medicalHistory != null && medicalHistory.isNotEmpty) {
         request.fields['medicalHistory'] = medicalHistory.join(',');
       }
@@ -92,7 +107,7 @@ class PetService {
       if (photo != null) {
         final stream = http.ByteStream(photo.openRead());
         final length = await photo.length();
-        
+
         // Determine content type based on file extension
         String contentType = 'image/jpeg'; // default
         final extension = photo.path.split('.').last.toLowerCase();
@@ -105,7 +120,7 @@ class PetService {
         } else if (extension == 'webp') {
           contentType = 'image/webp';
         }
-        
+
         final multipartFile = http.MultipartFile(
           'photo',
           stream,
@@ -122,7 +137,7 @@ class PetService {
 
       if (response.statusCode == 201) {
         final responseData = json.decode(response.body);
-        
+
         if (responseData['success']) {
           return Pet.fromJson(responseData['data']);
         }
@@ -171,9 +186,15 @@ class PetService {
       if (dob != null) request.fields['dob'] = dob.toIso8601String();
       if (age != null) request.fields['age'] = age.toString();
       if (weight != null) request.fields['weight'] = weight.toString();
-      if (medicalConditions != null) request.fields['medicalConditions'] = medicalConditions;
-      if (behavioralNotes != null) request.fields['behavioralNotes'] = behavioralNotes;
-      if (isVaccinated != null) request.fields['isVaccinated'] = isVaccinated.toString();
+      if (medicalConditions != null) {
+        request.fields['medicalConditions'] = medicalConditions;
+      }
+      if (behavioralNotes != null) {
+        request.fields['behavioralNotes'] = behavioralNotes;
+      }
+      if (isVaccinated != null) {
+        request.fields['isVaccinated'] = isVaccinated.toString();
+      }
       if (medicalHistory != null) {
         request.fields['medicalHistory'] = medicalHistory.join(',');
       }
@@ -182,7 +203,7 @@ class PetService {
       if (photo != null) {
         final stream = http.ByteStream(photo.openRead());
         final length = await photo.length();
-        
+
         // Determine content type based on file extension
         String contentType = 'image/jpeg'; // default
         final extension = photo.path.split('.').last.toLowerCase();
@@ -195,7 +216,7 @@ class PetService {
         } else if (extension == 'webp') {
           contentType = 'image/webp';
         }
-        
+
         final multipartFile = http.MultipartFile(
           'photo',
           stream,
@@ -212,7 +233,7 @@ class PetService {
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        
+
         if (responseData['success']) {
           return Pet.fromJson(responseData['data']);
         }
@@ -234,9 +255,7 @@ class PetService {
 
       final response = await _dio.delete(
         '/pets/$petId',
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
       );
 
       if (response.statusCode != 200 || !response.data['success']) {

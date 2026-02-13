@@ -15,6 +15,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cors = require('cors');
 const mongoSanitize = require('express-mongo-sanitize');
+const sanitizeInput = mongoSanitize.sanitize;
 
 // Database connection
 const connectDB = require('./config/db');
@@ -36,6 +37,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const careRoutes = require('./routes/careRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const favouriteRoutes = require('./routes/favouriteRoutes');
 
 // Models (for testing endpoints)
 const User = require('./models/User');
@@ -110,12 +112,16 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Sanitize MongoDB operators from user input to mitigate NoSQL injection
-app.use(
-  mongoSanitize({
-    replaceWith: '_',
-  }),
-);
+// Sanitize MongoDB operators from user input (body + params only; Express 5 has read-only req.query)
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    req.body = sanitizeInput(req.body, { replaceWith: '_' });
+  }
+  if (req.params && typeof req.params === 'object') {
+    req.params = sanitizeInput(req.params, { replaceWith: '_' });
+  }
+  next();
+});
 
 // Global rate limit for all API routes
 app.use('/api/v1', generalApiLimiter);
@@ -161,6 +167,7 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/care', careRoutes);
 app.use('/api/v1', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/favourites', favouriteRoutes);
 
 // Health Check & Diagnostics
 app.get('/api/v1/health', (req, res) => {
@@ -247,6 +254,7 @@ function tryAllowWindowsFirewall() {
 
 tryAllowWindowsFirewall();
 
+// Bind to 0.0.0.0 so physical devices and emulators on your network can reach the server (not just localhost).
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);

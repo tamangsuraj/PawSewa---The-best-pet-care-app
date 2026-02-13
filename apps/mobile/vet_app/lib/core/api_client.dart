@@ -40,7 +40,9 @@ class ApiClient {
           _log('[API] *** Request ***');
           _log('[API] uri: ${options.uri}');
           _log('[API] method: ${options.method}');
-          _log('[API] headers:\n${options.headers.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}');
+          _log(
+            '[API] headers:\n${options.headers.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}',
+          );
           if (options.data != null) {
             _log('[API] data:\n[API] ${options.data}');
           }
@@ -51,7 +53,7 @@ class ApiClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
-          
+
           return handler.next(options);
         },
         onResponse: (response, handler) {
@@ -61,7 +63,7 @@ class ApiClient {
           _log('[API] statusCode: ${response.statusCode}');
           _log('[API] Response Text:\n[API] ${response.data}');
           _log('[API]');
-          
+
           return handler.next(response);
         },
         onError: (error, handler) {
@@ -74,11 +76,13 @@ class ApiClient {
             _log('[API] uri: ${error.response!.requestOptions.uri}');
             _log('[API] statusCode: ${error.response!.statusCode}');
             _log('[API] statusMessage: ${error.response!.statusMessage}');
-            _log('[API] headers:\n${error.response!.headers.map.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}');
+            _log(
+              '[API] headers:\n${error.response!.headers.map.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}',
+            );
             _log('[API] Response Text:\n[API] ${error.response!.data}');
           }
           _log('[API]');
-          
+
           return handler.next(error);
         },
       ),
@@ -89,10 +93,7 @@ class ApiClient {
   Future<Response> login(String email, String password) async {
     return await _dio.post(
       '/users/login',
-      data: {
-        'email': email,
-        'password': password,
-      },
+      data: {'email': email, 'password': password},
     );
   }
 
@@ -147,7 +148,8 @@ class ApiClient {
       '/service-requests/status/$requestId',
       data: <String, dynamic>{
         'status': status,
-        if (visitNotes != null && visitNotes.isNotEmpty) 'visitNotes': visitNotes,
+        if (visitNotes != null && visitNotes.isNotEmpty)
+          'visitNotes': visitNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
       },
     );
@@ -160,10 +162,7 @@ class ApiClient {
   }) async {
     return await _dio.patch(
       '/users/me/location',
-      data: {
-        'lat': lat,
-        'lng': lng,
-      },
+      data: {'lat': lat, 'lng': lng},
     );
   }
 
@@ -177,10 +176,12 @@ class ApiClient {
   }
 
   Future<Response> createCategory(String name) async {
-    return await _dio.post(
-      '/categories',
-      data: {'name': name},
-    );
+    return await _dio.post('/categories', data: {'name': name});
+  }
+
+  /// Create category with optional image (multipart).
+  Future<Response> createCategoryForm(FormData formData) async {
+    return await _dio.post('/categories', data: formData);
   }
 
   Future<Response> createProductForm(FormData formData) async {
@@ -194,9 +195,7 @@ class ApiClient {
   }) async {
     return await _dio.patch(
       '/products/$productId',
-      data: <String, dynamic>{
-        'stockQuantity': stockQuantity,
-      },
+      data: <String, dynamic>{'stockQuantity': stockQuantity},
     );
   }
 }
