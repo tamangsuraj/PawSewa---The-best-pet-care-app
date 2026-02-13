@@ -231,6 +231,25 @@ class ApiClient {
     return await _dio.post('/orders', data: data);
   }
 
+  /// Validate promo code. [currentOrderAmount] = cart total (e.g. grandTotal).
+  /// [alreadyAppliedCode] if set and same as entered code, backend returns "Code already applied."
+  /// Returns: success + data.discountAmount, data.code, data.discountPercentage or error message.
+  Future<Response> validatePromoCode({
+    required String code,
+    required double currentOrderAmount,
+    String? alreadyAppliedCode,
+  }) async {
+    return await _dio.post(
+      '/promocodes/validate',
+      data: {
+        'code': code.trim().toUpperCase(),
+        'currentOrderAmount': currentOrderAmount,
+        if (alreadyAppliedCode != null && alreadyAppliedCode.isNotEmpty)
+          'alreadyAppliedCode': alreadyAppliedCode,
+      },
+    );
+  }
+
   // Create service request (OSM-enabled flow)
   /// Sends: petId, serviceType, preferredDate, timeWindow, notes?, location: { address, coordinates: { lat, lng } }
   Future<Response> createServiceRequest(Map<String, dynamic> data) async {

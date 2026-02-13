@@ -41,11 +41,22 @@ class _ShopScreenState extends State<ShopScreen> {
   String _searchQuery = '';
   String? _filterCategory;
   final Set<String> _favouriteIds = {};
+  final TextEditingController _searchController = TextEditingController();
+
+  void _onSearchChanged() => setState(() {});
 
   @override
   void initState() {
     super.initState();
+    _searchController.addListener(_onSearchChanged);
     _loadInitial();
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitial({bool isRetry = false}) async {
@@ -225,48 +236,6 @@ class _ShopScreenState extends State<ShopScreen> {
     }
   }
 
-  Future<void> _showSearchDialog() async {
-    final controller = TextEditingController(text: _searchQuery);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Search', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Product name or description',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.search),
-          ),
-          onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
-        ),
-        actions: [
-          if (_searchQuery.isNotEmpty)
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(''),
-              child: const Text('Clear'),
-            ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(AppConstants.primaryColor),
-            ),
-            child: const Text('Search'),
-          ),
-        ],
-      ),
-    );
-    if (result == null) return;
-    if (!mounted) return;
-    setState(() => _searchQuery = result);
-    _loadProductsByCategory(_selectedCategorySlug);
-  }
-
   Future<void> _showFilterSheet() async {
     final chosen = await showModalBottomSheet<String?>(
       context: context,
@@ -313,47 +282,70 @@ class _ShopScreenState extends State<ShopScreen> {
     final cart = context.read<CartService>();
     final productId = product['_id']?.toString() ?? '';
     final isFavourite = _favouriteIds.contains(productId);
-    showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _AddToBasketSheet(
-        product: product,
-        isFavourite: isFavourite,
-        onToggleFavourite: () async {
-          try {
-            if (_favouriteIds.contains(productId)) {
-              await _apiClient.removeFavourite(productId);
-              if (mounted) setState(() => _favouriteIds.remove(productId));
-            } else {
-              await _apiClient.addFavourite(productId);
-              if (mounted) setState(() => _favouriteIds.add(productId));
-            }
-          } catch (_) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Could not update favourite'),
-                  behavior: SnackBarBehavior.floating,
-                ),
+    Navigator.of(context)
+        .push<int>(
+          PageRouteBuilder<int>(
+            opaque: false,
+            barrierColor: Colors.black54,
+            barrierDismissible: true,
+            pageBuilder: (ctx, _, _) => _AddToBasketSheet(
+              product: product,
+              isFavourite: isFavourite,
+              onToggleFavourite: () async {
+                try {
+                  if (_favouriteIds.contains(productId)) {
+                    await _apiClient.removeFavourite(productId);
+                    if (mounted) {
+                      setState(() => _favouriteIds.remove(productId));
+                    }
+                  } else {
+                    await _apiClient.addFavourite(productId);
+                    if (mounted) {
+                      setState(() => _favouriteIds.add(productId));
+                    }
+                  }
+                } catch (_) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not update favourite'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+            transitionsBuilder: (ctx, animation, secondaryAnimation, child) {
+              return SlideTransition(
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 1),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
+                child: child,
               );
+            },
+          ),
+        )
+        .then((qty) {
+          if (qty != null && qty > 0) {
+            final id = product['_id']?.toString() ?? '';
+            final name = product['name']?.toString() ?? 'Product';
+            final price = (product['price'] as num?)?.toDouble() ?? 0;
+            for (var i = 0; i < qty; i++) {
+              cart.addItem(productId: id, name: name, price: price);
             }
           }
-        },
-      ),
-    ).then((qty) {
-      if (qty != null && qty > 0) {
-        final id = product['_id']?.toString() ?? '';
-        final name = product['name']?.toString() ?? 'Product';
-        final price = (product['price'] as num?)?.toDouble() ?? 0;
-        for (var i = 0; i < qty; i++) {
-          cart.addItem(productId: id, name: name, price: price);
-        }
-      }
-      if (mounted && _selectedCategorySlug == kFavouritesSlug) {
-        _loadProductsByCategory(kFavouritesSlug);
-      }
-    });
+          if (mounted && _selectedCategorySlug == kFavouritesSlug) {
+            _loadProductsByCategory(kFavouritesSlug);
+          }
+        });
   }
 
   void _openCheckout() {
@@ -377,8 +369,9 @@ class _ShopScreenState extends State<ShopScreen> {
         deliveryFee: delivery,
         grandTotal: subtotal + delivery,
         onAddAddress: _openAddAddressSheet,
-        onApplyPromo: _openPromoSheet,
-        onSelectPayment: () => _openPaymentSheet(subtotal + delivery),
+        onApplyPromo: (cartTotal, onApplied, onError, [alreadyAppliedCode]) =>
+            _openPromoSheet(cartTotal, onApplied, onError, alreadyAppliedCode),
+        onSelectPayment: (finalAmount) => _openPaymentSheet(finalAmount),
       ),
     );
   }
@@ -392,12 +385,22 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
-  void _openPromoSheet() {
+  void _openPromoSheet(
+    double cartTotal,
+    void Function(String code, double discountAmount) onApplied,
+    void Function(String message) onError, [
+    String? alreadyAppliedCode,
+  ]) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => const _PromoSheet(),
+      builder: (ctx) => _PromoSheet(
+        cartTotal: cartTotal,
+        onApplied: onApplied,
+        onError: onError,
+        alreadyAppliedCode: alreadyAppliedCode,
+      ),
     );
   }
 
@@ -524,39 +527,46 @@ class _ShopScreenState extends State<ShopScreen> {
                           )
                         : Builder(
                             builder: (context) {
-                              const spacing = 3.0;
-                              const minSidePadding = 6.0;
-                              const maxCardWidth = 140.0;
-                              final screenWidth =
-                                  MediaQuery.sizeOf(context).width;
-                              final cardWidth = (screenWidth -
-                                      2 * minSidePadding -
-                                      2 * spacing)
-                                  .clamp(0.0, double.infinity) /
+                              const spacing = 8.0;
+                              const minSidePadding = 14.0;
+                              const maxCardWidth = 148.0;
+                              final screenWidth = MediaQuery.sizeOf(
+                                context,
+                              ).width;
+                              final cardWidth =
+                                  (screenWidth -
+                                          2 * minSidePadding -
+                                          2 * spacing)
+                                      .clamp(0.0, double.infinity) /
                                   3;
-                              final cardWidthClamped =
-                                  cardWidth.clamp(0.0, maxCardWidth);
+                              final cardWidthClamped = cardWidth.clamp(
+                                0.0,
+                                maxCardWidth,
+                              );
                               const cardHeight = 212.0;
                               final totalWidth =
                                   3 * cardWidthClamped + 2 * spacing;
-                              final horizontalPadding = ((screenWidth -
-                                          totalWidth) /
-                                      2)
-                                  .clamp(0.0, double.infinity);
+                              final horizontalPadding =
+                                  ((screenWidth - totalWidth) / 2).clamp(
+                                    0.0,
+                                    double.infinity,
+                                  );
                               return SliverPadding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: horizontalPadding,
-                                  vertical: 8,
+                                padding: EdgeInsets.fromLTRB(
+                                  horizontalPadding,
+                                  16,
+                                  horizontalPadding,
+                                  24,
                                 ),
                                 sliver: SliverGrid(
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 3,
-                                    mainAxisSpacing: 4.0,
-                                    crossAxisSpacing: spacing,
-                                    childAspectRatio:
-                                        cardWidthClamped / cardHeight,
-                                  ),
+                                        crossAxisCount: 3,
+                                        mainAxisSpacing: spacing,
+                                        crossAxisSpacing: spacing,
+                                        childAspectRatio:
+                                            cardWidthClamped / cardHeight,
+                                      ),
                                   delegate: SliverChildBuilderDelegate((
                                     context,
                                     index,
@@ -565,8 +575,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                     return _ProductCard(
                                       product: p,
                                       onTap: () => _openProductDetail(p),
-                                      onAddToCart: () =>
-                                          _openProductDetail(p),
+                                      onAddToCart: () => _openProductDetail(p),
                                     );
                                   }, childCount: _products.length),
                                 ),
@@ -595,26 +604,80 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
+  void _runSearch() {
+    setState(() => _searchQuery = _searchController.text.trim());
+    _loadProductsByCategory(_selectedCategorySlug);
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+    _loadProductsByCategory(_selectedCategorySlug);
+  }
+
   Widget _buildPromoAndSearchHeader() {
+    const primary = Color(AppConstants.primaryColor);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         const _ShopPromoBanner(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
               Expanded(
-                child: _SearchFilterChip(
-                  icon: Icons.search_rounded,
-                  label: _searchQuery.isEmpty ? 'Search products' : _searchQuery,
-                  onTap: () => _showSearchDialog(),
+                child: TextField(
+                  controller: _searchController,
+                  onSubmitted: (_) => _runSearch(),
+                  decoration: InputDecoration(
+                    hintText: 'Search products',
+                    hintStyle: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
+                      color: primary,
+                      size: 22,
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(
+                              Icons.clear_rounded,
+                              size: 20,
+                              color: Colors.grey[600],
+                            ),
+                            onPressed: () {
+                              _clearSearch();
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.grey.shade50,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primary, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                  ),
+                  style: GoogleFonts.poppins(fontSize: 14),
                 ),
               ),
               const SizedBox(width: 10),
-                _SearchFilterChip(
+              _SearchFilterChip(
                 icon: Icons.tune_rounded,
                 label: _filterCategory != null ? 'Filtered' : 'Filter',
                 onTap: () => _showFilterSheet(),
@@ -622,14 +685,14 @@ class _ShopScreenState extends State<ShopScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
       ],
     );
   }
 
   Widget _buildSectionTitle() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -707,10 +770,7 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
       ),
       _PromoSlide(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF2D5016),
-            Colors.green.shade700,
-          ],
+          colors: [const Color(0xFF2D5016), Colors.green.shade700],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -720,10 +780,7 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
       ),
       _PromoSlide(
         gradient: LinearGradient(
-          colors: [
-            Colors.orange.shade700,
-            Colors.deepOrange.shade400,
-          ],
+          colors: [Colors.orange.shade700, Colors.deepOrange.shade400],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -761,9 +818,7 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
               width: _currentPage == i ? 18 : 6,
               height: 6,
               decoration: BoxDecoration(
-                color: _currentPage == i
-                    ? primary
-                    : Colors.grey.shade300,
+                color: _currentPage == i ? primary : Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -827,6 +882,8 @@ class _PromoSlide extends StatelessWidget {
                     children: [
                       Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -940,95 +997,118 @@ class _CategoryCircleStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
+    final screenWidth = MediaQuery.sizeOf(context).width;
     final allCat = <Map<String, dynamic>>[
       {'slug': '', 'name': 'All'},
       {'slug': kFavouritesSlug, 'name': 'Favourites'},
       ...categories,
     ];
-    return SizedBox(
-      height: 100,
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        scrollDirection: Axis.horizontal,
-        itemCount: allCat.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final c = allCat[index];
-          final slug = c['slug']?.toString() ?? '';
-          final name = c['name']?.toString() ?? slug;
-          final isActive = slug == selectedSlug;
-          // Prefer category's own image (from admin); fallback to first product image
-          final categoryImage = c['image']?.toString();
-          final imageUrl = slug.isEmpty
-              ? null
-              : (categoryImage != null && categoryImage.isNotEmpty
-                    ? categoryImage
-                    : _firstImageForCategory(slug));
-          return GestureDetector(
-            onTap: () => onChanged(slug),
-            child: SizedBox(
-              width: 70,
-              child: Column(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isActive ? primary : Colors.grey.shade300,
-                        width: isActive ? 2.5 : 1,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: imageUrl != null
-                          ? CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              fit: BoxFit.cover,
-                              width: 60,
-                              height: 60,
-                              placeholder: (context, url) => Container(
-                                color: const Color(0xFFF5F0EB),
-                                child: Icon(Icons.pets, size: 28, color: primary),
-                              ),
-                              errorWidget: (context, error, stackTrace) =>
-                                  Container(
-                                    color: const Color(0xFFF5F0EB),
-                                    child: Icon(Icons.pets, size: 28, color: primary),
-                                  ),
-                            )
-                          : Container(
-                              color: const Color(0xFFF5F0EB),
-                              child: Icon(
-                                slug == kFavouritesSlug
-                                    ? Icons.favorite_border
-                                    : slug.isEmpty
-                                        ? Icons.grid_view
-                                        : Icons.pets,
-                                size: 28,
-                                color: primary,
-                              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : screenWidth;
+        return SizedBox(
+          height: 100,
+          width: width,
+          child: ClipRect(
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              scrollDirection: Axis.horizontal,
+              itemCount: allCat.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final c = allCat[index];
+                final slug = c['slug']?.toString() ?? '';
+                final name = c['name']?.toString() ?? slug;
+                final isActive = slug == selectedSlug;
+                final categoryImage = c['image']?.toString();
+                final imageUrl = slug.isEmpty
+                    ? null
+                    : (categoryImage != null && categoryImage.isNotEmpty
+                          ? categoryImage
+                          : _firstImageForCategory(slug));
+                return GestureDetector(
+                  onTap: () => onChanged(slug),
+                  child: SizedBox(
+                    width: 70,
+                    height: 100,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isActive ? primary : Colors.grey.shade300,
+                              width: isActive ? 2.5 : 1,
                             ),
+                          ),
+                          child: ClipOval(
+                            child: imageUrl != null
+                                ? CachedNetworkImage(
+                                    imageUrl: imageUrl,
+                                    fit: BoxFit.cover,
+                                    width: 56,
+                                    height: 56,
+                                    placeholder: (context, url) => Container(
+                                      color: const Color(0xFFF5F0EB),
+                                      child: Icon(
+                                        Icons.pets,
+                                        size: 26,
+                                        color: primary,
+                                      ),
+                                    ),
+                                    errorWidget: (context, error, stackTrace) =>
+                                        Container(
+                                          color: const Color(0xFFF5F0EB),
+                                          child: Icon(
+                                            Icons.pets,
+                                            size: 26,
+                                            color: primary,
+                                          ),
+                                        ),
+                                  )
+                                : Container(
+                                    color: const Color(0xFFF5F0EB),
+                                    child: Icon(
+                                      slug == kFavouritesSlug
+                                          ? Icons.favorite_border
+                                          : slug.isEmpty
+                                          ? Icons.grid_view
+                                          : Icons.pets,
+                                      size: 26,
+                                      color: primary,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          name,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: isActive
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isActive ? Colors.black87 : Colors.grey[700],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    name,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                      color: isActive ? Colors.black87 : Colors.grey[700],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1058,12 +1138,12 @@ class _ProductCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -1078,25 +1158,29 @@ class _ProductCard extends StatelessWidget {
             child: GestureDetector(
               onTap: onTap,
               child: Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
                   color: Color(0xFFF5F0EB),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   child: imageUrl != null
                       ? CachedNetworkImage(
                           imageUrl: imageUrl,
                           fit: BoxFit.contain,
                           width: double.infinity,
                           height: double.infinity,
-                          placeholder: (context, url) =>
-                              Center(child: Icon(Icons.pets, size: 24, color: primary)),
-                          errorWidget: (context, error, stackTrace) =>
-                              Center(child: Icon(Icons.pets, size: 40, color: primary)),
+                          placeholder: (context, url) => Center(
+                            child: Icon(Icons.pets, size: 24, color: primary),
+                          ),
+                          errorWidget: (context, error, stackTrace) => Center(
+                            child: Icon(Icons.pets, size: 40, color: primary),
+                          ),
                         )
-                      : Center(child: Icon(Icons.pets, size: 24, color: primary)),
+                      : Center(
+                          child: Icon(Icons.pets, size: 24, color: primary),
+                        ),
                 ),
               ),
             ),
@@ -1104,7 +1188,7 @@ class _ProductCard extends StatelessWidget {
           // Text block: consistent padding, clear gap between description and price
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1120,7 +1204,7 @@ class _ProductCard extends StatelessWidget {
                     ),
                   ),
                   if (desc.isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       desc,
                       maxLines: 2,
@@ -1216,12 +1300,16 @@ class _FloatingCartBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(
-              '$totalItems item${totalItems == 1 ? '' : 's'}',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+            Flexible(
+              child: Text(
+                '$totalItems item${totalItems == 1 ? '' : 's'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1234,12 +1322,16 @@ class _FloatingCartBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              'Rs. ${subtotal.toStringAsFixed(2)}/-',
-              style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
+            Flexible(
+              child: Text(
+                'Rs. ${subtotal.toStringAsFixed(2)}/-',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
               ),
             ),
             const Spacer(),
@@ -1309,198 +1401,257 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
     final desc = product['description']?.toString() ?? '';
     final price = (product['price'] as num?)?.toDouble() ?? 0;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      maxChildSize: 0.8,
-      minChildSize: 0.45,
-      builder: (context, controller) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    final size = MediaQuery.sizeOf(context);
+    final maxSheetHeight = size.height * 0.75;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(color: Colors.black54),
+            ),
           ),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Add item to basket',
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: maxSheetHeight,
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                width: size.width,
+                height: maxSheetHeight,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: controller,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
                   ),
-                  children: [
-                    Container(
-                      height: 180,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF6F1EC),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: imageUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: CachedNetworkImage(
-                                imageUrl: imageUrl,
-                                fit: BoxFit.contain,
-                                placeholder: (context, url) => Center(
-                                  child: Icon(Icons.pets, color: primary),
-                                ),
-                                errorWidget: (context, error, stackTrace) =>
-                                    Center(
-                                      child: Icon(Icons.pets, color: primary),
-                                    ),
-                              ),
-                            )
-                          : Center(
-                              child: Icon(Icons.pets, size: 80, color: primary),
-                            ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      name,
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    if (desc.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        desc.length > 50 ? '${desc.substring(0, 50)}...' : desc,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Text(
-                      'Rs. ${price.toStringAsFixed(0)}',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Text(
-                          'Quantity',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                        ),
-                        const Spacer(),
-                        _QtyPill(
-                          qty: _qty,
-                          onMinus: () {
-                            if (_qty > 1) setState(() => _qty--);
-                          },
-                          onPlus: () => setState(() => _qty++),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.of(context).pop(_qty);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            decoration: BoxDecoration(
-                              color: primary,
-                              borderRadius: BorderRadius.circular(999),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: primary.withValues(alpha: 0.4),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 8),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Add item to basket',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
                                 ),
-                              ],
+                              ),
                             ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
+                            GestureDetector(
+                              onTap: () => Navigator.of(context).pop(),
+                              behavior: HitTestBehavior.opaque,
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(Icons.close_rounded),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          children: [
+                            Container(
+                              height: 180,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF6F1EC),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: imageUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: CachedNetworkImage(
+                                        imageUrl: imageUrl,
+                                        fit: BoxFit.contain,
+                                        placeholder: (context, url) => Center(
+                                          child: Icon(
+                                            Icons.pets,
+                                            color: primary,
+                                          ),
+                                        ),
+                                        errorWidget:
+                                            (context, error, stackTrace) =>
+                                                Center(
+                                                  child: Icon(
+                                                    Icons.pets,
+                                                    color: primary,
+                                                  ),
+                                                ),
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Icon(
+                                        Icons.pets,
+                                        size: 80,
+                                        color: primary,
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.poppins(
-                                color: Colors.white,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
                             ),
-                          ),
+                            if (desc.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                desc.length > 50
+                                    ? '${desc.substring(0, 50)}...'
+                                    : desc,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 10),
+                            Text(
+                              'Rs. ${price.toStringAsFixed(0)}',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Text(
+                                  'Quantity',
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const Spacer(),
+                                _QtyPill(
+                                  qty: _qty,
+                                  onMinus: () {
+                                    if (_qty > 1) setState(() => _qty--);
+                                  },
+                                  onPlus: () => setState(() => _qty++),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Material(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(999),
-                        child: InkWell(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            widget.onToggleFavourite();
-                            setState(() => _isFavourite = !_isFavourite);
-                          },
-                          borderRadius: BorderRadius.circular(999),
-                          child: Container(
-                            width: 48,
-                            alignment: Alignment.center,
-                            child: Icon(
-                              _isFavourite ? Icons.favorite : Icons.favorite_border,
-                              color: _isFavourite ? Colors.red : Colors.grey.shade600,
-                              size: 26,
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          16,
+                          16,
+                          16 + bottomInset,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  Navigator.of(context).pop(_qty);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 13,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: primary,
+                                    borderRadius: BorderRadius.circular(999),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: primary.withValues(alpha: 0.4),
+                                        blurRadius: 18,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.poppins(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.lightImpact();
+                                widget.onToggleFavourite();
+                                setState(() => _isFavourite = !_isFavourite);
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(
+                                  _isFavourite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: _isFavourite
+                                      ? Colors.red
+                                      : Colors.grey.shade600,
+                                  size: 26,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
@@ -1567,8 +1718,14 @@ class _CheckoutSheet extends StatefulWidget {
   final double deliveryFee;
   final double grandTotal;
   final VoidCallback onAddAddress;
-  final VoidCallback onApplyPromo;
-  final VoidCallback onSelectPayment;
+  final void Function(
+    double cartTotal,
+    void Function(String code, double discountAmount) onApplied,
+    void Function(String message) onError, [
+    String? alreadyAppliedCode,
+  ])
+  onApplyPromo;
+  final void Function(double finalAmount) onSelectPayment;
 
   const _CheckoutSheet({
     required this.subtotal,
@@ -1586,6 +1743,8 @@ class _CheckoutSheet extends StatefulWidget {
 class _CheckoutSheetState extends State<_CheckoutSheet> {
   String _selectedDay = 'Today';
   String _selectedSlot = 'As soon as possible';
+  String? _appliedPromoCode;
+  double _discountAmount = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -1777,7 +1936,32 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     ),
                     const SizedBox(height: 8),
                     GestureDetector(
-                      onTap: widget.onApplyPromo,
+                      onTap: () {
+                        widget.onApplyPromo(
+                          widget.grandTotal,
+                          (code, discountAmount) {
+                            setState(() {
+                              _appliedPromoCode = code;
+                              _discountAmount = discountAmount;
+                            });
+                          },
+                          (message) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  message,
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                backgroundColor: Colors.red[700],
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          _appliedPromoCode,
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -1790,7 +1974,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Apply promo code',
+                                _appliedPromoCode != null
+                                    ? '$_appliedPromoCode • Rs. ${_discountAmount.toStringAsFixed(0)} off'
+                                    : 'Apply promo code',
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -1817,12 +2003,16 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     _billRow('Items total', widget.subtotal),
                     const SizedBox(height: 4),
                     _billRow('Delivery charge', widget.deliveryFee),
+                    if (_discountAmount > 0) ...[
+                      const SizedBox(height: 4),
+                      _billRow('Promo discount', -_discountAmount),
+                    ],
                     const SizedBox(height: 6),
                     const Divider(height: 1, color: Color(0xFFE3E0DD)),
                     const SizedBox(height: 6),
                     _billRow(
                       'Grand total',
-                      widget.grandTotal,
+                      widget.grandTotal - _discountAmount,
                       isEmphasis: true,
                     ),
                     const SizedBox(height: 18),
@@ -1835,7 +2025,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     ),
                     const SizedBox(height: 8),
                     GestureDetector(
-                      onTap: widget.onSelectPayment,
+                      onTap: () => widget.onSelectPayment(
+                        widget.grandTotal - _discountAmount,
+                      ),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -1849,6 +2041,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             Expanded(
                               child: Text(
                                 'Select payment method',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -1985,16 +2179,24 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   Widget _billRow(String label, double amount, {bool isEmphasis = false}) {
     return Row(
       children: [
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            fontWeight: isEmphasis ? FontWeight.w700 : FontWeight.w500,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: isEmphasis ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         Text(
-          'Rs. ${amount.toStringAsFixed(0)}',
+          amount < 0
+              ? '- Rs. ${(-amount).toStringAsFixed(0)}'
+              : 'Rs. ${amount.toStringAsFixed(0)}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             fontSize: isEmphasis ? 15 : 13,
             fontWeight: isEmphasis ? FontWeight.w800 : FontWeight.w600,
@@ -2484,12 +2686,89 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
 
 // ─── Promo sheet ────────────────────────────────────────────────────────────
 
-class _PromoSheet extends StatelessWidget {
-  const _PromoSheet();
+class _PromoSheet extends StatefulWidget {
+  final double cartTotal;
+  final void Function(String code, double discountAmount) onApplied;
+  final void Function(String message) onError;
+  final String? alreadyAppliedCode;
+
+  const _PromoSheet({
+    required this.cartTotal,
+    required this.onApplied,
+    required this.onError,
+    this.alreadyAppliedCode,
+  });
+
+  @override
+  State<_PromoSheet> createState() => _PromoSheetState();
+}
+
+class _PromoSheetState extends State<_PromoSheet> {
+  final _controller = TextEditingController();
+  bool _loading = false;
+  String? _successMessage;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _apply() async {
+    final code = _controller.text.trim();
+    if (code.isEmpty) {
+      widget.onError('Enter a code to apply.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+    try {
+      final apiClient = ApiClient();
+      final resp = await apiClient.validatePromoCode(
+        code: code,
+        currentOrderAmount: widget.cartTotal,
+        alreadyAppliedCode: widget.alreadyAppliedCode,
+      );
+      if (!mounted) return;
+      final data = resp.data;
+      if (data is Map && data['success'] == true && data['data'] is Map) {
+        final d = data['data'] as Map;
+        final discountAmount = (d['discountAmount'] as num?)?.toDouble() ?? 0;
+        final appliedCode = (d['code'] as String?) ?? code.toUpperCase();
+        setState(() {
+          _loading = false;
+          _successMessage =
+              'Success! Rs. ${discountAmount.toStringAsFixed(0)} saved';
+        });
+        widget.onApplied(appliedCode, discountAmount);
+        Navigator.of(context).pop();
+      } else {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'Invalid response.';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is DioException && e.response?.data is Map
+          ? (e.response!.data as Map)['message']?.toString() ??
+                'Could not apply code.'
+          : 'Could not apply code.';
+      setState(() {
+        _loading = false;
+        _errorMessage = msg;
+      });
+      widget.onError(msg);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final controller = TextEditingController();
+    const primary = Color(AppConstants.primaryColor);
     return DraggableScrollableSheet(
       initialChildSize: 0.55,
       maxChildSize: 0.75,
@@ -2525,9 +2804,13 @@ class _PromoSheet extends StatelessWidget {
                         ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      behavior: HitTestBehavior.opaque,
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(Icons.close_rounded),
+                      ),
                     ),
                   ],
                 ),
@@ -2544,7 +2827,7 @@ class _PromoSheet extends StatelessWidget {
                       children: [
                         Expanded(
                           child: TextField(
-                            controller: controller,
+                            controller: _controller,
                             decoration: InputDecoration(
                               hintText: 'Enter promo code',
                               border: OutlineInputBorder(
@@ -2555,62 +2838,106 @@ class _PromoSheet extends StatelessWidget {
                                 vertical: 12,
                               ),
                             ),
+                            textCapitalization: TextCapitalization.characters,
+                            onChanged: (_) {
+                              if (_errorMessage != null ||
+                                  _successMessage != null) {
+                                setState(() {
+                                  _errorMessage = null;
+                                  _successMessage = null;
+                                });
+                              }
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
                         ElevatedButton(
-                          onPressed: () {
-                            if (controller.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Enter a code to apply.'),
-                                ),
-                              );
-                              return;
-                            }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Promo validation coming soon.',
-                                  style: GoogleFonts.poppins(),
-                                ),
-                              ),
-                            );
-                          },
+                          onPressed: _loading ? null : _apply,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade300,
-                            foregroundColor: Colors.grey[700],
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
                           ),
-                          child: const Text('APPLY'),
+                          child: _loading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('APPLY'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 40),
-                    Column(
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            Icons.local_activity_outlined,
-                            size: 32,
-                            color: Colors.grey[600],
-                          ),
+                    if (_successMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No available promos',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            color: Colors.grey[700],
-                          ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              color: Colors.green[700],
+                              size: 22,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _successMessage!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.green[800],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                    ],
+                    if (_errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red[700],
+                              size: 22,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  color: Colors.red[800],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    Center(
+                      child: Text(
+                        'Cart total: Rs. ${widget.cartTotal.toStringAsFixed(0)}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -2708,12 +3035,16 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back_ios_new_rounded),
                     ),
-                    Text(
-                      'Payment Method',
-                      style: GoogleFonts.poppins(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                        color: Colors.black87,
+                    Expanded(
+                      child: Text(
+                        'Payment Method',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                   ],
@@ -2741,8 +3072,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
                             childAspectRatio: 0.85,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
                           ),
                       itemCount: _localMethods.length,
                       itemBuilder: (context, index) {
@@ -2853,8 +3184,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 3,
                             childAspectRatio: 0.85,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
                           ),
                       itemCount: _internationalMethods.length,
                       itemBuilder: (context, index) {
@@ -2978,12 +3309,16 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             ),
                           ),
                           const Spacer(),
-                          Text(
-                            'Rs. ${widget.amount.toStringAsFixed(0)}',
-                            style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                              color: Colors.black87,
+                          Flexible(
+                            child: Text(
+                              'Rs. ${widget.amount.toStringAsFixed(0)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                color: Colors.black87,
+                              ),
                             ),
                           ),
                         ],
