@@ -48,15 +48,18 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// Socket.io (CORS: allow same origins as HTTP + emulator / admin)
+// Socket.io (CORS: allow localhost, LAN, emulator, ngrok)
 const io = new SocketServer(server, {
   cors: {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       const allowed =
         origin.startsWith('http://localhost:') ||
+        origin.startsWith('https://localhost:') ||
         /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
-        /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
+        /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
+        /^https?:\/\/[a-z0-9-]+\.ngrok(-free)?\.app(:\d+)?$/.test(origin) ||
+        /^https?:\/\/[a-z0-9-]+\.ngrok\.io(:\d+)?$/.test(origin);
       callback(null, allowed);
     },
     credentials: true,

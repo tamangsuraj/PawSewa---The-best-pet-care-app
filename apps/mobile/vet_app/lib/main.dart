@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'core/api_client.dart';
 import 'core/constants.dart';
 import 'core/storage_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/vet_dashboard_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiClient().initialize();
   runApp(const MyApp());
 }
 

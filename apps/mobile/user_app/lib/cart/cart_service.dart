@@ -68,6 +68,11 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearCart() {
+    _items.clear();
+    notifyListeners();
+  }
+
   double get subtotal =>
       _items.values.fold(0.0, (sum, item) => sum + item.price * item.quantity);
 

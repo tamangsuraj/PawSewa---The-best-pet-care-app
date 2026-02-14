@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
+import '../core/api_config.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
 import 'vet_dashboard_screen.dart';
@@ -85,14 +86,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         String errorMessage = 'Login failed';
         
-        // Provide helpful error messages
-        if (e.toString().contains('connection timeout') || 
-            e.toString().contains('SocketException')) {
-          errorMessage = 'Cannot connect to server.\n'
-              'Make sure:\n'
-              '1. Your phone and computer are on the same WiFi\n'
-              '2. Backend is running on ${AppConstants.baseUrl}\n'
-              '3. Windows Firewall allows port 3000';
+        final isConnErr = e.toString().contains('connection timeout') ||
+            e.toString().contains('SocketException');
+        if (isConnErr) {
+          errorMessage =
+              'Cannot connect to server. Tap "Reconnect" or set server URL below.';
         } else if (e.toString().contains('401') || 
                    e.toString().contains('Invalid credentials')) {
           errorMessage = 'Invalid email or password';
@@ -107,12 +105,79 @@ class _LoginScreenState extends State<LoginScreen> {
             content: Text(errorMessage),
             backgroundColor: Colors.red[700],
             duration: const Duration(seconds: 6),
+            action: isConnErr
+                ? SnackBarAction(
+                    label: 'Reconnect',
+                    textColor: Colors.white,
+                    onPressed: () => _handleLogin(),
+                  )
+                : null,
           ),
         );
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _showSetServerUrlDialog() async {
+    final currentHost = await ApiConfig.getHost();
+    final controller = TextEditingController(text: currentHost);
+
+    if (!mounted) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set server URL'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Local: Enter PC IP from ipconfig.\n\n'
+                'Anywhere: Run npm run tunnel, paste the ngrok URL.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'IP or ngrok URL',
+                  border: OutlineInputBorder(),
+                  hintText: '192.168.1.5 or https://xxx.ngrok-free.app',
+                ),
+                keyboardType: TextInputType.url,
+                autofocus: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && mounted) {
+      await ApiConfig.setHost(controller.text);
+      await _apiClient.reinitialize();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Server URL saved. Try logging in again.'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     }
   }
@@ -301,7 +366,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                   ),
-                  SizedBox(height: size.height * 0.025),
+                  SizedBox(height: size.height * 0.02),
+                  TextButton(
+                    onPressed: _showSetServerUrlDialog,
+                    child: Text(
+                      "Can't connect? Set server URL",
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: size.height * 0.015),
                   
                   // Info Text
                   Container(

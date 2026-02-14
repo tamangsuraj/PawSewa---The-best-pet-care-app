@@ -1,15 +1,20 @@
 class AppConstants {
   // API base URL — backend runs on port 3000 (not 5000).
-  // • Physical device: set _host to your PC's IPv4 (same Wi‑Fi as phone). Use ipconfig (Windows) or ifconfig (Mac/Linux).
+  // • Physical device: use your PC's IPv4 (same Wi‑Fi as phone). Run `ipconfig` (Windows) to find it.
   // • Android emulator: set kUseEmulator = true to use 10.0.2.2 (emulator's alias for host localhost).
+  //
+  // Override at runtime: flutter run --dart-define=API_HOST=192.168.1.10
   static const bool kUseEmulator =
       false; // true = Android emulator (10.0.2.2), false = physical device
-  static const String _host = "192.168.1.5"; // your PC IP (same WiFi as phone)
+  static const String _host = String.fromEnvironment(
+    'API_HOST',
+    defaultValue: '192.168.1.5',
+  );
   static const String baseUrl = kUseEmulator
       ? "http://10.0.2.2:3000/api/v1"
       : "http://$_host:3000/api/v1";
 
-  /// Socket.io server URL (same host as API, no path). Use your PC IP on device.
+  /// Socket.io server URL (same host as API, no path).
   static const String socketUrl = kUseEmulator
       ? "http://10.0.2.2:3000"
       : "http://$_host:3000";

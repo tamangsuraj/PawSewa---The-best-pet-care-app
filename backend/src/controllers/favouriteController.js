@@ -50,7 +50,7 @@ const removeFavourite = asyncHandler(async (req, res) => {
 const getFavourites = asyncHandler(async (req, res) => {
   try {
     const userId = req.user?._id;
-    const { search, category } = req.query || {};
+    const { search, category, minPrice, maxPrice } = req.query || {};
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
@@ -66,6 +66,16 @@ const getFavourites = asyncHandler(async (req, res) => {
     }
     if (search && String(search).trim() !== '') {
       filter.$text = { $search: String(search).trim() };
+    }
+    const minVal = minPrice != null && minPrice !== '' ? Number(minPrice) : NaN;
+    const maxVal = maxPrice != null && maxPrice !== '' ? Number(maxPrice) : NaN;
+    if (!Number.isNaN(minVal) && minVal >= 0) {
+      filter.price = filter.price || {};
+      filter.price.$gte = minVal;
+    }
+    if (!Number.isNaN(maxVal) && maxVal >= 0) {
+      filter.price = filter.price || {};
+      filter.price.$lte = maxVal;
     }
     const products = await Product.find(filter)
       .populate('category', 'name slug')

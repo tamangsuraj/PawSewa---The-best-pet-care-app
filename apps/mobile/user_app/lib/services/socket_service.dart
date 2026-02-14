@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
-import '../core/constants.dart';
+import '../core/api_config.dart';
 import '../core/storage_service.dart';
 
 /// Singleton Socket.io service: JWT auth, auto-reconnect, chat + status listeners.
@@ -36,7 +36,7 @@ class SocketService {
 
     _connecting = true;
     try {
-      final url = AppConstants.socketUrl;
+      final url = await ApiConfig.getSocketUrl();
       _socket?.dispose();
       // Build options and add longer timeout (ms). Default is often ~20s; 60s helps on slow/mobile networks.
       final built = io.OptionBuilder()
@@ -74,7 +74,7 @@ class SocketService {
         _connecting = false;
         if (kDebugMode && !connectErrorLogged) {
           connectErrorLogged = true;
-          debugPrint('[SocketService] ConnectError: $err (reconnecting in background; ensure device and backend are on same network, and baseUrl in constants.dart points to your PC IP)');
+          debugPrint('[SocketService] ConnectError: $err (reconnecting in background; tap "Can\'t connect? Set server IP" on login to fix)');
         }
       });
 

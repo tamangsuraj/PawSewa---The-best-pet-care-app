@@ -8,9 +8,9 @@ import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
 import 'cart/cart_service.dart';
 
-void main() {
-  // Initialize API client
-  ApiClient().initialize();
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiClient().initialize();
 
   runApp(
     MultiProvider(

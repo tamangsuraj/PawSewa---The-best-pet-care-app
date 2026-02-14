@@ -52,7 +52,7 @@ const createCase = asyncHandler(async (req, res) => {
 
     const populatedCase = await Case.findById(newCase._id)
       .populate('customer', 'name email phone')
-      .populate('pet', 'name breed age image');
+      .populate('pet', 'name breed age image pawId');
 
     console.log('[POST /cases] Created case', newCase._id, 'for user', req.user._id);
     return res.status(201).json({
@@ -91,7 +91,7 @@ const getAllCases = asyncHandler(async (req, res) => {
 
   const cases = await Case.find(filter)
     .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age image pawId')
     .populate('assignedVet', 'name email phone specialty specialization currentShift')
     .sort({ createdAt: -1 });
 
@@ -110,7 +110,7 @@ const getAllCases = asyncHandler(async (req, res) => {
 const getCaseById = asyncHandler(async (req, res) => {
   const caseData = await Case.findById(req.params.id)
     .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age image pawId')
     .populate('assignedVet', 'name email phone specialty specialization');
 
   if (!caseData) {
@@ -141,7 +141,7 @@ const getCaseById = asyncHandler(async (req, res) => {
  */
 const getMyCases = asyncHandler(async (req, res) => {
   const cases = await Case.find({ customer: req.user._id })
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age image pawId')
     .populate('assignedVet', 'name phone specialty specialization')
     .sort({ createdAt: -1 });
 
@@ -168,7 +168,7 @@ const getMyAssignments = asyncHandler(async (req, res) => {
     assignedVet: req.user._id
   })
     .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age image pawId')
     .sort({ assignedAt: -1 });
 
   res.json({
@@ -218,7 +218,7 @@ const assignCase = asyncHandler(async (req, res) => {
   // Populate and return
   const updatedCase = await Case.findById(caseData._id)
     .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image')
+    .populate('pet', 'name breed age image pawId')
     .populate('assignedVet', 'name email phone specialty specialization currentShift');
 
   res.json({
@@ -295,7 +295,7 @@ const startCase = asyncHandler(async (req, res) => {
 
   const updatedCase = await Case.findById(caseData._id)
     .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image');
+    .populate('pet', 'name breed age image pawId');
 
   res.json({
     success: true,
@@ -335,7 +335,7 @@ const completeCase = asyncHandler(async (req, res) => {
 
   const updatedCase = await Case.findById(caseData._id)
     .populate('customer', 'name email phone')
-    .populate('pet', 'name breed age image');
+    .populate('pet', 'name breed age image pawId');
 
   res.json({
     success: true,

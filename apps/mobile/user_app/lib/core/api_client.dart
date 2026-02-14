@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'constants.dart';
+import 'api_config.dart';
 import 'storage_service.dart';
 
 class ApiClient {
@@ -8,18 +8,20 @@ class ApiClient {
   factory ApiClient() => _instance;
   ApiClient._internal();
 
-  late final Dio _dio;
+  late Dio _dio;
   final StorageService _storage = StorageService();
 
   Dio get dio => _dio;
 
-  void initialize() {
+  /// Initialize with configurable base URL (from ApiConfig / in-app override).
+  Future<void> initialize() async {
+    final baseUrl = await ApiConfig.getBaseUrl();
     if (kDebugMode) {
-      debugPrint('[API] Using base URL: ${AppConstants.baseUrl}');
+      debugPrint('[API] Using base URL: $baseUrl');
     }
     _dio = Dio(
       BaseOptions(
-        baseUrl: AppConstants.baseUrl,
+        baseUrl: baseUrl,
         // Local network: keep timeouts reasonable to surface real connectivity issues
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
@@ -111,6 +113,13 @@ class ApiClient {
     );
   }
 
+  /// Re-initialize after user changes API host (updates baseUrl).
+  Future<void> reinitialize() async {
+    final baseUrl = await ApiConfig.getBaseUrl();
+    if (kDebugMode) debugPrint('[API] Reinit base URL: $baseUrl');
+    _dio.options.baseUrl = baseUrl;
+  }
+
   // Login
   Future<Response> login(String email, String password) async {
     return await _dio.post(
@@ -186,12 +195,19 @@ class ApiClient {
   }
 
   // Shop: products & categories
-  Future<Response> getProducts({String? search, String? category}) async {
+  Future<Response> getProducts({
+    String? search,
+    String? category,
+    double? minPrice,
+    double? maxPrice,
+  }) async {
     return await _dio.get(
       '/products',
       queryParameters: {
         if (search != null && search.isNotEmpty) 'search': search,
         if (category != null && category.isNotEmpty) 'category': category,
+        if (minPrice != null && minPrice >= 0) 'minPrice': minPrice,
+        if (maxPrice != null && maxPrice >= 0) 'maxPrice': maxPrice,
       },
     );
   }
@@ -205,12 +221,19 @@ class ApiClient {
   }
 
   // Favourites (requires auth)
-  Future<Response> getFavourites({String? search, String? category}) async {
+  Future<Response> getFavourites({
+    String? search,
+    String? category,
+    double? minPrice,
+    double? maxPrice,
+  }) async {
     return await _dio.get(
       '/favourites',
       queryParameters: {
         if (search != null && search.isNotEmpty) 'search': search,
         if (category != null && category.isNotEmpty) 'category': category,
+        if (minPrice != null && minPrice >= 0) 'minPrice': minPrice,
+        if (maxPrice != null && maxPrice >= 0) 'maxPrice': maxPrice,
       },
     );
   }
@@ -229,6 +252,12 @@ class ApiClient {
 
   Future<Response> createOrder(Map<String, dynamic> data) async {
     return await _dio.post('/orders', data: data);
+  }
+
+  /// Initiate Khalti payment for a shop order. Returns pidx, paymentUrl, orderId.
+  /// Backend creates the Khalti session; app should open paymentUrl in browser/WebView.
+  Future<Response> initiateKhaltiForOrder(String orderId) async {
+    return await _dio.post('/orders/$orderId/khalti/initiate');
   }
 
   /// Validate promo code. [currentOrderAmount] = cart total (e.g. grandTotal).

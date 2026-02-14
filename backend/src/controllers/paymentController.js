@@ -6,8 +6,9 @@ const asyncHandler = require('express-async-handler');
 const Payment = require('../models/Payment');
 const ServiceRequest = require('../models/ServiceRequest');
 const CareRequest = require('../models/CareRequest');
+const Order = require('../models/Order');
 
-const KHALTI_BASE_URL = process.env.KHALTI_BASE_URL || 'https://a.khalti.com/api/v2';
+const KHALTI_BASE_URL = process.env.KHALTI_BASE_URL || 'https://dev.khalti.com/api/v2';
 const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '';
 
 const ESEWA_INIT_URL = process.env.ESEWA_INIT_URL || '';
@@ -175,6 +176,81 @@ const verifyKhalti = asyncHandler(async (req, res) => {
     message: `Payment not completed (status: ${status})`,
   });
 });
+
+/**
+ * GET /api/v1/payments/khalti/callback
+ * Khalti redirects the user here after payment. Query: pidx, status, purchase_order_id, etc.
+ * We lookup pidx; if Completed and purchase_order_id is an order ID, mark order as paid.
+ * Then redirect to success page or app deep link.
+ */
+const khaltiCallback = asyncHandler(async (req, res) => {
+  const { pidx, status: callbackStatus, purchase_order_id: purchaseOrderId } = req.query || {};
+  if (!pidx) {
+    return res.redirect(
+      process.env.KHALTI_FAIL_REDIRECT || `${process.env.BASE_URL || 'http://localhost:3000'}/payment-failed?reason=missing_pidx`
+    );
+  }
+
+  let lookupStatus = callbackStatus;
+  try {
+    const lookupResp = await axios.post(
+      `${KHALTI_BASE_URL.replace(/\/$/, '')}/epayment/lookup/`,
+      { pidx },
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    lookupStatus = lookupResp.data?.status;
+  } catch (err) {
+    console.error('[Khalti callback] Lookup failed:', err?.response?.data || err.message);
+  }
+
+  const base = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const successRedirect =
+    process.env.KHALTI_SUCCESS_REDIRECT || `${base}/api/v1/payments/payment-success`;
+  const failRedirect =
+    process.env.KHALTI_FAIL_REDIRECT || `${base}/api/v1/payments/payment-failed`;
+
+  if (lookupStatus === 'Completed' && purchaseOrderId) {
+    const order = await Order.findById(purchaseOrderId);
+    if (order && order.paymentStatus !== 'paid') {
+      order.paymentStatus = 'paid';
+      await order.save();
+    }
+  }
+
+  if (lookupStatus === 'Completed') {
+    const orderId = purchaseOrderId || '';
+    return res.redirect(`${successRedirect}?orderId=${orderId}`);
+  }
+
+  return res.redirect(`${failRedirect}?reason=${encodeURIComponent(lookupStatus || 'unknown')}`);
+});
+
+/**
+ * GET /payment-success - Simple HTML page after successful Khalti payment (for redirect target).
+ */
+const paymentSuccessPage = (req, res) => {
+  const orderId = req.query?.orderId || '';
+  res.set('Content-Type', 'text/html');
+  res.send(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Successful</title></head><body style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:24px;text-align:center;"><h2 style="color:#22c55e;">Payment Successful</h2><p>Thank you for your order. You can close this page and return to the PawSewa app.</p>${orderId ? `<p><small>Order ID: ${orderId}</small></p>` : ''}</body></html>`
+  );
+};
+
+/**
+ * GET /payment-failed - Simple HTML page after failed/cancelled payment.
+ */
+const paymentFailedPage = (req, res) => {
+  const reason = req.query?.reason || 'Payment was not completed.';
+  res.set('Content-Type', 'text/html');
+  res.send(
+    `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Failed</title></head><body style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:24px;text-align:center;"><h2 style="color:#ef4444;">Payment Failed</h2><p>${reason}</p><p>You can close this page and try again in the app.</p></body></html>`
+  );
+};
 
 /**
  * POST /api/v1/payments/esewa/initiate
@@ -358,6 +434,9 @@ const verifyEsewa = asyncHandler(async (req, res) => {
 module.exports = {
   initiateKhalti,
   verifyKhalti,
+  khaltiCallback,
+  paymentSuccessPage,
+  paymentFailedPage,
   initiateEsewa,
   verifyEsewa,
 };

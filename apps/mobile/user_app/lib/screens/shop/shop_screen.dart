@@ -10,8 +10,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../cart/cart_service.dart';
 import '../../core/api_client.dart';
+import '../../core/api_config.dart';
 import '../../core/constants.dart';
 import '../cart/delivery_pin_screen.dart';
 
@@ -40,6 +43,8 @@ class _ShopScreenState extends State<ShopScreen> {
   String? _error;
   String _searchQuery = '';
   String? _filterCategory;
+  double? _filterMinPrice;
+  double? _filterMaxPrice;
   final Set<String> _favouriteIds = {};
   final TextEditingController _searchController = TextEditingController();
 
@@ -133,7 +138,72 @@ class _ShopScreenState extends State<ShopScreen> {
       setState(() {
         _loading = false;
         _error = _friendlyShopError(e);
+        _lastErrorWasConnection = isConnectionError;
       });
+    }
+  }
+
+  bool _lastErrorWasConnection = false;
+
+  Future<void> _showSetServerUrlDialog() async {
+    final currentHost = await ApiConfig.getHost();
+    final controller = TextEditingController(text: currentHost);
+
+    if (!mounted) return;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Set server URL'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Local: Enter PC IP from ipconfig.\n\n'
+                'Anywhere: Run npm run tunnel, paste the ngrok URL.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'IP or ngrok URL',
+                  border: OutlineInputBorder(),
+                  hintText: '192.168.1.5 or https://xxx.ngrok-free.app',
+                ),
+                keyboardType: TextInputType.url,
+                autofocus: true,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && mounted) {
+      await ApiConfig.setHost(controller.text);
+      await ApiClient().reinitialize();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Server URL saved. Retrying...'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() => _error = null);
+        _loadInitial();
+      }
     }
   }
 
@@ -164,11 +234,10 @@ class _ShopScreenState extends State<ShopScreen> {
       if (e.type == DioExceptionType.connectionTimeout ||
           e.type == DioExceptionType.receiveTimeout ||
           e.type == DioExceptionType.sendTimeout) {
-        return 'Request timed out. Please check your connection and try again.';
+        return 'Request timed out. Tap Retry or Set server URL below.';
       }
       if (e.type == DioExceptionType.connectionError) {
-        return 'Cannot reach the server. Check your internet and that the backend is running. '
-            'Using an emulator? Set kUseEmulator to true in lib/core/constants.dart.';
+        return 'Cannot reach the server. Tap Retry or Set server URL below.';
       }
       if (e.type == DioExceptionType.badResponse) {
         final code = e.response?.statusCode ?? 0;
@@ -192,6 +261,8 @@ class _ShopScreenState extends State<ShopScreen> {
         final resp = await _apiClient.getFavourites(
           search: _searchQuery.isEmpty ? null : _searchQuery,
           category: _filterCategory,
+          minPrice: _filterMinPrice,
+          maxPrice: _filterMaxPrice,
         );
         if (!mounted) return;
         prods = _parseListFromResponse(resp.data);
@@ -199,6 +270,8 @@ class _ShopScreenState extends State<ShopScreen> {
         final resp = await _apiClient.getProducts(
           category: slug.isEmpty ? null : slug,
           search: _searchQuery.isEmpty ? null : _searchQuery,
+          minPrice: _filterMinPrice,
+          maxPrice: _filterMaxPrice,
         );
         if (!mounted) return;
         prods = _parseListFromResponse(resp.data);
@@ -237,44 +310,145 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   Future<void> _showFilterSheet() async {
-    final chosen = await showModalBottomSheet<String?>(
+    final minController = TextEditingController(
+      text: _filterMinPrice != null ? _filterMinPrice!.toInt().toString() : '',
+    );
+    final maxController = TextEditingController(
+      text: _filterMaxPrice != null ? _filterMaxPrice!.toInt().toString() : '',
+    );
+    final chosen = await showModalBottomSheet<Map<String, dynamic>?>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Filter by category',
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) => SafeArea(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Filter by category & price',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Category',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    title: const Text('All categories'),
+                    onTap: () => Navigator.of(ctx).pop({
+                      'category': null,
+                      'minPrice': _parsePrice(minController.text),
+                      'maxPrice': _parsePrice(maxController.text),
+                    }),
+                  ),
+                  ..._categories.map((c) {
+                    final slug = c['slug']?.toString() ?? '';
+                    final name = c['name']?.toString() ?? slug;
+                    return ListTile(
+                      title: Text(name),
+                      onTap: () => Navigator.of(ctx).pop({
+                        'category': slug,
+                        'minPrice': _parsePrice(minController.text),
+                        'maxPrice': _parsePrice(maxController.text),
+                      }),
+                    );
+                  }),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Price (NPR)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: minController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Min price',
+                              hintText: 'e.g. 100',
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (_) => setModalState(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: maxController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Max price',
+                              hintText: 'e.g. 5000',
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (_) => setModalState(() {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    child: FilledButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop({
+                          'category': _filterCategory,
+                          'minPrice': _parsePrice(minController.text),
+                          'maxPrice': _parsePrice(maxController.text),
+                        });
+                      },
+                      child: const Text('Apply filters'),
+                    ),
+                  ),
+                ],
               ),
             ),
-            ListTile(
-              title: const Text('All categories'),
-              onTap: () => Navigator.of(ctx).pop(null),
-            ),
-            ..._categories.map((c) {
-              final slug = c['slug']?.toString() ?? '';
-              final name = c['name']?.toString() ?? slug;
-              return ListTile(
-                title: Text(name),
-                onTap: () => Navigator.of(ctx).pop(slug),
-              );
-            }),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+    minController.dispose();
+    maxController.dispose();
     if (!mounted) return;
-    setState(() => _filterCategory = chosen);
-    if (_selectedCategorySlug == kFavouritesSlug) {
-      _loadProductsByCategory(kFavouritesSlug);
+    if (chosen != null) {
+      setState(() {
+        _filterCategory = chosen['category'] as String?;
+        _filterMinPrice = chosen['minPrice'] as double?;
+        _filterMaxPrice = chosen['maxPrice'] as double?;
+      });
+      _loadProductsByCategory(_selectedCategorySlug);
     }
+  }
+
+  static double? _parsePrice(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return null;
+    final v = double.tryParse(t);
+    return (v != null && v >= 0) ? v : null;
   }
 
   void _openProductDetail(Map<String, dynamic> product) {
@@ -411,19 +585,124 @@ class _ShopScreenState extends State<ShopScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => _PaymentSheet(
         amount: amount,
-        onConfirmed: () {
+        onConfirmed: (methodId) {
           Navigator.of(ctx).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Payment method selected.',
-                style: GoogleFonts.poppins(),
+          if (methodId == 'Khalti') {
+            _payWithKhalti(ctx, amount);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Payment method selected.',
+                  style: GoogleFonts.poppins(),
+                ),
               ),
-            ),
-          );
+            );
+          }
         },
       ),
     );
+  }
+
+  Future<void> _payWithKhalti(BuildContext context, double amount) async {
+    final cart = context.read<CartService>();
+    if (cart.deliveryAddress == null ||
+        cart.deliveryLat == null ||
+        cart.deliveryLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please add a delivery address first.',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    if (cart.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Your cart is empty.', style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final orderPayload = {
+        'items': cart.items.values
+            .map((e) => {'productId': e.productId, 'quantity': e.quantity})
+            .toList(),
+        'deliveryLocation': {
+          'address': cart.deliveryAddress,
+          'coordinates': [cart.deliveryLng, cart.deliveryLat],
+        },
+      };
+      final createResp = await _apiClient.createOrder(orderPayload);
+      final orderData = createResp.data;
+      String? orderId;
+      if (orderData is Map) {
+        final data = orderData['data'];
+        if (data is Map && data['_id'] != null) {
+          orderId = data['_id'].toString();
+        }
+      }
+      if (orderId == null || orderId.isEmpty) {
+        if (kDebugMode) debugPrint('[Khalti] No orderId in create response');
+        throw Exception('Could not create order');
+      }
+
+      final initResp = await _apiClient.initiateKhaltiForOrder(orderId);
+      final initData = initResp.data;
+      String? paymentUrl;
+      if (initData is Map) {
+        final data = initData['data'];
+        if (data is Map && data['paymentUrl'] != null) {
+          paymentUrl = data['paymentUrl'].toString();
+        }
+      }
+
+      if (paymentUrl == null || paymentUrl.isEmpty) {
+        throw Exception('Khalti did not return payment URL');
+      }
+
+      if (!context.mounted) return;
+      final uri = Uri.parse(paymentUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Complete payment in the browser. When done, return to the app. Your order will be updated automatically.',
+              style: GoogleFonts.poppins(),
+            ),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        throw Exception('Could not open payment link');
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Khalti] Error: $e');
+      if (!context.mounted) return;
+      String message = 'Payment failed. Please try again.';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          message = data['message'].toString();
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   String _categorySubtitle() {
@@ -509,6 +788,19 @@ class _ShopScreenState extends State<ShopScreen> {
                                         ),
                                       ),
                                     ),
+                                    if (_lastErrorWasConnection) ...[
+                                      const SizedBox(height: 12),
+                                      TextButton.icon(
+                                        onPressed: _showSetServerUrlDialog,
+                                        icon: const Icon(Icons.settings_ethernet, size: 18),
+                                        label: const Text('Set server URL'),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(
+                                            AppConstants.primaryColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -679,7 +971,11 @@ class _ShopScreenState extends State<ShopScreen> {
               const SizedBox(width: 10),
               _SearchFilterChip(
                 icon: Icons.tune_rounded,
-                label: _filterCategory != null ? 'Filtered' : 'Filter',
+                label: (_filterCategory != null ||
+                        _filterMinPrice != null ||
+                        _filterMaxPrice != null)
+                    ? 'Filtered'
+                    : 'Filter',
                 onTap: () => _showFilterSheet(),
               ),
             ],
@@ -1573,49 +1869,51 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                           16,
                           16 + bottomInset,
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  HapticFeedback.lightImpact();
-                                  Navigator.of(context).pop(_qty);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 13,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: primary,
-                                    borderRadius: BorderRadius.circular(999),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: primary.withValues(alpha: 0.4),
-                                        blurRadius: 18,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    child: Text(
-                                      'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.poppins(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
+                        child: SizedBox(
+                          height: 56,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    HapticFeedback.lightImpact();
+                                    Navigator.of(context).pop(_qty);
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 13,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: primary,
+                                      borderRadius: BorderRadius.circular(999),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: primary.withValues(alpha: 0.4),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.poppins(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            GestureDetector(
+                              const SizedBox(width: 10),
+                              GestureDetector(
                               onTap: () {
                                 HapticFeedback.lightImpact();
                                 widget.onToggleFavourite();
@@ -1644,6 +1942,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                           ],
                         ),
                       ),
+                    ),
                     ],
                   ),
                 ),
@@ -2954,7 +3253,7 @@ class _PromoSheetState extends State<_PromoSheet> {
 
 class _PaymentSheet extends StatefulWidget {
   final double amount;
-  final VoidCallback onConfirmed;
+  final void Function(String methodId) onConfirmed;
 
   const _PaymentSheet({required this.amount, required this.onConfirmed});
 
@@ -3336,7 +3635,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             ),
                             elevation: 0,
                           ),
-                          onPressed: widget.onConfirmed,
+                          onPressed: () => widget.onConfirmed(_selected),
                           child: Text(
                             'Confirm Payment Method',
                             style: GoogleFonts.poppins(

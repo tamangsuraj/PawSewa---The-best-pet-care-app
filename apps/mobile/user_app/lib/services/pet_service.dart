@@ -5,17 +5,20 @@ import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import '../models/pet.dart';
+import '../core/api_config.dart';
 import '../core/storage_service.dart';
-import '../core/constants.dart';
 
 class PetService {
   final Dio _dio = Dio();
   final StorageService _storage = StorageService();
 
   PetService() {
-    _dio.options.baseUrl = AppConstants.baseUrl;
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
+  }
+
+  Future<void> _ensureBaseUrl() async {
+    _dio.options.baseUrl = await ApiConfig.getBaseUrl();
   }
 
   Future<String?> _getToken() async {
@@ -23,6 +26,7 @@ class PetService {
   }
 
   Future<List<Pet>> getMyPets() async {
+    await _ensureBaseUrl();
     try {
       final token = await _getToken();
       if (token == null) return [];
@@ -76,7 +80,8 @@ class PetService {
       if (token == null) throw Exception('No authentication token found');
 
       // Use http package for multipart upload
-      final uri = Uri.parse('${AppConstants.baseUrl}/pets');
+      final baseUrl = await ApiConfig.getBaseUrl();
+      final uri = Uri.parse('$baseUrl/pets');
       final request = http.MultipartRequest('POST', uri);
 
       // Add headers
@@ -172,7 +177,8 @@ class PetService {
       if (token == null) throw Exception('No authentication token found');
 
       // Use http package for multipart upload
-      final uri = Uri.parse('${AppConstants.baseUrl}/pets/$petId');
+      final baseUrl = await ApiConfig.getBaseUrl();
+      final uri = Uri.parse('$baseUrl/pets/$petId');
       final request = http.MultipartRequest('PUT', uri);
 
       // Add headers
@@ -249,6 +255,7 @@ class PetService {
   }
 
   Future<void> deletePet(String petId) async {
+    await _ensureBaseUrl();
     try {
       final token = await _getToken();
       if (token == null) throw Exception('No authentication token found');

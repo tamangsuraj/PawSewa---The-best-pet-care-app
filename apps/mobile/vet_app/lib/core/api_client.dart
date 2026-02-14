@@ -1,10 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'api_config.dart';
 import 'storage_service.dart';
-import 'constants.dart';
 
 class ApiClient {
-  late final Dio _dio;
+  static final ApiClient _instance = ApiClient._internal();
+  factory ApiClient() => _instance;
+  ApiClient._internal();
+
+  late Dio _dio;
   final StorageService _storage = StorageService();
 
   void _log(String message) {
@@ -13,10 +17,13 @@ class ApiClient {
     }
   }
 
-  ApiClient() {
+  /// Initialize with configurable base URL (ApiConfig — single source of truth).
+  Future<void> initialize() async {
+    final baseUrl = await ApiConfig.getBaseUrl();
+    if (kDebugMode) debugPrint('[API] Using base URL: $baseUrl');
     _dio = Dio(
       BaseOptions(
-        baseUrl: AppConstants.baseUrl,
+        baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
         headers: {
@@ -71,6 +78,14 @@ class ApiClient {
           _log('[API] *** DioException ***:');
           _log('[API] uri: ${error.requestOptions.uri}');
           _log('[API] ${error.toString()}');
+          if (error.type == DioExceptionType.connectionError ||
+              error.type == DioExceptionType.connectionTimeout) {
+            _log(
+              '[API] 💡 Connection failed. Ensure: (1) Backend is running, '
+              '(2) Device and PC are on same Wi‑Fi, (3) API host is correct. '
+              'Override: flutter run --dart-define=API_HOST=YOUR_PC_IP',
+            );
+          }
           if (error.response != null) {
             _log('[API] *** Response ***');
             _log('[API] uri: ${error.response!.requestOptions.uri}');
@@ -87,6 +102,13 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  /// Re-initialize after user changes API host.
+  Future<void> reinitialize() async {
+    final baseUrl = await ApiConfig.getBaseUrl();
+    if (kDebugMode) debugPrint('[API] Reinit base URL: $baseUrl');
+    _dio.options.baseUrl = baseUrl;
   }
 
   // Login

@@ -354,10 +354,10 @@ const deleteProduct = asyncHandler(async (req, res) => {
 });
 
 // Public: GET /api/v1/products
-// Query: search, category, page, limit
+// Query: search, category, page, limit, minPrice, maxPrice
 const getProducts = asyncHandler(async (req, res) => {
   try {
-    const { search, category, page = 1, limit = 20 } = req.query;
+    const { search, category, page = 1, limit = 20, minPrice, maxPrice } = req.query;
 
     const filter = { isAvailable: true };
     if (category) {
@@ -365,6 +365,16 @@ const getProducts = asyncHandler(async (req, res) => {
       if (cat) {
         filter.category = cat._id;
       }
+    }
+    const minVal = minPrice != null && minPrice !== '' ? Number(minPrice) : NaN;
+    const maxVal = maxPrice != null && maxPrice !== '' ? Number(maxPrice) : NaN;
+    if (!Number.isNaN(minVal) && minVal >= 0) {
+      filter.price = filter.price || {};
+      filter.price.$gte = minVal;
+    }
+    if (!Number.isNaN(maxVal) && maxVal >= 0) {
+      filter.price = filter.price || {};
+      filter.price.$lte = maxVal;
     }
 
     let query = Product.find(filter);
