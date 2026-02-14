@@ -11,6 +11,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../cart/cart_service.dart';
+import '../../cart/saved_addresses_service.dart';
 import '../../core/api_client.dart';
 import '../../core/api_config.dart';
 import '../../core/constants.dart';
@@ -605,6 +606,21 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   void _openPaymentSheet(double amount) {
+    final cart = context.read<CartService>();
+    if (cart.deliveryAddress == null ||
+        cart.deliveryLat == null ||
+        cart.deliveryLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Please add a delivery address first.',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -612,8 +628,10 @@ class _ShopScreenState extends State<ShopScreen> {
       builder: (ctx) => _PaymentSheet(
         amount: amount,
         onConfirmed: (methodId) {
-          Navigator.of(ctx).pop();
+          final nav = Navigator.of(ctx);
+          nav.pop(); // close payment sheet
           if (methodId == 'Khalti') {
+            nav.pop(); // close checkout sheet so user is not stuck in a loop
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) _payWithKhalti(context, amount);
             });
@@ -634,20 +652,6 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Future<void> _payWithKhalti(BuildContext context, double amount) async {
     final cart = context.read<CartService>();
-    if (cart.deliveryAddress == null ||
-        cart.deliveryLat == null ||
-        cart.deliveryLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Please add a delivery address first.',
-            style: GoogleFonts.poppins(),
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -708,8 +712,6 @@ class _ShopScreenState extends State<ShopScreen> {
         successUrl = 'payment-success';
       }
 
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
       if (!context.mounted) return;
       final nav = Navigator.of(context, rootNavigator: true);
       final success = await nav.push<bool>(
@@ -2295,10 +2297,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
-    final cart = context.read<CartService>();
-    final entries = cart.items.values.toList();
-
-    return DraggableScrollableSheet(
+    return Consumer<CartService>(
+      builder: (context, cart, _) {
+        final entries = cart.items.values.toList();
+        return DraggableScrollableSheet(
       initialChildSize: 0.9,
       maxChildSize: 0.96,
       minChildSize: 0.7,
@@ -2342,40 +2344,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     vertical: 8,
                   ),
                   children: [
-                    GestureDetector(
-                      onTap: widget.onAddAddress,
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.add_location_alt_outlined,
-                              color: primary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                cart.deliveryAddress ?? 'Add delivery address',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Colors.black45,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    _buildDeliveryAddressSection(context, cart, primary),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _deliveryNotesController,
@@ -2667,6 +2636,158 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         );
       },
     );
+      },
+    );
+  }
+
+  Widget _buildDeliveryAddressSection(
+      BuildContext context, CartService cart, Color primary) {
+    final saved = context.read<SavedAddressesService>().list;
+    final hasAddress = cart.deliveryAddress != null &&
+        cart.deliveryLat != null &&
+        cart.deliveryLng != null;
+
+    if (saved.isEmpty) {
+      return GestureDetector(
+        onTap: widget.onAddAddress,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.add_location_alt_outlined, color: primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  cart.deliveryAddress ?? 'Add delivery address',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: Colors.black45),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Deliver to',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...saved.map((addr) {
+          final isSelected = hasAddress &&
+              cart.deliveryLat != null &&
+              cart.deliveryLng != null &&
+              (cart.deliveryLat! - addr.lat).abs() < 1e-5 &&
+              (cart.deliveryLng! - addr.lng).abs() < 1e-5;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: GestureDetector(
+              onTap: () {
+                context.read<CartService>().setDeliveryLocation(
+                      lat: addr.lat,
+                      lng: addr.lng,
+                      address: addr.address,
+                    );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? primary.withValues(alpha: 0.08)
+                      : Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSelected ? primary : Colors.transparent,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isSelected
+                          ? Icons.check_circle_rounded
+                          : Icons.location_on_outlined,
+                      color: isSelected ? primary : Colors.grey[600],
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            addr.label,
+                            style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            addr.address,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      Icon(Icons.check_rounded, color: primary, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: widget.onAddAddress,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.add_location_alt_outlined, color: primary, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  'Add new address',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _dayChip(String label) {
@@ -2957,11 +3078,21 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
       );
       return;
     }
+    final address = _address ?? '${_pin.latitude}, ${_pin.longitude}';
     context.read<CartService>().setDeliveryLocation(
       lat: _pin.latitude,
       lng: _pin.longitude,
-      address: _address ?? '${_pin.latitude}, ${_pin.longitude}',
+      address: address,
     );
+    final label = _addressTitleController.text.trim();
+    if (label.isNotEmpty) {
+      context.read<SavedAddressesService>().add(SavedAddress(
+            label: label,
+            address: address,
+            lat: _pin.latitude,
+            lng: _pin.longitude,
+          ));
+    }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Address saved.', style: GoogleFonts.poppins())),

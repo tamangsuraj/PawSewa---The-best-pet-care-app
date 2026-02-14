@@ -7,15 +7,20 @@ import 'services/socket_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
 import 'cart/cart_service.dart';
+import 'cart/saved_addresses_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient().initialize();
 
+  final savedAddresses = SavedAddressesService();
+  await savedAddresses.load();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CartService()),
+        ChangeNotifierProvider(create: (_) => savedAddresses),
       ],
       child: const MyApp(),
     ),

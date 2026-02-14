@@ -223,7 +223,7 @@ class _OrderCard extends StatelessWidget {
             : BorderSide.none,
       ),
       elevation: highlight ? 2 : 0,
-      color: highlight ? primary.withOpacity(0.04) : Colors.white,
+      color: highlight ? primary.withValues(alpha: 0.04) : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -277,7 +277,7 @@ class _OrderCard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.12),
+                    color: primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

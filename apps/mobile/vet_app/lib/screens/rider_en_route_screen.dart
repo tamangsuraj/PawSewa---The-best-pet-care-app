@@ -571,7 +571,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '~${_etaMinutes} min',
+                                '~$_etaMinutes min',
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
