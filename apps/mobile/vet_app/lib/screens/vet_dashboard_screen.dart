@@ -14,6 +14,7 @@ import 'profile_editor_screen.dart';
 import 'all_pets_screen.dart';
 import 'service_task_detail_screen.dart';
 import 'shop_inventory_screen.dart';
+import 'rider_delivery_orders_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VetDashboardScreen extends StatefulWidget {
@@ -63,7 +64,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     final petName = pet?['name']?.toString() ?? 'Pet';
     final ownerName = user?['name']?.toString() ?? 'Owner';
     final window = task['timeWindow']?.toString() ?? '';
-    final serviceType = (task['serviceType'] ?? '').toString().replaceAll('_', ' ');
+    final serviceType = (task['serviceType'] ?? '').toString().replaceAll(
+      '_',
+      ' ',
+    );
 
     final primary = const Color(AppConstants.primaryColor);
 
@@ -122,8 +126,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               if (serviceType.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(999),
@@ -838,6 +844,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       case 'rider':
         return [
           {
+            'icon': Icons.list,
+            'title': 'My delivery orders',
+            'subtitle': 'Update status: Processing → On the way → Delivered',
+            'route': 'rider_deliveries',
+            'badge': 0,
+          },
+          {
             'icon': Icons.map,
             'title': 'View Map',
             'subtitle': 'See delivery locations',
@@ -845,17 +858,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'badge': 0,
           },
           {
-            'icon': Icons.list,
-            'title': 'Active Deliveries',
-            'subtitle': 'Check pending tasks',
-            'route': null,
-            'badge': 0,
-          },
-          {
             'icon': Icons.history,
             'title': 'Delivery History',
             'subtitle': 'View completed deliveries',
-            'route': null,
+            'route': 'rider_deliveries',
             'badge': 0,
           },
         ];
@@ -1494,6 +1500,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const ShopInventoryScreen(),
+                          ),
+                        );
+                      } else if (route == 'rider_deliveries') {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RiderDeliveryOrdersScreen(),
                           ),
                         );
                       } else {

@@ -373,7 +373,10 @@ const updateUserProfile = asyncHandler(async (req, res) => {
  * @access  Private/Admin
  */
 const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+  const { role } = req.query;
+  const filter = {};
+  if (role) filter.role = role;
+  const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
 
   res.json({
     success: true,

@@ -194,12 +194,14 @@ class ApiClient {
     return await _dio.get('/care/my-requests');
   }
 
-  // Shop: products & categories
+  // Shop: products & categories (supports pagination)
   Future<Response> getProducts({
     String? search,
     String? category,
     double? minPrice,
     double? maxPrice,
+    int? page,
+    int? limit,
   }) async {
     return await _dio.get(
       '/products',
@@ -208,6 +210,8 @@ class ApiClient {
         if (category != null && category.isNotEmpty) 'category': category,
         if (minPrice != null && minPrice >= 0) 'minPrice': minPrice,
         if (maxPrice != null && maxPrice >= 0) 'maxPrice': maxPrice,
+        if (page != null && page >= 1) 'page': page,
+        if (limit != null && limit >= 1) 'limit': limit,
       },
     );
   }
@@ -252,6 +256,11 @@ class ApiClient {
 
   Future<Response> createOrder(Map<String, dynamic> data) async {
     return await _dio.post('/orders', data: data);
+  }
+
+  /// Get current user's orders (shop orders).
+  Future<Response> getMyOrders() async {
+    return await _dio.get('/orders/my');
   }
 
   /// Initiate Khalti payment for a shop order. Returns pidx, paymentUrl, orderId.

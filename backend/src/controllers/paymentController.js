@@ -218,8 +218,10 @@ const khaltiCallback = asyncHandler(async (req, res) => {
     const order = await Order.findById(purchaseOrderId);
     if (order && order.paymentStatus !== 'paid') {
       order.paymentStatus = 'paid';
+      order.paymentMethod = 'khalti';
       await order.save();
     }
+    // Idempotent: if already paid, we still redirect to success below.
   }
 
   if (lookupStatus === 'Completed') {

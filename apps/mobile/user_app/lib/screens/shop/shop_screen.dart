@@ -10,13 +10,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../cart/cart_service.dart';
 import '../../core/api_client.dart';
 import '../../core/api_config.dart';
 import '../../core/constants.dart';
 import '../cart/delivery_pin_screen.dart';
+import 'khalti_payment_screen.dart';
+import 'my_orders_screen.dart';
+import 'order_success_screen.dart';
 
 // Delivery fee and free delivery threshold
 const double kDeliveryFee = 80;
@@ -35,8 +36,13 @@ class ShopScreen extends StatefulWidget {
 class _ShopScreenState extends State<ShopScreen> {
   final _apiClient = ApiClient();
 
+  static const int _productsPageSize = 20;
+
   List<Map<String, dynamic>> _categories = [];
   List<Map<String, dynamic>> _products = [];
+  int _productsPage = 1;
+  bool _hasMoreProducts = false;
+  bool _loadingMore = false;
   String _selectedCategorySlug = '';
   String _selectedCategoryName = 'All';
   bool _loading = true;
@@ -71,9 +77,17 @@ class _ShopScreenState extends State<ShopScreen> {
         _error = null;
       });
       // Load products first so we can show them even if categories fail
-      final respProds = await _apiClient.getProducts();
+      final respProds = await _apiClient.getProducts(
+        page: 1,
+        limit: _productsPageSize,
+      );
       if (!mounted) return;
       List<Map<String, dynamic>> prods = _parseListFromResponse(respProds.data);
+      final pagination = respProds.data is Map ? respProds.data['pagination'] as Map? : null;
+      final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
+      final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
+      final pageNum = pagination != null ? (pagination['page'] as num?)?.toInt() ?? 1 : 1;
+      final hasMore = (pageNum * limitNum) < total;
 
       List<Map<String, dynamic>> cats = [];
       try {
@@ -108,6 +122,8 @@ class _ShopScreenState extends State<ShopScreen> {
       setState(() {
         _categories = cats;
         _products = prods;
+        _productsPage = 1;
+        _hasMoreProducts = hasMore;
         _selectedCategorySlug = '';
         _selectedCategoryName = 'All';
         _loading = false;
@@ -257,6 +273,7 @@ class _ShopScreenState extends State<ShopScreen> {
     try {
       setState(() => _loading = true);
       List<Map<String, dynamic>> prods;
+      bool hasMore = false;
       if (slug == kFavouritesSlug) {
         final resp = await _apiClient.getFavourites(
           search: _searchQuery.isEmpty ? null : _searchQuery,
@@ -272,9 +289,16 @@ class _ShopScreenState extends State<ShopScreen> {
           search: _searchQuery.isEmpty ? null : _searchQuery,
           minPrice: _filterMinPrice,
           maxPrice: _filterMaxPrice,
+          page: 1,
+          limit: _productsPageSize,
         );
         if (!mounted) return;
         prods = _parseListFromResponse(resp.data);
+        final pagination = resp.data is Map ? resp.data['pagination'] as Map? : null;
+        final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
+        final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
+        final pageNum = pagination != null ? (pagination['page'] as num?)?.toInt() ?? 1 : 1;
+        hasMore = (pageNum * limitNum) < total;
       }
       String name = slug.isEmpty ? 'All' : slug;
       if (slug == kFavouritesSlug) {
@@ -290,6 +314,8 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       setState(() {
         _products = prods;
+        _productsPage = 1;
+        _hasMoreProducts = hasMore;
         _selectedCategorySlug = slug;
         _selectedCategoryName = name;
         _loading = false;
@@ -588,7 +614,9 @@ class _ShopScreenState extends State<ShopScreen> {
         onConfirmed: (methodId) {
           Navigator.of(ctx).pop();
           if (methodId == 'Khalti') {
-            _payWithKhalti(ctx, amount);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _payWithKhalti(context, amount);
+            });
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -639,6 +667,8 @@ class _ShopScreenState extends State<ShopScreen> {
           'address': cart.deliveryAddress,
           'coordinates': [cart.deliveryLng, cart.deliveryLat],
         },
+        if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
+          'deliveryNotes': cart.deliveryNotes,
       };
       final createResp = await _apiClient.createOrder(orderPayload);
       final orderData = createResp.data;
@@ -653,38 +683,53 @@ class _ShopScreenState extends State<ShopScreen> {
         if (kDebugMode) debugPrint('[Khalti] No orderId in create response');
         throw Exception('Could not create order');
       }
+      _lastKhaltiOrderId = orderId;
 
       final initResp = await _apiClient.initiateKhaltiForOrder(orderId);
       final initData = initResp.data;
       String? paymentUrl;
+      String? successUrl;
       if (initData is Map) {
         final data = initData['data'];
-        if (data is Map && data['paymentUrl'] != null) {
-          paymentUrl = data['paymentUrl'].toString();
+        if (data is Map) {
+          if (data['paymentUrl'] != null) {
+            paymentUrl = data['paymentUrl'].toString();
+          }
+          if (data['successUrl'] != null) {
+            successUrl = data['successUrl'].toString();
+          }
         }
       }
 
       if (paymentUrl == null || paymentUrl.isEmpty) {
         throw Exception('Khalti did not return payment URL');
       }
+      if (successUrl == null || successUrl.isEmpty) {
+        successUrl = 'payment-success';
+      }
 
       if (!context.mounted) return;
-      final uri = Uri.parse(paymentUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Complete payment in the browser. When done, return to the app. Your order will be updated automatically.',
-              style: GoogleFonts.poppins(),
-            ),
-            duration: const Duration(seconds: 5),
-            backgroundColor: Colors.green,
+      Navigator.of(context).pop();
+      if (!context.mounted) return;
+      final nav = Navigator.of(context, rootNavigator: true);
+      final success = await nav.push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (context) => KhaltiPaymentScreen(
+            paymentUrl: paymentUrl!,
+            successUrl: successUrl!,
+          ),
+        ),
+      );
+      if (!context.mounted) return;
+      if (success == true) {
+        context.read<CartService>().clearCart();
+        Navigator.of(context, rootNavigator: true).push<void>(
+          MaterialPageRoute<void>(
+            builder: (context) => OrderSuccessScreen(orderId: orderId),
           ),
         );
-      } else {
-        throw Exception('Could not open payment link');
+      } else if (success == false) {
+        _showKhaltiRetryDialog(context, orderId);
       }
     } catch (e) {
       if (kDebugMode) debugPrint('[Khalti] Error: $e');
@@ -700,9 +745,89 @@ class _ShopScreenState extends State<ShopScreen> {
         SnackBar(
           content: Text(message, style: GoogleFonts.poppins()),
           backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Try again',
+            textColor: Colors.white,
+            onPressed: () {
+              final orderId = _lastKhaltiOrderId;
+              if (orderId != null) _openKhaltiForOrder(context, orderId);
+            },
+          ),
         ),
       );
     }
+  }
+
+  static String? _lastKhaltiOrderId;
+
+  /// Re-open Khalti payment for an existing order (e.g. after cancel). Returns true on success, false on cancel.
+  Future<bool?> _openKhaltiForOrder(BuildContext context, String orderId) async {
+    try {
+      final initResp = await _apiClient.initiateKhaltiForOrder(orderId);
+      final initData = initResp.data;
+      String? paymentUrl;
+      String? successUrl;
+      if (initData is Map) {
+        final data = initData['data'];
+        if (data is Map) {
+          paymentUrl = data['paymentUrl']?.toString();
+          successUrl = data['successUrl']?.toString();
+        }
+      }
+      if (paymentUrl == null || paymentUrl.isEmpty) return false;
+      if (successUrl == null || successUrl.isEmpty) successUrl = 'payment-success';
+      if (!context.mounted) return null;
+      final nav = Navigator.of(context, rootNavigator: true);
+      return nav.push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (context) => KhaltiPaymentScreen(
+            paymentUrl: paymentUrl!,
+            successUrl: successUrl!,
+          ),
+        ),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _showKhaltiRetryDialog(BuildContext context, String orderId) {
+    _lastKhaltiOrderId = orderId;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Payment cancelled or failed', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        content: Text(
+          'Would you like to try paying again with Khalti?',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              if (!context.mounted) return;
+              final success = await _openKhaltiForOrder(context, orderId);
+              if (!context.mounted) return;
+              if (success == true) {
+                context.read<CartService>().clearCart();
+                Navigator.of(context, rootNavigator: true).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (context) => OrderSuccessScreen(orderId: orderId),
+                  ),
+                );
+              } else if (success == false) {
+                _showKhaltiRetryDialog(context, orderId);
+              }
+            },
+            child: Text('Try again', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
   }
 
   String _categorySubtitle() {
@@ -792,7 +917,10 @@ class _ShopScreenState extends State<ShopScreen> {
                                       const SizedBox(height: 12),
                                       TextButton.icon(
                                         onPressed: _showSetServerUrlDialog,
-                                        icon: const Icon(Icons.settings_ethernet, size: 18),
+                                        icon: const Icon(
+                                          Icons.settings_ethernet,
+                                          size: 18,
+                                        ),
                                         label: const Text('Set server URL'),
                                         style: TextButton.styleFrom(
                                           foregroundColor: const Color(
@@ -863,13 +991,19 @@ class _ShopScreenState extends State<ShopScreen> {
                                     context,
                                     index,
                                   ) {
+                                    if (index >= _products.length) {
+                                      return _LoadMoreCell(
+                                        loading: _loadingMore,
+                                        onTap: _loadMoreProducts,
+                                      );
+                                    }
                                     final p = _products[index];
                                     return _ProductCard(
                                       product: p,
                                       onTap: () => _openProductDetail(p),
                                       onAddToCart: () => _openProductDetail(p),
                                     );
-                                  }, childCount: _products.length),
+                                  }, childCount: _products.length + (_hasMoreProducts || _loadingMore ? 1 : 0)),
                                 ),
                               );
                             },
@@ -894,6 +1028,38 @@ class _ShopScreenState extends State<ShopScreen> {
         );
       },
     );
+  }
+
+  Future<void> _loadMoreProducts() async {
+    if (_loadingMore || !_hasMoreProducts || _selectedCategorySlug == kFavouritesSlug) return;
+    setState(() => _loadingMore = true);
+    try {
+      final nextPage = _productsPage + 1;
+      final resp = await _apiClient.getProducts(
+        category: _selectedCategorySlug.isEmpty ? null : _selectedCategorySlug,
+        search: _searchQuery.isEmpty ? null : _searchQuery,
+        minPrice: _filterMinPrice,
+        maxPrice: _filterMaxPrice,
+        page: nextPage,
+        limit: _productsPageSize,
+      );
+      if (!mounted) return;
+      final more = _parseListFromResponse(resp.data);
+      final pagination = resp.data is Map ? resp.data['pagination'] as Map? : null;
+      final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
+      final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
+      final pageNum = pagination != null ? (pagination['page'] as num?)?.toInt() ?? nextPage : nextPage;
+      final hasMore = (pageNum * limitNum) < total;
+      setState(() {
+        _products = [..._products, ...more];
+        _productsPage = nextPage;
+        _hasMoreProducts = hasMore;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Shop] Load more error: $e');
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   void _runSearch() {
@@ -969,9 +1135,22 @@ class _ShopScreenState extends State<ShopScreen> {
                 ),
               ),
               const SizedBox(width: 10),
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const MyOrdersScreen(),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.receipt_long_rounded, color: primary),
+                tooltip: 'My Orders',
+              ),
+              const SizedBox(width: 4),
               _SearchFilterChip(
                 icon: Icons.tune_rounded,
-                label: (_filterCategory != null ||
+                label:
+                    (_filterCategory != null ||
                         _filterMinPrice != null ||
                         _filterMaxPrice != null)
                     ? 'Filtered'
@@ -1405,6 +1584,50 @@ class _CategoryCircleStrip extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ─── Load more cell (for product grid pagination) ────────────────────────────
+
+class _LoadMoreCell extends StatelessWidget {
+  const _LoadMoreCell({required this.loading, required this.onTap});
+
+  final bool loading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    return Padding(
+      padding: const EdgeInsets.all(8),
+      child: Material(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: loading ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Center(
+            child: loading
+                ? SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: primary,
+                    ),
+                  )
+                : Text(
+                    'Load more',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: primary,
+                    ),
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1914,35 +2137,35 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                               ),
                               const SizedBox(width: 10),
                               GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                widget.onToggleFavourite();
-                                setState(() => _isFavourite = !_isFavourite);
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(999),
-                                ),
-                                alignment: Alignment.center,
-                                child: Icon(
-                                  _isFavourite
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  color: _isFavourite
-                                      ? Colors.red
-                                      : Colors.grey.shade600,
-                                  size: 26,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  widget.onToggleFavourite();
+                                  setState(() => _isFavourite = !_isFavourite);
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(
+                                    _isFavourite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: _isFavourite
+                                        ? Colors.red
+                                        : Colors.grey.shade600,
+                                    size: 26,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
                     ],
                   ),
                 ),
@@ -2044,6 +2267,30 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   String _selectedSlot = 'As soon as possible';
   String? _appliedPromoCode;
   double _discountAmount = 0;
+  late final TextEditingController _deliveryNotesController;
+  bool _deliveryNotesSynced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _deliveryNotesController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_deliveryNotesSynced) {
+      _deliveryNotesSynced = true;
+      final notes = context.read<CartService>().deliveryNotes ?? '';
+      if (notes.isNotEmpty) _deliveryNotesController.text = notes;
+    }
+  }
+
+  @override
+  void dispose() {
+    _deliveryNotesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2128,6 +2375,33 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           ],
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _deliveryNotesController,
+                      onChanged: (v) =>
+                          context.read<CartService>().setDeliveryNotes(v),
+                      maxLength: 500,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Delivery notes (optional) — e.g. gate code, floor',
+                        hintStyle: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                      ),
+                      style: GoogleFonts.poppins(fontSize: 13),
+                      maxLines: 2,
                     ),
                     const SizedBox(height: 18),
                     Text(
@@ -2374,14 +2648,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       ),
                     ),
                     onPressed: () {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Order review complete.',
-                            style: GoogleFonts.poppins(),
-                          ),
-                        ),
+                      widget.onSelectPayment(
+                        widget.grandTotal - _discountAmount,
                       );
                     },
                     child: Text(

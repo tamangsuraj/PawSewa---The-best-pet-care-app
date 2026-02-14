@@ -15,7 +15,7 @@ const createOrder = asyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 
-  const { items, deliveryLocation } = req.body || {};
+  const { items, deliveryLocation, deliveryNotes } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Order items are required' });
   }
@@ -26,6 +26,7 @@ const createOrder = asyncHandler(async (req, res) => {
       message: 'Delivery location must include address and coordinates [lng, lat]',
     });
   }
+  const notes = typeof deliveryNotes === 'string' ? deliveryNotes.trim().slice(0, 500) : null;
 
   // Load products and compute total
   const productIds = items.map((i) => i.productId);
@@ -61,6 +62,7 @@ const createOrder = asyncHandler(async (req, res) => {
         coordinates,
       },
     },
+    deliveryNotes: notes || undefined,
     status: 'pending',
     paymentStatus: 'unpaid',
   });
@@ -78,16 +80,182 @@ const getMyOrders = asyncHandler(async (req, res) => {
 });
 
 // Admin: GET /api/v1/orders
+// Query: status, liveOnly (1 = only pending|processing|out_for_delivery), limit (default 20), page (default 1)
 const adminGetOrders = asyncHandler(async (req, res) => {
-  const { status } = req.query;
+  const { status, liveOnly, limit: limitQ, page: pageQ } = req.query;
   const filter = {};
+  if (liveOnly === '1' || liveOnly === 'true') {
+    filter.status = { $in: ['pending', 'processing', 'out_for_delivery'] };
+  }
   if (status) filter.status = status;
 
-  const orders = await Order.find(filter)
+  const limit = Math.min(Math.max(Number(limitQ) || 20, 1), 100);
+  const page = Math.max(Number(pageQ) || 1, 1);
+  const skip = (page - 1) * limit;
+
+  const [orders, total] = await Promise.all([
+    Order.find(filter)
+      .populate('user', 'name email phone')
+      .populate('assignedRider', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Order.countDocuments(filter),
+  ]);
+
+  res.json({
+    success: true,
+    data: orders,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
+  });
+});
+
+/**
+ * Rider: GET /api/v1/orders/rider/assigned
+ * Returns orders assigned to the current rider (any status, for list + history).
+ */
+const getRiderAssignedOrders = asyncHandler(async (req, res) => {
+  const riderId = req.user?._id;
+  if (!riderId) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  const orders = await Order.find({ assignedRider: riderId })
     .populate('user', 'name email phone')
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: orders });
+});
+
+/**
+ * Rider or Admin: PATCH /api/v1/orders/:orderId/status
+ * Body: { status: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' }
+ * Rider can only update orders assigned to them.
+ */
+const updateOrderStatus = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body || {};
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const isAdmin = req.user?.role === 'admin';
+  const isAssignedRider =
+    order.assignedRider && order.assignedRider.toString() === req.user?._id?.toString();
+
+  if (!isAdmin && !isAssignedRider) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only the assigned rider or admin can update this order status',
+    });
+  }
+
+  if (!status || !['pending', 'processing', 'out_for_delivery', 'delivered'].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Valid status: pending, processing, out_for_delivery, delivered',
+    });
+  }
+
+  const current = order.status;
+  const validTransitions = {
+    pending: ['processing'],
+    processing: ['out_for_delivery'],
+    out_for_delivery: ['delivered'],
+    delivered: [],
+  };
+  const allowed = validTransitions[current];
+  if (!Array.isArray(allowed) || !allowed.includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot change status from "${current}" to "${status}". Allowed: ${(allowed || []).join(', ') || 'none'}.`,
+    });
+  }
+
+  order.status = status;
+  await order.save();
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone');
+
+  res.json({
+    success: true,
+    data: updated,
+    message: 'Status updated',
+  });
+});
+
+/**
+ * Admin: PATCH /api/v1/orders/:orderId/assign
+ * Body: { riderId: string, status?: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' }
+ */
+const assignRiderToOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { riderId, status } = req.body || {};
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const User = require('../models/User');
+  if (riderId) {
+    const rider = await User.findById(riderId).select('role');
+    if (!rider || rider.role !== 'rider') {
+      return res.status(400).json({ success: false, message: 'Invalid rider' });
+    }
+    order.assignedRider = riderId;
+  }
+
+  if (status && ['pending', 'processing', 'out_for_delivery', 'delivered'].includes(status)) {
+    order.status = status;
+  }
+
+  await order.save();
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone');
+
+  res.json({
+    success: true,
+    data: updated,
+    message: order.assignedRider ? 'Rider assigned' : 'Order updated',
+  });
+});
+
+/**
+ * Admin: POST /api/v1/orders/bulk-assign
+ * Body: { orderIds: string[], riderId: string }
+ */
+const bulkAssignOrders = asyncHandler(async (req, res) => {
+  const { orderIds, riderId } = req.body || {};
+  if (!Array.isArray(orderIds) || orderIds.length === 0 || !riderId) {
+    return res.status(400).json({
+      success: false,
+      message: 'orderIds (array) and riderId are required',
+    });
+  }
+
+  const User = require('../models/User');
+  const rider = await User.findById(riderId).select('role');
+  if (!rider || rider.role !== 'rider') {
+    return res.status(400).json({ success: false, message: 'Invalid rider' });
+  }
+
+  const result = await Order.updateMany(
+    { _id: { $in: orderIds } },
+    { $set: { assignedRider: riderId } }
+  );
+
+  res.json({
+    success: true,
+    message: `Assigned rider to ${result.modifiedCount} order(s)`,
+    modifiedCount: result.modifiedCount,
+  });
 });
 
 /**
@@ -165,11 +333,14 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
     });
   }
 
+  const successUrl = `${baseUrl}/api/v1/payments/payment-success`;
+
   res.json({
     success: true,
     data: {
       pidx,
       paymentUrl: payment_url,
+      successUrl,
       publicKey: KHALTI_PUBLIC_KEY || undefined,
       amount: amountNpr,
       orderId,
@@ -181,6 +352,10 @@ module.exports = {
   createOrder,
   getMyOrders,
   adminGetOrders,
+  getRiderAssignedOrders,
+  updateOrderStatus,
+  assignRiderToOrder,
+  bulkAssignOrders,
   initiateKhaltiForOrder,
 };
 

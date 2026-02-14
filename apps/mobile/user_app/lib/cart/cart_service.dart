@@ -19,11 +19,13 @@ class CartService extends ChangeNotifier {
   double? _deliveryLat;
   double? _deliveryLng;
   String? _deliveryAddress;
+  String? _deliveryNotes;
 
   Map<String, CartItem> get items => _items;
   double? get deliveryLat => _deliveryLat;
   double? get deliveryLng => _deliveryLng;
   String? get deliveryAddress => _deliveryAddress;
+  String? get deliveryNotes => _deliveryNotes;
 
   void addItem({
     required String productId,
@@ -68,8 +70,19 @@ class CartService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setDeliveryNotes(String? notes) {
+    final trimmed = notes?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      _deliveryNotes = null;
+    } else {
+      _deliveryNotes = trimmed.length > 500 ? trimmed.substring(0, 500) : trimmed;
+    }
+    notifyListeners();
+  }
+
   void clearCart() {
     _items.clear();
+    _deliveryNotes = null;
     notifyListeners();
   }
 

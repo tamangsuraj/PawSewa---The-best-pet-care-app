@@ -220,4 +220,20 @@ class ApiClient {
       data: <String, dynamic>{'stockQuantity': stockQuantity},
     );
   }
+
+  // Rider: orders assigned to me (pet supplies deliveries)
+  Future<Response> getRiderAssignedOrders() async {
+    return await _dio.get('/orders/rider/assigned');
+  }
+
+  /// Rider or admin: update order status (pending | processing | out_for_delivery | delivered).
+  Future<Response> updateOrderStatus({
+    required String orderId,
+    required String status,
+  }) async {
+    return await _dio.patch(
+      '/orders/$orderId/status',
+      data: <String, dynamic>{'status': status},
+    );
+  }
 }

@@ -29,6 +29,12 @@ const orderSchema = new mongoose.Schema(
       enum: ['unpaid', 'paid'],
       default: 'unpaid',
     },
+    paymentMethod: {
+      type: String,
+      default: null,
+      trim: true,
+      // e.g. 'khalti', 'cod' when set by backend
+    },
     deliveryLocation: {
       address: {
         type: String,
@@ -55,6 +61,12 @@ const orderSchema = new mongoose.Schema(
     assignedRider: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+    },
+    deliveryNotes: {
+      type: String,
+      default: null,
+      trim: true,
+      maxLength: 500,
     },
   },
   {
