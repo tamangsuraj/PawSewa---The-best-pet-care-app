@@ -15,6 +15,7 @@ import 'all_pets_screen.dart';
 import 'service_task_detail_screen.dart';
 import 'shop_inventory_screen.dart';
 import 'rider_delivery_orders_screen.dart';
+import 'earnings_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VetDashboardScreen extends StatefulWidget {
@@ -792,6 +793,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'route': 'toggle_location',
             'badge': 0,
           },
+          {
+            'icon': Icons.account_balance_wallet_outlined,
+            'title': 'Earnings',
+            'subtitle': 'View payments received from pet owners',
+            'route': 'earnings',
+            'badge': 0,
+          },
         ];
       case 'shop_owner':
         return [
@@ -838,6 +846,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'title': 'Pet Records',
             'subtitle': 'View pet information',
             'route': null,
+            'badge': 0,
+          },
+          {
+            'icon': Icons.account_balance_wallet_outlined,
+            'title': 'Earnings',
+            'subtitle': 'View payments received from pet owners',
+            'route': 'earnings',
             'badge': 0,
           },
         ];
@@ -1507,6 +1522,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const RiderDeliveryOrdersScreen(),
+                          ),
+                        );
+                      } else if (route == 'earnings') {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const EarningsScreen(),
                           ),
                         );
                       } else {

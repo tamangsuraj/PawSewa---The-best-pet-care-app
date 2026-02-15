@@ -7,9 +7,14 @@ const Payment = require('../models/Payment');
 const ServiceRequest = require('../models/ServiceRequest');
 const CareRequest = require('../models/CareRequest');
 const Order = require('../models/Order');
-
-const KHALTI_BASE_URL = process.env.KHALTI_BASE_URL || 'https://dev.khalti.com/api/v2';
-const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '';
+const PaymentLog = require('../models/PaymentLog');
+const {
+  KHALTI_BASE_URL,
+  KHALTI_SECRET_KEY,
+  nprToPaisa,
+  isKhaltiConfigured,
+  getPaymentFailureMessage,
+} = require('../config/payment_config');
 
 const ESEWA_INIT_URL = process.env.ESEWA_INIT_URL || '';
 const ESEWA_VERIFY_SECRET = process.env.ESEWA_SECRET_KEY || '';
@@ -88,8 +93,15 @@ const initiateKhalti = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Not allowed for this request' });
   }
 
-  // Amount in paisa as per Khalti spec
-  const amountPaisa = Math.round(amount * 100);
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Khalti is not configured. Set KHALTI_SECRET_KEY and KHALTI_BASE_URL.',
+    });
+  }
+
+  // Amount in paisa (Amount * 100) per Khalti spec
+  const amountPaisa = nprToPaisa(amount);
 
   // Create a Payment record first
   const payment = await Payment.create({
@@ -150,6 +162,10 @@ const verifyKhalti = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Payment not found' });
   }
 
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({ success: false, message: 'Khalti is not configured' });
+  }
+
   const resp = await axios.post(
     `${KHALTI_BASE_URL}/epayment/lookup/`,
     { pidx },
@@ -192,9 +208,10 @@ const khaltiCallback = asyncHandler(async (req, res) => {
   }
 
   let lookupStatus = callbackStatus;
+  let lookupData = {};
   try {
     const lookupResp = await axios.post(
-      `${KHALTI_BASE_URL.replace(/\/$/, '')}/epayment/lookup/`,
+      `${KHALTI_BASE_URL}/epayment/lookup/`,
       { pidx },
       {
         headers: {
@@ -203,10 +220,14 @@ const khaltiCallback = asyncHandler(async (req, res) => {
         },
       }
     );
-    lookupStatus = lookupResp.data?.status;
+    lookupData = lookupResp.data || {};
+    lookupStatus = lookupData.status;
   } catch (err) {
     console.error('[Khalti callback] Lookup failed:', err?.response?.data || err.message);
   }
+
+  const amountPaisa = lookupData.amount != null ? Number(lookupData.amount) : 0;
+  const amount = amountPaisa / 100;
 
   const base = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
   const successRedirect =
@@ -214,6 +235,7 @@ const khaltiCallback = asyncHandler(async (req, res) => {
   const failRedirect =
     process.env.KHALTI_FAIL_REDIRECT || `${base}/api/v1/payments/payment-failed`;
 
+  let logType = 'order';
   if (lookupStatus === 'Completed' && purchaseOrderId) {
     const order = await Order.findById(purchaseOrderId);
     if (order && order.paymentStatus !== 'paid') {
@@ -221,22 +243,44 @@ const khaltiCallback = asyncHandler(async (req, res) => {
       order.paymentMethod = 'khalti';
       await order.save();
     }
-    // Idempotent: if already paid, we still redirect to success below.
+    const payment = await Payment.findById(purchaseOrderId);
+    if (payment && payment.status !== 'completed') {
+      await markPaymentCompleted({ paymentId: payment._id });
+      logType = payment.targetType || 'service';
+    }
   }
+
+  await PaymentLog.create({
+    pidx,
+    amount,
+    amountPaisa,
+    status: lookupStatus || 'unknown',
+    purchaseOrderId: purchaseOrderId || '',
+    type: logType,
+    gateway: 'khalti',
+    rawPayload: lookupData,
+  }).catch((e) => console.error('[Khalti callback] PaymentLog create failed:', e.message));
 
   if (lookupStatus === 'Completed') {
     const orderId = purchaseOrderId || '';
     return res.redirect(`${successRedirect}?orderId=${orderId}`);
   }
 
-  return res.redirect(`${failRedirect}?reason=${encodeURIComponent(lookupStatus || 'unknown')}`);
+  const friendlyReason = getPaymentFailureMessage(lookupStatus || 'unknown');
+  return res.redirect(`${failRedirect}?reason=${encodeURIComponent(friendlyReason)}`);
 });
 
 /**
  * GET /payment-success - Simple HTML page after successful Khalti payment (for redirect target).
+ * If PAYMENT_SUCCESS_WEB_URL is set (e.g. User Web URL), redirects there with orderId.
  */
 const paymentSuccessPage = (req, res) => {
   const orderId = req.query?.orderId || '';
+  const webUrl = process.env.PAYMENT_SUCCESS_WEB_URL || '';
+  if (webUrl && webUrl.trim()) {
+    const sep = webUrl.includes('?') ? '&' : '?';
+    return res.redirect(`${webUrl.replace(/\/$/, '')}${sep}orderId=${orderId}`);
+  }
   res.set('Content-Type', 'text/html');
   res.send(
     `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Successful</title></head><body style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:24px;text-align:center;"><h2 style="color:#22c55e;">Payment Successful</h2><p>Thank you for your order. You can close this page and return to the PawSewa app.</p>${orderId ? `<p><small>Order ID: ${orderId}</small></p>` : ''}</body></html>`
@@ -245,9 +289,11 @@ const paymentSuccessPage = (req, res) => {
 
 /**
  * GET /payment-failed - Simple HTML page after failed/cancelled payment.
+ * reason query param may be raw Khalti status or pre-mapped friendly message.
  */
 const paymentFailedPage = (req, res) => {
-  const reason = req.query?.reason || 'Payment was not completed.';
+  const rawReason = req.query?.reason || '';
+  const reason = rawReason ? getPaymentFailureMessage(rawReason) : 'Payment was not completed. Please try again.';
   res.set('Content-Type', 'text/html');
   res.send(
     `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Failed</title></head><body style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:24px;text-align:center;"><h2 style="color:#ef4444;">Payment Failed</h2><p>${reason}</p><p>You can close this page and try again in the app.</p></body></html>`
@@ -433,9 +479,200 @@ const verifyEsewa = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * POST /api/v1/payments/initiate-payment
+ * Unified Khalti initiate. Body: { type: 'order', orderId } | { type: 'service', serviceRequestId, amount }
+ * Returns paymentUrl and pidx for User App/Web to open/redirect.
+ */
+const initiatePayment = asyncHandler(async (req, res) => {
+  if (!req.user?._id) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Khalti is not configured. Set KHALTI_SECRET_KEY and KHALTI_BASE_URL.',
+    });
+  }
+
+  const { type, orderId, serviceRequestId, amount } = req.body || {};
+  const userId = req.user._id.toString();
+
+  if (type === 'order' && orderId) {
+    const order = await Order.findById(orderId).populate('user', 'name email phone').lean();
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+    if (order.user._id.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Not your order' });
+    }
+    if (order.paymentStatus === 'paid') {
+      return res.status(400).json({ success: false, message: 'Order is already paid' });
+    }
+    const amountNpr = Number(order.totalAmount) || 0;
+    if (amountNpr < 0.1) {
+      return res.status(400).json({ success: false, message: 'Invalid order amount' });
+    }
+    const amountPaisa = nprToPaisa(amountNpr);
+    if (amountPaisa < 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Amount should be greater than Rs. 10 (1000 paisa)',
+      });
+    }
+    const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+    const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+    const payload = {
+      return_url: returnUrl,
+      website_url: baseUrl,
+      amount: amountPaisa,
+      purchase_order_id: orderId.toString(),
+      purchase_order_name: `PawSewa Order #${String(orderId).slice(-6)}`,
+      customer_info: {
+        name: order.user.name || 'Customer',
+        email: order.user.email || '',
+        phone: order.user.phone || '',
+      },
+    };
+    const resp = await axios.post(
+      `${KHALTI_BASE_URL}/epayment/initiate/`,
+      payload,
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const { pidx, payment_url } = resp.data || {};
+    if (!pidx || !payment_url) {
+      return res.status(502).json({ success: false, message: 'Khalti did not return pidx or payment_url' });
+    }
+    return res.json({
+      success: true,
+      data: {
+        pidx,
+        paymentUrl: payment_url,
+        successUrl: `${baseUrl}/api/v1/payments/payment-success`,
+        orderId: orderId.toString(),
+        amount: amountNpr,
+      },
+    });
+  }
+
+  if (type === 'service' && serviceRequestId && typeof amount === 'number' && amount > 0) {
+    const serviceRequest = await ServiceRequest.findById(serviceRequestId).select('user status');
+    if (!serviceRequest) {
+      return res.status(404).json({ success: false, message: 'Service request not found' });
+    }
+    if (serviceRequest.user.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Not allowed for this request' });
+    }
+    const amountPaisa = nprToPaisa(amount);
+    const payment = await Payment.create({
+      user: req.user._id,
+      serviceRequest: serviceRequestId,
+      targetType: 'service',
+      amount,
+      currency: 'NPR',
+      gateway: 'khalti',
+      status: 'pending',
+    });
+    const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+    const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+    const payload = {
+      return_url: returnUrl,
+      website_url: baseUrl,
+      amount: amountPaisa,
+      purchase_order_id: payment._id.toString(),
+      purchase_order_name: `Service Request ${serviceRequestId}`,
+    };
+    const resp = await axios.post(
+      `${KHALTI_BASE_URL}/epayment/initiate/`,
+      payload,
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const { pidx, payment_url } = resp.data || {};
+    payment.gatewayTransactionId = pidx;
+    payment.rawGatewayPayload = resp.data || {};
+    await payment.save();
+    return res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        pidx,
+        paymentUrl: payment_url,
+        successUrl: `${baseUrl}/api/v1/payments/payment-success`,
+      },
+    });
+  }
+
+  return res.status(400).json({
+    success: false,
+    message: 'Invalid body. Use { type: "order", orderId } or { type: "service", serviceRequestId, amount }',
+  });
+});
+
+/**
+ * POST /api/v1/payments/verify-payment
+ * Verify Khalti transaction using pidx. Calls Khalti /epayment/lookup/.
+ */
+const verifyPayment = asyncHandler(async (req, res) => {
+  const { pidx } = req.body || {};
+  if (!pidx) {
+    return res.status(400).json({ success: false, message: 'pidx is required' });
+  }
+
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({ success: false, message: 'Khalti is not configured' });
+  }
+
+  const lookupResp = await axios.post(
+    `${KHALTI_BASE_URL}/epayment/lookup/`,
+    { pidx },
+    {
+      headers: {
+        Authorization: `Key ${KHALTI_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  const status = lookupResp.data?.status;
+  const purchaseOrderId = lookupResp.data?.purchase_order_id;
+
+  if (status === 'Completed' && purchaseOrderId) {
+    const order = await Order.findById(purchaseOrderId);
+    if (order && order.paymentStatus !== 'paid') {
+      order.paymentStatus = 'paid';
+      order.paymentMethod = 'khalti';
+      await order.save();
+      return res.json({ success: true, message: 'Payment completed', orderId: order._id });
+    }
+    const payment = await Payment.findById(purchaseOrderId);
+    if (payment && payment.status !== 'completed') {
+      await markPaymentCompleted({ paymentId: payment._id });
+      return res.json({ success: true, message: 'Payment completed', paymentId: payment._id });
+    }
+    return res.json({ success: true, message: 'Payment already recorded' });
+  }
+
+  return res.status(400).json({
+    success: false,
+    message: status ? `Payment not completed (status: ${status})` : 'Payment verification failed',
+  });
+});
+
 module.exports = {
   initiateKhalti,
   verifyKhalti,
+  initiatePayment,
+  verifyPayment,
   khaltiCallback,
   paymentSuccessPage,
   paymentFailedPage,

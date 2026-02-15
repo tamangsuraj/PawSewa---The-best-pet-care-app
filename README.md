@@ -77,3 +77,28 @@ flutter run
 ## Development
 
 Each service runs independently on its designated port. The backend API serves as the central data layer for all applications.
+
+## Khalti Payment & API Configuration
+
+### Backend `.env`
+
+Add to `backend/.env` (copy from `backend/.env.example`):
+
+```
+KHALTI_SECRET_KEY=your_secret_key_from_dashboard
+KHALTI_BASE_URL=https://dev.khalti.com/api/v2/
+BASE_URL=http://localhost:3000
+```
+
+- **BASE_URL**: Use your **ngrok/tunnel URL** (e.g. `https://xxx.ngrok-free.app`) when testing from physical devices or remote browsers. Khalti redirects users back to this URL after payment. Using `localhost` causes SocketException when the mobile app or web app runs on a different host.
+
+### Flutter Apps (User App & Vet App)
+
+- API base URL is configured in `lib/core/api_config.dart`.
+- For physical devices: Set API host to your PC's LAN IP (e.g. `192.168.1.5`) or ngrok URL.
+- Override at runtime: `flutter run --dart-define=API_HOST=192.168.1.5`
+- Or use "Set server URL" in-app to point to ngrok/tunnel.
+
+### Web Apps (Admin & User Web)
+
+- Set `NEXT_PUBLIC_API_URL` to your backend URL (e.g. `http://localhost:3000/api/v1` or `https://xxx.ngrok-free.app/api/v1`) so all API calls use the correct baseUrl and avoid connectivity errors.

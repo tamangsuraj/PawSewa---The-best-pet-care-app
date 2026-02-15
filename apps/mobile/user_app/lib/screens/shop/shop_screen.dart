@@ -17,6 +17,7 @@ import '../../core/api_config.dart';
 import '../../core/constants.dart';
 import '../cart/delivery_pin_screen.dart';
 import 'khalti_payment_screen.dart';
+import '../../core/payment_config.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
 
@@ -740,7 +741,14 @@ class _ShopScreenState extends State<ShopScreen> {
       if (e is DioException && e.response?.data != null) {
         final data = e.response!.data;
         if (data is Map && data['message'] != null) {
-          message = data['message'].toString();
+          final apiMsg = data['message'].toString();
+          // Use PaymentConfig for user-friendly mapping of known failure reasons
+          message = PaymentConfig.getPaymentFailureMessage(apiMsg);
+          // If it's a config error (not a user-facing payment failure), show original
+          if (apiMsg.toLowerCase().contains('not configured') ||
+              apiMsg.toLowerCase().contains('khalti_secret')) {
+            message = apiMsg;
+          }
         }
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2300,6 +2308,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     return Consumer<CartService>(
       builder: (context, cart, _) {
         final entries = cart.items.values.toList();
+        final subtotal = cart.subtotal;
+        final deliveryFee =
+            subtotal >= kFreeDeliveryAbove ? 0.0 : kDeliveryFee;
+        final grandTotal = subtotal + deliveryFee;
         return DraggableScrollableSheet(
       initialChildSize: 0.9,
       maxChildSize: 0.96,
@@ -2440,7 +2452,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    'Rs. ${item.price.toStringAsFixed(0)}',
+                                    'Rs. ${item.price.toStringAsFixed(0)} × ${item.quantity} = Rs. ${(item.price * item.quantity).toStringAsFixed(0)}',
                                     style: GoogleFonts.poppins(
                                       fontSize: 12,
                                       color: Colors.grey[700],
@@ -2480,7 +2492,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     GestureDetector(
                       onTap: () {
                         widget.onApplyPromo(
-                          widget.grandTotal,
+                          grandTotal,
                           (code, discountAmount) {
                             setState(() {
                               _appliedPromoCode = code;
@@ -2542,9 +2554,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _billRow('Items total', widget.subtotal),
+                    _billRow('Items total', subtotal),
                     const SizedBox(height: 4),
-                    _billRow('Delivery charge', widget.deliveryFee),
+                    _billRow('Delivery charge', deliveryFee),
                     if (_discountAmount > 0) ...[
                       const SizedBox(height: 4),
                       _billRow('Promo discount', -_discountAmount),
@@ -2554,7 +2566,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 6),
                     _billRow(
                       'Grand total',
-                      widget.grandTotal - _discountAmount,
+                      grandTotal - _discountAmount,
                       isEmphasis: true,
                     ),
                     const SizedBox(height: 18),
@@ -2568,7 +2580,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: () => widget.onSelectPayment(
-                        widget.grandTotal - _discountAmount,
+                        grandTotal - _discountAmount,
                       ),
                       child: Container(
                         padding: const EdgeInsets.all(12),
@@ -2618,7 +2630,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     ),
                     onPressed: () {
                       widget.onSelectPayment(
-                        widget.grandTotal - _discountAmount,
+                        grandTotal - _discountAmount,
                       );
                     },
                     child: Text(

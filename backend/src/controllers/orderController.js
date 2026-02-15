@@ -2,10 +2,13 @@ const asyncHandler = require('express-async-handler');
 const axios = require('axios');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
-
-const KHALTI_BASE_URL = process.env.KHALTI_BASE_URL || 'https://dev.khalti.com/api/v2';
-const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '';
-const KHALTI_PUBLIC_KEY = process.env.KHALTI_PUBLIC_KEY || '';
+const {
+  KHALTI_BASE_URL,
+  KHALTI_SECRET_KEY,
+  KHALTI_PUBLIC_KEY,
+  nprToPaisa,
+  isKhaltiConfigured,
+} = require('../config/payment_config');
 
 // POST /api/v1/orders
 // Body: { items: [{ productId, quantity }], deliveryLocation: { address, coordinates: [lng, lat] } }
@@ -267,7 +270,7 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
-  if (!KHALTI_SECRET_KEY) {
+  if (!isKhaltiConfigured()) {
     return res.status(503).json({
       success: false,
       message: 'Khalti is not configured. Set KHALTI_SECRET_KEY and KHALTI_BASE_URL.',
@@ -290,7 +293,7 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
   if (amountNpr < 0.1) {
     return res.status(400).json({ success: false, message: 'Invalid order amount' });
   }
-  const amountPaisa = Math.round(amountNpr * 100);
+  const amountPaisa = nprToPaisa(amountNpr);
   if (amountPaisa < 1000) {
     return res.status(400).json({
       success: false,
@@ -315,7 +318,7 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
   };
 
   const resp = await axios.post(
-    `${KHALTI_BASE_URL.replace(/\/$/, '')}/epayment/initiate/`,
+    `${KHALTI_BASE_URL}/epayment/initiate/`,
     payload,
     {
       headers: {

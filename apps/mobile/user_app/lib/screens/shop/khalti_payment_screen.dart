@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../core/constants.dart';
 
 /// In-app Khalti payment via WebView. When the user is redirected to [successUrl]
 /// (or a URL containing "payment-success"), pops with `true`. On failure URL or
@@ -65,14 +66,17 @@ class _KhaltiPaymentScreenState extends State<KhaltiPaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor); // #703418 PawSewa brown
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         title: Text(
           'Pay with Khalti',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(false),
         ),
       ),

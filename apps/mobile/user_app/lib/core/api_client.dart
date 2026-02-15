@@ -75,6 +75,8 @@ class ApiClient {
                 'Server is busy or unreachable. Please try again in a moment.';
             if (statusCode == 401) {
               message = 'Please sign in again.';
+            } else if (hasMessage) {
+              message = (data['message'] as String?) ?? message;
             } else if (error.type == DioExceptionType.connectionTimeout ||
                 error.type == DioExceptionType.receiveTimeout ||
                 error.type == DioExceptionType.sendTimeout) {
@@ -267,6 +269,26 @@ class ApiClient {
   /// Backend creates the Khalti session; app should open paymentUrl in browser/WebView.
   Future<Response> initiateKhaltiForOrder(String orderId) async {
     return await _dio.post('/orders/$orderId/khalti/initiate');
+  }
+
+  /// Unified initiate payment (orders or service). Use type: 'order', orderId for shop.
+  Future<Response> initiatePayment({
+    required String type,
+    String? orderId,
+    String? serviceRequestId,
+    double? amount,
+  }) async {
+    return await _dio.post('/payments/initiate-payment', data: {
+      'type': type,
+      ...? (orderId != null ? {'orderId': orderId} : null),
+      ...? (serviceRequestId != null ? {'serviceRequestId': serviceRequestId} : null),
+      ...? (amount != null ? {'amount': amount} : null),
+    });
+  }
+
+  /// Verify payment using pidx (Khalti lookup).
+  Future<Response> verifyPayment({required String pidx}) async {
+    return await _dio.post('/payments/verify-payment', data: {'pidx': pidx});
   }
 
   /// Validate promo code. [currentOrderAmount] = cart total (e.g. grandTotal).

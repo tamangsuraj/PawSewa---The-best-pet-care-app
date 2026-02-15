@@ -236,4 +236,9 @@ class ApiClient {
       data: <String, dynamic>{'status': status},
     );
   }
+
+  /// Get vet/care earnings (payments received from pet owners for completed services).
+  Future<Response> getVetEarnings() async {
+    return await _dio.get('/vets/earnings');
+  }
 }

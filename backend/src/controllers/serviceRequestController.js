@@ -292,10 +292,11 @@ const getMyServiceRequests = asyncHandler(async (req, res) => {
  * @access  Private (Staff)
  */
 const getMyAssignedRequests = asyncHandler(async (req, res) => {
-  // Staff app (vet/rider) should be able to see both active (assigned + in_progress)
-  // and completed tasks for their own history.
+  // Staff app (vet) sees only "Confirmed" appointments: paymentStatus='paid'.
+  // Vets only see tasks once pet owner has completed Khalti payment.
   const requests = await ServiceRequest.find({
     assignedStaff: req.user._id,
+    paymentStatus: 'paid',
     status: {
       $in: [
         SERVICE_REQUEST_STATUS.ASSIGNED,
@@ -453,6 +454,12 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
   if (!request) {
     res.status(404);
     throw new Error('Service request not found');
+  }
+
+  // Service fee must be paid before vet receives "New Appointment" notification
+  if (request.paymentStatus !== 'paid') {
+    res.status(400);
+    throw new Error('Service fee must be paid by the pet owner before a vet can be assigned. Ask the customer to complete Khalti payment first.');
   }
 
   // Prevent assigning if already completed/cancelled

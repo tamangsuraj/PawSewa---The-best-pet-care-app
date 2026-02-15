@@ -4,6 +4,8 @@ const router = express.Router();
 const {
   initiateKhalti,
   verifyKhalti,
+  initiatePayment,
+  verifyPayment,
   khaltiCallback,
   paymentSuccessPage,
   paymentFailedPage,
@@ -13,7 +15,11 @@ const {
 
 const { protect } = require('../middleware/authMiddleware');
 
-// Khalti routes
+// Unified Khalti routes (POST for User App/Web)
+router.post('/initiate-payment', protect, initiatePayment);
+router.post('/verify-payment', verifyPayment);
+
+// Legacy Khalti routes
 router.post('/khalti/initiate', protect, initiateKhalti);
 router.get('/khalti/verify', verifyKhalti);
 router.get('/khalti/callback', khaltiCallback);
