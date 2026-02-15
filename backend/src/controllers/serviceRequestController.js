@@ -88,6 +88,7 @@ const createServiceRequest = asyncHandler(async (req, res) => {
     const timeWindow = body.timeWindow ?? body.time_window;
     const notes = body.notes;
     const locationRaw = body.location;
+    const paymentMethod = (body.paymentMethod ?? body.payment_method) === 'cash_on_delivery' ? 'cash_on_delivery' : 'online';
 
     // Validate required fields
     if (!petId || !serviceType || !preferredDate || !timeWindow) {
@@ -158,14 +159,13 @@ const createServiceRequest = asyncHandler(async (req, res) => {
     const createPayload = {
       user: req.user._id,
       pet: petId,
-      // Store a snapshot of the pet's PawID so staff/admins
-      // can quickly identify which pet is arriving.
       petPawId: pet.pawId || undefined,
       serviceType: String(serviceType),
       preferredDate: requestDate,
       timeWindow: String(timeWindow),
       location,
       status: SERVICE_REQUEST_STATUS.PENDING,
+      paymentMethod,
     };
     if (notes != null && notes !== '') {
       createPayload.notes = String(notes);
@@ -456,8 +456,9 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('Service request not found');
   }
 
-  // Service fee must be paid before vet receives "New Appointment" notification
-  if (request.paymentStatus !== 'paid') {
+  // Require online payment before assign only when payment method is online; cash on delivery can be assigned without pre-payment (customer pays vet later)
+  const isCashOnDelivery = request.paymentMethod === 'cash_on_delivery';
+  if (!isCashOnDelivery && request.paymentStatus !== 'paid') {
     res.status(400);
     throw new Error('Service fee must be paid by the pet owner before a vet can be assigned. Ask the customer to complete Khalti payment first.');
   }

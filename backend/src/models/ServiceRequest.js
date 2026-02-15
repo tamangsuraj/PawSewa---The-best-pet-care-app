@@ -124,6 +124,12 @@ const serviceRequestSchema = new mongoose.Schema(
       enum: ['khalti', 'esewa', null],
       default: null,
     },
+    // 'online' = pay via Khalti before vet assign; 'cash_on_delivery' = customer pays vet when service is done
+    paymentMethod: {
+      type: String,
+      enum: ['online', 'cash_on_delivery'],
+      default: 'online',
+    },
   },
   {
     timestamps: true,

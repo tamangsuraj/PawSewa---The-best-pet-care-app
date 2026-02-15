@@ -32,6 +32,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
   String? _selectedServiceType;
   DateTime? _selectedDate;
   String? _selectedTimeWindow;
+  String _paymentMethod = 'online'; // 'online' | 'cash_on_delivery'
   LatLng _mapCenter = const LatLng(27.7, 85.32);
   LatLng? _confirmedLatLng;
   String? _confirmedAddress;
@@ -145,6 +146,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
         'serviceType': _selectedServiceType,
         'preferredDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
         'timeWindow': _selectedTimeWindow,
+        'paymentMethod': _paymentMethod,
         'notes': _notesController.text.trim().isEmpty
             ? null
             : _notesController.text.trim(),
@@ -649,6 +651,77 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 ),
               );
             },
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Payment',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _paymentMethod = 'online'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: _paymentMethod == 'online'
+                          ? const Color(AppConstants.primaryColor)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _paymentMethod == 'online'
+                            ? const Color(AppConstants.primaryColor)
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Text(
+                      'Pay online (Khalti)',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: _paymentMethod == 'online'
+                            ? Colors.white
+                            : Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _paymentMethod = 'cash_on_delivery'),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                    decoration: BoxDecoration(
+                      color: _paymentMethod == 'cash_on_delivery'
+                          ? const Color(AppConstants.primaryColor)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _paymentMethod == 'cash_on_delivery'
+                            ? const Color(AppConstants.primaryColor)
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Text(
+                      'Cash on delivery',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: _paymentMethod == 'cash_on_delivery'
+                            ? Colors.white
+                            : Colors.grey[800],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Row(

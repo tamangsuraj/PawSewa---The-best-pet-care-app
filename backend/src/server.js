@@ -101,11 +101,13 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// CORS - temporarily allow all origins to rule out connectivity issues between
-// mobile app (192.168.x.x) and web (localhost). Tighten this in production.
+// CORS - use ALLOWED_ORIGINS in production (comma-separated). Development: allow all.
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : '*';
 app.use(
   cors({
-    origin: '*',
+    origin: allowedOrigins,
     credentials: true,
     allowedHeaders: ['Authorization', 'Content-Type'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
