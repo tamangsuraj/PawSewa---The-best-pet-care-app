@@ -43,6 +43,7 @@ const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const favouriteRoutes = require('./routes/favouriteRoutes');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 // Models (for testing endpoints)
 const User = require('./models/User');
@@ -182,6 +183,7 @@ app.use('/api/v1/provider-applications', providerApplicationRoutes);
 app.use('/api/v1/favourites', favouriteRoutes);
 app.use('/api/v1/promocodes', promoCodeRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1', productRoutes);
 
 // Health Check & Diagnostics
