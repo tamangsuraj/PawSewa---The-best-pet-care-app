@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'service_provider'],
+      enum: ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner'],
       default: 'pet_owner',
     },
     phone: {
@@ -126,6 +126,16 @@ const userSchema = new mongoose.Schema(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    // Provider subscription (for hostel_owner, service_provider, groomer, trainer, facility_owner)
+    subscriptionStatus: {
+      type: String,
+      enum: ['Active', 'Expired', 'None'],
+      default: 'None',
+    },
+    listingExpiry: {
+      type: Date,
+      default: null,
     },
     liveLocation: {
       coordinates: {

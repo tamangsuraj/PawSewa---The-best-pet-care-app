@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Subscription = require('../models/Subscription');
 
 /**
  * Protect routes - Verify JWT token from Authorization header
@@ -115,4 +116,34 @@ const authorize = (...roles) => (req, res, next) => {
   next();
 };
 
-module.exports = { protect, admin, adminOrShopOwner, authorize };
+const PROVIDER_ROLES = ['hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner'];
+
+/**
+ * Block provider actions if their subscription is expired.
+ * Use after protect + authorize(provider roles). Ensures only providers with
+ * active subscription can list/manage services (User App only shows active listings).
+ */
+const verifyProviderSubscription = async (req, res, next) => {
+  if (!req.user) {
+    res.status(401);
+    throw new Error('Not authorized');
+  }
+  if (!PROVIDER_ROLES.includes(req.user.role)) {
+    return next();
+  }
+  if (req.user.role === 'admin') {
+    return next();
+  }
+  const sub = await Subscription.findOne({
+    providerId: req.user._id,
+    status: 'active',
+    validUntil: { $gt: new Date() },
+  });
+  if (!sub) {
+    res.status(403);
+    throw new Error('Active subscription required. Please subscribe to list your service.');
+  }
+  next();
+};
+
+module.exports = { protect, admin, adminOrShopOwner, authorize, verifyProviderSubscription };

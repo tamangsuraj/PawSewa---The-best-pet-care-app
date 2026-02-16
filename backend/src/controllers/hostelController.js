@@ -69,7 +69,7 @@ const getHostelById = asyncHandler(async (req, res) => {
  */
 const createHostel = asyncHandler(async (req, res) => {
   const body = req.body || {};
-  const providerRoles = ['hostel_owner', 'service_provider', 'admin'];
+  const providerRoles = ['hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner', 'admin'];
   if (!providerRoles.includes(req.user.role)) {
     res.status(403);
     throw new Error('Only providers can create services');
