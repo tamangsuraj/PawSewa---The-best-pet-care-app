@@ -10,6 +10,7 @@ const CareRequest = require('../models/CareRequest');
 const Order = require('../models/Order');
 const Payment = require('../models/Payment');
 const PaymentLog = require('../models/PaymentLog');
+const CareBooking = require('../models/CareBooking');
 
 // Admin dispatcher routes
 // Mirror of PATCH /api/v1/service-requests/:id/assign, but namespaced for admin
@@ -180,6 +181,74 @@ router.get('/payment-logs', protect, authorize('admin'), async (req, res, next) 
     res.json({
       success: true,
       data: logs,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/admin/provider-revenue
+// Platform fees from care bookings (provider subscription commission)
+router.get('/provider-revenue', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const bookings = await CareBooking.find({ paymentStatus: 'paid' }).lean();
+    const totalPlatformFee = bookings.reduce((sum, b) => sum + (b.platformFee || 0), 0);
+    const byServiceType = {};
+    for (const b of bookings) {
+      const t = b.serviceType || 'Hostel';
+      if (!byServiceType[t]) byServiceType[t] = { count: 0, platformFee: 0 };
+      byServiceType[t].count += 1;
+      byServiceType[t].platformFee += b.platformFee || 0;
+    }
+    const subscriptionPayments = await Payment.find({
+      targetType: 'subscription',
+      status: 'completed',
+    }).lean();
+    const subscriptionRevenue = subscriptionPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    res.json({
+      success: true,
+      data: {
+        totalPlatformFee,
+        totalSubscriptionRevenue: subscriptionRevenue,
+        totalProviderRevenue: totalPlatformFee + subscriptionRevenue,
+        byServiceType,
+        bookingCount: bookings.length,
+        subscriptionCount: subscriptionPayments.length,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/admin/care-bookings
+// All care bookings with filter by serviceType
+router.get('/care-bookings', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { serviceType, status, limit: limitQ, page: pageQ } = req.query;
+    const filter = {};
+    if (serviceType && ['Hostel', 'Daycare', 'Grooming', 'Training', 'Wash', 'Spa'].includes(serviceType)) {
+      filter.serviceType = serviceType;
+    }
+    if (status) filter.status = status;
+    const limit = Math.min(Math.max(Number(limitQ) || 50, 1), 100);
+    const page = Math.max(Number(pageQ) || 1, 1);
+    const skip = (page - 1) * limit;
+    const [bookings, total] = await Promise.all([
+      CareBooking.find(filter)
+        .populate('hostelId', 'name location serviceType')
+        .populate('petId', 'name breed age')
+        .populate('userId', 'name email phone')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      CareBooking.countDocuments(filter),
+    ]);
+    res.json({
+      success: true,
+      data: bookings,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
     });
   } catch (err) {

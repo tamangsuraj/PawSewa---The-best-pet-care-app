@@ -16,6 +16,7 @@ import 'service_task_detail_screen.dart';
 import 'shop_inventory_screen.dart';
 import 'rider_delivery_orders_screen.dart';
 import 'earnings_screen.dart';
+import 'my_business_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class VetDashboardScreen extends StatefulWidget {
@@ -631,6 +632,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return 'Care Partner Portal';
       case 'rider':
         return 'Delivery Partner Portal';
+      case 'hostel_owner':
+      case 'service_provider':
+        return 'My Business';
       default:
         return 'PawSewa Partner';
     }
@@ -646,6 +650,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return Icons.home_work;
       case 'rider':
         return Icons.delivery_dining;
+      case 'hostel_owner':
+      case 'service_provider':
+        return Icons.storefront;
       default:
         return Icons.work;
     }
@@ -731,6 +738,34 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.hotel,
             'title': 'Boarding',
             'value': '0',
+            'color': Colors.purple,
+          },
+        ];
+      case 'hostel_owner':
+      case 'service_provider':
+        return [
+          {
+            'icon': Icons.store,
+            'title': 'My Services',
+            'value': '0',
+            'color': Colors.blue,
+          },
+          {
+            'icon': Icons.event_available,
+            'title': 'Bookings',
+            'value': '0',
+            'color': Colors.green,
+          },
+          {
+            'icon': Icons.account_balance_wallet,
+            'title': 'Subscription',
+            'value': '—',
+            'color': Colors.orange,
+          },
+          {
+            'icon': Icons.settings,
+            'title': 'Availability',
+            'value': '—',
             'color': Colors.purple,
           },
         ];
@@ -853,6 +888,17 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'title': 'Earnings',
             'subtitle': 'View payments received from pet owners',
             'route': 'earnings',
+            'badge': 0,
+          },
+        ];
+      case 'hostel_owner':
+      case 'service_provider':
+        return [
+          {
+            'icon': Icons.storefront,
+            'title': 'My Business',
+            'subtitle': 'Billing, services, and bookings',
+            'route': 'my_business',
             'badge': 0,
           },
         ];
@@ -1529,6 +1575,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const EarningsScreen(),
+                          ),
+                        );
+                      } else if (route == 'my_business') {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyBusinessScreen(),
                           ),
                         );
                       } else {

@@ -6,6 +6,9 @@ const asyncHandler = require('express-async-handler');
 const Payment = require('../models/Payment');
 const ServiceRequest = require('../models/ServiceRequest');
 const CareRequest = require('../models/CareRequest');
+const CareBooking = require('../models/CareBooking');
+const Subscription = require('../models/Subscription');
+const Hostel = require('../models/Hostel');
 const Order = require('../models/Order');
 const PaymentLog = require('../models/PaymentLog');
 const {
@@ -59,11 +62,208 @@ async function markPaymentCompleted({ paymentId }) {
         care.paymentStatus = 'paid';
         care.status = 'pending_review';
         await care.save({ session });
+      } else if (payment.targetType === 'care_booking' && payment.careBooking) {
+        const booking = await CareBooking.findById(payment.careBooking).session(
+          session
+        );
+        if (!booking) {
+          throw new Error('Care booking not found');
+        }
+        booking.paymentStatus = 'paid';
+        booking.status = 'paid';
+        await booking.save({ session });
+      } else if (payment.targetType === 'subscription' && payment.metadata) {
+        const { plan, billingCycle } = payment.metadata;
+        if (!plan || !billingCycle) {
+          throw new Error('Subscription metadata missing');
+        }
+        const now = new Date();
+        let validUntil = new Date(now);
+        if (billingCycle === 'monthly') {
+          validUntil.setMonth(validUntil.getMonth() + 1);
+        } else {
+          validUntil.setFullYear(validUntil.getFullYear() + 1);
+        }
+        const sub = await Subscription.create([{
+          providerId: payment.user,
+          plan,
+          billingCycle,
+          status: 'active',
+          validFrom: now,
+          validUntil,
+          amountPaid: payment.amount,
+          gatewayTransactionId: payment.gatewayTransactionId,
+        }], { session });
+        await Hostel.updateMany(
+          { ownerId: payment.user },
+          { $set: { isActive: true } },
+          { session }
+        );
       }
     });
   } finally {
     session.endSession();
   }
+}
+
+/**
+ * Initiate Khalti payment for a care booking. Throws on error.
+ * @returns {Promise<{ paymentUrl: string, pidx: string, paymentId: string, amount: number }>}
+ */
+async function initiateCareBookingKhalti({ userId, careBookingId }) {
+  if (!isKhaltiConfigured()) {
+    const err = new Error('Khalti is not configured');
+    err.statusCode = 503;
+    throw err;
+  }
+  const booking = await CareBooking.findById(careBookingId)
+    .populate('userId', 'name email phone')
+    .lean();
+  if (!booking) {
+    const err = new Error('Care booking not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const bookingUserId = booking.userId?._id?.toString() || booking.userId?.toString();
+  if (bookingUserId !== userId.toString()) {
+    const err = new Error('Not your booking');
+    err.statusCode = 403;
+    throw err;
+  }
+  if (booking.paymentStatus === 'paid') {
+    const err = new Error('Booking is already paid');
+    err.statusCode = 400;
+    throw err;
+  }
+  const amountNpr = Number(booking.totalAmount) || 0;
+  if (amountNpr < 0.1) {
+    const err = new Error('Invalid booking amount');
+    err.statusCode = 400;
+    throw err;
+  }
+  const amountPaisa = nprToPaisa(amountNpr);
+  if (amountPaisa < 1000) {
+    const err = new Error('Amount should be greater than Rs. 10 (1000 paisa)');
+    err.statusCode = 400;
+    throw err;
+  }
+  const payment = await Payment.create({
+    user: userId,
+    careBooking: careBookingId,
+    targetType: 'care_booking',
+    amount: amountNpr,
+    currency: 'NPR',
+    gateway: 'khalti',
+    status: 'pending',
+  });
+  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+  const payload = {
+    return_url: returnUrl,
+    website_url: baseUrl,
+    amount: amountPaisa,
+    purchase_order_id: payment._id.toString(),
+    purchase_order_name: `Pet Hostel Booking #${String(careBookingId).slice(-6)}`,
+    customer_info: {
+      name: (booking.userId && booking.userId.name) || 'Customer',
+      email: (booking.userId && booking.userId.email) || '',
+      phone: (booking.userId && booking.userId.phone) || '',
+    },
+  };
+  const resp = await axios.post(
+    `${KHALTI_BASE_URL}/epayment/initiate/`,
+    payload,
+    {
+      headers: {
+        Authorization: `Key ${KHALTI_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  const { pidx, payment_url } = resp.data || {};
+  if (!pidx || !payment_url) {
+    const err = new Error('Khalti did not return pidx or payment_url');
+    err.statusCode = 502;
+    throw err;
+  }
+  payment.gatewayTransactionId = pidx;
+  payment.rawGatewayPayload = resp.data || {};
+  await payment.save();
+  return {
+    paymentUrl: payment_url,
+    pidx,
+    paymentId: payment._id,
+    amount: amountNpr,
+    successUrl: `${baseUrl}/api/v1/payments/payment-success`,
+    careBookingId: careBookingId.toString(),
+  };
+}
+
+/**
+ * Initiate Khalti payment for provider subscription.
+ */
+async function initiateSubscriptionKhalti({ userId, plan, billingCycle, amount }) {
+  if (!isKhaltiConfigured()) {
+    const err = new Error('Khalti is not configured');
+    err.statusCode = 503;
+    throw err;
+  }
+  const amountPaisa = nprToPaisa(amount);
+  if (amountPaisa < 1000) {
+    const err = new Error('Amount should be greater than Rs. 10 (1000 paisa)');
+    err.statusCode = 400;
+    throw err;
+  }
+  const user = await require('../models/User').findById(userId).select('name email phone').lean();
+  const payment = await Payment.create({
+    user: userId,
+    targetType: 'subscription',
+    amount,
+    currency: 'NPR',
+    gateway: 'khalti',
+    status: 'pending',
+    metadata: { plan, billingCycle },
+  });
+  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+  const payload = {
+    return_url: returnUrl,
+    website_url: baseUrl,
+    amount: amountPaisa,
+    purchase_order_id: payment._id.toString(),
+    purchase_order_name: `PawSewa Subscription - ${plan} ${billingCycle}`,
+    customer_info: {
+      name: (user && user.name) || 'Provider',
+      email: (user && user.email) || '',
+      phone: (user && user.phone) || '',
+    },
+  };
+  const resp = await axios.post(
+    `${KHALTI_BASE_URL}/epayment/initiate/`,
+    payload,
+    {
+      headers: {
+        Authorization: `Key ${KHALTI_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+  const { pidx, payment_url } = resp.data || {};
+  if (!pidx || !payment_url) {
+    const err = new Error('Khalti did not return pidx or payment_url');
+    err.statusCode = 502;
+    throw err;
+  }
+  payment.gatewayTransactionId = pidx;
+  payment.rawGatewayPayload = resp.data || {};
+  await payment.save();
+  return {
+    paymentUrl: payment_url,
+    pidx,
+    subscriptionId: payment._id,
+    amount,
+    successUrl: `${baseUrl}/api/v1/payments/payment-success`,
+  };
 }
 
 /**
@@ -495,7 +695,7 @@ const initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
-  const { type, orderId, serviceRequestId, amount } = req.body || {};
+  const { type, orderId, serviceRequestId, amount, careBookingId } = req.body || {};
   const userId = req.user._id.toString();
 
   if (type === 'order' && orderId) {
@@ -560,6 +760,29 @@ const initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
+  if (type === 'care_booking' && careBookingId) {
+    try {
+      const result = await initiateCareBookingKhalti({
+        userId: req.user._id,
+        careBookingId,
+      });
+      return res.json({
+        success: true,
+        data: {
+          paymentId: result.paymentId,
+          pidx: result.pidx,
+          paymentUrl: result.paymentUrl,
+          successUrl: result.successUrl,
+          careBookingId: result.careBookingId,
+          amount: result.amount,
+        },
+      });
+    } catch (err) {
+      const code = err.statusCode || 500;
+      return res.status(code).json({ success: false, message: err.message || 'Payment initiation failed' });
+    }
+  }
+
   if (type === 'service' && serviceRequestId && typeof amount === 'number' && amount > 0) {
     const serviceRequest = await ServiceRequest.findById(serviceRequestId).select('user status');
     if (!serviceRequest) {
@@ -614,7 +837,7 @@ const initiatePayment = asyncHandler(async (req, res) => {
 
   return res.status(400).json({
     success: false,
-    message: 'Invalid body. Use { type: "order", orderId } or { type: "service", serviceRequestId, amount }',
+    message: 'Invalid body. Use { type: "order", orderId } or { type: "care_booking", careBookingId } or { type: "service", serviceRequestId, amount }',
   });
 });
 
@@ -672,6 +895,8 @@ module.exports = {
   initiateKhalti,
   verifyKhalti,
   initiatePayment,
+  initiateCareBookingKhalti,
+  initiateSubscriptionKhalti,
   verifyPayment,
   khaltiCallback,
   paymentSuccessPage,

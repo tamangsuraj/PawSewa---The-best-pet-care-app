@@ -456,13 +456,7 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('Service request not found');
   }
 
-  // Require online payment before assign only when payment method is online; cash on delivery can be assigned without pre-payment (customer pays vet later)
-  const isCashOnDelivery = request.paymentMethod === 'cash_on_delivery';
-  if (!isCashOnDelivery && request.paymentStatus !== 'paid') {
-    res.status(400);
-    throw new Error('Service fee must be paid by the pet owner before a vet can be assigned. Ask the customer to complete Khalti payment first.');
-  }
-
+  // Do not require payment before assignment. Customers can pay online (Khalti), cash on delivery to vet, or later.
   // Prevent assigning if already completed/cancelled
   if (['completed', 'cancelled'].includes(request.status)) {
     res.status(400);
@@ -534,6 +528,15 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
   });
 
   emitStatusChange(request._id.toString(), 'assigned', ownerId?.toString?.() || ownerId, 'pending');
+  // Notify assigned vet in real time so they receive the case (e.g. vet app can refresh assignments)
+  const io = getIO();
+  if (io) {
+    io.to('user:' + staffId.toString()).emit('status_change', {
+      requestId: request._id.toString(),
+      status: 'assigned',
+      previousStatus: 'pending',
+    });
+  }
 
   res.json({
     success: true,

@@ -241,4 +241,47 @@ class ApiClient {
   Future<Response> getVetEarnings() async {
     return await _dio.get('/vets/earnings');
   }
+
+  // My Business (hostel owner / service provider)
+  Future<Response> getMyHostels() async {
+    return await _dio.get('/hostels/my/list');
+  }
+
+  Future<Response> toggleHostelAvailability(String hostelId) async {
+    return await _dio.patch('/hostels/$hostelId/availability');
+  }
+
+  Future<Response> getIncomingBookings() async {
+    return await _dio.get('/care-bookings/incoming');
+  }
+
+  Future<Response> respondToBooking(String bookingId, {required bool accept}) async {
+    return await _dio.patch('/care-bookings/$bookingId/respond', data: {'accept': accept});
+  }
+
+  Future<Response> getSubscriptionPlans() async {
+    return await _dio.get('/subscriptions/plans');
+  }
+
+  Future<Response> getMySubscription() async {
+    return await _dio.get('/subscriptions/my');
+  }
+
+  Future<Response> initiateSubscriptionPayment({
+    required String plan,
+    required String billingCycle,
+  }) async {
+    return await _dio.post('/subscriptions/initiate', data: {
+      'plan': plan,
+      'billingCycle': billingCycle,
+    });
+  }
+
+  Future<Response> createProviderApplication(Map<String, dynamic> data) async {
+    return await _dio.post('/provider-applications', data: data);
+  }
+
+  Future<Response> getMyProviderApplication() async {
+    return await _dio.get('/provider-applications/my');
+  }
 }

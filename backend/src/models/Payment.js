@@ -17,9 +17,23 @@ const paymentSchema = new mongoose.Schema(
       ref: 'CareRequest',
       required: false,
     },
+    careBooking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CareBooking',
+      required: false,
+    },
+    subscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subscription',
+      required: false,
+    },
+    metadata: {
+      type: Object,
+      default: {},
+    },
     targetType: {
       type: String,
-      enum: ['service', 'care'],
+      enum: ['service', 'care', 'care_booking', 'subscription'],
       required: true,
     },
     amount: {

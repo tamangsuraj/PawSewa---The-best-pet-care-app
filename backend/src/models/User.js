@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider'],
+      enum: ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'service_provider'],
       default: 'pet_owner',
     },
     phone: {
@@ -99,6 +99,10 @@ const userSchema = new mongoose.Schema(
     businessLicense: {
       type: String,
       trim: true,
+    },
+    businessLicenseVerified: {
+      type: Boolean,
+      default: false,
     },
     // Care Service specific fields
     serviceType: {
