@@ -16,10 +16,9 @@ import '../../core/api_client.dart';
 import '../../core/api_config.dart';
 import '../../core/constants.dart';
 import '../cart/delivery_pin_screen.dart';
-import 'khalti_payment_screen.dart';
-import '../../core/payment_config.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 // Delivery fee and free delivery threshold
 const double kDeliveryFee = 80;
@@ -628,41 +627,70 @@ class _ShopScreenState extends State<ShopScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => _PaymentSheet(
         amount: amount,
-        onConfirmed: (methodId) {
-          final nav = Navigator.of(ctx);
-          nav.pop(); // close payment sheet
-          if (methodId == 'Khalti') {
-            nav.pop(); // close checkout sheet so user is not stuck in a loop
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _payWithKhalti(context, amount);
-            });
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Payment method selected.',
-                  style: GoogleFonts.poppins(),
-                ),
-              ),
-            );
-          }
+        placeOrderWithMethod: (methodId) => _placeOrderWithMethod(methodId, amount),
+        initKhaltiFlow: () => _initKhaltiForSheet(amount),
+        onOrderPlaced: (orderId) {
+          Navigator.of(ctx).pop(); // close payment sheet
+          Navigator.of(ctx).pop(); // close checkout sheet
+          context.read<CartService>().clearCart();
+          Navigator.of(context, rootNavigator: true).push<void>(
+            MaterialPageRoute<void>(
+              builder: (context) => OrderSuccessScreen(orderId: orderId),
+            ),
+          );
         },
       ),
     );
   }
 
-  Future<void> _payWithKhalti(BuildContext context, double amount) async {
+  /// Place order for Cash on Delivery or Fonepay. Returns orderId on success.
+  Future<String?> _placeOrderWithMethod(String methodId, double amount) async {
     final cart = context.read<CartService>();
-    if (cart.items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Your cart is empty.', style: GoogleFonts.poppins()),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    if (cart.items.isEmpty) return null;
+    try {
+      final payMethod = _mapPaymentMethodToBackend(methodId);
+      final orderPayload = {
+        'items': cart.items.values
+            .map((e) => {'productId': e.productId, 'quantity': e.quantity})
+            .toList(),
+        'deliveryLocation': {
+          'address': cart.deliveryAddress,
+          'coordinates': [cart.deliveryLng, cart.deliveryLat],
+        },
+        if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
+          'deliveryNotes': cart.deliveryNotes,
+        'paymentMethod': ?payMethod,
+      };
+      final createResp = await _apiClient.createOrder(orderPayload);
+      final orderData = createResp.data;
+      if (orderData is Map) {
+        final data = orderData['data'];
+        if (data is Map && data['_id'] != null) {
+          return data['_id'].toString();
+        }
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) debugPrint('[PlaceOrder] Error: $e');
+      return null;
     }
+  }
 
+  String? _mapPaymentMethodToBackend(String methodId) {
+    switch (methodId.toLowerCase()) {
+      case 'cash on delivery':
+        return 'cod';
+      case 'fonepay':
+        return 'fonepay';
+      default:
+        return null;
+    }
+  }
+
+  /// Create order and initiate Khalti. Returns orderId, paymentUrl, successUrl for in-sheet WebView.
+  Future<Map<String, String>?> _initKhaltiForSheet(double amount) async {
+    final cart = context.read<CartService>();
+    if (cart.items.isEmpty) return null;
     try {
       final orderPayload = {
         'items': cart.items.values
@@ -684,95 +712,8 @@ class _ShopScreenState extends State<ShopScreen> {
           orderId = data['_id'].toString();
         }
       }
-      if (orderId == null || orderId.isEmpty) {
-        if (kDebugMode) debugPrint('[Khalti] No orderId in create response');
-        throw Exception('Could not create order');
-      }
-      _lastKhaltiOrderId = orderId;
+      if (orderId == null || orderId.isEmpty) return null;
 
-      final initResp = await _apiClient.initiateKhaltiForOrder(orderId);
-      final initData = initResp.data;
-      String? paymentUrl;
-      String? successUrl;
-      if (initData is Map) {
-        final data = initData['data'];
-        if (data is Map) {
-          if (data['paymentUrl'] != null) {
-            paymentUrl = data['paymentUrl'].toString();
-          }
-          if (data['successUrl'] != null) {
-            successUrl = data['successUrl'].toString();
-          }
-        }
-      }
-
-      if (paymentUrl == null || paymentUrl.isEmpty) {
-        throw Exception('Khalti did not return payment URL');
-      }
-      if (successUrl == null || successUrl.isEmpty) {
-        successUrl = 'payment-success';
-      }
-
-      if (!context.mounted) return;
-      final nav = Navigator.of(context, rootNavigator: true);
-      final success = await nav.push<bool>(
-        MaterialPageRoute<bool>(
-          builder: (context) => KhaltiPaymentScreen(
-            paymentUrl: paymentUrl!,
-            successUrl: successUrl!,
-          ),
-        ),
-      );
-      if (!context.mounted) return;
-      if (success == true) {
-        context.read<CartService>().clearCart();
-        Navigator.of(context, rootNavigator: true).push<void>(
-          MaterialPageRoute<void>(
-            builder: (context) => OrderSuccessScreen(orderId: orderId),
-          ),
-        );
-      } else if (success == false) {
-        _showKhaltiRetryDialog(context, orderId);
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Khalti] Error: $e');
-      if (!context.mounted) return;
-      String message = 'Payment failed. Please try again.';
-      if (e is DioException && e.response?.data != null) {
-        final data = e.response!.data;
-        if (data is Map && data['message'] != null) {
-          final apiMsg = data['message'].toString();
-          // Use PaymentConfig for user-friendly mapping of known failure reasons
-          message = PaymentConfig.getPaymentFailureMessage(apiMsg);
-          // If it's a config error (not a user-facing payment failure), show original
-          if (apiMsg.toLowerCase().contains('not configured') ||
-              apiMsg.toLowerCase().contains('khalti_secret')) {
-            message = apiMsg;
-          }
-        }
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message, style: GoogleFonts.poppins()),
-          backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: 'Try again',
-            textColor: Colors.white,
-            onPressed: () {
-              final orderId = _lastKhaltiOrderId;
-              if (orderId != null) _openKhaltiForOrder(context, orderId);
-            },
-          ),
-        ),
-      );
-    }
-  }
-
-  static String? _lastKhaltiOrderId;
-
-  /// Re-open Khalti payment for an existing order (e.g. after cancel). Returns true on success, false on cancel.
-  Future<bool?> _openKhaltiForOrder(BuildContext context, String orderId) async {
-    try {
       final initResp = await _apiClient.initiateKhaltiForOrder(orderId);
       final initData = initResp.data;
       String? paymentUrl;
@@ -784,60 +725,13 @@ class _ShopScreenState extends State<ShopScreen> {
           successUrl = data['successUrl']?.toString();
         }
       }
-      if (paymentUrl == null || paymentUrl.isEmpty) return false;
+      if (paymentUrl == null || paymentUrl.isEmpty) return null;
       if (successUrl == null || successUrl.isEmpty) successUrl = 'payment-success';
-      if (!context.mounted) return null;
-      final nav = Navigator.of(context, rootNavigator: true);
-      return nav.push<bool>(
-        MaterialPageRoute<bool>(
-          builder: (context) => KhaltiPaymentScreen(
-            paymentUrl: paymentUrl!,
-            successUrl: successUrl!,
-          ),
-        ),
-      );
-    } catch (_) {
-      return false;
+      return {'orderId': orderId, 'paymentUrl': paymentUrl, 'successUrl': successUrl};
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Khalti] Init error: $e');
+      return null;
     }
-  }
-
-  void _showKhaltiRetryDialog(BuildContext context, String orderId) {
-    _lastKhaltiOrderId = orderId;
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Payment cancelled or failed', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        content: Text(
-          'Would you like to try paying again with Khalti?',
-          style: GoogleFonts.poppins(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel', style: GoogleFonts.poppins()),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              if (!context.mounted) return;
-              final success = await _openKhaltiForOrder(context, orderId);
-              if (!context.mounted) return;
-              if (success == true) {
-                context.read<CartService>().clearCart();
-                Navigator.of(context, rootNavigator: true).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (context) => OrderSuccessScreen(orderId: orderId),
-                  ),
-                );
-              } else if (success == false) {
-                _showKhaltiRetryDialog(context, orderId);
-              }
-            },
-            child: Text('Try again', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
   }
 
   String _categorySubtitle() {
@@ -973,7 +867,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                 0.0,
                                 maxCardWidth,
                               );
-                              const cardHeight = 212.0;
+                              const cardHeight = 228.0;
                               final totalWidth =
                                   3 * cardWidthClamped + 2 * spacing;
                               final horizontalPadding =
@@ -1643,6 +1537,8 @@ class _LoadMoreCell extends StatelessWidget {
 }
 
 // ─── Product card ───────────────────────────────────────────────────────────
+// Replica of reference: white soft borders, brown curved frame for product image,
+// centered text styles, circular add-to-cart button in bottom right.
 
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -1663,37 +1559,57 @@ class _ProductCard extends StatelessWidget {
     final name = product['name']?.toString() ?? 'Product';
     final desc = product['description']?.toString() ?? '';
     final price = (product['price'] as num?)?.toDouble() ?? 0;
+    final category = product['category'] is Map
+        ? (product['category']?['name'] ?? '').toString()
+        : (product['category']?.toString() ?? '');
+    final weight = product['weight']?.toString() ?? product['size']?.toString() ?? '';
+    final parts = <String>[];
+    if (weight.isNotEmpty) parts.add(weight);
+    if (category.isNotEmpty) parts.add(category);
+    if (parts.isEmpty && desc.isNotEmpty) {
+      parts.add(desc.length > 30 ? '${desc.substring(0, 30)}...' : desc);
+    }
+    final subtitle = parts.join(' · ');
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
             offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          // Image area: light background, inner padding for frame
-          SizedBox(
-            height: 115,
-            width: double.infinity,
-            child: GestureDetector(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.max,
+          children: [
+            // Brown curved frame for product image
+            GestureDetector(
               onTap: onTap,
               child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF5F0EB),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                height: 120,
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDE4DB),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                    bottom: Radius.elliptical(24, 12),
+                  ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                   child: imageUrl != null
                       ? CachedNetworkImage(
                           imageUrl: imageUrl,
@@ -1701,96 +1617,101 @@ class _ProductCard extends StatelessWidget {
                           width: double.infinity,
                           height: double.infinity,
                           placeholder: (context, url) => Center(
-                            child: Icon(Icons.pets, size: 24, color: primary),
+                            child: Icon(Icons.pets, size: 32, color: primary.withValues(alpha: 0.5)),
                           ),
                           errorWidget: (context, error, stackTrace) => Center(
-                            child: Icon(Icons.pets, size: 40, color: primary),
+                            child: Icon(Icons.pets, size: 40, color: primary.withValues(alpha: 0.5)),
                           ),
                         )
                       : Center(
-                          child: Icon(Icons.pets, size: 24, color: primary),
+                          child: Icon(Icons.pets, size: 32, color: primary.withValues(alpha: 0.5)),
                         ),
                 ),
               ),
             ),
-          ),
-          // Text block: consistent padding, clear gap between description and price
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  if (desc.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      desc,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
+            // Text block
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Stack(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        Text(
                           'Rs. ${price.toStringAsFixed(0)}',
+                          textAlign: TextAlign.center,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w700,
-                            fontSize: 10,
+                            fontSize: 13,
                             color: Colors.black87,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: GestureDetector(
                         onTap: onAddToCart,
                         child: Container(
-                          width: 22,
-                          height: 22,
+                          width: 28,
+                          height: 28,
                           decoration: BoxDecoration(
                             color: primary,
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: primary.withValues(alpha: 0.3),
-                                blurRadius: 3,
-                                offset: const Offset(0, 1),
+                                color: primary.withValues(alpha: 0.35),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
                           child: const Icon(
                             Icons.add,
-                            size: 14,
+                            size: 18,
                             color: Colors.white,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -3664,9 +3585,16 @@ class _PromoSheetState extends State<_PromoSheet> {
 
 class _PaymentSheet extends StatefulWidget {
   final double amount;
-  final void Function(String methodId) onConfirmed;
+  final Future<String?> Function(String methodId) placeOrderWithMethod;
+  final Future<Map<String, String>?> Function() initKhaltiFlow;
+  final void Function(String orderId) onOrderPlaced;
 
-  const _PaymentSheet({required this.amount, required this.onConfirmed});
+  const _PaymentSheet({
+    required this.amount,
+    required this.placeOrderWithMethod,
+    required this.initKhaltiFlow,
+    required this.onOrderPlaced,
+  });
 
   @override
   State<_PaymentSheet> createState() => _PaymentSheetState();
@@ -3674,6 +3602,12 @@ class _PaymentSheet extends StatefulWidget {
 
 class _PaymentSheetState extends State<_PaymentSheet> {
   String _selected = 'Cash on Delivery';
+  String _phase = 'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'confirm_order'
+  String? _khaltiOrderId;
+  String? _khaltiPaymentUrl;
+  String? _khaltiSuccessUrl;
+  WebViewController? _khaltiWebController;
+  String? _error;
 
   static const List<Map<String, String>> _localMethods = [
     {'id': 'Cash on Delivery', 'name': 'Cash on Delivery'},
@@ -3689,6 +3623,31 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     {'id': 'PayPal', 'name': 'PayPal'},
     {'id': 'International Card', 'name': 'Credit/Debit Card'},
   ];
+
+  /// Asset path for payment method logo, or null to use fallback icon.
+  String? _assetPathFor(String id) {
+    switch (id.toLowerCase()) {
+      case 'cash on delivery':
+        return 'assets/cash.png';
+      case 'fonepay':
+        return 'assets/fonepay.webp';
+      case 'esewa':
+        return 'assets/esewa.png';
+      case 'connect ips':
+        return 'assets/connectIPS.png';
+      case 'khalti':
+        return 'assets/khalti.png';
+      case 'credit/debit card':
+      case 'international card':
+        return 'assets/credit.png';
+      case 'nepal pay':
+        return 'assets/nepalpay.png';
+      case 'paypal':
+        return 'assets/paypal.png';
+      default:
+        return null;
+    }
+  }
 
   IconData _iconFor(String id) {
     switch (id.toLowerCase()) {
@@ -3712,9 +3671,132 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     }
   }
 
+  Widget _buildPaymentIcon(String id, Color primary, bool isSelected) {
+    final path = _assetPathFor(id);
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(8),
+      child: path != null
+          ? Image.asset(
+              path,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Icon(
+                _iconFor(id),
+                size: 28,
+                color: isSelected ? primary : Colors.grey[600],
+              ),
+            )
+          : Icon(
+              _iconFor(id),
+              size: 28,
+              color: isSelected ? primary : Colors.grey[600],
+            ),
+    );
+  }
+
+  Future<void> _onConfirmPaymentMethod() async {
+    if (_selected == 'Khalti') {
+      setState(() {
+        _phase = 'khalti_loading';
+        _error = null;
+      });
+      final result = await widget.initKhaltiFlow();
+      if (!mounted) return;
+      if (result == null) {
+        setState(() {
+          _phase = 'select';
+          _error = 'Could not start Khalti payment. Please try again.';
+        });
+        return;
+      }
+      final paymentUrl = result['paymentUrl']!;
+      final successUrl = result['successUrl'] ?? 'payment-success';
+      final controller = WebViewController()
+        ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setNavigationDelegate(
+          NavigationDelegate(
+            onNavigationRequest: (request) {
+              final url = request.url;
+              if (url.contains('payment-success') || url.contains(successUrl)) {
+                if (mounted) _onKhaltiPaymentSuccess();
+                return NavigationDecision.prevent;
+              }
+              if (url.contains('payment-failed')) {
+                if (mounted) _onKhaltiPaymentCancel();
+                return NavigationDecision.prevent;
+              }
+              return NavigationDecision.navigate;
+            },
+          ),
+        )
+        ..loadRequest(Uri.parse(paymentUrl));
+      if (!mounted) return;
+      setState(() {
+        _phase = 'khalti_pay';
+        _khaltiOrderId = result['orderId'];
+        _khaltiPaymentUrl = paymentUrl;
+        _khaltiSuccessUrl = successUrl;
+        _khaltiWebController = controller;
+        _error = null;
+      });
+    } else if (_selected == 'Cash on Delivery' || _selected == 'Fonepay') {
+      setState(() => _error = null);
+      final orderId = await widget.placeOrderWithMethod(_selected);
+      if (!mounted) return;
+      if (orderId != null) {
+        widget.onOrderPlaced(orderId);
+      } else {
+        setState(() => _error = 'Could not place order. Please try again.');
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$_selected is coming soon. Please use Cash on Delivery, Fonepay, or Khalti.',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  void _onKhaltiPaymentSuccess() {
+    setState(() => _phase = 'confirm_order');
+  }
+
+  void _onKhaltiPaymentCancel() {
+    setState(() {
+      _phase = 'select';
+      _khaltiOrderId = null;
+      _khaltiPaymentUrl = null;
+      _khaltiSuccessUrl = null;
+      _khaltiWebController = null;
+    });
+  }
+
+  void _onConfirmOrderAfterKhalti() {
+    if (_khaltiOrderId != null) {
+      widget.onOrderPlaced(_khaltiOrderId!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
+
+    if (_phase == 'khalti_pay' && _khaltiPaymentUrl != null && _khaltiSuccessUrl != null) {
+      return _buildKhaltiWebViewPhase(primary);
+    }
+    if (_phase == 'confirm_order') {
+      return _buildConfirmOrderPhase(primary);
+    }
+
     return DraggableScrollableSheet(
       initialChildSize: 0.9,
       maxChildSize: 0.95,
@@ -3742,12 +3824,16 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _phase == 'khalti_loading'
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.arrow_back_ios_new_rounded),
                     ),
                     Expanded(
                       child: Text(
-                        'Payment Method',
+                        _phase == 'khalti_loading'
+                            ? 'Loading Khalti...'
+                            : 'Payment Method',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
@@ -3760,12 +3846,25 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   ],
                 ),
               ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    _error!,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.red[700],
+                    ),
+                  ),
+                ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView(
-                  controller: controller,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
+                child: _phase == 'khalti_loading'
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView(
+                        controller: controller,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
                     Text(
                       'Local Users',
                       style: GoogleFonts.poppins(
@@ -3814,21 +3913,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    _iconFor(m['id']!),
-                                    size: 28,
-                                    color: isSelected
-                                        ? primary
-                                        : Colors.grey[600],
-                                  ),
-                                ),
+                                _buildPaymentIcon(m['id']!, primary, isSelected),
                                 const SizedBox(height: 8),
                                 Text(
                                   m['name']!,
@@ -3926,21 +4011,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    _iconFor(m['id']!),
-                                    size: 28,
-                                    color: isSelected
-                                        ? primary
-                                        : Colors.grey[600],
-                                  ),
-                                ),
+                                _buildPaymentIcon(m['id']!, primary, isSelected),
                                 const SizedBox(height: 8),
                                 Text(
                                   m['name']!,
@@ -4046,7 +4117,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             ),
                             elevation: 0,
                           ),
-                          onPressed: () => widget.onConfirmed(_selected),
+                          onPressed: _phase == 'khalti_loading' ? null : _onConfirmPaymentMethod,
                           child: Text(
                             'Confirm Payment Method',
                             style: GoogleFonts.poppins(
@@ -4064,6 +4135,121 @@ class _PaymentSheetState extends State<_PaymentSheet> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildKhaltiWebViewPhase(Color primary) {
+    final controller = _khaltiWebController;
+    if (controller == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.92,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: _onKhaltiPaymentCancel,
+                  icon: const Icon(Icons.close),
+                ),
+                Expanded(
+                  child: Text(
+                    'Pay with Khalti',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: WebViewWidget(controller: controller),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConfirmOrderPhase(Color primary) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.5,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle,
+              size: 64,
+              color: Colors.green[600],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Payment successful!',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap below to confirm your order.',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: _onConfirmOrderAfterKhalti,
+                child: Text(
+                  'Confirm Order',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

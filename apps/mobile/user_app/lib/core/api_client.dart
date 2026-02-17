@@ -372,4 +372,28 @@ class ApiClient {
   Future<Response> getServiceRequestPrescription(String requestId) async {
     return await _dio.get('/service-requests/$requestId/prescription');
   }
+
+  // Care / Hostel APIs
+  Future<Response> getHostels({String? serviceType}) async {
+    final query = serviceType != null && serviceType.isNotEmpty
+        ? '?serviceType=$serviceType'
+        : '';
+    return await _dio.get('/hostels$query');
+  }
+
+  Future<Response> getHostelById(String hostelId) async {
+    return await _dio.get('/hostels/$hostelId');
+  }
+
+  Future<Response> createCareBooking(Map<String, dynamic> data) async {
+    return await _dio.post('/care-bookings', data: data);
+  }
+
+  Future<Response> getMyCareBookings() async {
+    return await _dio.get('/care-bookings/my');
+  }
+
+  Future<Response> initiateCareBookingPayment(String bookingId) async {
+    return await _dio.post('/care-bookings/$bookingId/pay');
+  }
 }

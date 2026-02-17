@@ -262,12 +262,16 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                       size: 28,
                     ),
                     const SizedBox(width: 12),
-                    Text(
-                      isActive ? 'Active Subscription' : 'No active subscription',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[900],
+                    Expanded(
+                      child: Text(
+                        isActive ? 'Active Subscription' : 'No active subscription',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[900],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -292,6 +296,8 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
               ],
@@ -355,6 +361,8 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
               fontSize: 13,
               color: Colors.grey[600],
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
           Row(
@@ -452,6 +460,8 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[900],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -460,6 +470,8 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
                     Container(

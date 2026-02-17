@@ -43,3 +43,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 *.log
+
+# Windows reserved device-name files
+nul

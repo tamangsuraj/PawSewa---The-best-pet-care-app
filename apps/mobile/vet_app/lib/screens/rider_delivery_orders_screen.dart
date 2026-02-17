@@ -437,6 +437,8 @@ class _OrderCard extends StatelessWidget {
                 fontSize: 14,
                 color: Colors.black87,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (address != null && address.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -470,16 +472,21 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text(
-                  'Total NPR ${total.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.black87,
+                Flexible(
+                  child: Text(
+                    'Total NPR ${total.toStringAsFixed(0)}',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 12),
-                Container(
+                Flexible(
+                  child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 2,
@@ -505,8 +512,11 @@ class _OrderCard extends StatelessWidget {
                           ? Colors.green[700]
                           : Colors.orange[800],
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              ),
               ],
             ),
             const SizedBox(height: 8),

@@ -278,6 +278,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '$serviceType • $customer${petName.isNotEmpty ? ' ($petName)' : ''}',
@@ -296,6 +297,8 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       fontSize: 11,
                       color: Colors.grey[500],
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 if (gateway.isNotEmpty)
                   Text(
@@ -305,16 +308,24 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       color: Colors.grey[400],
                       fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
             ),
           ),
-          Text(
-            'Rs. ${amount.toStringAsFixed(0)}',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.green[700],
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                'Rs. ${amount.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[700],
+                ),
+              ),
             ),
           ),
         ],

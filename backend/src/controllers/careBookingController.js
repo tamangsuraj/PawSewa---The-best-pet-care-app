@@ -53,13 +53,25 @@ const createCareBooking = asyncHandler(async (req, res) => {
 
   const nights = Math.ceil((checkOutDate - checkInDate) / (24 * 60 * 60 * 1000));
   const isSessionBased = ['Grooming', 'Training', 'Wash', 'Spa'].includes(hostel.serviceType || 'Hostel');
-  const unitPrice = isSessionBased
-    ? (hostel.pricePerSession ?? hostel.pricePerNight ?? 0)
-    : (roomType && hostel.roomTypes?.length
+  let unitPrice;
+  if (isSessionBased) {
+    const packageName = body.packageName || body.package;
+    const groomingPackages = hostel.groomingPackages || [];
+    const pkg = groomingPackages.find((p) => p.name === packageName);
+    unitPrice = pkg ? pkg.price : (hostel.pricePerSession ?? hostel.pricePerNight ?? 0);
+  } else {
+    unitPrice = roomType && hostel.roomTypes?.length
       ? (hostel.roomTypes.find((r) => r.name === roomType)?.pricePerNight ?? hostel.pricePerNight)
-      : hostel.pricePerNight);
+      : hostel.pricePerNight;
+  }
   const units = isSessionBased ? Math.max(1, nights) : nights;
-  const subtotal = units * unitPrice;
+  let subtotal = units * unitPrice;
+  const addOnNames = Array.isArray(body.addOns) ? body.addOns : (body.addOn ? [body.addOn] : []);
+  const addOnsList = hostel.addOns || [];
+  for (const name of addOnNames) {
+    const ao = addOnsList.find((a) => a.name === name);
+    if (ao && ao.price) subtotal += ao.price;
+  }
   const cleaningFee = hostel.serviceType === 'Hostel' ? 200 : 50;
   const serviceFee = 250;
   const feePercent = await Subscription.findOne({
@@ -90,6 +102,9 @@ const createCareBooking = asyncHandler(async (req, res) => {
     paymentStatus: 'unpaid',
     paymentMethod,
     ownerNotes: body.ownerNotes || body.notes,
+    packageName: body.packageName || body.package || null,
+    addOns: addOnNames.length ? addOnNames : undefined,
+    serviceDelivery: body.serviceDelivery || null,
   });
 
   const populated = await CareBooking.findById(booking._id)

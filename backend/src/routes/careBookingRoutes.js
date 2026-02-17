@@ -16,7 +16,7 @@ router.get('/my', protect, getMyBookings);
 router.post('/:id/pay', protect, initiateCareBookingPayment);
 
 // Hostel owner routes
-router.get('/incoming', protect, authorize('hostel_owner', 'service_provider', 'admin'), getIncomingBookings);
+router.get('/incoming', protect, authorize('hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner', 'admin'), getIncomingBookings);
 router.patch('/:id/respond', protect, respondToBooking);
 
 module.exports = router;

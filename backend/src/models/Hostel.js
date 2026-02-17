@@ -90,6 +90,30 @@ const hostelSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    // Grooming/Spa: packages (Essential Clean, Full Spa, etc.)
+    groomingPackages: [
+      {
+        name: { type: String, required: true },
+        price: { type: Number, required: true, min: 0 },
+        description: { type: String, trim: true },
+        durationMinutes: { type: Number, default: 45 },
+      },
+    ],
+    // Grooming/Spa: add-ons (Tick & Flea Wash, Special Shampoo, Ear Cleaning)
+    addOns: [
+      {
+        name: { type: String, required: true },
+        price: { type: Number, required: true, min: 0 },
+      },
+    ],
+    // Staff/groomers for display
+    staff: [
+      {
+        name: { type: String, required: true },
+        experienceYears: { type: Number, default: 0 },
+        photoUrl: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );

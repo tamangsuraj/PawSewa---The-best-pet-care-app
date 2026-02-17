@@ -108,6 +108,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   fontSize: 13,
                   color: Colors.grey[700],
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
               Text(
@@ -116,6 +118,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
               Text(
@@ -124,6 +128,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   fontSize: 13,
                   color: Colors.grey[700],
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               if (serviceType.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -143,6 +149,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       fontWeight: FontWeight.w600,
                       color: primary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -525,6 +533,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           Text(
             serviceType,
             style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           if (!compact) ...[
             const SizedBox(height: 10),
@@ -634,6 +644,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return 'Delivery Partner Portal';
       case 'hostel_owner':
       case 'service_provider':
+      case 'groomer':
+      case 'trainer':
+      case 'facility_owner':
         return 'My Business';
       default:
         return 'PawSewa Partner';
@@ -652,6 +665,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return Icons.delivery_dining;
       case 'hostel_owner':
       case 'service_provider':
+      case 'groomer':
+      case 'trainer':
+      case 'facility_owner':
         return Icons.storefront;
       default:
         return Icons.work;
@@ -743,6 +759,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         ];
       case 'hostel_owner':
       case 'service_provider':
+      case 'groomer':
+      case 'trainer':
+      case 'facility_owner':
         return [
           {
             'icon': Icons.store,
@@ -893,6 +912,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         ];
       case 'hostel_owner':
       case 'service_provider':
+      case 'groomer':
+      case 'trainer':
+      case 'facility_owner':
         return [
           {
             'icon': Icons.storefront,
@@ -1015,6 +1037,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 _getRoleTitle(),
@@ -1022,6 +1045,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   fontSize: 14,
                                   color: Colors.white.withValues(alpha: 0.9),
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 _userName,
@@ -1030,6 +1055,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
@@ -1330,12 +1357,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${_getFilterLabel()}\'s Overview',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(AppConstants.accentColor),
+                  Flexible(
+                    child: Text(
+                      '${_getFilterLabel()}\'s Overview',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(AppConstants.accentColor),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (_userRole == 'veterinarian')
@@ -1636,6 +1667,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             title,
             style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -1756,6 +1789,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       fontSize: 12,
                       color: Colors.grey[600],
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

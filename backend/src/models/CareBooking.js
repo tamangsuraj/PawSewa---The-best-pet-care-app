@@ -50,7 +50,7 @@ const careBookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'accepted', 'rejected', 'cancelled'],
+      enum: ['pending', 'paid', 'accepted', 'rejected', 'cancelled', 'completed'],
       default: 'pending',
     },
     paymentStatus: {
@@ -73,6 +73,9 @@ const careBookingSchema = new mongoose.Schema(
       enum: ['Hostel', 'Daycare', 'Grooming', 'Training', 'Wash', 'Spa'],
       trim: true,
     },
+    packageName: { type: String, trim: true },
+    addOns: { type: [String], default: [] },
+    serviceDelivery: { type: String, enum: ['home_visit', 'visit_center'], trim: true },
   },
   { timestamps: true }
 );

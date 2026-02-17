@@ -291,12 +291,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const SizedBox(height: 24),
 
                   // App Name
-                  Text(
-                    AppConstants.appName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(AppConstants.primaryColor),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      AppConstants.appName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(AppConstants.primaryColor),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),

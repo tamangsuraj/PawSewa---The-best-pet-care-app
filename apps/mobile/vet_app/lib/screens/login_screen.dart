@@ -49,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Role Guard: Allow all partner roles (veterinarian, shop_owner, care_service, rider)
         // Block pet_owner and admin
-        final allowedRoles = ['veterinarian', 'shop_owner', 'care_service', 'rider'];
+        final allowedRoles = ['veterinarian', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'groomer', 'trainer', 'facility_owner'];
         
         if (!allowedRoles.contains(role)) {
           if (mounted) {

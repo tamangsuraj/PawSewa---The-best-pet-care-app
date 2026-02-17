@@ -696,6 +696,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

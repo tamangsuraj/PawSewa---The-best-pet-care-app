@@ -421,6 +421,8 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                           fontSize: 18,
                           color: Colors.black87,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if (address.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -487,6 +489,8 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                     fontSize: 13,
                                     color: Colors.black87,
                                   ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],

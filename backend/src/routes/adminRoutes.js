@@ -11,6 +11,7 @@ const Order = require('../models/Order');
 const Payment = require('../models/Payment');
 const PaymentLog = require('../models/PaymentLog');
 const CareBooking = require('../models/CareBooking');
+const Hostel = require('../models/Hostel');
 
 // Admin dispatcher routes
 // Mirror of PATCH /api/v1/service-requests/:id/assign, but namespaced for admin
@@ -217,6 +218,56 @@ router.get('/provider-revenue', protect, authorize('admin'), async (req, res, ne
         subscriptionCount: subscriptionPayments.length,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/admin/hostels
+// List all hostels/care services with filter by serviceType (like Cases dropdown)
+router.get('/hostels', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { serviceType, limit: limitQ, page: pageQ } = req.query;
+    const filter = {};
+    const types = ['Hostel', 'Daycare', 'Grooming', 'Training', 'Wash', 'Spa'];
+    if (serviceType && types.includes(serviceType)) {
+      filter.serviceType = serviceType;
+    }
+    const limit = Math.min(Math.max(Number(limitQ) || 50, 1), 100);
+    const page = Math.max(Number(pageQ) || 1, 1);
+    const skip = (page - 1) * limit;
+    const [hostels, total] = await Promise.all([
+      Hostel.find(filter)
+        .populate('ownerId', 'name email phone')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Hostel.countDocuments(filter),
+    ]);
+    res.json({
+      success: true,
+      data: hostels,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/v1/admin/hostels/:id/verify
+// Verify a hostel (admin only)
+router.patch('/hostels/:id/verify', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const hostel = await Hostel.findByIdAndUpdate(
+      req.params.id,
+      { isVerified: true, isActive: true },
+      { new: true }
+    );
+    if (!hostel) {
+      return res.status(404).json({ success: false, message: 'Hostel not found' });
+    }
+    res.json({ success: true, data: hostel });
   } catch (err) {
     next(err);
   }

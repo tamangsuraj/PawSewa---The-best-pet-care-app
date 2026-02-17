@@ -18,7 +18,7 @@ const createOrder = asyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 
-  const { items, deliveryLocation, deliveryNotes } = req.body || {};
+  const { items, deliveryLocation, deliveryNotes, paymentMethod } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Order items are required' });
   }
@@ -54,6 +54,9 @@ const createOrder = asyncHandler(async (req, res) => {
     };
   });
 
+  const payMethod = typeof paymentMethod === 'string' && paymentMethod.trim() ? paymentMethod.trim().toLowerCase() : null;
+  const isCodOrFonepay = payMethod && ['cod', 'cash_on_delivery', 'fonepay', 'cash on delivery'].includes(payMethod);
+
   const order = await Order.create({
     user: userId,
     items: orderItems,
@@ -66,8 +69,9 @@ const createOrder = asyncHandler(async (req, res) => {
       },
     },
     deliveryNotes: notes || undefined,
+    paymentMethod: isCodOrFonepay ? (payMethod === 'fonepay' ? 'fonepay' : 'cod') : undefined,
     status: 'pending',
-    paymentStatus: 'unpaid',
+    paymentStatus: isCodOrFonepay ? 'unpaid' : 'unpaid',
   });
 
   res.status(201).json({ success: true, data: order });

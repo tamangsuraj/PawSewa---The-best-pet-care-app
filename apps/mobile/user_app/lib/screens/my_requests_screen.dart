@@ -499,11 +499,15 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                               fontWeight: FontWeight.w600,
                               color: const Color(AppConstants.accentColor),
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             title,
                             style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800]),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           if (subtitle.isNotEmpty)
                             Text(

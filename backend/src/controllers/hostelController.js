@@ -24,19 +24,25 @@ const getHostels = asyncHandler(async (req, res) => {
     .sort({ rating: -1, createdAt: -1 })
     .lean();
 
+  // Payment wall: only show hostels whose owner has active subscription
   const activeSubs = await Subscription.find({
     status: 'active',
     validUntil: { $gt: new Date() },
     providerId: { $in: hostels.map((h) => h.ownerId?._id || h.ownerId) },
   }).lean();
+  const subscribedOwnerIds = new Set(
+    activeSubs.map((s) => s.providerId.toString())
+  );
   const featuredIds = new Set(
     activeSubs.filter((s) => Subscription.getPlanConfig(s.plan).isFeatured).map((s) => s.providerId.toString())
   );
 
-  const data = hostels.map((h) => ({
-    ...h,
-    isFeatured: featuredIds.has(String(h.ownerId?._id || h.ownerId)),
-  }));
+  const data = hostels
+    .filter((h) => subscribedOwnerIds.has(String(h.ownerId?._id || h.ownerId)))
+    .map((h) => ({
+      ...h,
+      isFeatured: featuredIds.has(String(h.ownerId?._id || h.ownerId)),
+    }));
 
   res.json({
     success: true,

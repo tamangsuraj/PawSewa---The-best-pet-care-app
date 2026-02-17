@@ -161,6 +161,8 @@ class PetCard extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                           color: const Color(AppConstants.primaryColor),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
 
@@ -197,6 +199,8 @@ class PetCard extends StatelessWidget {
                             color: const Color(AppConstants.primaryColor),
                             fontWeight: FontWeight.w500,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (pet.age != null) ...[

@@ -14,7 +14,7 @@ const { protect, admin, authorize, verifyProviderSubscription } = require('../mi
 
 // Public routes
 router.get('/', getHostels);
-router.get('/my/list', protect, authorize('hostel_owner', 'service_provider', 'admin'), getMyHostels); // before /:id
+router.get('/my/list', protect, authorize('hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner', 'admin'), getMyHostels); // before /:id
 router.get('/:id', getHostelById);
 
 // Protected: hostel owner or admin (subscription required for non-admin providers)
