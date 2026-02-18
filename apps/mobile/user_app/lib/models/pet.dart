@@ -14,6 +14,8 @@ class Pet {
   final bool isVaccinated;
   final List<String> medicalHistory;
   final String? pawId;
+  /// Display status: 'Healthy', 'Attention', 'Sick'. From API or derived.
+  final String? healthStatus;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -33,6 +35,7 @@ class Pet {
     this.isVaccinated = false,
     this.medicalHistory = const [],
     this.pawId,
+    this.healthStatus,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -90,6 +93,7 @@ class Pet {
             json['isVaccinated']?.toString().toLowerCase() == 'true',
         medicalHistory: medicalHistory,
         pawId: json['pawId']?.toString(),
+        healthStatus: _parseHealthStatus(json),
         createdAt:
             DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
             DateTime.now(),
@@ -109,10 +113,36 @@ class Pet {
         name: (json['name'] ?? '').toString(),
         species: (json['species'] ?? '').toString(),
         gender: (json['gender'] ?? '').toString(),
+        healthStatus: _parseHealthStatus(json),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
     }
+  }
+
+  static String? _parseHealthStatus(Map<String, dynamic> json) {
+    final status = json['healthStatus'] ?? json['status'];
+    if (status != null && status.toString().trim().isNotEmpty) {
+      final s = status.toString().trim().toLowerCase();
+      if (s == 'healthy') return 'Healthy';
+      if (s == 'attention' || s == 'sick') return 'Attention';
+      return status.toString().trim();
+    }
+    return null;
+  }
+
+  /// Status for UI: Healthy, Attention, or Sick. Defaults to Healthy if unset.
+  String get displayHealthStatus {
+    if (healthStatus != null && healthStatus!.trim().isNotEmpty) {
+      final s = healthStatus!.trim().toLowerCase();
+      if (s == 'sick') return 'Sick';
+      if (s == 'attention') return 'Attention';
+      return 'Healthy';
+    }
+    if (medicalConditions != null && medicalConditions!.trim().isNotEmpty) {
+      return 'Attention';
+    }
+    return 'Healthy';
   }
 
   Map<String, dynamic> toJson() {
@@ -132,6 +162,7 @@ class Pet {
       'isVaccinated': isVaccinated,
       'medicalHistory': medicalHistory,
       'pawId': pawId,
+      'healthStatus': healthStatus,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
