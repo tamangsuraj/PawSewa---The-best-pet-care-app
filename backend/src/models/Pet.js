@@ -70,6 +70,12 @@ const petSchema = new mongoose.Schema(
         type: String,
       },
     ],
+    lastVetVisit: { type: Date },
+    vaccinationStatus: {
+      type: String,
+      enum: ['Up to date', 'Due soon', 'Overdue'],
+    },
+    nextVaccinationDate: { type: Date },
   },
   {
     timestamps: true,

@@ -174,6 +174,11 @@ class ApiClient {
     return await getMyPets();
   }
 
+  /// GET /pets/:id/health-summary — pet + age, visit_days_ago for dashboard
+  Future<Response> getPetHealthSummary(String petId) async {
+    return await _dio.get('/pets/$petId/health-summary');
+  }
+
   // Create case (request assistance) — same keys as website: petId, issueDescription, location (string)
   Future<Response> createCase(Map<String, dynamic> data) async {
     if (kDebugMode) {

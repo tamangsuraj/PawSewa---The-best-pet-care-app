@@ -9,7 +9,10 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 
 class BookServiceScreen extends StatefulWidget {
-  const BookServiceScreen({super.key});
+  /// If set, this pet is pre-selected when the screen loads (e.g. from Pet Details "Book Vet Visit").
+  final String? initialPetId;
+
+  const BookServiceScreen({super.key, this.initialPetId});
 
   @override
   State<BookServiceScreen> createState() => _BookServiceScreenState();
@@ -96,9 +99,14 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       final response = await _apiClient.getMyPets();
       if (response.statusCode == 200) {
         if (!mounted) return;
+        final list = response.data['data'] ?? [];
         setState(() {
-          _pets = response.data['data'] ?? [];
+          _pets = list;
           _isLoading = false;
+          if (widget.initialPetId != null && widget.initialPetId!.isNotEmpty) {
+            final hasPet = list.any((p) => (p['_id'] ?? p['id'])?.toString() == widget.initialPetId);
+            if (hasPet) _selectedPetId = widget.initialPetId;
+          }
         });
       } else {
         if (!mounted) return;

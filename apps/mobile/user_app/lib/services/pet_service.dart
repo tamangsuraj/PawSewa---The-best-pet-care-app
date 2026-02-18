@@ -61,6 +61,31 @@ class PetService {
     }
   }
 
+  /// GET /pets/:id/health-summary — returns pet + age (display), visit_days_ago
+  Future<Map<String, dynamic>?> getPetHealthSummary(String petId) async {
+    await _ensureBaseUrl();
+    try {
+      final token = await _getToken();
+      if (token == null) return null;
+
+      final response = await _dio.get(
+        '/pets/$petId/health-summary',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        return data is Map ? Map<String, dynamic>.from(data) : null;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error fetching pet health summary: $e');
+      }
+      return null;
+    }
+  }
+
   Future<Pet> createPet({
     required String name,
     required String species,

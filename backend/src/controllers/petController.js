@@ -202,6 +202,73 @@ const getPetById = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Get pet health summary (for dashboard): basic info + age, visit_days_ago
+ * @route   GET /api/v1/pets/:id/health-summary
+ * @access  Private
+ */
+const getPetHealthSummary = asyncHandler(async (req, res) => {
+  try {
+    const id = req.params?.id;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Pet ID required' });
+    }
+    const pet = await Pet.findById(id).lean();
+    if (!pet) {
+      return res.status(404).json({ success: false, message: 'Pet not found' });
+    }
+    const ownerId = (pet.owner && typeof pet.owner === 'object' ? pet.owner._id : pet.owner)?.toString() ?? '';
+    const userId = req.user?._id?.toString() ?? '';
+    if (ownerId !== userId && req.user?.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to access this pet' });
+    }
+
+    const baseUrl = process.env.BASE_URL || '';
+    const photoUrl = pet.photoUrl;
+    const resolvedPhoto =
+      photoUrl && typeof photoUrl === 'string' && !photoUrl.startsWith('http') && baseUrl
+        ? `${String(baseUrl).replace(/\/$/, '')}/uploads/${photoUrl}`
+        : photoUrl;
+
+    let age = null;
+    if (pet.dob) {
+      const now = new Date();
+      const birth = new Date(pet.dob);
+      const totalMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
+      const years = Math.floor(totalMonths / 12);
+      const months = totalMonths % 12;
+      age = years >= 1 ? { years, months, display: `${years} ${years === 1 ? 'year' : 'years'}` } : { years: 0, months: totalMonths, display: `${totalMonths} ${totalMonths === 1 ? 'month' : 'months'}` };
+    } else if (typeof pet.age === 'number') {
+      age = { years: pet.age, months: 0, display: `${pet.age} ${pet.age === 1 ? 'year' : 'years'}` };
+    }
+
+    let visit_days_ago = null;
+    if (pet.lastVetVisit) {
+      const last = new Date(pet.lastVetVisit);
+      visit_days_ago = Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    const payload = {
+      ...pet,
+      photoUrl: resolvedPhoto ?? pet.photoUrl ?? null,
+      age,
+      visit_days_ago,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: payload,
+    });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+});
+
+/**
  * @desc    Update pet
  * @route   PUT /api/v1/pets/:id
  * @access  Private
@@ -235,6 +302,9 @@ const updatePet = asyncHandler(async (req, res) => {
       behavioralNotes,
       isVaccinated,
       medicalHistory,
+      lastVetVisit,
+      vaccinationStatus,
+      nextVaccinationDate,
     } = body;
 
     if (req.file) {
@@ -271,6 +341,9 @@ const updatePet = asyncHandler(async (req, res) => {
         pet.medicalHistory = medicalHistory;
       }
     }
+    if (lastVetVisit !== undefined) pet.lastVetVisit = lastVetVisit ? new Date(lastVetVisit) : null;
+    if (vaccinationStatus !== undefined) pet.vaccinationStatus = vaccinationStatus;
+    if (nextVaccinationDate !== undefined) pet.nextVaccinationDate = nextVaccinationDate ? new Date(nextVaccinationDate) : null;
 
     await pet.save();
 
@@ -417,8 +490,9 @@ module.exports = {
   createPet,
   getMyPets,
   getPetById,
+  getPetHealthSummary,
   updatePet,
   deletePet,
   adminCreatePetForCustomer,
-   getAllPets,
+  getAllPets,
 };
