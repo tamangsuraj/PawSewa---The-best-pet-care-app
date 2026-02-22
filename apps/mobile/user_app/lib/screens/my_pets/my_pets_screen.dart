@@ -34,10 +34,12 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
     setState(() => _loading = true);
     try {
       final list = await _petService.getMyPets();
-      if (mounted) setState(() {
-        _pets = list;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _pets = list;
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }

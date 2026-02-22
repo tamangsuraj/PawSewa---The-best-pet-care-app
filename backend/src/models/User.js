@@ -150,6 +150,16 @@ const userSchema = new mongoose.Schema(
     otpExpires: {
       type: Date,
     },
+    // Saved addresses for delivery/visit (Shop, Appointments)
+    addresses: [
+      {
+        lat: { type: Number, required: true },
+        lng: { type: Number, required: true },
+        street: { type: String, trim: true },
+        landmark: { type: String, trim: true },
+        label: { type: String, trim: true, default: 'Home' },
+      },
+    ],
   },
   {
     timestamps: true,

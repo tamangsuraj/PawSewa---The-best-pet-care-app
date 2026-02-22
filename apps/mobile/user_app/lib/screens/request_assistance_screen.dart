@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
 
+import '../cart/saved_addresses_service.dart';
+import 'cart/delivery_pin_screen.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import 'add_pet_screen.dart';
@@ -35,6 +38,9 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
     super.initState();
     _loadPets();
     _issueController.addListener(_onIssueChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SavedAddressesService>().load();
+    });
   }
 
   @override
@@ -549,7 +555,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Your Location *
+                  // Your Location * (Saved Addresses + Map picker)
                   Text(
                     'Your Location *',
                     style: GoogleFonts.poppins(
@@ -559,11 +565,85 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  Consumer<SavedAddressesService>(
+                    builder: (context, savedService, _) {
+                      final saved = savedService.list;
+                      if (saved.isNotEmpty) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Saved Addresses',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...saved.map((addr) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() => _locationController.text = addr.address);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey.shade300),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.location_on_outlined, color: brown, size: 22),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(addr.label, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
+                                            Text(addr.address, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder: (_) => const DeliveryPinScreen(returnAddress: true),
+                        ),
+                      );
+                      if (result != null && mounted) {
+                        setState(() => _locationController.text = result);
+                      }
+                    },
+                    icon: const Icon(Icons.map_outlined, size: 20),
+                    label: Text('Search & pick on map', style: GoogleFonts.poppins(fontSize: 14)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(AppConstants.primaryColor),
+                      side: const BorderSide(color: Color(AppConstants.primaryColor)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   TextFormField(
                     controller: _locationController,
                     style: GoogleFonts.poppins(fontSize: 14),
                     decoration: InputDecoration(
-                      hintText: 'Enter your address',
+                      hintText: 'Or enter address manually',
                       hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
                       prefixIcon: const Icon(
                         Icons.location_on,

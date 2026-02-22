@@ -145,8 +145,11 @@ class ApiClient {
   }
 
   // Complete case (Veterinarian)
-  Future<Response> completeCase(String caseId) async {
-    return await _dio.patch('/cases/$caseId/complete');
+  Future<Response> completeCase(String caseId, {String? notes}) async {
+    return await _dio.patch(
+      '/cases/$caseId/complete',
+      data: notes != null && notes.isNotEmpty ? {'notes': notes} : null,
+    );
   }
 
   // Get all pets (for staff to view)

@@ -22,7 +22,10 @@ class _PlaceResult {
 }
 
 class DeliveryPinScreen extends StatefulWidget {
-  const DeliveryPinScreen({super.key});
+  /// When true, pops with the address string (for appointments). When false, sets CartService (shop checkout).
+  final bool returnAddress;
+
+  const DeliveryPinScreen({super.key, this.returnAddress = false});
 
   @override
   State<DeliveryPinScreen> createState() => _DeliveryPinScreenState();
@@ -161,6 +164,10 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       );
       return;
     }
+    if (widget.returnAddress) {
+      Navigator.of(context).pop(_address);
+      return;
+    }
     context.read<CartService>().setDeliveryLocation(
       lat: _pin!.latitude,
       lng: _pin!.longitude,
@@ -176,7 +183,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Select Delivery Location',
+          widget.returnAddress ? 'Select Location' : 'Select Delivery Location',
           style: GoogleFonts.poppins(
             color: Colors.white,
             fontWeight: FontWeight.w600,

@@ -56,7 +56,7 @@ class MyPetCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: pet.photoUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
+                      placeholder: (_, _) => Container(
                         color: const Color(0xFFF5F5F5),
                         child: const Center(
                           child: CircularProgressIndicator(
@@ -65,7 +65,7 @@ class MyPetCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      errorWidget: (_, __, ___) => _buildPlaceholderImage(),
+                      errorWidget: (_, _, _) => _buildPlaceholderImage(),
                     )
                   : _buildPlaceholderImage(),
               ),

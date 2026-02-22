@@ -227,8 +227,8 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
                               fit: BoxFit.cover,
                               width: 104,
                               height: 104,
-                              placeholder: (_, __) => const Icon(Icons.pets, size: 48, color: _primary),
-                              errorWidget: (_, __, ___) => const Icon(Icons.pets, size: 48, color: _primary),
+                              placeholder: (_, _) => const Icon(Icons.pets, size: 48, color: _primary),
+                              errorWidget: (_, _, _) => const Icon(Icons.pets, size: 48, color: _primary),
                             ),
                           )
                         : const Icon(Icons.pets, size: 48, color: _primary),

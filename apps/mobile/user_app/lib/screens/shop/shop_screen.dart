@@ -851,63 +851,90 @@ class _ShopScreenState extends State<ShopScreen> {
                           )
                         : Builder(
                             builder: (context) {
-                              const spacing = 8.0;
-                              const minSidePadding = 14.0;
-                              const maxCardWidth = 148.0;
-                              final screenWidth = MediaQuery.sizeOf(
-                                context,
-                              ).width;
-                              final cardWidth =
-                                  (screenWidth -
-                                          2 * minSidePadding -
-                                          2 * spacing)
-                                      .clamp(0.0, double.infinity) /
-                                  3;
-                              final cardWidthClamped = cardWidth.clamp(
-                                0.0,
-                                maxCardWidth,
-                              );
-                              const cardHeight = 228.0;
-                              final totalWidth =
-                                  3 * cardWidthClamped + 2 * spacing;
-                              final horizontalPadding =
-                                  ((screenWidth - totalWidth) / 2).clamp(
-                                    0.0,
-                                    double.infinity,
-                                  );
+                              // Adaptive grid: 2–4 columns, target item width 130px
+                              const horizontalPadding = 12.0;
+                              const targetItemWidth = 130.0;
+                              const mainSpacing = 6.0;
+                              const crossSpacing = 6.0;
+                              final screenWidth =
+                                  MediaQuery.sizeOf(context).width;
+                              final availableWidth =
+                                  screenWidth - 2 * horizontalPadding - 24;
+                              final optimalColumns = (availableWidth /
+                                      targetItemWidth)
+                                  .floor()
+                                  .clamp(2, 4);
+                              final actualItemWidth =
+                                  (availableWidth -
+                                          (optimalColumns - 1) * crossSpacing) /
+                                      optimalColumns;
+                              final adaptiveAspectRatio =
+                                  (actualItemWidth / (actualItemWidth * 1.3))
+                                      .clamp(0.6, 0.9);
+
                               return SliverPadding(
-                                padding: EdgeInsets.fromLTRB(
-                                  horizontalPadding,
-                                  16,
-                                  horizontalPadding,
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  8,
+                                  12,
                                   24,
                                 ),
                                 sliver: SliverGrid(
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 3,
-                                        mainAxisSpacing: spacing,
-                                        crossAxisSpacing: spacing,
-                                        childAspectRatio:
-                                            cardWidthClamped / cardHeight,
-                                      ),
-                                  delegate: SliverChildBuilderDelegate((
-                                    context,
-                                    index,
-                                  ) {
-                                    if (index >= _products.length) {
-                                      return _LoadMoreCell(
-                                        loading: _loadingMore,
-                                        onTap: _loadMoreProducts,
+                                    crossAxisCount: optimalColumns,
+                                    mainAxisSpacing: mainSpacing,
+                                    crossAxisSpacing: crossSpacing,
+                                    childAspectRatio: adaptiveAspectRatio,
+                                  ),
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) {
+                                      if (index >= _products.length) {
+                                        return _LoadMoreCell(
+                                          loading: _loadingMore,
+                                          onTap: _loadMoreProducts,
+                                        );
+                                      }
+                                      final p = _products[index];
+                                      final productId =
+                                          p['_id']?.toString() ?? '';
+                                      final qty = cart.items[productId]
+                                              ?.quantity ??
+                                          0;
+                                      return _ProductCard(
+                                        product: p,
+                                        quantity: qty,
+                                        onTapImage: () => _openProductDetail(p),
+                                        onTapAdd: () {
+                                          if (qty == 0) {
+                                            _openProductDetail(p);
+                                          } else {
+                                            final name = p['name']
+                                                    ?.toString() ??
+                                                'Product';
+                                            final price = (p['price'] as num?)
+                                                    ?.toDouble() ??
+                                                0;
+                                            cart.addItem(
+                                              productId: productId,
+                                              name: name,
+                                              price: price,
+                                            );
+                                          }
+                                        },
+                                        onTapMinus: qty > 0
+                                            ? () => cart.updateQuantity(
+                                                  productId,
+                                                  qty - 1,
+                                                )
+                                            : null,
                                       );
-                                    }
-                                    final p = _products[index];
-                                    return _ProductCard(
-                                      product: p,
-                                      onTap: () => _openProductDetail(p),
-                                      onAddToCart: () => _openProductDetail(p),
-                                    );
-                                  }, childCount: _products.length + (_hasMoreProducts || _loadingMore ? 1 : 0)),
+                                    },
+                                    childCount: _products.length +
+                                        (_hasMoreProducts || _loadingMore
+                                            ? 1
+                                            : 0),
+                                  ),
                                 ),
                               );
                             },
@@ -1537,23 +1564,28 @@ class _LoadMoreCell extends StatelessWidget {
 }
 
 // ─── Product card ───────────────────────────────────────────────────────────
-// Replica of reference: white soft borders, brown curved frame for product image,
-// centered text styles, circular add-to-cart button in bottom right.
+// Matches reference: white card, light beige image section (#F6F1EC),
+// 10/8/10px fonts, 22x22 circular add button or QtyPill.
 
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
-  final VoidCallback onTap;
-  final VoidCallback onAddToCart;
+  final int quantity;
+  final VoidCallback onTapImage;
+  final VoidCallback onTapAdd;
+  final VoidCallback? onTapMinus;
 
   const _ProductCard({
     required this.product,
-    required this.onTap,
-    required this.onAddToCart,
+    required this.quantity,
+    required this.onTapImage,
+    required this.onTapAdd,
+    required this.onTapMinus,
   });
 
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
+    const imageBg = Color(0xFFF6F1EC);
     final images = product['images'] as List<dynamic>? ?? [];
     final imageUrl = images.isNotEmpty ? images.first.toString() : null;
     final name = product['name']?.toString() ?? 'Product';
@@ -1562,156 +1594,201 @@ class _ProductCard extends StatelessWidget {
     final category = product['category'] is Map
         ? (product['category']?['name'] ?? '').toString()
         : (product['category']?.toString() ?? '');
-    final weight = product['weight']?.toString() ?? product['size']?.toString() ?? '';
+    final weight =
+        product['weight']?.toString() ?? product['size']?.toString() ?? '';
     final parts = <String>[];
     if (weight.isNotEmpty) parts.add(weight);
     if (category.isNotEmpty) parts.add(category);
     if (parts.isEmpty && desc.isNotEmpty) {
       parts.add(desc.length > 30 ? '${desc.substring(0, 30)}...' : desc);
     }
-    final subtitle = parts.join(' · ');
+    final subtitle = parts.isNotEmpty ? parts.join(' · ') : 'Toys';
+    final hasQty = quantity > 0;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.max,
-          children: [
-            // Brown curved frame for product image
-            GestureDetector(
-              onTap: onTap,
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Product image section (60% of card height)
+          Expanded(
+            flex: 3,
+            child: GestureDetector(
+              onTap: onTapImage,
               child: Container(
-                height: 120,
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEDE4DB),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                    bottom: Radius.elliptical(24, 12),
-                  ),
+                  color: imageBg,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: imageUrl != null
-                      ? CachedNetworkImage(
+                alignment: Alignment.center,
+                child: imageUrl != null
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
                           imageUrl: imageUrl,
-                          fit: BoxFit.contain,
+                          fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
-                          placeholder: (context, url) => Center(
-                            child: Icon(Icons.pets, size: 32, color: primary.withValues(alpha: 0.5)),
+                          placeholder: (_, _) => Icon(
+                            Icons.pets,
+                            size: 24,
+                            color: primary.withValues(alpha: 0.5),
                           ),
-                          errorWidget: (context, error, stackTrace) => Center(
-                            child: Icon(Icons.pets, size: 40, color: primary.withValues(alpha: 0.5)),
+                          errorWidget: (_, _, _) => Icon(
+                            Icons.pets,
+                            size: 40,
+                            color: primary.withValues(alpha: 0.5),
                           ),
-                        )
-                      : Center(
-                          child: Icon(Icons.pets, size: 32, color: primary.withValues(alpha: 0.5)),
                         ),
-                ),
+                      )
+                    : Icon(
+                        Icons.pets,
+                        size: 24,
+                        color: primary.withValues(alpha: 0.5),
+                      ),
               ),
             ),
-            // Text block
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Stack(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          name,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
-                        Text(
-                          'Rs. ${price.toStringAsFixed(0)}',
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
+          ),
+          const SizedBox(height: 4),
+          // Product info section (40% of card height)
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                     ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: GestureDetector(
-                        onTap: onAddToCart,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: primary,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: primary.withValues(alpha: 0.35),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            size: 18,
-                            color: Colors.white,
-                          ),
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Flexible(
+                  child: Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Rs. ${price.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
                         ),
                       ),
                     ),
+                    if (!hasQty)
+                      InkWell(
+                        onTap: onTapAdd,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: const BoxDecoration(
+                            color: Color(AppConstants.primaryColor),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    else
+                      _QtyPill(
+                        qty: quantity,
+                        onMinus: onTapMinus!,
+                        onPlus: onTapAdd,
+                      ),
                   ],
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Quantity pill (when item in cart) ───────────────────────────────────────
+
+class _QtyPill extends StatelessWidget {
+  final int qty;
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+
+  const _QtyPill({
+    required this.qty,
+    required this.onMinus,
+    required this.onPlus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    const pillBg = Color(0xFFF7F3EF);
+    return Container(
+      height: 24,
+      decoration: BoxDecoration(
+        color: pillBg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: onMinus,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Icon(Icons.remove, size: 14, color: primary),
+            ),
+          ),
+          Text(
+            '$qty',
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          InkWell(
+            onTap: onPlus,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Icon(Icons.add, size: 14, color: primary),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2101,61 +2178,6 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QtyPill extends StatelessWidget {
-  final int qty;
-  final VoidCallback onMinus;
-  final VoidCallback onPlus;
-
-  const _QtyPill({
-    required this.qty,
-    required this.onMinus,
-    required this.onPlus,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
-    return Container(
-      height: 28,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F3EF),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            onTap: onMinus,
-            customBorder: const CircleBorder(),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.remove, size: 14, color: primary),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Text(
-              '$qty',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                fontSize: 10,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: onPlus,
-            customBorder: const CircleBorder(),
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.add, size: 14, color: primary),
             ),
           ),
         ],

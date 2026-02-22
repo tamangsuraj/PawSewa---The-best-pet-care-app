@@ -33,19 +33,53 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     });
 
     try {
-      // Prefer new service-request based tasks if available
-      final response = await _apiClient.getMyServiceTasks();
-      if (response.statusCode == 200) {
+      // Load both Cases (assistance) and Service Requests (appointments) for vets
+      final results = await Future.wait([
+        _apiClient.getMyAssignments(),
+        _apiClient.getMyServiceTasks(),
+      ]);
+      final casesData = results[0].data['data'] ?? [];
+      final tasksData = results[1].data['data'] ?? [];
+
+      // Normalize Cases: they use 'customer', Service Requests use 'user'
+      final normalizedCases = (casesData as List)
+          .map<Map<String, dynamic>>((c) {
+            if (c is! Map) return <String, dynamic>{};
+            final m = Map<String, dynamic>.from(c);
+            if (m['customer'] != null && m['user'] == null) {
+              m['user'] = m['customer'];
+            }
+            m['_requestType'] = 'case'; // Use Cases API for start/complete
+            return m;
+          })
+          .where((m) => m.isNotEmpty)
+          .toList();
+
+      final normalizedTasks = (tasksData as List)
+          .map<Map<String, dynamic>>((t) {
+            if (t is! Map) return <String, dynamic>{};
+            final m = Map<String, dynamic>.from(t);
+            m['_requestType'] = 'appointment'; // Use Service Requests API
+            return m;
+          })
+          .where((m) => m.isNotEmpty)
+          .toList();
+
+      final merged = [...normalizedCases, ...normalizedTasks];
+      if (mounted) {
         setState(() {
-          _allCases = response.data['data'] ?? [];
+          _allCases = merged;
           _isLoading = false;
         });
       }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load assignments: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load assignments. Pull down to retry.';
+          _allCases = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -129,7 +163,10 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     }
   }
 
-  Future<void> _completeCase(String caseId) async {
+  Future<void> _completeCase(Map<String, dynamic> caseData) async {
+    final caseId = caseData['_id']?.toString();
+    if (caseId == null || caseId.isEmpty) return;
+    final isCase = caseData['_requestType'] == 'case';
     // Open a dialog to capture visit notes before completion
     final controller = TextEditingController();
     final confirmed = await showDialog<bool>(
@@ -172,11 +209,13 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     if (confirmed != true) return;
 
     try {
-      final response = await _apiClient.updateServiceStatus(
-        requestId: caseId,
-        status: 'completed',
-        visitNotes: controller.text.trim(),
-      );
+      final response = isCase
+          ? await _apiClient.completeCase(caseId, notes: controller.text.trim())
+          : await _apiClient.updateServiceStatus(
+              requestId: caseId,
+              status: 'completed',
+              visitNotes: controller.text.trim(),
+            );
       if (response.statusCode == 200) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -198,12 +237,17 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     }
   }
 
-  Future<void> _startCase(String caseId) async {
+  Future<void> _startCase(Map<String, dynamic> caseData) async {
+    final caseId = caseData['_id']?.toString();
+    if (caseId == null || caseId.isEmpty) return;
+    final isCase = caseData['_requestType'] == 'case';
     try {
-      final response = await _apiClient.updateServiceStatus(
-        requestId: caseId,
-        status: 'in_progress',
-      );
+      final response = isCase
+          ? await _apiClient.startCase(caseId)
+          : await _apiClient.updateServiceStatus(
+              requestId: caseId,
+              status: 'in_progress',
+            );
       if (response.statusCode == 200) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -755,7 +799,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Issue / notes
+            // Issue / notes (Cases use issueDescription, Service Requests use notes)
             Text(
               'Notes:',
               style: GoogleFonts.poppins(
@@ -766,7 +810,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              caseData['notes'] ?? 'No description',
+              caseData['notes'] ?? caseData['issueDescription'] ?? 'No description',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: Colors.grey[800],
@@ -824,7 +868,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => _startCase(caseData['_id']),
+                  onPressed: () => _startCase(caseData),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -846,7 +890,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => _completeCase(caseData['_id']),
+                  onPressed: () => _completeCase(caseData),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     padding: const EdgeInsets.symmetric(vertical: 12),
