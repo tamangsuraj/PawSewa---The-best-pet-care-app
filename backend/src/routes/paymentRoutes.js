@@ -6,6 +6,7 @@ const {
   verifyKhalti,
   initiatePayment,
   verifyPayment,
+  verifyPaymentGet,
   khaltiCallback,
   paymentSuccessPage,
   paymentFailedPage,
@@ -18,6 +19,9 @@ const { protect } = require('../middleware/authMiddleware');
 // Unified Khalti routes (POST for User App/Web)
 router.post('/initiate-payment', protect, initiatePayment);
 router.post('/verify-payment', verifyPayment);
+
+// GET /api/v1/payments/verify?pidx=... - Server-side Khalti verification (no auth required for redirect callback)
+router.get('/verify', verifyPaymentGet);
 
 // Legacy Khalti routes
 router.post('/khalti/initiate', protect, initiateKhalti);

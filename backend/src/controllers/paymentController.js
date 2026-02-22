@@ -842,6 +842,95 @@ const initiatePayment = asyncHandler(async (req, res) => {
 });
 
 /**
+ * GET /api/v1/payments/verify
+ * Server-side Khalti verification. Extract pidx from query params.
+ * Prevents users from faking success by editing URL parameters.
+ * Calls Khalti Lookup API and updates Order/Payment only when status is Completed.
+ */
+const verifyPaymentGet = asyncHandler(async (req, res) => {
+  const pidx = (req.query?.pidx || '').toString().trim();
+  if (!pidx) {
+    return res.status(400).json({ success: false, message: 'pidx is required in query parameters' });
+  }
+
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({ success: false, message: 'Khalti is not configured' });
+  }
+
+  const ts = new Date().toISOString();
+  console.log(`[${ts}] [INFO] Verifying Khalti Payment for PIDX: ${pidx}`);
+
+  let lookupResp;
+  try {
+    lookupResp = await axios.post(
+      `${KHALTI_BASE_URL}/epayment/lookup/`,
+      { pidx },
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  } catch (err) {
+    console.error(`[${ts}] [ERROR] Khalti Lookup failed for PIDX ${pidx}:`, err?.response?.data || err.message);
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to verify payment with Khalti. Please try again.',
+    });
+  }
+
+  const status = (lookupResp.data?.status || '').trim();
+  const purchaseOrderId = lookupResp.data?.purchase_order_id;
+
+  if (status === 'Completed') {
+    if (purchaseOrderId) {
+      const order = await Order.findById(purchaseOrderId);
+      if (order && order.paymentStatus !== 'paid') {
+        order.paymentStatus = 'paid';
+        order.paymentMethod = 'khalti';
+        await order.save();
+        console.log(`[${ts}] [INFO] Order ${purchaseOrderId} marked as paid (PIDX: ${pidx})`);
+        return res.json({
+          success: true,
+          message: 'Payment completed',
+          orderId: order._id,
+          status: 'Completed',
+        });
+      }
+      const payment = await Payment.findById(purchaseOrderId);
+      if (payment && payment.status !== 'completed') {
+        await markPaymentCompleted({ paymentId: payment._id });
+        console.log(`[${ts}] [INFO] Payment ${purchaseOrderId} marked as completed (PIDX: ${pidx})`);
+        return res.json({
+          success: true,
+          message: 'Payment completed',
+          paymentId: payment._id,
+          status: 'Completed',
+        });
+      }
+    }
+    return res.json({ success: true, message: 'Payment already recorded', status: 'Completed' });
+  }
+
+  const failureMessages = {
+    Pending: 'Transaction is in progress. Please wait and check again later.',
+    Initiated: 'Payment has been initiated but not yet completed. Please complete the payment.',
+    Expired: 'Payment link has expired. Please initiate a new payment.',
+    'User canceled': 'Payment was cancelled. You can try again when ready.',
+  };
+
+  const message = failureMessages[status] || getPaymentFailureMessage(status) || `Payment not completed (status: ${status})`;
+  console.log(`[${ts}] [INFO] Khalti verification failed for PIDX ${pidx}: status=${status}`);
+
+  return res.status(400).json({
+    success: false,
+    message,
+    status: status || 'unknown',
+  });
+});
+
+/**
  * POST /api/v1/payments/verify-payment
  * Verify Khalti transaction using pidx. Calls Khalti /epayment/lookup/.
  */
@@ -898,6 +987,7 @@ module.exports = {
   initiateCareBookingKhalti,
   initiateSubscriptionKhalti,
   verifyPayment,
+  verifyPaymentGet,
   khaltiCallback,
   paymentSuccessPage,
   paymentFailedPage,
