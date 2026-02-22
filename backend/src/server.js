@@ -1,5 +1,5 @@
 // Load environment variables FIRST
-require('dotenv').config();
+require('dotenv').config({ debug: false });
 
 const { execSync } = require('child_process');
 const os = require('os');
@@ -41,6 +41,7 @@ const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const providerApplicationRoutes = require('./routes/providerApplicationRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
 const favouriteRoutes = require('./routes/favouriteRoutes');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
@@ -90,6 +91,12 @@ io.on('connection', (socket) => {
 
 registerChatHandler(io);
 setIO(io);
+
+const log = (level, msg) => {
+  const ts = new Date().toISOString();
+  process.stdout.write(`[${ts}] [${level}] ${msg}\n`);
+};
+log('INFO', 'Socket.io engine initialized');
 
 // Connect to Database
 connectDB();
@@ -152,7 +159,7 @@ app.use(apiLogMiddleware);
 // Root welcome route
 app.get('/', (req, res) => {
   res.status(200).json({
-    message: '🐾 Welcome to PawSewa API',
+    message: 'Welcome to PawSewa API',
     version: '1.0.0',
     status: 'running',
     endpoints: {
@@ -183,6 +190,7 @@ app.use('/api/v1/provider-applications', providerApplicationRoutes);
 app.use('/api/v1/favourites', favouriteRoutes);
 app.use('/api/v1/promocodes', promoCodeRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1', productRoutes);
 
@@ -231,7 +239,7 @@ app.get('/api/test-db', async (req, res) => {
     const userCount = await User.countDocuments();
     res.json({
       success: true,
-      message: '🐾 Database connection is active!',
+      message: 'Database connection is active',
       userCount: userCount,
     });
   } catch (error) {
@@ -257,25 +265,21 @@ app.use(errorHandler);
 // START SERVER
 // ============================================
 
-// On Windows, try to allow port 3000 so Android emulator (10.0.2.2) can connect. Requires admin once.
-function tryAllowWindowsFirewall() {
-  if (os.platform() !== 'win32') return;
-  try {
-    execSync('netsh advfirewall firewall delete rule name="PawSewa Backend"', { stdio: 'ignore', timeout: 2000 });
-    execSync('netsh advfirewall firewall add rule name="PawSewa Backend" dir=in action=allow protocol=TCP localport=3000', { stdio: 'ignore', timeout: 2000 });
-    console.log('🔥 Firewall: port 3000 allowed for emulator.');
-  } catch (_) {
-    console.log('💡 If Android emulator cannot connect, run as Administrator: backend/scripts/allow-port-3000.bat');
-  }
-}
-
-tryAllowWindowsFirewall();
-
-// Bind to 0.0.0.0 so physical devices and emulators on your network can reach the server (not just localhost).
+// Bind to 0.0.0.0 so physical devices on the network can reach the server
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS enabled for localhost and local network`);
-  console.log(`🔌 Socket.io attached (JWT auth, user rooms, request chat)`);
-  console.log(`📱 Mobile devices can connect via: http://<your-ip>:${PORT}`);
+  const env = process.env.NODE_ENV || 'development';
+  log('INFO', `Server listening on port ${PORT}`);
+  log('INFO', `Execution environment: ${env}`);
+  const ifaces = os.networkInterfaces();
+  let localIp = 'localhost';
+  for (const name of Object.keys(ifaces)) {
+    for (const iface of ifaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        localIp = iface.address;
+        break;
+      }
+    }
+    if (localIp !== 'localhost') break;
+  }
+  log('INFO', `Local network access enabled at: http://${localIp}:${PORT}`);
 });

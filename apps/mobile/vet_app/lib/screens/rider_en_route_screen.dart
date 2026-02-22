@@ -145,6 +145,23 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     }
   }
 
+  /// Deep link to native Google Maps for turn-by-turn: google.navigation:q=lat,lng
+  Future<void> _startDelivery() async {
+    if (_customerLatLng == null) return;
+    final lat = _customerLatLng!.latitude;
+    final lng = _customerLatLng!.longitude;
+    final url = Uri.parse('google.navigation:q=$lat,$lng');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        await _openDirections();
+      }
+    } catch (_) {
+      await _openDirections();
+    }
+  }
+
   Future<void> _copyAddress() async {
     final address = _deliveryAddress;
     if (address == null || address.isEmpty) return;
@@ -683,6 +700,24 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              onPressed: _startDelivery,
+                              icon: const Icon(
+                                Icons.navigation_rounded,
+                                size: 20,
+                              ),
+                              label: const Text('Start Delivery'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: _openDirections,

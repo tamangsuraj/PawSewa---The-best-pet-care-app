@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { assignServiceRequest } = require('../controllers/serviceRequestController');
+const { assignRiderToOrder } = require('../controllers/orderController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const { isKhaltiConfigured, getKhaltiMode } = require('../config/payment_config');
 const StaffLocation = require('../models/StaffLocation');
@@ -17,6 +18,9 @@ const Hostel = require('../models/Hostel');
 // Mirror of PATCH /api/v1/service-requests/:id/assign, but namespaced for admin
 // RBAC: Only admins can assign requests via this namespace.
 router.patch('/requests/:id/assign', protect, authorize('admin'), assignServiceRequest);
+
+// PATCH /api/v1/admin/orders/:orderId/assign - Assign rider to order (body: { riderId })
+router.patch('/orders/:orderId/assign', protect, authorize('admin'), assignRiderToOrder);
 
 // Global live map data for admin dashboard:
 // - All active staff (vets, riders, etc.) with recent (TTL-backed) locations

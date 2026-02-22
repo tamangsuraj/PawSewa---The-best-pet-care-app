@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const axios = require('axios');
 const Order = require('../models/Order');
+const { getIO } = require('../sockets/socketStore');
 const Product = require('../models/Product');
 const {
   KHALTI_BASE_URL,
@@ -136,6 +137,26 @@ const getRiderAssignedOrders = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Rider: GET /api/v1/orders/rider/active
+ * Returns orders assigned to the current rider where status != 'delivered'.
+ */
+const getRiderActiveOrders = asyncHandler(async (req, res) => {
+  const riderId = req.user?._id;
+  if (!riderId) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  const orders = await Order.find({
+    assignedRider: riderId,
+    status: { $ne: 'delivered' },
+  })
+    .populate('user', 'name email phone')
+    .sort({ createdAt: -1 });
+
+  res.json({ success: true, data: orders });
+});
+
+/**
  * Rider or Admin: PATCH /api/v1/orders/:orderId/status
  * Body: { status: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' }
  * Rider can only update orders assigned to them.
@@ -185,6 +206,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   order.status = status;
   await order.save();
 
+  const io = getIO();
+  if (io) {
+    const updatedOrder = await Order.findById(orderId)
+      .populate('user', 'name email phone')
+      .populate('assignedRider', 'name email phone')
+      .lean();
+    io.emit('orderUpdate', { order: updatedOrder });
+  }
+
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
     .populate('assignedRider', 'name email phone');
@@ -199,6 +229,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 /**
  * Admin: PATCH /api/v1/orders/:orderId/assign
  * Body: { riderId: string, status?: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' }
+ * Prevents double assignment. Sets status to 'processing' (Assigned) when assigning rider.
  */
 const assignRiderToOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
@@ -211,18 +242,42 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
 
   const User = require('../models/User');
   if (riderId) {
+    if (order.assignedRider && order.assignedRider.toString() !== riderId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order is already assigned to another rider. Reassignment not allowed.',
+      });
+    }
     const rider = await User.findById(riderId).select('role');
     if (!rider || rider.role !== 'rider') {
       return res.status(400).json({ success: false, message: 'Invalid rider' });
     }
     order.assignedRider = riderId;
+    order.status = 'processing';
+    order.deliveryStatus = 'Assigned';
   }
 
   if (status && ['pending', 'processing', 'out_for_delivery', 'delivered'].includes(status)) {
     order.status = status;
+    const statusMap = {
+      pending: 'Pending',
+      processing: 'Assigned',
+      out_for_delivery: 'PickedUp',
+      delivered: 'Delivered',
+    };
+    order.deliveryStatus = statusMap[status] || order.deliveryStatus;
   }
 
   await order.save();
+
+  const io = getIO();
+  if (io) {
+    const updatedOrder = await Order.findById(orderId)
+      .populate('user', 'name email phone')
+      .populate('assignedRider', 'name email phone')
+      .lean();
+    io.emit('orderUpdate', { order: updatedOrder });
+  }
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
     .populate('assignedRider', 'name email phone');
@@ -360,6 +415,7 @@ module.exports = {
   getMyOrders,
   adminGetOrders,
   getRiderAssignedOrders,
+  getRiderActiveOrders,
   updateOrderStatus,
   assignRiderToOrder,
   bulkAssignOrders,

@@ -229,6 +229,11 @@ class ApiClient {
     return await _dio.get('/orders/rider/assigned');
   }
 
+  /// Rider: active orders (assigned to me, status != delivered)
+  Future<Response> getRiderActiveOrders() async {
+    return await _dio.get('/orders/rider/active');
+  }
+
   /// Rider or admin: update order status (pending | processing | out_for_delivery | delivered).
   Future<Response> updateOrderStatus({
     required String orderId,
