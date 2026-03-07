@@ -43,7 +43,6 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       _error = null;
     });
     try {
-      // Fetch all assigned orders; Active tab filters status != delivered client-side
       final resp = await _apiClient.getRiderAssignedOrders();
       final data = resp.data;
       List<Map<String, dynamic>> list = [];
@@ -142,24 +141,11 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       case 'pending':
         return 'processing';
       case 'processing':
-        return 'out_for_delivery'; // "Accept Delivery" -> on the way
+        return 'out_for_delivery';
       case 'out_for_delivery':
         return 'delivered';
       default:
         return null;
-    }
-  }
-
-  static String _actionLabel(String current) {
-    switch (current) {
-      case 'pending':
-        return 'At shop';
-      case 'processing':
-        return 'Accept Delivery';
-      case 'out_for_delivery':
-        return 'Start delivery';
-      default:
-        return 'Next';
     }
   }
 
@@ -358,7 +344,6 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                     onUpdateStatus: _updateStatus,
                     statusLabel: _statusLabel,
                     nextStatus: _nextStatus,
-                    actionLabel: _actionLabel,
                   );
                 },
               ),
@@ -377,7 +362,6 @@ class _OrderCard extends StatelessWidget {
     required this.onUpdateStatus,
     required this.statusLabel,
     required this.nextStatus,
-    required this.actionLabel,
   });
 
   final Map<String, dynamic> order;
@@ -385,7 +369,6 @@ class _OrderCard extends StatelessWidget {
   final void Function(String orderId, String status) onUpdateStatus;
   final String Function(String) statusLabel;
   final String? Function(String) nextStatus;
-  final String Function(String) actionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -566,7 +549,7 @@ class _OrderCard extends StatelessWidget {
                               ),
                             )
                           : Text(
-                              actionLabel(status),
+                              'Mark as ${statusLabel(next)}',
                               style: GoogleFonts.poppins(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,

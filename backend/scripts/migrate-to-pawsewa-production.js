@@ -27,6 +27,7 @@ const ROLE_MAP = {
   groomer: 'SERVICE_OWNER',
   trainer: 'SERVICE_OWNER',
   facility_owner: 'SERVICE_OWNER',
+// Service type mapping for Hostel -> services
 };
 
 const HOSTEL_SERVICE_TYPE = {
@@ -75,8 +76,28 @@ async function run() {
   const CareBooking = require('../src/models/CareBooking');
   const Order = require('../src/models/Order');
   const ServiceRequestMessage = require('../src/models/ServiceRequestMessage');
+  const sourceDb = sourceConn.db;
+  const targetDb = targetConn.db;
+
+  const UserSource = sourceConn.model('User', require('../src/models/User').schema, 'users');
+  const PetSource = sourceConn.model('Pet', require('../src/models/Pet').schema, 'pets');
+  const HostelSource = sourceConn.model('Hostel', require('../src/models/Hostel').schema, 'hostels');
+  const CaseSource = sourceConn.model('Case', require('../src/models/Case').schema, 'cases');
+  const ServiceRequestSource = sourceConn.model('ServiceRequest', require('../src/models/ServiceRequest').schema, 'servicerequests');
+  const CareBookingSource = sourceConn.model('CareBooking', require('../src/models/CareBooking').schema, 'carebookings');
+  const OrderSource = sourceConn.model('Order', require('../src/models/Order').schema, 'orders');
+  const MsgSource = sourceConn.model('ServiceRequestMessage', require('../src/models/ServiceRequestMessage').schema, 'servicerequestmessages');
+
 
   const UserUnified = require('../src/models/unified/UserUnified');
+  const idMap = { users: {}, pets: {}, services: {}, appointments: {} };
+    const UserTarget = targetConn.model('UserUnified', UserUnified.schema, 'users');
+    const PetTarget = targetConn.model('PetUnified', PetUnified.schema, 'pets');
+    const ServiceTarget = targetConn.model('ServiceUnified', ServiceUnified.schema, 'services');
+    const AppointmentTarget = targetConn.model('AppointmentUnified', AppointmentUnified.schema, 'appointments');
+    const OrderTarget = targetConn.model('OrderUnified', OrderUnified.schema, 'orders');
+    const ChatTarget = targetConn.model('ChatMessageUnified', ChatMessageUnified.schema, 'chat_messages');
+
   const PetUnified = require('../src/models/unified/PetUnified');
   const ServiceUnified = require('../src/models/unified/ServiceUnified');
   const AppointmentUnified = require('../src/models/unified/AppointmentUnified');
@@ -115,6 +136,7 @@ async function run() {
         clinicLocation: u.clinicLocation,
         specialization: u.specialization || u.specialty,
         profilePicture: u.profilePicture,
+      idMap.users[u._id.toString()] = doc._id;
         currentShift: u.currentShift || 'Off',
         isAvailable: u.isAvailable || false,
       });
@@ -163,6 +185,7 @@ async function run() {
         addOns: h.addOns || [],
         rating: h.rating || 0,
         reviewCount: h.reviewCount || 0,
+      idMap.services[h._id.toString()] = doc._id;
         isVerified: h.isVerified || false,
         isActive: h.isActive || false,
       });
@@ -179,6 +202,7 @@ async function run() {
         staffId: c.assignedVet,
         description: c.issueDescription,
         location: typeof c.location === 'string' ? { address: c.location } : c.location,
+      idMap.appointments[c._id.toString()] = c._id;
         status: c.status,
         notes: c.notes,
       });

@@ -7,6 +7,7 @@ const asyncHandler = require('express-async-handler');
 const { notifyServiceRequestAssignment } = require('../utils/notificationService');
 const { SERVICE_REQUEST_STATUS } = require('../constants/serviceRequestStatus');
 const { getIO } = require('../sockets/socketStore');
+const logger = require('../utils/logger');
 
 function emitStatusChange(requestId, status, ownerId, previousStatus) {
   const io = getIO();
@@ -537,6 +538,9 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
       previousStatus: 'pending',
     });
   }
+
+  const petIdForLog = updatedRequest.pet?._id?.toString?.() || updatedRequest.pet?._id || 'unknown';
+  logger.info('Appointment Assigned: Vet', staffId.toString(), 'for Pet', petIdForLog);
 
   res.json({
     success: true,

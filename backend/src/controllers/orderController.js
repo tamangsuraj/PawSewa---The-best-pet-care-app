@@ -1,8 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const axios = require('axios');
 const Order = require('../models/Order');
-const { getIO } = require('../sockets/socketStore');
 const Product = require('../models/Product');
+const { getIO } = require('../sockets/socketStore');
+const logger = require('../utils/logger');
 const {
   KHALTI_BASE_URL,
   KHALTI_SECRET_KEY,
@@ -75,6 +76,14 @@ const createOrder = asyncHandler(async (req, res) => {
     paymentStatus: isCodOrFonepay ? 'unpaid' : 'unpaid',
   });
 
+  logger.info('New Order Received: ID', order._id.toString());
+
+  // Notify admin panel and any connected dashboards in real time
+  const io = getIO();
+  if (io) {
+    io.emit('orderUpdate', { order });
+  }
+
   res.status(201).json({ success: true, data: order });
 });
 
@@ -138,7 +147,7 @@ const getRiderAssignedOrders = asyncHandler(async (req, res) => {
 
 /**
  * Rider: GET /api/v1/orders/rider/active
- * Returns orders assigned to the current rider where status != 'delivered'.
+ * Returns orders assigned to the current rider that are still active (not delivered).
  */
 const getRiderActiveOrders = asyncHandler(async (req, res) => {
   const riderId = req.user?._id;
@@ -148,7 +157,7 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find({
     assignedRider: riderId,
-    status: { $ne: 'delivered' },
+    status: { $in: ['pending', 'processing', 'out_for_delivery'] },
   })
     .populate('user', 'name email phone')
     .sort({ createdAt: -1 });
@@ -206,18 +215,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   order.status = status;
   await order.save();
 
-  const io = getIO();
-  if (io) {
-    const updatedOrder = await Order.findById(orderId)
-      .populate('user', 'name email phone')
-      .populate('assignedRider', 'name email phone')
-      .lean();
-    io.emit('orderUpdate', { order: updatedOrder });
-  }
-
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
     .populate('assignedRider', 'name email phone');
+
+  logger.info('Order Status Updated: ID', order._id.toString(), 'status', current, '->', status);
+  const io = getIO();
+  if (io) {
+    io.emit('orderUpdate', { order: updated });
+  }
 
   res.json({
     success: true,
@@ -229,7 +235,6 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 /**
  * Admin: PATCH /api/v1/orders/:orderId/assign
  * Body: { riderId: string, status?: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' }
- * Prevents double assignment. Sets status to 'processing' (Assigned) when assigning rider.
  */
 const assignRiderToOrder = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
@@ -242,45 +247,29 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
 
   const User = require('../models/User');
   if (riderId) {
-    if (order.assignedRider && order.assignedRider.toString() !== riderId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Order is already assigned to another rider. Reassignment not allowed.',
-      });
-    }
     const rider = await User.findById(riderId).select('role');
     if (!rider || rider.role !== 'rider') {
       return res.status(400).json({ success: false, message: 'Invalid rider' });
     }
     order.assignedRider = riderId;
-    order.status = 'processing';
-    order.deliveryStatus = 'Assigned';
   }
 
   if (status && ['pending', 'processing', 'out_for_delivery', 'delivered'].includes(status)) {
     order.status = status;
-    const statusMap = {
-      pending: 'Pending',
-      processing: 'Assigned',
-      out_for_delivery: 'PickedUp',
-      delivered: 'Delivered',
-    };
-    order.deliveryStatus = statusMap[status] || order.deliveryStatus;
   }
 
   await order.save();
-
-  const io = getIO();
-  if (io) {
-    const updatedOrder = await Order.findById(orderId)
-      .populate('user', 'name email phone')
-      .populate('assignedRider', 'name email phone')
-      .lean();
-    io.emit('orderUpdate', { order: updatedOrder });
-  }
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
     .populate('assignedRider', 'name email phone');
+
+  if (order.assignedRider) {
+    logger.info('Order Assigned To Rider: Order', order._id.toString(), 'Rider', order.assignedRider.toString());
+  }
+  const io = getIO();
+  if (io) {
+    io.emit('orderUpdate', { order: updated });
+  }
 
   res.json({
     success: true,

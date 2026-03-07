@@ -371,10 +371,12 @@ const updateUserProfile = asyncHandler(async (req, res) => {
  * @desc    Get all users (Admin only)
  * @route   GET /api/v1/users
  * @access  Private/Admin
+ *
+ * Admin Panel should only see users where role is defined.
  */
 const getAllUsers = asyncHandler(async (req, res) => {
   const { role } = req.query;
-  const filter = {};
+  const filter = { role: { $exists: true, $ne: null } };
   if (role) filter.role = role;
   const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
 

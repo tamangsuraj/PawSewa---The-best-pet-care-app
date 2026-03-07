@@ -53,6 +53,33 @@ DB_NAME=pawsewa_production
 
 The application will connect to the unified database. MongoDB Compass connection URI typically includes the database name (e.g. `mongodb://localhost:27017/pawsewa_production`).
 
+### App shows empty after migration (shop, pets, orders)
+
+The existing backend and apps expect the **legacy** schema (e.g. `user` and `owner` on orders/pets, and the `products` collection). The earlier migration script wrote a **unified** schema (`userId`, `ownerId`) and did not copy **products** or **categories**, so the shop and other lists can be empty.
+
+**Option A – Use your original database again (quick fix)**
+
+1. Open `backend/.env`.
+2. Remove the line `DB_NAME=pawsewa_production` (or comment it out with `#`).
+3. Restart the backend: `cd backend && npm run dev`.
+4. The app will connect to the database name in `MONGO_URI` (e.g. PawSewaDB) and data (shop, pets, orders) should appear again.
+
+**Option B – Sync source DB into pawsewa_production (legacy schema)**
+
+To use `pawsewa_production` with the current app without code changes, copy data from your source DB **as-is** (legacy schema) and include products and categories:
+
+1. From the backend folder, run (use your actual source DB name, e.g. PawSewaDB):
+
+   ```bash
+   cd backend
+   SOURCE_DB=PawSewaDB npm run sync:production
+   ```
+
+2. Ensure `backend/.env` has `DB_NAME=pawsewa_production`.
+3. Restart the backend. The app should now show data from pawsewa_production.
+
+The sync script copies these collections: users, pets, orders, products, categories, hostels, carebookings, cases, servicerequests, payments, favourites, reviews, promocodes. It overwrites the target collection each run so the document shape matches what the backend expects.
+
 ---
 
 ## 2. Role-Based Access Control (RBAC)
@@ -208,6 +235,59 @@ Use this checklist in MongoDB Compass to verify data integrity after migration.
 ```json
 { "paymentStatus": "paid" }
 ```
+
+### 4.6 Data Audit Filters (Compass)
+
+Run these in the **Filter** bar of the listed collection to confirm migrated data and roles:
+
+| Collection | Filter | Purpose |
+|------------|--------|---------|
+| users | `{ "role": "VET" }` | See all vets (unified role) |
+| users | `{ "role": "CUSTOMER" }` | See all customers |
+| users | `{ "role": "RIDER" }` | See all riders |
+| users | `{ "name": { "$exists": false } }` | Find documents missing `name` (empty shells) |
+
+For missing or malformed data, also try:
+
+```json
+{ "name": { "$exists": false } }
+```
+
+or
+
+```json
+{ "$or": [ { "name": "" }, { "name": null } ] }
+```
+
+to find documents that may be empty or incomplete after migration.
+
+### 4.7 Verification Checklist (Debugging Hierarchy)
+
+Use this order when the app shows no data or wrong data:
+
+**1. Terminal: Is the backend connected to pawsewa_production?**
+
+- Restart the backend: `cd backend && npm run dev`
+- In the terminal output, confirm: `[DEBUG] Connected to Database: pawsewa_production`
+- If the name is different (e.g. `pawsewa` or `PawSewaDB`), set in `backend/.env`:
+  - `DB_NAME=pawsewa_production`
+- Restart again and recheck the log. The connection logic uses `DB_NAME` from the environment when set.
+
+**2. Compass: Are there documents with the correct role?**
+
+- Open MongoDB Compass and connect to `pawsewa_production`
+- Open the **users** collection
+- Apply filter: `{ "role": "VET" }` or `{ "role": "CUSTOMER" }` as needed
+- Confirm that at least one document exists with the role your app expects. If the app expects `VET` but the collection has `veterinarian`, the migration role mapping may not have been run or the app may still be using the old role string.
+
+**3. App / Debug console: Is the app receiving data or an empty array?**
+
+- In the Flutter app (User App or Vet App), open the screen that loads the list (e.g. pets, cases).
+- In Cursor/VS Code, open the **Debug Console** (or Run view).
+- Look for a log line like: `RAW API RESPONSE (pets): ...`
+  - If the response is `{ "success": true, "data": [] }` or `[]`, the backend query is returning no documents. Fix the backend or data (step 1 and 2).
+  - If the response has data but you see an error such as `type 'Null' is not a subtype of type 'String'`, the backend is returning a field the Flutter model does not handle (e.g. null where a non-nullable String is expected), or a field was renamed (e.g. `fullName` to `name`). Update the Flutter `fromJson` in the relevant model to match the new API keys and nullability.
+- After fixing model mapping, hot restart the app and check again.
 
 ---
 

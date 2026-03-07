@@ -1,6 +1,7 @@
+const logger = require('../utils/logger');
+
 /**
- * Global API request/response logging for debugging sync issues.
- * Logs: [API Call] Method Path | Body (for mutating requests) | Status
+ * Global API request/response logging. Structured: [TIMESTAMP] [LEVEL] Message
  */
 function apiLogMiddleware(req, res, next) {
   const start = Date.now();
@@ -15,10 +16,9 @@ function apiLogMiddleware(req, res, next) {
   res.on('finish', () => {
     const status = res.statusCode;
     const duration = Date.now() - start;
-    console.log(
-      `[API Call] ${method} ${path} | ${status} | ${duration}ms` +
-      (bodySnippet ? ` | Body: ${bodySnippet}` : '')
-    );
+    const msg = `API ${method} ${path} | ${status} | ${duration}ms` +
+      (bodySnippet ? ` | ${bodySnippet}` : '');
+    logger.info(msg);
   });
 
   next();
