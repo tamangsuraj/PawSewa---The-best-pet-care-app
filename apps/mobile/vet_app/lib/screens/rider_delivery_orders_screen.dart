@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -68,6 +69,71 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                   'Failed to load orders'
             : 'Failed to load orders';
       });
+    }
+  }
+
+  Future<void> _navigateToDeliveryAddress(
+      BuildContext context, Map<String, dynamic> order) async {
+    final dl = order['deliveryLocation'] as Map<String, dynamic>?;
+    if (dl == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Customer coordinates not found. Please contact support.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    final point = dl['point'] as Map<String, dynamic>?;
+    final coords = point?['coordinates'] as List?;
+    if (coords == null || coords.length < 2) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Customer coordinates not found. Please contact support.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    final lat = coords[1] is num ? (coords[1] as num).toDouble() : null;
+    final lng = coords[0] is num ? (coords[0] as num).toDouble() : null;
+    if (lat == null || lng == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Customer coordinates not found. Please contact support.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not open maps. Please check your device settings.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -342,6 +408,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                     order: order,
                     updatingOrderId: _updatingOrderId,
                     onUpdateStatus: _updateStatus,
+                    onNavigate: _navigateToDeliveryAddress,
                     statusLabel: _statusLabel,
                     nextStatus: _nextStatus,
                   );
@@ -360,6 +427,7 @@ class _OrderCard extends StatelessWidget {
     required this.order,
     required this.updatingOrderId,
     required this.onUpdateStatus,
+    required this.onNavigate,
     required this.statusLabel,
     required this.nextStatus,
   });
@@ -367,6 +435,7 @@ class _OrderCard extends StatelessWidget {
   final Map<String, dynamic> order;
   final String? updatingOrderId;
   final void Function(String orderId, String status) onUpdateStatus;
+  final void Function(BuildContext context, Map<String, dynamic> order) onNavigate;
   final String Function(String) statusLabel;
   final String? Function(String) nextStatus;
 
@@ -520,6 +589,32 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
+            if ((status == 'processing' || status == 'out_for_delivery') &&
+                (order['deliveryLocation'] is Map)) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => onNavigate(context, order),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: primary,
+                    side: BorderSide(color: primary),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.directions, size: 20),
+                  label: Text(
+                    'Navigate to Address',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

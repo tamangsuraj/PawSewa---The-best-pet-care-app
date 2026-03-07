@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
 const { AppointmentUnified } = require('../models/unified');
+const logger = require('../utils/logger');
 
 // POST /api/v1/appointments
 // Body: { petId, vetId?, type?, preferredDate?, timeWindow?, location?, totalAmount?, description? }
@@ -67,9 +68,7 @@ router.post('/', protect, async (req, res) => {
 
     const appointment = await AppointmentUnified.create(payload);
 
-    console.log(
-      `[INFO] New Appointment Created: ID ${appointment._id.toString()} for Pet ${petId.toString()}`
-    );
+    logger.info('New Appointment Created: ID', appointment._id.toString(), 'for Pet', petId.toString());
 
     const populated = await AppointmentUnified.findById(appointment._id)
       .populate('petId', 'name pawId species breed')
@@ -113,8 +112,7 @@ router.get('/my', protect, async (req, res) => {
 
     const baseQuery = {};
 
-    if (role === 'veterinarian') {
-      // Vet app: only appointments where this vet is the assigned staff
+    if (role === 'veterinarian' || role === 'VET') {
       baseQuery.staffId = userId;
     } else {
       // Default: show appointments created by this customer
@@ -156,6 +154,34 @@ router.get('/:id', protect, async (req, res) => {
     }
 
     res.json({ success: true, data: appointment });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/v1/appointments/:id/assign - Admin assign vet to appointment (writes to pawsewa_production appointments)
+router.patch('/:id/assign', protect, admin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { staffId: vetId } = req.body || {};
+    if (!vetId) {
+      return res.status(400).json({ success: false, message: 'staffId (vet id) is required' });
+    }
+    const appointment = await AppointmentUnified.findByIdAndUpdate(
+      id,
+      { staffId: vetId },
+      { new: true }
+    )
+      .populate('petId', 'name pawId species breed')
+      .populate('customerId', 'name email phone')
+      .populate('staffId', 'name email phone')
+      .lean();
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+    logger.info('Appointment assigned to vet: appointment', id, 'staffId', vetId);
+    res.json({ success: true, data: appointment, message: 'Vet assigned to appointment' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

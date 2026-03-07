@@ -13,10 +13,11 @@ const createCase = asyncHandler(async (req, res) => {
   console.log('New Request from', userAgent + ':', JSON.stringify(req.body || {}, null, 2));
 
   const body = req.body || {};
-  // Accept both camelCase (website) and snake_case (some clients)
   const petId = body.petId ?? body.pet_id;
   const issueDescription = body.issueDescription ?? body.issue_description;
   const location = body.location;
+  const latitude = body.latitude != null ? Number(body.latitude) : null;
+  const longitude = body.longitude != null ? Number(body.longitude) : null;
 
   if (!petId || !issueDescription || location == null || (typeof location === 'string' && location.trim() === '')) {
     return res.status(400).json({
@@ -48,6 +49,8 @@ const createCase = asyncHandler(async (req, res) => {
       issueDescription: String(issueDescription),
       location: locationStr,
       status: 'pending',
+      ...(latitude != null && !Number.isNaN(latitude) && { latitude }),
+      ...(longitude != null && !Number.isNaN(longitude) && { longitude }),
     });
 
     const populatedCase = await Case.findById(newCase._id)
@@ -94,6 +97,9 @@ const getAllCases = asyncHandler(async (req, res) => {
     .populate('pet', 'name breed age image pawId')
     .populate('assignedVet', 'name email phone specialty specialization currentShift')
     .sort({ createdAt: -1 });
+
+  const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+  require('../utils/logger').info('[DEBUG] Fetching cases: Found', cases.length, 'documents in', dbName + '.');
 
   res.json({
     success: true,
@@ -158,7 +164,8 @@ const getMyCases = asyncHandler(async (req, res) => {
  * @access  Private (Veterinarian)
  */
 const getMyAssignments = asyncHandler(async (req, res) => {
-  if (req.user.role !== 'veterinarian') {
+  const vetRoles = ['veterinarian', 'VET'];
+  if (!vetRoles.includes(req.user.role)) {
     res.status(403);
     throw new Error('Only veterinarians can access assignments');
   }
@@ -191,9 +198,8 @@ const assignCase = asyncHandler(async (req, res) => {
     throw new Error('Please provide veterinarian ID');
   }
 
-  // Verify vet exists and is a veterinarian
   const vet = await User.findById(vetId);
-  if (!vet || vet.role !== 'veterinarian') {
+  if (!vet || !['veterinarian', 'VET'].includes(vet.role)) {
     res.status(404);
     throw new Error('Veterinarian not found');
   }
@@ -215,11 +221,15 @@ const assignCase = asyncHandler(async (req, res) => {
 
   await caseData.save();
 
-  // Populate and return
   const updatedCase = await Case.findById(caseData._id)
     .populate('customer', 'name email phone')
     .populate('pet', 'name breed age image pawId')
     .populate('assignedVet', 'name email phone specialty specialization currentShift');
+
+  const io = require('../sockets/socketStore').getIO();
+  if (io) {
+    io.emit('case_status_change', { caseId: caseData._id.toString(), status: 'assigned' });
+  }
 
   res.json({
     success: true,
@@ -284,7 +294,6 @@ const startCase = asyncHandler(async (req, res) => {
     throw new Error('Case not found');
   }
 
-  // Verify vet is assigned to this case
   if (!caseData.assignedVet || caseData.assignedVet.toString() !== req.user._id.toString()) {
     res.status(403);
     throw new Error('You are not assigned to this case');
@@ -292,6 +301,14 @@ const startCase = asyncHandler(async (req, res) => {
 
   caseData.status = 'in_progress';
   await caseData.save();
+
+  const logger = require('../utils/logger');
+  logger.info('[INFO] Case', caseData._id.toString(), 'status updated to IN_PROGRESS by', req.user._id.toString());
+
+  const io = require('../sockets/socketStore').getIO();
+  if (io) {
+    io.emit('case_status_change', { caseId: caseData._id.toString(), status: 'in_progress' });
+  }
 
   const updatedCase = await Case.findById(caseData._id)
     .populate('customer', 'name email phone')
@@ -333,6 +350,11 @@ const completeCase = asyncHandler(async (req, res) => {
 
   await caseData.save();
 
+  const io = require('../sockets/socketStore').getIO();
+  if (io) {
+    io.emit('case_status_change', { caseId: caseData._id.toString(), status: 'completed' });
+  }
+
   const updatedCase = await Case.findById(caseData._id)
     .populate('customer', 'name email phone')
     .populate('pet', 'name breed age image pawId');
@@ -353,8 +375,8 @@ const getAvailableVets = asyncHandler(async (req, res) => {
   const { shift } = req.query;
 
   const filter = {
-    role: 'veterinarian',
-    isAvailable: true,
+    role: { $in: ['veterinarian', 'VET'] },
+    $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
   };
 
   if (shift) {
@@ -364,6 +386,9 @@ const getAvailableVets = asyncHandler(async (req, res) => {
   const vets = await User.find(filter)
     .select('name email phone specialty specialization currentShift isAvailable')
     .sort({ name: 1 });
+
+  const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+  require('../utils/logger').info('[DEBUG] Fetching vets (available): Found', vets.length, 'documents in', dbName + '.');
 
   res.json({
     success: true,

@@ -47,17 +47,15 @@ class _LoginScreenState extends State<LoginScreen> {
         final String role = userData['role'];
         final String token = userData['token'];
 
-        // Role Guard: Allow all partner roles (veterinarian, shop_owner, care_service, rider)
-        // Block pet_owner and admin
-        final allowedRoles = ['veterinarian', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'groomer', 'trainer', 'facility_owner'];
-        
+        // Role Guard: Allow partner roles (including production role VET)
+        final allowedRoles = ['veterinarian', 'VET', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'groomer', 'trainer', 'facility_owner'];
+
         if (!allowedRoles.contains(role)) {
           if (mounted) {
             String message = 'Unauthorized: This app is for PawSewa Partners only';
-            
-            if (role == 'pet_owner') {
+            if (role == 'pet_owner' || role == 'CUSTOMER') {
               message = 'Unauthorized: Pet owners should use the PawSewa Customer App';
-            } else if (role == 'admin') {
+            } else if (role == 'admin' || role == 'ADMIN') {
               message = 'Unauthorized: Admins should use the Admin Panel';
             }
             

@@ -77,7 +77,7 @@ const protect = async (req, res, next) => {
  * but keep this for backward compatibility.
  */
 const admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'ADMIN')) {
     next();
   } else {
     res.status(403);
@@ -98,8 +98,18 @@ const adminOrShopOwner = (req, res, next) => {
   }
 };
 
+/** Normalize production role (VET -> veterinarian, RIDER -> rider, etc.) for authorization. */
+function normalizeRole(role) {
+  if (role === 'VET') return 'veterinarian';
+  if (role === 'ADMIN') return 'admin';
+  if (role === 'CUSTOMER') return 'pet_owner';
+  if (role === 'RIDER' || role === 'staff') return 'rider';
+  return role;
+}
+
 /**
  * Generic role-based authorization helper.
+ * Supports both lowercase (veterinarian, admin) and production (VET, ADMIN) roles.
  * Usage: router.get('/admin', protect, authorize('admin'), handler)
  */
 const authorize = (...roles) => (req, res, next) => {
@@ -108,7 +118,8 @@ const authorize = (...roles) => (req, res, next) => {
     throw new Error('Not authorized, user not found on request');
   }
 
-  if (!roles.includes(req.user.role)) {
+  const normalized = normalizeRole(req.user.role);
+  if (!roles.includes(normalized)) {
     res.status(403);
     throw new Error('Not authorized for this action');
   }

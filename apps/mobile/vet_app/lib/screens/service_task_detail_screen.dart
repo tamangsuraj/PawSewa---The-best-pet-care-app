@@ -41,13 +41,20 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   Future<void> _initLocations() async {
-    final loc = widget.task['location'] as Map<String, dynamic>?;
-    if (loc != null && loc['coordinates'] != null) {
-      final coords = loc['coordinates'] as Map<String, dynamic>;
-      final lat = coords['lat'] as num?;
-      final lng = coords['lng'] as num?;
-      if (lat != null && lng != null) {
-        _customerLocation = LatLng(lat.toDouble(), lng.toDouble());
+    final lat = widget.task['latitude'] as num?;
+    final lng = widget.task['longitude'] as num?;
+    if (lat != null && lng != null) {
+      _customerLocation = LatLng(lat.toDouble(), lng.toDouble());
+    }
+    if (_customerLocation == null) {
+      final loc = widget.task['location'] as Map<String, dynamic>?;
+      if (loc != null && loc['coordinates'] != null) {
+        final coords = loc['coordinates'] as Map<String, dynamic>;
+        final latC = coords['lat'] as num?;
+        final lngC = coords['lng'] as num?;
+        if (latC != null && lngC != null) {
+          _customerLocation = LatLng(latC.toDouble(), lngC.toDouble());
+        }
       }
     }
 
@@ -84,11 +91,50 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
     }
   }
 
+  Future<void> _navigateToCustomer() async {
+    final lat = widget.task['latitude'] as num?;
+    final lng = widget.task['longitude'] as num?;
+    final addressString = widget.task['location'] is String
+        ? widget.task['location'] as String
+        : (widget.task['address_string'] as String?);
+    final String destination;
+    if (lat != null && lng != null) {
+      destination = '${lat.toDouble()},${lng.toDouble()}';
+    } else if (addressString != null && addressString.trim().isNotEmpty) {
+      destination = Uri.encodeComponent(addressString.trim());
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Customer coordinates not found. Please contact support.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving',
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open maps. Please check your device settings.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeColor = const Color(AppConstants.primaryColor);
     final pet = widget.task['pet'] as Map<String, dynamic>?;
-    final owner = widget.task['user'] as Map<String, dynamic>?;
+    final owner = (widget.task['customer'] ?? widget.task['user']) as Map<String, dynamic>?;
+    final status = widget.task['status'] as String?;
 
     final medicalHistory = (pet?['medicalHistory'] as List?)?.cast<dynamic>() ?? const [];
 
@@ -263,6 +309,31 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                 ],
               ),
             ),
+            if (status == 'in_progress') ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _navigateToCustomer,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: themeColor,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.directions, color: Colors.white, size: 22),
+                  label: Text(
+                    'Navigate to Address',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             _buildCard(
               title: 'Execution Map',

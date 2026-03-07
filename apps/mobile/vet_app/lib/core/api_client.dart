@@ -11,6 +11,8 @@ class ApiClient {
   late Dio _dio;
   final StorageService _storage = StorageService();
 
+  Dio get dio => _dio;
+
   void _log(String message) {
     if (kDebugMode) {
       debugPrint(message);

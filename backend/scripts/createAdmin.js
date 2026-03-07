@@ -1,17 +1,21 @@
 /**
- * Script to create an admin user
- * Run: node scripts/createAdmin.js
+ * Script to create an admin user. Uses same DB as server (MONGO_URI + DB_NAME).
+ * Run from backend: node scripts/createAdmin.js
  */
 
 require('dotenv').config();
 const mongoose = require('mongoose');
+const { getConnectionUri } = require('../src/config/db');
 const User = require('../src/models/User');
 
 const createAdmin = async () => {
   try {
-    // Connect to database
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log('✅ Connected to MongoDB');
+    const uri = getConnectionUri();
+    await mongoose.connect(uri, {
+      tls: uri.startsWith('mongodb+srv'),
+      tlsAllowInvalidCertificates: true,
+    });
+    console.log('[SUCCESS] Connected to MongoDB:', mongoose.connection.db?.databaseName || 'unknown');
 
     // Check if admin already exists
     const existingAdmin = await User.findOne({ email: 'admin@pawsewa.com' });

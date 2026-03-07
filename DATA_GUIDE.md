@@ -53,6 +53,18 @@ DB_NAME=pawsewa_production
 
 The application will connect to the unified database. MongoDB Compass connection URI typically includes the database name (e.g. `mongodb://localhost:27017/pawsewa_production`).
 
+### Global environment lock (universal BASE_URL)
+
+All four platforms must use the same backend API URL so authentication and data (shop, cases, vets, riders) work consistently.
+
+- **Backend:** Set `DB_NAME=pawsewa_production` in `backend/.env`. The server uses this database for all API routes. Use `BASE_URL` or your tunnel URL in Khalti/callbacks if needed.
+- **Website:** Set `NEXT_PUBLIC_API_URL` to the backend base URL (e.g. `http://localhost:3000/api/v1` or `https://your-tunnel.ngrok-free.app/api/v1`). No trailing slash.
+- **Admin:** Set `NEXT_PUBLIC_API_URL` to the same value as the Website.
+- **User App (mobile):** Set the API base URL in the app config (e.g. ApiConfig / host) to the same backend (e.g. `http://<your-ip>:3000/api/v1` or tunnel URL).
+- **Vet App (mobile):** Same as User App; use the same backend base URL.
+
+If any app points to a different backend or database, login can fail with "Invalid Credentials" and shop/cases may show "Unable to Fetch Data". Ensure one backend instance is connected to `pawsewa_production` and all clients use that instance.
+
 ### App shows empty after migration (shop, pets, orders)
 
 The existing backend and apps expect the **legacy** schema (e.g. `user` and `owner` on orders/pets, and the `products` collection). The earlier migration script wrote a **unified** schema (`userId`, `ownerId`) and did not copy **products** or **categories**, so the shop and other lists can be empty.

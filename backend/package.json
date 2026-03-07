@@ -9,6 +9,7 @@
     "tunnel": "ngrok http 3000",
     "migrate:production": "node src/scripts/migrateToProduction.js",
     "sync:production": "node scripts/syncToProduction.js",
+    "seed:care": "node scripts/seed-hostels-trainings-centers.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

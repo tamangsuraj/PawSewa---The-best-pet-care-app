@@ -1,14 +1,38 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'core/api_client.dart';
+import 'core/api_config.dart';
 import 'core/constants.dart';
 import 'core/storage_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/vet_dashboard_screen.dart';
 
+Future<void> _logHealthCheck() async {
+  try {
+    final baseUrl = await ApiConfig.getBaseUrl();
+    final uri = Uri.parse('$baseUrl/health');
+    final response = await ApiClient().dio.getUri(uri);
+    final data = response.data as Map<String, dynamic>?;
+    final status = data?['status'] ?? 'n/a';
+    final database = data?['database'] ?? 'n/a';
+    final userCount = data?['userCount'] ?? 'n/a';
+    final ts = DateTime.now().toIso8601String().replaceFirst('T', ' ').substring(0, 19);
+    if (kDebugMode) {
+      debugPrint('[$ts] [INFO] Backend health: status=$status database=$database userCount=$userCount');
+    }
+  } catch (_) {
+    final ts = DateTime.now().toIso8601String().replaceFirst('T', ' ').substring(0, 19);
+    if (kDebugMode) {
+      debugPrint('[$ts] [INFO] Backend health: unreachable');
+    }
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient().initialize();
+  await _logHealthCheck();
   runApp(const MyApp());
 }
 

@@ -23,6 +23,8 @@ const caseSchema = new mongoose.Schema(
       required: [true, 'Location is required'],
       trim: true,
     },
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
     status: {
       type: String,
       enum: ['pending', 'assigned', 'in_progress', 'completed', 'cancelled'],
@@ -60,4 +62,4 @@ caseSchema.index({ status: 1, createdAt: -1 });
 caseSchema.index({ assignedVet: 1, status: 1 });
 caseSchema.index({ customer: 1 });
 
-module.exports = mongoose.model('Case', caseSchema);
+module.exports = mongoose.model('Case', caseSchema, 'cases');

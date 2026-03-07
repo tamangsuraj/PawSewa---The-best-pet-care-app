@@ -123,4 +123,4 @@ hostelSchema.index({ isVerified: 1, serviceType: 1 });
 hostelSchema.index({ isActive: 1, isAvailable: 1, serviceType: 1 });
 hostelSchema.index({ 'location.coordinates.lat': 1, 'location.coordinates.lng': 1 });
 
-module.exports = mongoose.model('Hostel', hostelSchema);
+module.exports = mongoose.model('Hostel', hostelSchema, 'hostels');

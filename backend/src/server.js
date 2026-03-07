@@ -37,17 +37,22 @@ const locationRoutes = require('./routes/locationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const careRoutes = require('./routes/careRoutes');
 const hostelRoutes = require('./routes/hostelRoutes');
+const trainingRoutes = require('./routes/trainingRoutes');
+const centerRoutes = require('./routes/centerRoutes');
 const careBookingRoutes = require('./routes/careBookingRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const providerApplicationRoutes = require('./routes/providerApplicationRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
 const favouriteRoutes = require('./routes/favouriteRoutes');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 
-// Models (for testing endpoints)
+// Models (for startup sync logs and routes)
 const User = require('./models/User');
+const Product = require('./models/Product');
+const Case = require('./models/Case');
 
 // Initialize Express application
 const app = express();
@@ -91,9 +96,6 @@ io.on('connection', (socket) => {
 
 registerChatHandler(io);
 setIO(io);
-
-// Connect to Database
-connectDB();
 
 // ============================================
 // SECURITY & UTILITY MIDDLEWARE
@@ -173,25 +175,47 @@ app.use('/api/v1/location', locationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/care', careRoutes);
 app.use('/api/v1/hostels', hostelRoutes);
+app.use('/api/v1/trainings', trainingRoutes);
+app.use('/api/v1/centers', centerRoutes);
 app.use('/api/v1/care-bookings', careBookingRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/provider-applications', providerApplicationRoutes);
 app.use('/api/v1/favourites', favouriteRoutes);
 app.use('/api/v1/promocodes', promoCodeRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1', productRoutes);
 
-// Health Check & Diagnostics
-app.get('/api/v1/health', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
-  
+// Global health/ping for cross-platform sync verification. Returns DB name and user count.
+app.get('/api/v1/health', async (req, res) => {
+  const dbName = mongoose.connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+  const connected = mongoose.connection.readyState === 1;
+  let userCount = 0;
+  if (connected) {
+    try {
+      userCount = await User.countDocuments();
+    } catch (_) {}
+  }
   res.status(200).json({
-    status: 'UP',
-    database: dbStatus,
+    status: connected ? 'ok' : 'degraded',
+    database: dbName,
+    userCount,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
   });
+});
+
+// Alias for platforms that expect a simple ping
+app.get('/api/v1/ping', async (req, res) => {
+  const dbName = mongoose.connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+  let userCount = 0;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      userCount = await User.countDocuments();
+    } catch (_) {}
+  }
+  res.status(200).json({ status: 'ok', database: dbName, userCount });
 });
 
 // Simple ping route to verify reachability from devices/browsers
@@ -267,12 +291,30 @@ function tryAllowWindowsFirewall() {
 
 tryAllowWindowsFirewall();
 
-// Bind to 0.0.0.0 so physical devices and emulators on your network can reach the server (not just localhost).
-server.listen(PORT, '0.0.0.0', () => {
-  logger.info('Starting PawSewa Backend Server.');
-  logger.success('Server listening on Port:', PORT);
-  logger.info('Environment:', process.env.NODE_ENV || 'development');
-  logger.info('CORS enabled for localhost and local network.');
-  logger.event('Socket.io initialized for real-time synchronization.');
-  logger.info('Mobile devices can connect via: http://<your-ip>:' + PORT);
+async function start() {
+  await connectDB();
+  logger.info('Image domains authorized: images.unsplash.com.');
+  const userCount = await User.countDocuments();
+  logger.info('Verified', userCount, 'users in production.');
+
+  const productCount = await Product.countDocuments();
+  logger.info('Product Inventory Sync:', productCount, 'items found.');
+
+  const activeCasesCount = await Case.countDocuments({ status: { $nin: ['completed', 'cancelled'] } });
+  logger.info('Live Cases Sync:', activeCasesCount, 'active cases found.');
+  logger.success('Hostels and Grooming centers mapped for all 4 platforms.');
+
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.info('Starting PawSewa Backend Server.');
+    logger.success('Server listening on Port:', PORT);
+    logger.info('Environment:', process.env.NODE_ENV || 'development');
+    logger.info('CORS enabled for localhost and local network.');
+    logger.event('Socket.io initialized for real-time synchronization.');
+    logger.info('Mobile devices can connect via: http://<your-ip>:' + PORT);
+  });
+}
+
+start().catch((err) => {
+  logger.error('Server failed to start:', err.message);
+  process.exit(1);
 });

@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const cloudinary = require('../config/cloudinary');
+const logger = require('../utils/logger');
 
 // Admin: POST /api/v1/categories
 // Body (multipart): name (string, required), image (file, optional)
@@ -359,7 +360,7 @@ const getProducts = asyncHandler(async (req, res) => {
   try {
     const { search, category, page = 1, limit = 20, minPrice, maxPrice } = req.query;
 
-    const filter = { isAvailable: true };
+    const filter = { $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }] };
     if (category) {
       const cat = await Category.findOne({ slug: category.toString() }).select('_id');
       if (cat) {
@@ -396,6 +397,12 @@ const getProducts = asyncHandler(async (req, res) => {
       Product.countDocuments(filter),
     ]);
 
+    const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+    const collectionName = Product.collection?.name || 'products';
+    logger.info('[INFO] Fetching Products from collection:', collectionName);
+    logger.info('[DEBUG] Fetching products: Found', total ?? 0, 'documents in', dbName + '.');
+
+    const count = (items ?? []).length;
     res.status(200).json({
       success: true,
       data: items ?? [],
@@ -405,8 +412,10 @@ const getProducts = asyncHandler(async (req, res) => {
         limit: limitNum,
       },
     });
+    logger.info('[SUCCESS] Returned', count, 'products to client.');
   } catch (err) {
     console.error('SERVER CRASH:', err);
+    logger.info('[SUCCESS] Returned 0 products to client.');
     res.status(200).json({
       success: true,
       data: [],

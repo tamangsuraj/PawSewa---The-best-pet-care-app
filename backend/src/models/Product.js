@@ -56,5 +56,5 @@ const productSchema = new mongoose.Schema(
 // Text search on name + description
 productSchema.index({ name: 'text', description: 'text' });
 
-module.exports = mongoose.model('Product', productSchema);
+module.exports = mongoose.model('Product', productSchema, 'products');
 

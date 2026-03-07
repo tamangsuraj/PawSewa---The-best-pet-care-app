@@ -1,7 +1,32 @@
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../utils/sendEmail');
 const asyncHandler = require('express-async-handler');
+const logger = require('../utils/logger');
+
+function isStoredPasswordHashed(stored) {
+  if (stored == null || typeof stored !== 'string') return false;
+  return stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$');
+}
+
+async function passwordMatches(storedPassword, candidatePassword) {
+  if (storedPassword == null || candidatePassword == null) return false;
+  if (isStoredPasswordHashed(storedPassword)) {
+    return await bcrypt.compare(candidatePassword, storedPassword);
+  }
+  return storedPassword === candidatePassword || storedPassword === String(candidatePassword).trim();
+}
+
+function normalizeRoleForResponse(r) {
+  if (!r) return r;
+  const s = String(r).trim();
+  if (['VET', 'veterinarian'].includes(s)) return 'veterinarian';
+  if (['RIDER', 'rider', 'staff'].includes(s)) return 'rider';
+  if (['ADMIN', 'admin'].includes(s)) return 'admin';
+  if (['CUSTOMER', 'pet_owner', 'customer'].includes(s)) return 'pet_owner';
+  return s;
+}
 
 /**
  * @desc    Register a new user (PUBLIC - pet_owner only) with OTP verification
@@ -101,30 +126,35 @@ const registerUser = asyncHandler(async (req, res) => {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Validate required fields
   if (!email || !password) {
     res.status(400);
     throw new Error('Please provide email and password');
   }
 
-  // Find user by email
-  const user = await User.findOne({ email });
+  const emailNorm = (email || '').toString().toLowerCase().trim();
 
-  // Check if user exists and password matches
-  if (user && (await user.matchPassword(password))) {
-    // Check if user is verified (except for admin-created users who are auto-verified)
-    if (!user.isVerified && user.role === 'pet_owner') {
+  const user = await User.findOne({ email: emailNorm });
+  const found = !!user;
+  logger.info('[INFO] Login attempt for:', emailNorm, '| Role:', user ? user.role : 'N/A');
+  logger.info('[DEBUG] Database Query: Found user?', found ? 'Yes' : 'No');
+
+  const matches = user && (await passwordMatches(user.password, password));
+
+  if (user && matches) {
+    if (!user.isVerified && (user.role === 'pet_owner' || user.role === 'CUSTOMER')) {
       res.status(403);
       throw new Error('Please verify your email before logging in. Check your inbox for the verification code.');
     }
+
+    const roleForClient = normalizeRoleForResponse(user.role) || user.role;
 
     res.json({
       success: true,
       data: {
         _id: user._id,
-        name: user.name,
+        name: user.name || user.full_name || user.email,
         email: user.email,
-        role: user.role,
+        role: roleForClient,
         phone: user.phone,
         location: user.location,
         isVerified: user.isVerified,
@@ -378,12 +408,21 @@ const getAllUsers = asyncHandler(async (req, res) => {
   const { role } = req.query;
   const filter = { role: { $exists: true, $ne: null } };
   if (role) filter.role = role;
-  const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
+  const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
+  const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+  const logger = require('../utils/logger');
+  logger.info('[DEBUG] Fetching users: Found', users.length, 'documents in', dbName + '.');
+
+  const data = users.map((u) => ({
+    ...u,
+    role: normalizeRoleForResponse(u.role) || u.role,
+    name: u.name || u.full_name || u.email,
+  }));
 
   res.json({
     success: true,
-    count: users.length,
-    data: users,
+    count: data.length,
+    data,
   });
 });
 
@@ -454,11 +493,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   // Get counts
   const totalUsers = await User.countDocuments();
   const totalPets = await Pet.countDocuments();
-  const totalPetOwners = await User.countDocuments({ role: 'pet_owner' });
-  const totalVets = await User.countDocuments({ role: 'veterinarian' });
+  const totalPetOwners = await User.countDocuments({ role: { $in: ['pet_owner', 'CUSTOMER'] } });
+  const totalVets = await User.countDocuments({ role: { $in: ['veterinarian', 'VET'] } });
   const totalShopOwners = await User.countDocuments({ role: 'shop_owner' });
   const totalCareServices = await User.countDocuments({ role: 'care_service' });
-  const totalRiders = await User.countDocuments({ role: 'rider' });
+  const totalRiders = await User.countDocuments({ role: { $in: ['rider', 'RIDER'] } });
 
   // Get recent users
   const recentUsers = await User.find({})

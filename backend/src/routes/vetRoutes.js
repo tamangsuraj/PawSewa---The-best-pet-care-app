@@ -4,14 +4,17 @@ const User = require('../models/User');
 const Payment = require('../models/Payment');
 const ServiceRequest = require('../models/ServiceRequest');
 const { protect, authorize } = require('../middleware/authMiddleware');
+const logger = require('../utils/logger');
 
 // @route   GET /api/v1/vets/public
 // @desc    Get all veterinarians (public, no auth required)
 // @access  Public
+const VET_ROLES = ['veterinarian', 'VET'];
+
 router.get('/public', async (req, res) => {
   try {
     const vets = await User.find(
-      { role: 'veterinarian' },
+      { role: { $in: VET_ROLES } },
       {
         password: 0,
         otp: 0,
@@ -19,6 +22,9 @@ router.get('/public', async (req, res) => {
         __v: 0,
       }
     ).sort({ createdAt: -1 });
+
+    const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';
+    logger.info('[DEBUG] Fetching vets (public): Found', vets.length, 'documents in', dbName + '.');
 
     res.json({
       success: true,
@@ -41,7 +47,7 @@ router.get('/public', async (req, res) => {
 router.get('/public/:id', async (req, res) => {
   try {
     const vet = await User.findOne(
-      { _id: req.params.id, role: 'veterinarian' },
+      { _id: req.params.id, role: { $in: VET_ROLES } },
       {
         password: 0,
         otp: 0,
@@ -74,7 +80,7 @@ router.get('/public/:id', async (req, res) => {
 // @route   GET /api/v1/vets/earnings
 // @desc    Get earnings for current vet (payments from pet owners for assigned services)
 // @access  Private / veterinarian
-router.get('/earnings', protect, authorize('veterinarian', 'care_service'), async (req, res) => {
+router.get('/earnings', protect, authorize('veterinarian', 'VET', 'care_service'), async (req, res) => {
   try {
     const staffId = req.user._id;
     // Find completed payments for service requests assigned to this staff
