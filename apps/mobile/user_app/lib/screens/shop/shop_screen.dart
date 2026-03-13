@@ -851,41 +851,27 @@ class _ShopScreenState extends State<ShopScreen> {
                           )
                         : Builder(
                             builder: (context) {
-                              // Adaptive grid: 2–4 columns, target item width 130px
-                              const horizontalPadding = 12.0;
-                              const targetItemWidth = 130.0;
-                              const mainSpacing = 6.0;
-                              const crossSpacing = 6.0;
-                              final screenWidth =
-                                  MediaQuery.sizeOf(context).width;
-                              final availableWidth =
-                                  screenWidth - 2 * horizontalPadding - 24;
-                              final optimalColumns = (availableWidth /
-                                      targetItemWidth)
-                                  .floor()
-                                  .clamp(2, 4);
-                              final actualItemWidth =
-                                  (availableWidth -
-                                          (optimalColumns - 1) * crossSpacing) /
-                                      optimalColumns;
-                              final adaptiveAspectRatio =
-                                  (actualItemWidth / (actualItemWidth * 1.3))
-                                      .clamp(0.6, 0.9);
+                              // Standard 2-column grid (match Image 12)
+                              const mainSpacing = 16.0;
+                              const crossSpacing = 16.0;
+                              const crossAxisCount = 2;
+                              // Card aspect ratio for Image 12: image, title, subtitle, price, button
+                              const childAspectRatio = 0.62;
 
                               return SliverPadding(
                                 padding: const EdgeInsets.fromLTRB(
-                                  12,
+                                  16,
                                   8,
-                                  12,
+                                  16,
                                   24,
                                 ),
                                 sliver: SliverGrid(
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: optimalColumns,
+                                    crossAxisCount: crossAxisCount,
                                     mainAxisSpacing: mainSpacing,
                                     crossAxisSpacing: crossSpacing,
-                                    childAspectRatio: adaptiveAspectRatio,
+                                    childAspectRatio: childAspectRatio,
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
@@ -1564,8 +1550,8 @@ class _LoadMoreCell extends StatelessWidget {
 }
 
 // ─── Product card ───────────────────────────────────────────────────────────
-// Matches reference: white card, light beige image section (#F6F1EC),
-// 10/8/10px fonts, 22x22 circular add button or QtyPill.
+// Structure: Image -> Title -> Subtitle (e.g. size/weight) -> Price (Rs.) -> Add (+)
+// Centered contained image; bold title; regular subtitle/price; light beige/white card.
 
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -1600,9 +1586,9 @@ class _ProductCard extends StatelessWidget {
     if (weight.isNotEmpty) parts.add(weight);
     if (category.isNotEmpty) parts.add(category);
     if (parts.isEmpty && desc.isNotEmpty) {
-      parts.add(desc.length > 30 ? '${desc.substring(0, 30)}...' : desc);
+      parts.add(desc.length > 40 ? '${desc.substring(0, 40)}...' : desc);
     }
-    final subtitle = parts.isNotEmpty ? parts.join(' · ') : 'Toys';
+    final subtitle = parts.isNotEmpty ? parts.join(' • ') : 'Toys';
     final hasQty = quantity > 0;
 
     return Container(
@@ -1611,17 +1597,17 @@ class _ProductCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product image section (60% of card height)
+          // Image: centered, contained in unified container
           Expanded(
             flex: 3,
             child: GestureDetector(
@@ -1638,12 +1624,12 @@ class _ProductCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                         child: CachedNetworkImage(
                           imageUrl: imageUrl,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           width: double.infinity,
                           height: double.infinity,
                           placeholder: (_, _) => Icon(
                             Icons.pets,
-                            size: 24,
+                            size: 28,
                             color: primary.withValues(alpha: 0.5),
                           ),
                           errorWidget: (_, _, _) => Icon(
@@ -1655,83 +1641,82 @@ class _ProductCard extends StatelessWidget {
                       )
                     : Icon(
                         Icons.pets,
-                        size: 24,
+                        size: 28,
                         color: primary.withValues(alpha: 0.5),
                       ),
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          // Product info section (40% of card height)
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 1),
-                Flexible(
-                  child: Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 8,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Rs. ${price.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                    if (!hasQty)
-                      InkWell(
-                        onTap: onTapAdd,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: 22,
-                          height: 22,
-                          decoration: const BoxDecoration(
-                            color: Color(AppConstants.primaryColor),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.add,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                      )
-                    else
-                      _QtyPill(
-                        qty: quantity,
-                        onMinus: onTapMinus!,
-                        onPlus: onTapAdd,
-                      ),
-                  ],
-                ),
-              ],
+          const SizedBox(height: 6),
+          // Title (bold)
+          Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
             ),
+          ),
+          const SizedBox(height: 2),
+          // Subtitle (regular, smaller)
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Price (Rs.) and Add button
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Rs. ${price.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              if (!hasQty)
+                InkWell(
+                  onTap: onTapAdd,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: const BoxDecoration(
+                      color: Color(AppConstants.primaryColor),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.add,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
+              else
+                _QtyPill(
+                  qty: quantity,
+                  onMinus: onTapMinus!,
+                  onPlus: onTapAdd,
+                ),
+            ],
           ),
         ],
       ),

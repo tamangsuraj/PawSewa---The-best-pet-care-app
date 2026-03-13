@@ -14,10 +14,13 @@ import 'request_assistance_screen.dart';
 import 'my_requests_screen.dart';
 import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
+import 'shop/my_orders_screen.dart';
 import 'messages/messages_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
+import 'drawer_placeholder_screen.dart';
 import '../services/socket_service.dart';
+import 'package:flutter/foundation.dart';
 
 class PetDashboardScreen extends StatefulWidget {
   const PetDashboardScreen({super.key});
@@ -333,8 +336,32 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
 
   void _goToTab(int index) {
     setState(() => _currentIndex = index);
-    Navigator.pop(context); // close drawer
+    Navigator.pop(context);
   }
+
+  void _closeDrawerAndPush(Widget screen) {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
+  void _navigateToDrawerScreen(String screenName, Widget? screen) {
+    if (screen == null) {
+      if (kDebugMode) {
+        debugPrint('[ERROR] Navigation failed: Screen $screenName not found.');
+      }
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Screen $screenName is not available.')),
+      );
+      return;
+    }
+    _closeDrawerAndPush(screen);
+  }
+
+  static const Color _primaryBrown = Color(AppConstants.primaryColor);
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
@@ -343,21 +370,29 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header: profile + Edit Profile (like reference)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+            // Header: rounded square chat-bubble on brown, user name, Edit Profile
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              decoration: BoxDecoration(
+                color: _primaryBrown,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(AppConstants.primaryColor),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
-                      Icons.pets,
+                      Icons.chat_bubble_outline,
                       color: Colors.white,
-                      size: 22,
+                      size: 24,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -369,28 +404,33 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                         Text(
                           _userName,
                           style: GoogleFonts.poppins(
-                            fontSize: 15,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Colors.white,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Material(
-                          color: const Color(AppConstants.primaryColor),
-                          borderRadius: BorderRadius.circular(18),
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(20),
                           child: InkWell(
-                            onTap: () => Navigator.pop(context),
-                            borderRadius: BorderRadius.circular(18),
+                            onTap: () {
+                              _navigateToDrawerScreen(
+                                'Edit Profile',
+                                const DrawerPlaceholderScreen(title: 'Edit Profile'),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(20),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
+                                horizontal: 14,
                                 vertical: 6,
                               ),
                               child: Text(
                                 'Edit Profile',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 11,
+                                  fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
@@ -404,55 +444,142 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                 ],
               ),
             ),
-            const Divider(height: 1),
-            // Menu items – scrollable to prevent overflow
+            const Divider(height: 1, thickness: 0.5),
             Flexible(
               child: ListView(
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 children: [
-                  _drawerItem(
-                    context,
-                    icon: Icons.home_outlined,
-                    label: 'Home',
-                    onTap: () => _goToTab(0),
+                  ExpansionTile(
+                    leading: Icon(Icons.shopping_bag_outlined, color: _primaryBrown, size: 24),
+                    title: Text(
+                      'Pet Supply Order',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    children: [
+                      _drawerSubItem(
+                        context,
+                        icon: Icons.home_outlined,
+                        label: 'Home',
+                        onTap: () => _goToTab(2),
+                      ),
+                      _drawerSubItem(
+                        context,
+                        icon: Icons.history,
+                        label: 'Order History',
+                        onTap: () => _closeDrawerAndPush(const MyOrdersScreen()),
+                      ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.calendar_today_outlined, color: _primaryBrown, size: 24),
+                    title: Text(
+                      'Appointments',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    children: [
+                      _drawerSubItem(
+                        context,
+                        icon: Icons.home_outlined,
+                        label: 'Home',
+                        onTap: () => _goToTab(1),
+                      ),
+                      _drawerSubItem(
+                        context,
+                        icon: Icons.history,
+                        label: 'Appointments History',
+                        onTap: () => _closeDrawerAndPush(const MyRequestsScreen()),
+                      ),
+                    ],
+                  ),
+                  ExpansionTile(
+                    leading: Icon(Icons.bed_outlined, color: _primaryBrown, size: 24),
+                    title: Text(
+                      'Pet Hostel',
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    children: [
+                      _drawerSubItem(
+                        context,
+                        icon: Icons.home_outlined,
+                        label: 'Home',
+                        onTap: () => _goToTab(4),
+                      ),
+                    ],
                   ),
                   _drawerItem(
                     context,
-                    icon: Icons.medical_services_outlined,
-                    label: 'Services',
-                    onTap: () => _goToTab(1),
+                    icon: Icons.contact_support_outlined,
+                    label: 'Contact Us',
+                    iconColor: Colors.green.shade700,
+                    onTap: () => _closeDrawerAndPush(
+                      const DrawerPlaceholderScreen(title: 'Contact Us'),
+                    ),
                   ),
                   _drawerItem(
                     context,
-                    icon: Icons.storefront_outlined,
-                    label: 'Shop',
-                    onTap: () => _goToTab(2),
+                    icon: Icons.notifications_outlined,
+                    label: 'Notifications',
+                    iconColor: Colors.amber.shade700,
+                    onTap: () => _closeDrawerAndPush(
+                      const DrawerPlaceholderScreen(title: 'Notifications'),
+                    ),
                   ),
                   _drawerItem(
                     context,
-                    icon: Icons.chat_bubble_outline,
-                    label: 'Messages',
-                    onTap: () => _goToTab(3),
+                    icon: Icons.help_outline,
+                    label: 'FAQs',
+                    iconColor: Colors.blue.shade700,
+                    onTap: () => _closeDrawerAndPush(
+                      const DrawerPlaceholderScreen(title: 'FAQs'),
+                    ),
                   ),
                   _drawerItem(
                     context,
-                    icon: Icons.favorite_outline,
-                    label: 'Care',
-                    onTap: () => _goToTab(4),
+                    icon: Icons.star_outline,
+                    label: 'Rate our app',
+                    iconColor: Colors.amber.shade700,
+                    onTap: () => _closeDrawerAndPush(
+                      const DrawerPlaceholderScreen(title: 'Rate our app'),
+                    ),
+                  ),
+                  const Divider(height: 24, thickness: 0.5),
+                  _drawerItem(
+                    context,
+                    icon: Icons.build_outlined,
+                    label: 'Auth Test (Debug)',
+                    iconColor: Colors.purple.shade700,
+                    onTap: () => _closeDrawerAndPush(
+                      const DrawerPlaceholderScreen(title: 'Auth Test (Debug)'),
+                    ),
                   ),
                   _drawerItem(
                     context,
-                    icon: Icons.pets,
-                    label: 'My Pets',
-                    onTap: () => _goToTab(5),
+                    icon: Icons.g_mobiledata,
+                    label: 'Google Sign-In Test',
+                    iconColor: Colors.blue.shade700,
+                    onTap: () => _closeDrawerAndPush(
+                      const DrawerPlaceholderScreen(title: 'Google Sign-In Test'),
+                    ),
                   ),
-                  const Divider(height: 24),
+                  const SizedBox(height: 8),
                   _drawerItem(
                     context,
                     icon: Icons.logout,
                     label: 'Sign Out',
-                    iconColor: Colors.red,
+                    iconColor: Colors.red.shade700,
                     onTap: () {
                       Navigator.pop(context);
                       _handleLogout();
@@ -474,7 +601,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
     VoidCallback? onTap,
     Color? iconColor,
   }) {
-    final color = iconColor ?? const Color(AppConstants.primaryColor);
+    final color = iconColor ?? _primaryBrown;
     return ListTile(
       leading: Icon(icon, color: color, size: 24),
       title: Text(
@@ -487,6 +614,30 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
       ),
       onTap: onTap,
     );
+  }
+
+  Widget _drawerSubItem(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+                    dense: true,
+                    leading: Padding(
+                      padding: const EdgeInsets.only(left: 12),
+                      child: Icon(icon, color: _primaryBrown, size: 20),
+                    ),
+                    title: Text(
+                      label,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    onTap: onTap,
+                  );
   }
 
   Widget _buildCurrentTab() {

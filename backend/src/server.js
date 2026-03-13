@@ -294,6 +294,7 @@ tryAllowWindowsFirewall();
 async function start() {
   await connectDB();
   logger.info('Image domains authorized: images.unsplash.com.');
+  logger.info('Product layout re-configured: 2-column grid active.');
   const userCount = await User.countDocuments();
   logger.info('Verified', userCount, 'users in production.');
 

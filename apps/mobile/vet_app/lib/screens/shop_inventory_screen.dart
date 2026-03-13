@@ -416,10 +416,17 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                     )
                   else
-                    ListView.builder(
-                      itemCount: _products.length,
-                      physics: const NeverScrollableScrollPhysics(),
+                    GridView.builder(
                       shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        childAspectRatio: 0.62,
+                      ),
+                      itemCount: _products.length,
                       itemBuilder: (context, index) {
                         final product =
                             _products[index] as Map<String, dynamic>;
@@ -429,85 +436,155 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                             (product['price'] as num?)?.toDouble() ?? 0;
                         final stock =
                             product['stockQuantity']?.toString() ?? '0';
-                        final isAvailable = product['isAvailable'] == true;
+                        final images = product['images'] as List<dynamic>? ?? [];
+                        final imageUrl = images.isNotEmpty
+                            ? images.first.toString()
+                            : null;
+                        final category = product['category'] is Map
+                            ? (product['category']?['name'] ?? '').toString()
+                            : '';
+                        final subtitle = category.isNotEmpty
+                            ? '$stock in stock • $category'
+                            : 'Stock: $stock';
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                          child: Row(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      name,
-                                      style: GoogleFonts.poppins(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'NPR ${price.toStringAsFixed(0)} • Stock: $stock',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        color: Colors.grey[700],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      isAvailable ? 'Active' : 'Inactive',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 11,
-                                        color: isAvailable
-                                            ? Colors.green
-                                            : Colors.red,
-                                      ),
-                                    ),
-                                  ],
+                                flex: 3,
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF6F1EC),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: imageUrl != null
+                                      ? ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.network(
+                                            imageUrl,
+                                            fit: BoxFit.contain,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                Icon(
+                                              Icons.pets,
+                                              size: 32,
+                                              color: primary.withValues(
+                                                  alpha: 0.5),
+                                            ),
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.pets,
+                                          size: 32,
+                                          color: primary.withValues(
+                                              alpha: 0.5),
+                                        ),
                                 ),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed: () async {
-                                  final controller = TextEditingController(
-                                    text: stock,
-                                  );
-                                  final result = await showDialog<String>(
-                                    context: context,
-                                    builder: (ctx) {
-                                      return AlertDialog(
-                                        title: const Text('Update Stock'),
-                                        content: TextField(
-                                          controller: controller,
-                                          keyboardType: TextInputType.number,
-                                          decoration: const InputDecoration(
-                                            labelText: 'Stock quantity',
-                                          ),
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(ctx).pop(),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () => Navigator.of(
-                                              ctx,
-                                            ).pop(controller.text.trim()),
-                                            child: const Text('Save'),
-                                          ),
-                                        ],
+                              const SizedBox(height: 6),
+                              Text(
+                                name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    'Rs. ${price.toStringAsFixed(0)}',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 13,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 28,
+                                      minHeight: 28,
+                                    ),
+                                    icon: const Icon(Icons.edit, size: 20),
+                                    onPressed: () async {
+                                      final controller =
+                                          TextEditingController(text: stock);
+                                      final result =
+                                          await showDialog<String>(
+                                        context: context,
+                                        builder: (ctx) {
+                                          return AlertDialog(
+                                            title: const Text(
+                                                'Update Stock'),
+                                            content: TextField(
+                                              controller: controller,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                              decoration:
+                                                  const InputDecoration(
+                                                labelText:
+                                                    'Stock quantity',
+                                              ),
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(ctx)
+                                                        .pop(),
+                                                child: const Text(
+                                                    'Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(ctx).pop(
+                                                        controller.text
+                                                            .trim()),
+                                                child: const Text('Save'),
+                                              ),
+                                            ],
+                                          );
+                                        },
                                       );
+                                      if (result != null &&
+                                          result.isNotEmpty) {
+                                        await _updateStock(id, result);
+                                      }
                                     },
-                                  );
-                                  if (result != null && result.isNotEmpty) {
-                                    await _updateStock(id, result);
-                                  }
-                                },
+                                  ),
+                                ],
                               ),
                             ],
                           ),
