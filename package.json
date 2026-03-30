@@ -3,7 +3,10 @@
   "private": true,
   "description": "Root scripts for local development (backend + Next.js apps)",
   "scripts": {
-    "dev": "concurrently -n backend,website,admin -c blue,green,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix apps/web/website\" \"npm run dev --prefix apps/web/admin\""
+    "dev": "concurrently -n backend,website,admin -c blue,green,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix apps/web/website\" \"npm run dev --prefix apps/web/admin\"",
+    "dev:health": "node scripts/dev-health.js",
+    "dev:clean": "node scripts/dev-health.js --kill",
+    "dev:all": "npm run dev:clean && npm run dev"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
