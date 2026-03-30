@@ -1,0 +1,11 @@
+{
+  "name": "pawsewa",
+  "private": true,
+  "description": "Root scripts for local development (backend + Next.js apps)",
+  "scripts": {
+    "dev": "concurrently -n backend,website,admin -c blue,green,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix apps/web/website\" \"npm run dev --prefix apps/web/admin\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -49,7 +49,12 @@ Primary color: `#703418` (PawSewa brown). Used for payment buttons and main CTAs
 
 ## Running the project
 
-All apps talk to the backend. Run each in its own terminal.
+All apps talk to the backend. Run each in its own terminal, **or** start backend + website + admin together from the **repository root**:
+
+1. One-time: `npm install` in `backend`, `apps/web/website`, and `apps/web/admin` (each has its own `package-lock.json`).
+2. From the repo root: `npm install` (adds root tooling only), then `npm run dev` — runs [concurrently](https://www.npmjs.com/package/concurrently) with backend on **3000**, website on **3001**, admin on **3002**.
+
+Flutter apps still use separate terminals (`flutter run`).
 
 **1. Backend (port 3000)**
 
@@ -57,16 +62,18 @@ All apps talk to the backend. Run each in its own terminal.
 cd backend
 npm install
 npm start
+```
 
-**1. Tunnel (port 3000)**
+**2. Optional: ngrok tunnel (exposes port 3000)**
+
+Use this when phones or other networks cannot reach your machine’s LAN IP. Requires [ngrok setup](backend/TUNNEL_SETUP.md). Run the backend first, then in another terminal:
 
 ```bash
 cd backend
-npm install
 npm run tunnel
 ```
 
-**2. Customer website (port 3001)**
+**3. Customer website (port 3001)**
 
 ```bash
 cd apps/web/website
@@ -74,14 +81,14 @@ npm install
 npm run dev
 ```
 
-**3. Admin dashboard (port 3002)**
+**4. Admin dashboard (port 3002)**
 
 ```bash
 cd apps/web/admin
 npm run dev
 ```
 
-**4. User app (Flutter)**
+**5. User app (Flutter)**
 
 ```bash
 cd apps/mobile/user_app
@@ -89,7 +96,7 @@ flutter pub get
 flutter run
 ```
 
-**5. Vet app (Flutter)**
+**6. Vet app (Flutter)**
 
 ```bash
 cd apps/mobile/vet_app
@@ -125,16 +132,35 @@ Copy from `backend/.env.example`. Main entries: `PORT`, `NODE_ENV`, `MONGO_URI`,
 `NEXT_PUBLIC_API_URL` (same idea as website).
 
 **User app**  
-API host comes from `lib/core/constants.dart` (default `192.168.1.5`) and optional override in `lib/core/api_config.dart` (e.g. “Set server URL” stores a host or full ngrok URL). Override at build: `flutter run --dart-define=API_HOST=192.168.1.5`.
+API base URL is built in `lib/core/api_config.dart` (default host `192.168.1.5` unless `AppConstants.kUseEmulator` uses `10.0.2.2`). Optional “Set server URL” on login stores a host or full ngrok URL. Override at build: `flutter run --dart-define=API_HOST=192.168.1.5`.
 
 **Vet app**  
 API host in `lib/core/constants.dart` (`API_HOST` default `192.168.1.5`). Override at build: `flutter run --dart-define=API_HOST=192.168.1.5` or your ngrok host.
+
+### Same backend everywhere (checklist)
+
+Use **one** backend URL for every client in a given session. If any client points at a different host or port, you will see connection errors or stale data.
+
+| Scenario | Backend | Website / Admin (`NEXT_PUBLIC_API_URL`) | Flutter (`API_HOST` or stored URL) |
+|----------|---------|----------------------------------------|-------------------------------------|
+| All on one PC (browser) | `http://localhost:3000` | `http://localhost:3000/api/v1` | N/A for desktop browser |
+| Phone on same Wi‑Fi as PC | `http://<PC_LAN_IP>:3000` | Optional: use LAN IP if testing admin on phone browser | `<PC_LAN_IP>` (no `http://`; port 3000 added in code) or full ngrok URL |
+| Phone / remote via ngrok | `https://<subdomain>.ngrok-free.app` | `https://<subdomain>.ngrok-free.app/api/v1` | Same host (see [Running with a tunnel](#running-with-a-tunnel-ngrok)) |
+| Android emulator | `http://10.0.2.2:3000` from emulator | `localhost` on host machine for web | User app uses `10.0.2.2` when `AppConstants.kUseEmulator` is true |
+
+After changing the tunnel URL, update **`BASE_URL`** in `backend/.env`, **both** Next.js `.env.local` files, and **mobile** overrides together.
+
+**Verify MongoDB:** from `backend/`, run `node scripts/check-db.js` (loads `backend/.env`; lists DB/collection counts).
 
 ## Payments (Khalti)
 
 Payments go through Khalti. Backend uses `KHALTI_SECRET_KEY` and `KHALTI_BASE_URL` from `.env`; `BASE_URL` is used for success/failure redirects and the callback URL.
 
-Flow: User places order or initiates service/care payment; backend creates the record and calls Khalti initiate; backend returns `payment_url`. Web redirects to it; mobile opens it in an in-app WebView. After payment, Khalti redirects to the backend callback. Backend verifies with Khalti lookup; on “Completed”, it marks the order or payment as paid and appends a row to the PaymentLog collection. Pet owners must complete the service fee before a vet is assigned (and before the vet sees the new appointment).
+Flow: User places order or initiates service/care payment; backend creates the record and calls Khalti initiate; backend returns `payment_url`. Web redirects to it; mobile opens it in an in-app WebView. After payment, Khalti redirects to the backend callback. Backend verifies with Khalti lookup; on “Completed”, it marks the order or payment as paid and appends a row to the PaymentLog collection.
+
+**Service requests (booked appointments):** Admin can assign a veterinarian before the customer has paid online (e.g. cash on delivery). The vet app loads assigned appointments from the API regardless of `paymentStatus`; product rules may still require payment for certain journeys—see your admin workflow.
+
+**Request assistance (cases):** These use the cases API; assignment is admin-driven and does not depend on Khalti payment state for the vet to see the case once assigned.
 
 **Admin**  
 The “Payment Logs” page (sidebar) lists test transactions: pidx, amount, status, type (order/service/care). Filter by status and refresh as needed.
@@ -147,6 +173,6 @@ Payment buttons across the apps use the brand brown `#703418` with white text.
 - **Website**: Browse vets, shop, checkout with Khalti, dashboard, Google Sign-In.
 - **Admin**: Users, vets, cases, service requests, supplies, shops, promos, transactions, payment logs, settings.
 - **User app**: Register, pets, shop, cart, Khalti in WebView, services/care, tracking, chat, orders.
-- **Vet app**: Appointments, cases, location, earnings; service fee must be paid by customer before assignment.
+- **Vet app**: Appointments, cases, location, earnings; sees admin-assigned work per API (appointments and assistance cases).
 
 For detailed tunnel steps, see [backend/TUNNEL_SETUP.md](backend/TUNNEL_SETUP.md).

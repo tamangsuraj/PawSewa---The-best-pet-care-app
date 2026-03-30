@@ -8,6 +8,7 @@ const { notifyServiceRequestAssignment } = require('../utils/notificationService
 const { SERVICE_REQUEST_STATUS } = require('../constants/serviceRequestStatus');
 const { getIO } = require('../sockets/socketStore');
 const logger = require('../utils/logger');
+const { normalizeRole } = require('../middleware/authMiddleware');
 
 function emitStatusChange(requestId, status, ownerId, previousStatus) {
   const io = getIO();
@@ -293,11 +294,11 @@ const getMyServiceRequests = asyncHandler(async (req, res) => {
  * @access  Private (Staff)
  */
 const getMyAssignedRequests = asyncHandler(async (req, res) => {
-  // Staff app (vet) sees only "Confirmed" appointments: paymentStatus='paid'.
-  // Vets only see tasks once pet owner has completed Khalti payment.
+  // Staff feed must align with assignServiceRequest: admin can assign before online payment
+  // (cash on delivery / pay later). Do not require paymentStatus=paid here or vets never see
+  // newly assigned appointments until the owner pays online.
   const requests = await ServiceRequest.find({
     assignedStaff: req.user._id,
-    paymentStatus: 'paid',
     status: {
       $in: [
         SERVICE_REQUEST_STATUS.ASSIGNED,
@@ -437,9 +438,9 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('Please provide staffId and scheduledTime');
   }
 
-  // Verify staff exists and is a veterinarian
+  // Verify staff exists and is a veterinarian (supports VET / legacy role values)
   const staff = await User.findById(staffId);
-  if (!staff || staff.role !== 'veterinarian') {
+  if (!staff || normalizeRole(staff.role) !== 'veterinarian') {
     res.status(404);
     throw new Error('Staff member not found');
   }

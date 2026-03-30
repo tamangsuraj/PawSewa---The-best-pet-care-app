@@ -33,13 +33,22 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     });
 
     try {
-      // Load both Cases (assistance) and Service Requests (appointments) for vets
-      final results = await Future.wait([
-        _apiClient.getMyAssignments(),
-        _apiClient.getMyServiceTasks(),
-      ]);
-      final casesData = results[0].data['data'] ?? [];
-      final tasksData = results[1].data['data'] ?? [];
+      // Load cases and service requests independently. Using Future.wait would fail
+      // the entire screen if either API errors (e.g. 403 on one path), hiding the other feed.
+      dynamic casesData = [];
+      dynamic tasksData = [];
+      var casesRequestOk = false;
+      var tasksRequestOk = false;
+      try {
+        final res = await _apiClient.getMyAssignments();
+        casesData = res.data['data'] ?? [];
+        casesRequestOk = true;
+      } catch (_) {}
+      try {
+        final res = await _apiClient.getMyServiceTasks();
+        tasksData = res.data['data'] ?? [];
+        tasksRequestOk = true;
+      } catch (_) {}
 
       // Normalize Cases: they use 'customer', Service Requests use 'user'
       final normalizedCases = (casesData as List)
@@ -69,6 +78,9 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       if (mounted) {
         setState(() {
           _allCases = merged;
+          _error = (!casesRequestOk && !tasksRequestOk)
+              ? 'Failed to load assignments. Pull down to retry.'
+              : null;
           _isLoading = false;
         });
       }

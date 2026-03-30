@@ -2,6 +2,7 @@ const Case = require('../models/Case');
 const User = require('../models/User');
 const Pet = require('../models/Pet');
 const asyncHandler = require('express-async-handler');
+const { normalizeRole } = require('../middleware/authMiddleware');
 
 /**
  * @desc    Create a new case (User submits request)
@@ -164,8 +165,7 @@ const getMyCases = asyncHandler(async (req, res) => {
  * @access  Private (Veterinarian)
  */
 const getMyAssignments = asyncHandler(async (req, res) => {
-  const vetRoles = ['veterinarian', 'VET'];
-  if (!vetRoles.includes(req.user.role)) {
+  if (normalizeRole(req.user.role) !== 'veterinarian') {
     res.status(403);
     throw new Error('Only veterinarians can access assignments');
   }
@@ -199,7 +199,7 @@ const assignCase = asyncHandler(async (req, res) => {
   }
 
   const vet = await User.findById(vetId);
-  if (!vet || !['veterinarian', 'VET'].includes(vet.role)) {
+  if (!vet || normalizeRole(vet.role) !== 'veterinarian') {
     res.status(404);
     throw new Error('Veterinarian not found');
   }
@@ -248,7 +248,7 @@ const updateVetShift = asyncHandler(async (req, res) => {
 
   const vet = await User.findById(req.params.id);
 
-  if (!vet || vet.role !== 'veterinarian') {
+  if (!vet || normalizeRole(vet.role) !== 'veterinarian') {
     res.status(404);
     throw new Error('Veterinarian not found');
   }

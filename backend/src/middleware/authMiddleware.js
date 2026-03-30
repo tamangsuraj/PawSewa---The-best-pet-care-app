@@ -157,4 +157,11 @@ const verifyProviderSubscription = async (req, res, next) => {
   next();
 };
 
-module.exports = { protect, admin, adminOrShopOwner, authorize, verifyProviderSubscription };
+module.exports = {
+  protect,
+  admin,
+  adminOrShopOwner,
+  authorize,
+  verifyProviderSubscription,
+  normalizeRole,
+};
