@@ -262,6 +262,9 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const yangoBlue = Color(0xFF0054FF);
+    const successGreen = Color(0xFF00C853);
     final order = widget.order;
     final id = order['_id']?.toString() ?? '';
     final shortId = id.length >= 6 ? id.substring(id.length - 6) : id;
@@ -387,6 +390,23 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
               ),
             ),
 
+          // Google Maps deep-link FAB (customer navigation)
+          if (hasCustomerPoint)
+            Positioned(
+              left: 16,
+              bottom: 280,
+              child: SafeArea(
+                child: FloatingActionButton(
+                  heroTag: 'rider_google_maps',
+                  backgroundColor: yangoBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 2,
+                  onPressed: _openDirections,
+                  child: const Icon(Icons.map_rounded),
+                ),
+              ),
+            ),
+
           // Bottom card: customer, address, distance, payment, actions
           Positioned(
             left: 0,
@@ -394,13 +414,13 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
             bottom: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? Colors.grey.shade900 : Colors.white,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(24),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
+                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.1),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),
@@ -419,7 +439,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                         style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
-                          color: Colors.black87,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -434,7 +454,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                 address,
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
-                                  color: Colors.grey[700],
+                                  color: isDark ? Colors.white70 : Colors.grey[700],
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -487,7 +507,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                   widget.order['deliveryNotes'].toString().trim(),
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
-                                    color: Colors.black87,
+                                    color: isDark ? Colors.white : Colors.black87,
                                   ),
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
@@ -512,7 +532,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                             style: GoogleFonts.poppins(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: Colors.black87,
+                              color: isDark ? Colors.white : Colors.black87,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -543,7 +563,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                         _paymentSummary(),
                         style: GoogleFonts.poppins(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: isDark ? Colors.white70 : Colors.grey[600],
                         ),
                       ),
                       if (_distanceKm != null) ...[
@@ -563,7 +583,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: isDark ? Colors.white : Colors.black87,
                               ),
                             ),
                             if (_etaMinutes != null) ...[
@@ -603,7 +623,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                 'Getting distance…',
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: isDark ? Colors.white70 : Colors.grey[600],
                                 ),
                               ),
                             ],
@@ -718,36 +738,12 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        height: 48,
-                        child: FilledButton(
-                          onPressed: _updatingOrderId != null
-                              ? null
-                              : _markDelivered,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: _updatingOrderId != null
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  'Mark as delivered',
-                                  style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                        ),
+                      SwipeActionButton(
+                        disabled: _updatingOrderId != null,
+                        backgroundColor: successGreen,
+                        label: 'Swipe to Complete',
+                        loading: _updatingOrderId != null,
+                        onSwiped: _markDelivered,
                       ),
                     ],
                   ),
@@ -757,6 +753,145 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class SwipeActionButton extends StatefulWidget {
+  const SwipeActionButton({
+    super.key,
+    required this.label,
+    required this.backgroundColor,
+    required this.onSwiped,
+    this.disabled = false,
+    this.loading = false,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final VoidCallback onSwiped;
+  final bool disabled;
+  final bool loading;
+
+  @override
+  State<SwipeActionButton> createState() => _SwipeActionButtonState();
+}
+
+class _SwipeActionButtonState extends State<SwipeActionButton> {
+  double _drag = 0;
+  bool _completed = false;
+
+  @override
+  void didUpdateWidget(covariant SwipeActionButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.disabled && !oldWidget.disabled) {
+      setState(() {
+        _drag = 0;
+        _completed = false;
+      });
+    }
+    if (!widget.disabled && oldWidget.disabled) {
+      setState(() {
+        _drag = 0;
+        _completed = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        const padding = 10.0;
+        const thumbSize = 44.0;
+        final double maxDrag = (width - padding * 2 - thumbSize)
+            .clamp(0.0, double.infinity)
+            .toDouble();
+        final progress =
+            maxDrag <= 0 ? 0.0 : (_drag / maxDrag).clamp(0.0, 1.0);
+
+        return GestureDetector(
+          onHorizontalDragUpdate: widget.disabled
+              ? null
+              : (details) {
+                  setState(() {
+                    _drag = (_drag + details.delta.dx).clamp(0.0, maxDrag).toDouble();
+                  });
+                },
+          onHorizontalDragEnd: widget.disabled
+              ? null
+              : (_) {
+                  final shouldComplete = progress >= 0.85;
+                  if (shouldComplete && !_completed) {
+                    setState(() => _completed = true);
+                    widget.onSwiped();
+                  } else {
+                    setState(() {
+                      _drag = 0;
+                      _completed = false;
+                    });
+                  }
+                },
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedOpacity(
+                duration: const Duration(milliseconds: 180),
+                opacity: widget.loading ? 0.75 : 1,
+                child: Container(
+                  height: 48,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: widget.backgroundColor.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: widget.backgroundColor.withValues(alpha: 0.35),
+                    ),
+                  ),
+                ),
+              ),
+              Center(
+                child: Text(
+                  widget.loading ? 'Updating...' : widget.label,
+                  style: GoogleFonts.oswald(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: widget.backgroundColor,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: padding + _drag,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  width: thumbSize,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: widget.backgroundColor,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.backgroundColor.withValues(alpha: 0.35),
+                        blurRadius: 14,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: _completed
+                      ? const Icon(Icons.check_rounded, color: Colors.white)
+                      : Icon(
+                          widget.loading ? Icons.hourglass_bottom_rounded : Icons.arrow_forward_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
