@@ -35,6 +35,11 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       // e.g. 'khalti', 'cod' when set by backend
     },
+    khaltiTransactionId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     deliveryLocation: {
       address: {
         type: String,

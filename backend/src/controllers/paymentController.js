@@ -11,6 +11,7 @@ const Subscription = require('../models/Subscription');
 const Hostel = require('../models/Hostel');
 const Order = require('../models/Order');
 const PaymentLog = require('../models/PaymentLog');
+const logger = require('../utils/logger');
 const {
   KHALTI_BASE_URL,
   KHALTI_SECRET_KEY,
@@ -933,6 +934,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
 /**
  * POST /api/v1/payments/verify-payment
  * Verify Khalti transaction using pidx. Calls Khalti /epayment/lookup/.
+ * Used by mobile/web apps after returning from Khalti.
  */
 const verifyPayment = asyncHandler(async (req, res) => {
   const { pidx } = req.body || {};
@@ -944,39 +946,90 @@ const verifyPayment = asyncHandler(async (req, res) => {
     return res.status(503).json({ success: false, message: 'Khalti is not configured' });
   }
 
-  const lookupResp = await axios.post(
-    `${KHALTI_BASE_URL}/epayment/lookup/`,
-    { pidx },
-    {
-      headers: {
-        Authorization: `Key ${KHALTI_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
+  let lookupResp;
+  try {
+    lookupResp = await axios.post(
+      `${KHALTI_BASE_URL}/epayment/lookup/`,
+      { pidx },
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  } catch (err) {
+    logger.error(
+      'Khalti Lookup failed during verify-payment:',
+      err?.response?.data || err.message || String(err)
+    );
+    return res.status(502).json({
+      success: false,
+      message: 'Failed to verify payment with Khalti. Please try again.',
+    });
+  }
 
   const status = lookupResp.data?.status;
   const purchaseOrderId = lookupResp.data?.purchase_order_id;
+  const transactionId =
+    lookupResp.data?.transaction_id ||
+    lookupResp.data?.idx ||
+    lookupResp.data?.pidx ||
+    null;
 
   if (status === 'Completed' && purchaseOrderId) {
+    // First, try to treat purchase_order_id as an Order (shop order flow).
     const order = await Order.findById(purchaseOrderId);
     if (order && order.paymentStatus !== 'paid') {
+      logger.info(`Khalti: Initiating verification for Order ${order._id}.`);
       order.paymentStatus = 'paid';
       order.paymentMethod = 'khalti';
+      order.khaltiTransactionId = transactionId;
       await order.save();
-      return res.json({ success: true, message: 'Payment completed', orderId: order._id });
+      logger.success(
+        `Khalti payment verified for Order ${order._id}. Transaction: ${transactionId || 'n/a'}.`
+      );
+      return res.json({
+        success: true,
+        message: 'Payment completed',
+        orderId: order._id,
+        transactionId,
+      });
     }
+
+    // Otherwise, treat purchase_order_id as a Payment (services/subscriptions, etc.)
     const payment = await Payment.findById(purchaseOrderId);
     if (payment && payment.status !== 'completed') {
+      logger.info(
+        `Khalti: Initiating verification for Payment ${payment._id} (targetType=${payment.targetType}).`
+      );
+      payment.gatewayTransactionId = transactionId || payment.gatewayTransactionId;
+      await payment.save();
       await markPaymentCompleted({ paymentId: payment._id });
-      return res.json({ success: true, message: 'Payment completed', paymentId: payment._id });
+      logger.success(
+        `Khalti payment verified for Payment ${payment._id}. Transaction: ${transactionId || 'n/a'}.`
+      );
+      return res.json({
+        success: true,
+        message: 'Payment completed',
+        paymentId: payment._id,
+        transactionId,
+      });
     }
-    return res.json({ success: true, message: 'Payment already recorded' });
+
+    return res.json({
+      success: true,
+      message: 'Payment already recorded',
+      transactionId,
+    });
   }
 
   return res.status(400).json({
     success: false,
-    message: status ? `Payment not completed (status: ${status})` : 'Payment verification failed',
+    message: status
+      ? `Payment not completed (status: ${status})`
+      : 'Payment verification failed',
+    status,
   });
 });
 

@@ -160,7 +160,7 @@ async function run() {
     await a.save();
   }
 
-  // Backfill existing orders: ensure at least 1 item and rider assignment.
+  // Backfill existing orders: ensure at least 1 item and rider assignment and GPS.
   const orders = await Order.find({}).limit(200);
   for (const o of orders) {
     const rider = pick(riders);
@@ -206,6 +206,47 @@ async function run() {
     if (o.status === 'pending') o.status = 'processing';
     // eslint-disable-next-line no-await-in-loop
     await o.save();
+  }
+
+  // Create 5 explicit demo shop orders with GPS + payment fields so the admin dashboard has data.
+  for (let i = 1; i <= 5; i += 1) {
+    const owner = pick(customers);
+    const rider = pick(riders);
+    const p = pick(products);
+    const baseLat = 27.7172;
+    const baseLng = 85.3240;
+    const lat = baseLat + (Math.random() - 0.5) * 0.01;
+    const lng = baseLng + (Math.random() - 0.5) * 0.01;
+    const address = `Demo GPS Address ${i}, Kathmandu`;
+    // eslint-disable-next-line no-await-in-loop
+    const order = await Order.create({
+      user: owner._id,
+      items: [
+        {
+          product: p._id,
+          name: p.name,
+          price: p.price,
+          quantity: 1,
+        },
+      ],
+      totalAmount: p.price,
+      paymentStatus: 'paid',
+      paymentMethod: 'khalti',
+      khaltiTransactionId: `DEMO-KHALTI-${Date.now()}-${i}`,
+      deliveryLocation: {
+        address,
+        point: {
+          type: 'Point',
+          coordinates: [lng, lat],
+        },
+      },
+      status: i <= 2 ? 'out_for_delivery' : 'processing',
+      deliveryNotes: 'Demo seeded order with high-precision GPS.',
+      assignedRider: rider._id,
+    });
+    logger.info(
+      `[INFO] Seed: Demo order ${order._id} created with GPS Coordinates (Lat: ${lat}, Lng: ${lng}).`
+    );
   }
 
   logger.success('Database populated: 3 Riders, 3 Vets, 5 Pets, 10 Products created.');
