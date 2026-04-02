@@ -93,7 +93,7 @@ orderSchema.index({ createdAt: -1 });
 orderSchema.index({ 'deliveryLocation.point': '2dsphere' });
 
 // Sync deliveryCoordinates and deliveryStatus from deliveryLocation/status
-orderSchema.pre('save', function (next) {
+orderSchema.pre('save', function () {
   const coords = this.deliveryLocation?.point?.coordinates;
   if (Array.isArray(coords) && coords.length >= 2) {
     this.deliveryCoordinates = { lng: coords[0], lat: coords[1] };
@@ -105,7 +105,6 @@ orderSchema.pre('save', function (next) {
     delivered: 'Delivered',
   };
   if (this.status) this.deliveryStatus = statusMap[this.status] || 'Pending';
-  next();
 });
 
 module.exports = mongoose.model('Order', orderSchema);

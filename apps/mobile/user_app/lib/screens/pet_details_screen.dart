@@ -371,6 +371,8 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _HealthTimeline(reminders: s['reminders']),
         ],
       ),
     );
@@ -411,6 +413,230 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HealthTimeline extends StatelessWidget {
+  final dynamic reminders;
+
+  const _HealthTimeline({required this.reminders});
+
+  static const _primary = Color(AppConstants.primaryColor);
+
+  IconData _iconForCategory(String c) {
+    switch (c) {
+      case 'vaccination':
+        return Icons.vaccines_outlined;
+      case 'deworming':
+        return Icons.medication_outlined;
+      case 'flea_tick':
+        return Icons.bug_report_outlined;
+      case 'checkup':
+        return Icons.medical_services_outlined;
+      default:
+        return Icons.event_note_outlined;
+    }
+  }
+
+  Color _chipColor(String status) {
+    switch (status) {
+      case 'completed':
+        return const Color(0xFF1B5E20);
+      case 'skipped':
+        return const Color(0xFF6D4C41);
+      default:
+        return _primary;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final list = reminders is List ? reminders : const [];
+    final parsed = <Map<String, dynamic>>[];
+
+    for (final r in list) {
+      if (r is Map) parsed.add(Map<String, dynamic>.from(r));
+    }
+
+    if (parsed.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Text(
+          'No health reminders available for this pet yet.',
+          style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 13),
+        ),
+      );
+    }
+
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      if (v is DateTime) return v;
+      return DateTime.tryParse(v.toString());
+    }
+
+    parsed.sort((a, b) {
+      final ad = parseDate(a['dueDate']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = parseDate(b['dueDate']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return ad.compareTo(bd);
+    });
+
+    final upcoming = parsed
+        .where((r) => (r['status'] ?? 'upcoming').toString() == 'upcoming')
+        .toList();
+    final completed = parsed
+        .where((r) => (r['status'] ?? '').toString() == 'completed')
+        .toList()
+        .reversed
+        .toList();
+
+    final showUpcoming = upcoming.take(6).toList();
+    final showCompleted = completed.take(3).toList();
+
+    String fmt(DateTime d) => DateFormat('d MMM yyyy').format(d);
+
+    Widget row(Map<String, dynamic> r, {required bool isDone}) {
+      final category = (r['category'] ?? '').toString();
+      final title = (r['title'] ?? '').toString();
+      final due = parseDate(r['dueDate']);
+      final status = (r['status'] ?? 'upcoming').toString();
+      final called = r['called'] == true;
+      final priority = (r['priority'] ?? 'normal').toString();
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(_iconForCategory(category), color: _primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title.isNotEmpty ? title : category,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    due != null ? fmt(due) : '—',
+                    style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _chipColor(status).withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    isDone ? 'Completed' : (called ? 'Called' : 'Upcoming'),
+                    style: GoogleFonts.poppins(
+                      color: _chipColor(status),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                if (priority == 'high')
+                  Text(
+                    'High priority',
+                    style: GoogleFonts.poppins(
+                      color: Colors.red[700],
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Health Timeline',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF2D2D2D),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...showUpcoming.map((r) => row(r, isDone: false)),
+          if (showUpcoming.isEmpty)
+            Text(
+              'No upcoming reminders.',
+              style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 13),
+            ),
+          if (showCompleted.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Recently Completed',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF2D2D2D),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...showCompleted.map((r) => row(r, isDone: true)),
+          ],
+        ],
       ),
     );
   }

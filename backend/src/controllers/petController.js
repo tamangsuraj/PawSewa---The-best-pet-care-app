@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
 const Pet = require('../models/Pet');
 const cloudinary = require('../config/cloudinary');
+const logger = require('../utils/logger');
+const { generatePetRemindersV1 } = require('../utils/reminderEngine');
 
 /**
  * @desc    Create a new pet
@@ -21,6 +23,7 @@ const createPet = asyncHandler(async (req, res) => {
       behavioralNotes,
       isVaccinated,
       medicalHistory,
+      isOutdoor,
     } = req.body || {};
 
     let photoUrl = '';
@@ -51,6 +54,7 @@ const createPet = asyncHandler(async (req, res) => {
       breed: breed ?? undefined,
       dob: dob ? new Date(dob) : undefined,
       age,
+      isOutdoor: isOutdoor === 'true' || isOutdoor === true,
       gender: gender ?? '',
       weight,
       photoUrl,
@@ -59,7 +63,22 @@ const createPet = asyncHandler(async (req, res) => {
       behavioralNotes,
       isVaccinated: isVaccinated === 'true' || isVaccinated === true,
       medicalHistory: Array.isArray(parsedMedicalHistory) ? parsedMedicalHistory : [],
+      reminders:
+        dob && (species === 'Dog' || species === 'Cat' || species === 'dog' || species === 'cat')
+          ? generatePetRemindersV1({
+              dob: new Date(dob),
+              species,
+              isOutdoor: isOutdoor === 'true' || isOutdoor === true,
+            })
+          : [],
     });
+
+    logger.info(
+      'Reminder Engine: Generated',
+      Array.isArray(pet.reminders) ? pet.reminders.length : 0,
+      'medical alerts for Pet',
+      pet._id.toString()
+    );
 
     res.status(201).json({
       success: true,

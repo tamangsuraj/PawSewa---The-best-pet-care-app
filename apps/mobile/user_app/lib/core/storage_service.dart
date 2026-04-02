@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 import 'constants.dart';
 
 class StorageService {
@@ -19,7 +20,28 @@ class StorageService {
 
   // Get auth token
   Future<String?> getToken() async {
-    return await _storage.read(key: AppConstants.tokenKey);
+    final token = await _storage.read(key: AppConstants.tokenKey);
+    if (token != null && token.isNotEmpty) return token;
+
+    // Fallback/migration: some flows persist token inside saved user JSON.
+    // If secure storage token is missing, recover it from user_data and re-save.
+    final userJson = await _storage.read(key: AppConstants.userKey);
+    if (userJson == null || userJson.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(userJson);
+      if (decoded is Map && decoded['token'] is String) {
+        final recovered = (decoded['token'] as String).trim();
+        if (recovered.isNotEmpty) {
+          await saveToken(recovered);
+          return recovered;
+        }
+      }
+    } catch (_) {
+      // Ignore parse errors; treat as not logged in.
+    }
+
+    return null;
   }
 
   // Save user data

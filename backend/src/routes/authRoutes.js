@@ -29,8 +29,24 @@ router.post('/google', async (req, res) => {
       });
     }
 
+    console.log(`[INFO] Google OAuth handshake complete for user ${String(email).toLowerCase().trim()}.`);
+
     // Check if user exists
     let user = await User.findOne({ email });
+
+    // Verify Google ID token (prevents spoofed email/name).
+    if (googleToken) {
+      const ticket = await client.verifyIdToken({
+        idToken: googleToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      const payload = ticket.getPayload() || {};
+      const tokenEmail = (payload.email || '').toString().toLowerCase().trim();
+      const reqEmail = (email || '').toString().toLowerCase().trim();
+      if (tokenEmail && tokenEmail !== reqEmail) {
+        return res.status(401).json({ success: false, message: 'Google token email mismatch' });
+      }
+    }
 
     if (user) {
       // User exists - just issue JWT
@@ -74,7 +90,8 @@ router.post('/google', async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    res.status(201).json({
+    // Return 200 so the mobile client doesn't treat it as an error path.
+    res.status(200).json({
       success: true,
       message: 'Account created successfully',
       data: {

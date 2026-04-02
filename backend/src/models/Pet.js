@@ -1,5 +1,48 @@
 const mongoose = require('mongoose');
 
+const reminderSchema = new mongoose.Schema(
+  {
+    category: {
+      type: String,
+      required: true,
+      enum: ['vaccination', 'deworming', 'flea_tick', 'checkup'],
+      index: true,
+    },
+    title: { type: String, required: true, trim: true },
+    dueDate: { type: Date, required: true, index: true },
+
+    // Follow-up lifecycle (admin/vet ops)
+    status: {
+      type: String,
+      enum: ['upcoming', 'completed', 'skipped'],
+      default: 'upcoming',
+      index: true,
+    },
+    called: { type: Boolean, default: false, index: true },
+    calledAt: { type: Date },
+    completedAt: { type: Date },
+
+    // Overrides for real-world delayed doses
+    originalDueDate: { type: Date },
+    overriddenDueDate: { type: Date },
+    overrideReason: { type: String, trim: true },
+    overrideBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    overrideByRole: { type: String, trim: true }, // 'admin' | 'vet'
+
+    priority: {
+      type: String,
+      enum: ['low', 'normal', 'high'],
+      default: 'normal',
+      index: true,
+    },
+    engine: {
+      version: { type: String, default: 'v1', trim: true },
+      ruleId: { type: String, trim: true },
+    },
+  },
+  { _id: true, timestamps: true }
+);
+
 const petSchema = new mongoose.Schema(
   {
     owner: {
@@ -31,6 +74,10 @@ const petSchema = new mongoose.Schema(
     },
     dob: {
       type: Date,
+    },
+    isOutdoor: {
+      type: Boolean,
+      default: false,
     },
     age: {
       type: Number,
@@ -76,6 +123,11 @@ const petSchema = new mongoose.Schema(
       enum: ['Up to date', 'Due soon', 'Overdue'],
     },
     nextVaccinationDate: { type: Date },
+
+    reminders: {
+      type: [reminderSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,

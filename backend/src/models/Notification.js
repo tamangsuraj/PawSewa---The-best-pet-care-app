@@ -19,7 +19,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['service_request', 'case', 'system'],
+      enum: ['service_request', 'case', 'system', 'reminder'],
       default: 'service_request',
     },
     serviceRequest: {
@@ -30,6 +30,11 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Optional: reminder notifications (health timeline)
+    reminderPet: { type: mongoose.Schema.Types.ObjectId, ref: 'Pet' },
+    reminderId: { type: mongoose.Schema.Types.ObjectId },
+    reminderDueDate: { type: Date },
   },
   {
     timestamps: true,
@@ -37,6 +42,11 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ user: 1, isRead: 1, createdAt: -1 });
+// Prevent duplicate "24h before" reminders per user/reminder/dueDate
+notificationSchema.index(
+  { user: 1, type: 1, reminderId: 1, reminderDueDate: 1 },
+  { unique: true, partialFilterExpression: { type: 'reminder', reminderId: { $exists: true } } }
+);
 
 module.exports = mongoose.model('Notification', notificationSchema);
 

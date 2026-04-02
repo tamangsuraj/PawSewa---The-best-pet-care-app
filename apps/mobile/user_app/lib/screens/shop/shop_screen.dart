@@ -649,6 +649,12 @@ class _ShopScreenState extends State<ShopScreen> {
     if (cart.items.isEmpty) return null;
     try {
       final payMethod = _mapPaymentMethodToBackend(methodId);
+      if (payMethod == null || payMethod.isEmpty) {
+        if (kDebugMode) {
+          debugPrint('[PlaceOrder] Unknown payment method: $methodId');
+        }
+        return null;
+      }
       final orderPayload = {
         'items': cart.items.values
             .map((e) => {'productId': e.productId, 'quantity': e.quantity})
@@ -659,7 +665,7 @@ class _ShopScreenState extends State<ShopScreen> {
         },
         if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
           'deliveryNotes': cart.deliveryNotes,
-        'paymentMethod': ?payMethod,
+        'paymentMethod': payMethod,
       };
       final createResp = await _apiClient.createOrder(orderPayload);
       final orderData = createResp.data;
@@ -728,9 +734,20 @@ class _ShopScreenState extends State<ShopScreen> {
       if (paymentUrl == null || paymentUrl.isEmpty) return null;
       if (successUrl == null || successUrl.isEmpty) successUrl = 'payment-success';
       return {'orderId': orderId, 'paymentUrl': paymentUrl, 'successUrl': successUrl};
+    } on DioException catch (e) {
+      // Bubble a useful backend message up to the sheet UI.
+      String message = 'Could not start Khalti payment. Please try again.';
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        message = data['message'].toString();
+      } else if (e.error is String && (e.error as String).trim().isNotEmpty) {
+        message = (e.error as String).trim();
+      }
+      if (kDebugMode) debugPrint('[Khalti] Init error: $e');
+      return {'error': message};
     } catch (e) {
       if (kDebugMode) debugPrint('[Khalti] Init error: $e');
-      return null;
+      return {'error': 'Could not start Khalti payment. Please try again.'};
     }
   }
 
@@ -3718,6 +3735,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         setState(() {
           _phase = 'select';
           _error = 'Could not start Khalti payment. Please try again.';
+        });
+        return;
+      }
+      if (result['error'] != null && result['error']!.trim().isNotEmpty) {
+        setState(() {
+          _phase = 'select';
+          _error = result['error']!.trim();
         });
         return;
       }

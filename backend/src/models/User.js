@@ -1,6 +1,17 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+function normalizeRole(role) {
+  const r = String(role || '').trim();
+  if (!r) return r;
+  const upper = r.toUpperCase();
+  if (upper === 'CUSTOMER') return 'pet_owner';
+  if (upper === 'VET') return 'veterinarian';
+  if (upper === 'ADMIN') return 'admin';
+  if (upper === 'RIDER') return 'rider';
+  return r.toLowerCase();
+}
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -22,7 +33,27 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner'],
+      // Accept both legacy production roles (CUSTOMER/ADMIN/VET) and normalized lowercase roles.
+      enum: [
+        'ADMIN',
+        'VET',
+        'CUSTOMER',
+        'RIDER',
+        'pet_owner',
+        'veterinarian',
+        'admin',
+        'shop_owner',
+        'care_service',
+        'rider',
+        'hostel_owner',
+        'service_provider',
+        'groomer',
+        'trainer',
+        'facility_owner',
+        'customer',
+        'vet',
+        'rider',
+      ],
       default: 'pet_owner',
     },
     phone: {
@@ -150,6 +181,9 @@ const userSchema = new mongoose.Schema(
     otpExpires: {
       type: Date,
     },
+    // Alias field expected by some clients/specs
+    verificationToken: { type: String },
+    verificationTokenExpires: { type: Date },
     // Saved addresses for delivery/visit (Shop, Appointments)
     addresses: [
       {
@@ -160,11 +194,22 @@ const userSchema = new mongoose.Schema(
         label: { type: String, trim: true, default: 'Home' },
       },
     ],
+    // FCM device tokens for push (pet owner app registers; max 5 kept)
+    fcmTokens: {
+      type: [String],
+      default: [],
+      select: false,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Normalize role before validation/save so enums don't reject legacy inputs.
+userSchema.pre('validate', function normalizeRoleField() {
+  if (this.role) this.role = normalizeRole(this.role);
+});
 
 // Hash password before saving
 userSchema.pre('save', async function () {

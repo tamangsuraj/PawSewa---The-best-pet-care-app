@@ -5,6 +5,7 @@ import '../core/api_client.dart';
 import '../core/api_config.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
+import '../services/push_notification_service.dart';
 import 'vet_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -73,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
         // Save token and user data
         await _storage.saveToken(token);
         await _storage.saveUser(jsonEncode(userData));
+        await PushNotificationService.instance.registerFcmTokenWithBackend();
 
         if (mounted) {
           Navigator.of(context).pushReplacement(

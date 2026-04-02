@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 import '../core/storage_service.dart';
+import '../services/push_notification_service.dart';
 import 'pet_dashboard_screen.dart';
 
 class OTPVerificationScreen extends StatefulWidget {
@@ -63,6 +65,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         // Save user data
         final userData = response.data['data'];
         await _storageService.saveUser(json.encode(userData));
+        await PushNotificationService.instance.syncTokenIfLoggedIn();
 
         // Show success message
         setState(() {
@@ -78,6 +81,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           );
         }
       }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = data is Map && data['message'] != null
+          ? data['message'].toString()
+          : (e.error?.toString() ?? e.message ?? 'Verification failed');
+      setState(() => _errorMessage = msg.replaceAll('Exception: ', ''));
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -109,6 +118,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           _otpController.clear();
         });
       }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final msg = data is Map && data['message'] != null
+          ? data['message'].toString()
+          : (e.error?.toString() ?? e.message ?? 'Failed to resend code');
+      setState(() => _errorMessage = msg.replaceAll('Exception: ', ''));
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceAll('Exception: ', '');

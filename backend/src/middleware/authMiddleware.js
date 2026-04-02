@@ -50,6 +50,11 @@ const protect = async (req, res, next) => {
         throw new Error('User not found');
       }
 
+      // Normalize role for downstream checks (admin, authorize, etc.)
+      if (req.user && req.user.role) {
+        req.user.role = normalizeRole(req.user.role);
+      }
+
       next();
     } catch (error) {
       // Only log if it's not a JWT error (already handled above)

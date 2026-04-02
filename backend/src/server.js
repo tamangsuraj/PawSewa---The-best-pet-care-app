@@ -20,6 +20,7 @@ const sanitizeInput = mongoSanitize.sanitize;
 
 // Database connection
 const connectDB = require('./config/db');
+const { initFirebaseAdmin, isFirebaseAdminConfigured } = require('./config/firebaseAdmin');
 
 // Error handling middleware
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
@@ -48,6 +49,9 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const favouriteRoutes = require('./routes/favouriteRoutes');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const reminderRoutes = require('./routes/reminderRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const { scanAndNotifyReminders24h } = require('./utils/reminderNotifier');
 
 // Models (for startup sync logs and routes)
 const User = require('./models/User');
@@ -185,6 +189,8 @@ app.use('/api/v1/promocodes', promoCodeRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/reminders', reminderRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1', productRoutes);
 
 // Global health/ping for cross-platform sync verification. Returns DB name and user count.
@@ -293,10 +299,35 @@ tryAllowWindowsFirewall();
 
 async function start() {
   await connectDB();
+  if (isFirebaseAdminConfigured()) {
+    initFirebaseAdmin();
+  } else {
+    logger.info('FCM: FIREBASE_SERVICE_ACCOUNT_JSON not set; push notifications disabled.');
+  }
   logger.info('Image domains authorized: images.unsplash.com.');
   logger.info('Product layout re-configured: 2-column grid active.');
   const userCount = await User.countDocuments();
   logger.info('Verified', userCount, 'users in production.');
+
+  // Reminder push (in-app notifications) — runs in-process on an interval.
+  const enableReminderNotifier =
+    String(process.env.ENABLE_REMINDER_NOTIFIER || 'true').toLowerCase() !== 'false';
+  if (enableReminderNotifier) {
+    const intervalMs = 15 * 60 * 1000; // 15 minutes
+    setTimeout(() => {
+      scanAndNotifyReminders24h().catch((e) => {
+        logger.warn('Reminder Notifier: startup run failed', e?.message || String(e));
+      });
+    }, 15 * 1000);
+    setInterval(() => {
+      scanAndNotifyReminders24h().catch((e) => {
+        logger.warn('Reminder Notifier: interval run failed', e?.message || String(e));
+      });
+    }, intervalMs);
+    logger.info('Reminder Notifier: enabled (24h before due).');
+  } else {
+    logger.info('Reminder Notifier: disabled by ENABLE_REMINDER_NOTIFIER=false');
+  }
 
   const productCount = await Product.countDocuments();
   logger.info('Product Inventory Sync:', productCount, 'items found.');

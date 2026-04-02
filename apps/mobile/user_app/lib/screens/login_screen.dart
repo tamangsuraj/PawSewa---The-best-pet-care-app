@@ -7,6 +7,7 @@ import '../core/storage_service.dart';
 import '../core/constants.dart';
 import '../services/google_auth_service.dart';
 import '../services/permission_service.dart';
+import '../services/push_notification_service.dart';
 import 'pet_dashboard_screen.dart';
 import 'otp_verification_screen.dart';
 import 'register_screen.dart';
@@ -76,6 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           await _permissionService.requestNotificationPermission(context);
         }
+        await PushNotificationService.instance.syncTokenIfLoggedIn();
 
         if (mounted) {
           Navigator.of(context).pushReplacement(
@@ -237,6 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         await _permissionService.requestNotificationPermission(context);
       }
+      await PushNotificationService.instance.syncTokenIfLoggedIn();
 
       if (mounted) {
         Navigator.of(context).pushReplacement(

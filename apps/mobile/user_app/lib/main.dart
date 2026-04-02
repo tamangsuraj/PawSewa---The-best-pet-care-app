@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,7 @@ import 'core/api_config.dart';
 import 'core/storage_service.dart';
 import 'core/constants.dart';
 import 'services/socket_service.dart';
+import 'services/push_notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
 import 'cart/cart_service.dart';
@@ -35,6 +38,7 @@ Future<void> _logHealthCheck() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiClient().initialize();
+  await PushNotificationService.instance.initialize();
   _logHealthCheck();
 
   final savedAddresses = SavedAddressesService();
@@ -115,6 +119,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (mounted) {
       if (isLoggedIn) {
         SocketService.instance.connect();
+        unawaited(PushNotificationService.instance.syncTokenIfLoggedIn());
       }
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

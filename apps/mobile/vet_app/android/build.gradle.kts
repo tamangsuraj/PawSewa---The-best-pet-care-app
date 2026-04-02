@@ -1,3 +1,6 @@
+// Google Services for Firebase: plugin id + version are declared in settings.gradle.kts
+// (equivalent to classpath com.google.gms:google-services:4.4.0 in legacy Groovy builds).
+
 allprojects {
     repositories {
         google()

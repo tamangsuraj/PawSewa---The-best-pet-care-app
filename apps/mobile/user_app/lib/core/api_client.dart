@@ -145,6 +145,11 @@ class ApiClient {
     return await _dio.put('/users/profile', data: data);
   }
 
+  /// Register FCM token for push notifications (pet reminders, etc.).
+  Future<Response> registerFcmToken(String token) async {
+    return await _dio.post('/users/me/fcm-token', data: {'token': token});
+  }
+
   // Generic POST method
   Future<Response> post(String path, Map<String, dynamic> data) async {
     return await _dio.post(path, data: data);

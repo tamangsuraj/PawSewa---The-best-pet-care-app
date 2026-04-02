@@ -7,6 +7,8 @@ const {
   resendOTP,
   getUserProfile,
   updateUserProfile,
+  registerDeviceToken,
+  patchCurrentUser,
   getAllUsers,
   deleteUser,
   updateUserRole,
@@ -29,6 +31,9 @@ router.post('/resend-otp', resendOTP); // Resend OTP
 router.route('/profile')
   .get(protect, getUserProfile)
   .put(protect, updateUserProfile);
+
+router.patch('/me', protect, patchCurrentUser);
+router.post('/me/fcm-token', protect, registerDeviceToken);
 
 // Staff routes (Veterinarian)
 router.put('/staff/profile', protect, updateStaffProfile);

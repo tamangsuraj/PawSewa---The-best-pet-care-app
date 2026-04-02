@@ -1,10 +1,13 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'firebase_options.dart';
 import 'core/api_client.dart';
 import 'core/api_config.dart';
 import 'core/constants.dart';
 import 'core/storage_service.dart';
+import 'services/push_notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/vet_dashboard_screen.dart';
 
@@ -31,7 +34,14 @@ Future<void> _logHealthCheck() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (kDebugMode) {
+    debugPrint('[INFO] FCM initialized for Vet App.');
+    debugPrint('[SUCCESS] Firebase successfully linked to Vet App via google-services.json.');
+  }
   await ApiClient().initialize();
+  await PushNotificationService.instance.initialize();
+  await PushNotificationService.instance.registerFcmTokenWithBackend();
   await _logHealthCheck();
   runApp(const MyApp());
 }

@@ -72,6 +72,7 @@ const registerUser = asyncHandler(async (req, res) => {
   // Generate OTP
   const otp = generateOTP();
   const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  logger.info('Verification code generated for', email.toString().toLowerCase().trim());
 
   // SECURITY: Public registration is ONLY for pet_owner role
   // Veterinarians and admins must be created by admin via adminCreateUser
@@ -85,6 +86,8 @@ const registerUser = asyncHandler(async (req, res) => {
     isVerified: false, // Requires OTP verification
     otp,
     otpExpires,
+    verificationToken: otp,
+    verificationTokenExpires: otpExpires,
   });
 
   if (user) {
@@ -147,6 +150,7 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const roleForClient = normalizeRoleForResponse(user.role) || user.role;
+    logger.success(`User role '${String(user.role)}' validated and accepted.`);
 
     res.json({
       success: true,
@@ -770,6 +774,52 @@ const updateStaffProfile = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Register FCM device token for push notifications (pet owner app).
+ * @route POST /api/v1/users/me/fcm-token
+ * @access Private
+ */
+const registerDeviceToken = asyncHandler(async (req, res) => {
+  const { token } = req.body || {};
+  if (!token || typeof token !== 'string' || token.trim().length < 20) {
+    res.status(400);
+    throw new Error('Invalid FCM token');
+  }
+  const t = token.trim();
+  const user = await User.findById(req.user._id).select('+fcmTokens');
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  const existing = Array.isArray(user.fcmTokens) ? user.fcmTokens.filter((x) => x !== t) : [];
+  user.fcmTokens = [t, ...existing].slice(0, 5);
+  await user.save();
+  res.json({ success: true, message: 'FCM token registered' });
+});
+
+/**
+ * PATCH current user — register FCM token (`fcmToken` or legacy `token`).
+ * @route PATCH /api/v1/users/me
+ * @access Private
+ */
+const patchCurrentUser = asyncHandler(async (req, res) => {
+  const raw = req.body?.fcmToken ?? req.body?.token;
+  if (!raw || typeof raw !== 'string' || raw.trim().length < 20) {
+    res.status(400);
+    throw new Error('Valid fcmToken is required');
+  }
+  const t = raw.trim();
+  const user = await User.findById(req.user._id).select('+fcmTokens');
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  const existing = Array.isArray(user.fcmTokens) ? user.fcmTokens.filter((x) => x !== t) : [];
+  user.fcmTokens = [t, ...existing].slice(0, 5);
+  await user.save();
+  res.json({ success: true, message: 'FCM token registered' });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -777,6 +827,8 @@ module.exports = {
   resendOTP,
   getUserProfile,
   updateUserProfile,
+  registerDeviceToken,
+  patchCurrentUser,
   getAllUsers,
   deleteUser,
   updateUserRole,
