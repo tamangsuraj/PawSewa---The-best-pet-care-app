@@ -12,25 +12,67 @@ const {
   isKhaltiConfigured,
 } = require('../config/payment_config');
 
+function parseOrderGps(body) {
+  const raw = body || {};
+  const loc = raw.location;
+  const dl = raw.deliveryLocation || {};
+  let lat;
+  let lng;
+  let address = '';
+
+  if (loc && typeof loc === 'object') {
+    lat = Number(loc.lat);
+    lng = Number(loc.lng);
+    if (typeof loc.address === 'string' && loc.address.trim()) {
+      address = loc.address.trim();
+    }
+  }
+  if ((!Number.isFinite(lat) || !Number.isFinite(lng)) && dl.coordinates) {
+    const c = dl.coordinates;
+    if (Array.isArray(c) && c.length === 2) {
+      lng = Number(c[0]);
+      lat = Number(c[1]);
+    }
+  }
+  if (!address && typeof dl.address === 'string' && dl.address.trim()) {
+    address = dl.address.trim();
+  }
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !address) {
+    return null;
+  }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return { error: 'Invalid GPS coordinates' };
+  }
+  return { lat, lng, address, coordinates: [lng, lat] };
+}
+
 // POST /api/v1/orders
-// Body: { items: [{ productId, quantity }], deliveryLocation: { address, coordinates: [lng, lat] } }
+// Body: { items, deliveryLocation: { address, coordinates: [lng, lat] }, location?: { lat, lng, address } }
 const createOrder = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 
-  const { items, deliveryLocation, deliveryNotes, paymentMethod } = req.body || {};
+  const { items, deliveryLocation, deliveryNotes, paymentMethod, location } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Order items are required' });
   }
-  const { address, coordinates } = deliveryLocation || {};
-  if (!address || !coordinates || !Array.isArray(coordinates) || coordinates.length !== 2) {
+
+  const parsed = parseOrderGps({ location, deliveryLocation });
+  if (parsed?.error) {
+    return res.status(400).json({ success: false, message: parsed.error });
+  }
+  if (!parsed) {
     return res.status(400).json({
       success: false,
-      message: 'Delivery location must include address and coordinates [lng, lat]',
+      message:
+        'Delivery location must include address and valid latitude/longitude (high-accuracy GPS required).',
     });
   }
+  const { address, coordinates, lat, lng } = parsed;
+
   const notes = typeof deliveryNotes === 'string' ? deliveryNotes.trim().slice(0, 500) : null;
 
   // Load products and compute total
@@ -70,12 +112,18 @@ const createOrder = asyncHandler(async (req, res) => {
         coordinates,
       },
     },
+    location: {
+      lat,
+      lng,
+      address,
+    },
     deliveryNotes: notes || undefined,
     paymentMethod: isCodOrFonepay ? (payMethod === 'fonepay' ? 'fonepay' : 'cod') : undefined,
     status: 'pending',
     paymentStatus: isCodOrFonepay ? 'unpaid' : 'unpaid',
   });
 
+  logger.info(`Order ${order._id}: GPS Coordinates captured (Lat: ${lat}, Lng: ${lng}).`);
   logger.info('New Order Received: ID', order._id.toString());
 
   // Notify admin panel and any connected dashboards in real time
@@ -399,6 +447,55 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * PATCH /api/v1/orders/:orderId/delivery-gps
+ * Owner only: refresh drop pin while order is still pending (e.g. after Khalti WebView, before final confirm).
+ */
+const updateMyOrderDeliveryGps = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+  const { orderId } = req.params;
+  const { lat, lng } = req.body || {};
+  const latN = Number(lat);
+  const lngN = Number(lng);
+  if (!Number.isFinite(latN) || !Number.isFinite(lngN)) {
+    return res.status(400).json({ success: false, message: 'Valid lat and lng are required' });
+  }
+  if (latN < -90 || latN > 90 || lngN < -180 || lngN > 180) {
+    return res.status(400).json({ success: false, message: 'Invalid GPS coordinates' });
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  if (order.user.toString() !== userId.toString()) {
+    return res.status(403).json({ success: false, message: 'Not your order' });
+  }
+  if (order.status !== 'pending') {
+    return res.status(400).json({
+      success: false,
+      message: 'Delivery GPS can only be updated while the order is pending',
+    });
+  }
+
+  const coordinates = [lngN, latN];
+  order.deliveryLocation.point.coordinates = coordinates;
+  order.markModified('deliveryLocation');
+  order.location = {
+    lat: latN,
+    lng: lngN,
+    address: order.deliveryLocation.address,
+  };
+  await order.save();
+
+  logger.info(`Order ${order._id}: GPS Coordinates captured (Lat: ${latN}, Lng: ${lngN}).`);
+
+  res.json({ success: true, data: order });
+});
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -409,5 +506,6 @@ module.exports = {
   assignRiderToOrder,
   bulkAssignOrders,
   initiateKhaltiForOrder,
+  updateMyOrderDeliveryGps,
 };
 

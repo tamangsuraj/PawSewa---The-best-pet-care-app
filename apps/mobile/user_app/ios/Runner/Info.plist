@@ -62,5 +62,7 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PawSewa uses your precise location at checkout so riders can navigate to your door.</string>
 </dict>
 </plist>

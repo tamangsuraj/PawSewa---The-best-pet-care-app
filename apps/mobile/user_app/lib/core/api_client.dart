@@ -270,6 +270,18 @@ class ApiClient {
     return await _dio.post('/orders', data: data);
   }
 
+  /// Refresh drop coordinates on a pending shop order (e.g. after Khalti payment, before confirm).
+  Future<Response> updateOrderDeliveryGps(
+    String orderId, {
+    required double lat,
+    required double lng,
+  }) async {
+    return await _dio.patch(
+      '/orders/$orderId/delivery-gps',
+      data: {'lat': lat, 'lng': lng},
+    );
+  }
+
   /// Get current user's orders (shop orders).
   Future<Response> getMyOrders() async {
     return await _dio.get('/orders/my');

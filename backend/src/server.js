@@ -187,6 +187,7 @@ app.use('/api/v1/provider-applications', providerApplicationRoutes);
 app.use('/api/v1/favourites', favouriteRoutes);
 app.use('/api/v1/promocodes', promoCodeRoutes);
 app.use('/api/v1/orders', orderRoutes);
+logger.success('Precision mapping enabled for delivery routing.');
 app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/reminders', reminderRoutes);

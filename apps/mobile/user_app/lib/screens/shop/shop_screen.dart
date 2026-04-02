@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +27,38 @@ const double kFreeDeliveryAbove = 1000;
 
 // Hardcoded Favourites "category" – cannot be created/destroyed from admin
 const String kFavouritesSlug = '__favourites__';
+
+/// High-accuracy device position for checkout; keeps the saved address text, updates lat/lng.
+Future<bool> captureHighAccuracyGpsForDelivery(BuildContext context) async {
+  final cart = context.read<CartService>();
+  final address = cart.deliveryAddress;
+  if (address == null || address.isEmpty) return false;
+  try {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return false;
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return false;
+    }
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      ),
+    );
+    cart.setDeliveryLocation(
+      lat: position.latitude,
+      lng: position.longitude,
+      address: address,
+    );
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
@@ -625,8 +658,10 @@ class _ShopScreenState extends State<ShopScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _PaymentSheet(
+        builder: (ctx) => _PaymentSheet(
         amount: amount,
+        refreshDeliveryGps: () => captureHighAccuracyGpsForDelivery(context),
+        syncPendingOrderGps: _syncPendingOrderGps,
         placeOrderWithMethod: (methodId) => _placeOrderWithMethod(methodId, amount),
         initKhaltiFlow: () => _initKhaltiForSheet(amount),
         onOrderPlaced: (orderId) {
@@ -643,11 +678,56 @@ class _ShopScreenState extends State<ShopScreen> {
     );
   }
 
+  Map<String, dynamic> _buildShopOrderPayload(
+    CartService cart, {
+    String? paymentMethod,
+  }) {
+    final lat = cart.deliveryLat!;
+    final lng = cart.deliveryLng!;
+    final address = cart.deliveryAddress!;
+    return {
+      'items': cart.items.values
+          .map((e) => {'productId': e.productId, 'quantity': e.quantity})
+          .toList(),
+      'deliveryLocation': {
+        'address': address,
+        'coordinates': [lng, lat],
+      },
+      'location': {
+        'lat': lat,
+        'lng': lng,
+        'address': address,
+      },
+      if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
+        'deliveryNotes': cart.deliveryNotes,
+      if (paymentMethod != null && paymentMethod.isNotEmpty)
+        'paymentMethod': paymentMethod,
+    };
+  }
+
+  Future<void> _syncPendingOrderGps(String orderId) async {
+    await captureHighAccuracyGpsForDelivery(context);
+    if (!mounted) return;
+    final cart = context.read<CartService>();
+    if (cart.deliveryLat == null || cart.deliveryLng == null) return;
+    try {
+      await _apiClient.updateOrderDeliveryGps(
+        orderId,
+        lat: cart.deliveryLat!,
+        lng: cart.deliveryLng!,
+      );
+    } catch (e) {
+      if (kDebugMode) debugPrint('[OrderGPS] PATCH failed: $e');
+    }
+  }
+
   /// Place order for Cash on Delivery or Fonepay. Returns orderId on success.
   Future<String?> _placeOrderWithMethod(String methodId, double amount) async {
     final cart = context.read<CartService>();
     if (cart.items.isEmpty) return null;
     try {
+      await captureHighAccuracyGpsForDelivery(context);
+      if (!mounted) return null;
       final payMethod = _mapPaymentMethodToBackend(methodId);
       if (payMethod == null || payMethod.isEmpty) {
         if (kDebugMode) {
@@ -655,18 +735,7 @@ class _ShopScreenState extends State<ShopScreen> {
         }
         return null;
       }
-      final orderPayload = {
-        'items': cart.items.values
-            .map((e) => {'productId': e.productId, 'quantity': e.quantity})
-            .toList(),
-        'deliveryLocation': {
-          'address': cart.deliveryAddress,
-          'coordinates': [cart.deliveryLng, cart.deliveryLat],
-        },
-        if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
-          'deliveryNotes': cart.deliveryNotes,
-        'paymentMethod': payMethod,
-      };
+      final orderPayload = _buildShopOrderPayload(cart, paymentMethod: payMethod);
       final createResp = await _apiClient.createOrder(orderPayload);
       final orderData = createResp.data;
       if (orderData is Map) {
@@ -698,17 +767,16 @@ class _ShopScreenState extends State<ShopScreen> {
     final cart = context.read<CartService>();
     if (cart.items.isEmpty) return null;
     try {
-      final orderPayload = {
-        'items': cart.items.values
-            .map((e) => {'productId': e.productId, 'quantity': e.quantity})
-            .toList(),
-        'deliveryLocation': {
-          'address': cart.deliveryAddress,
-          'coordinates': [cart.deliveryLng, cart.deliveryLat],
-        },
-        if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
-          'deliveryNotes': cart.deliveryNotes,
-      };
+      await captureHighAccuracyGpsForDelivery(context);
+      if (!mounted) return null;
+      if (cart.deliveryLat == null ||
+          cart.deliveryLng == null ||
+          cart.deliveryAddress == null) {
+        return {
+          'error': 'Add a delivery address with a map pin before paying.',
+        };
+      }
+      final orderPayload = _buildShopOrderPayload(cart);
       final createResp = await _apiClient.createOrder(orderPayload);
       final orderData = createResp.data;
       String? orderId;
@@ -2224,11 +2292,34 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   double _discountAmount = 0;
   late final TextEditingController _deliveryNotesController;
   bool _deliveryNotesSynced = false;
+  bool _checkoutGpsLoading = false;
+  bool _checkoutGpsRefreshed = false;
 
   @override
   void initState() {
     super.initState();
     _deliveryNotesController = TextEditingController();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _refreshCheckoutGps());
+  }
+
+  Future<void> _refreshCheckoutGps() async {
+    if (!mounted) return;
+    final cart = context.read<CartService>();
+    if (cart.deliveryAddress == null || cart.deliveryAddress!.isEmpty) {
+      setState(() {
+        _checkoutGpsLoading = false;
+        _checkoutGpsRefreshed = false;
+      });
+      return;
+    }
+    setState(() => _checkoutGpsLoading = true);
+    final ok = await captureHighAccuracyGpsForDelivery(context);
+    if (!mounted) return;
+    setState(() {
+      _checkoutGpsLoading = false;
+      _checkoutGpsRefreshed = ok;
+    });
   }
 
   @override
@@ -2301,7 +2392,14 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     vertical: 8,
                   ),
                   children: [
-                    _buildDeliveryAddressSection(context, cart, primary),
+                    _buildDeliveryAddressSection(
+                      context,
+                      cart,
+                      primary,
+                      onAddressChanged: _refreshCheckoutGps,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildCheckoutGpsStrip(context, cart, primary),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _deliveryNotesController,
@@ -2597,8 +2695,115 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     );
   }
 
-  Widget _buildDeliveryAddressSection(
+  Widget _buildCheckoutGpsStrip(
       BuildContext context, CartService cart, Color primary) {
+    final hasCoords = cart.deliveryLat != null &&
+        cart.deliveryLng != null &&
+        cart.deliveryAddress != null &&
+        cart.deliveryAddress!.isNotEmpty;
+    if (!hasCoords) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (_checkoutGpsLoading)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: primary,
+                  ),
+                )
+              else
+                Icon(
+                  _checkoutGpsRefreshed ? Icons.gps_fixed : Icons.gps_not_fixed,
+                  color: _checkoutGpsRefreshed
+                      ? Colors.green[700]
+                      : Colors.orange[800],
+                  size: 22,
+                ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _checkoutGpsLoading
+                      ? 'Locking high-accuracy GPS…'
+                      : _checkoutGpsRefreshed
+                          ? 'GPS fixed — exact pin for delivery'
+                          : 'Enable location permission for the most precise pin (saved map pin is used otherwise).',
+                  style: GoogleFonts.poppins(fontSize: 12),
+                ),
+              ),
+              TextButton(
+                onPressed: _checkoutGpsLoading ? null : _refreshCheckoutGps,
+                child: Text(
+                  'Refresh',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 100,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: LatLng(cart.deliveryLat!, cart.deliveryLng!),
+                  initialZoom: 16,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.pawsewa.user_app',
+                  ),
+                  MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: LatLng(cart.deliveryLat!, cart.deliveryLng!),
+                        width: 32,
+                        height: 32,
+                        child: Icon(
+                          Icons.location_on,
+                          color: primary,
+                          size: 32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryAddressSection(
+    BuildContext context,
+    CartService cart,
+    Color primary, {
+    VoidCallback? onAddressChanged,
+  }) {
     final saved = context.read<SavedAddressesService>().list;
     final hasAddress = cart.deliveryAddress != null &&
         cart.deliveryLat != null &&
@@ -2662,6 +2867,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       lng: addr.lng,
                       address: addr.address,
                     );
+                onAddressChanged?.call();
               },
               child: Container(
                 padding: const EdgeInsets.all(12),
@@ -3609,12 +3815,16 @@ class _PromoSheetState extends State<_PromoSheet> {
 
 class _PaymentSheet extends StatefulWidget {
   final double amount;
+  final Future<void> Function() refreshDeliveryGps;
+  final Future<void> Function(String orderId) syncPendingOrderGps;
   final Future<String?> Function(String methodId) placeOrderWithMethod;
   final Future<Map<String, String>?> Function() initKhaltiFlow;
   final void Function(String orderId) onOrderPlaced;
 
   const _PaymentSheet({
     required this.amount,
+    required this.refreshDeliveryGps,
+    required this.syncPendingOrderGps,
     required this.placeOrderWithMethod,
     required this.initKhaltiFlow,
     required this.onOrderPlaced,
@@ -3729,6 +3939,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         _phase = 'khalti_loading';
         _error = null;
       });
+      await widget.refreshDeliveryGps();
+      if (!mounted) return;
       final result = await widget.initKhaltiFlow();
       if (!mounted) return;
       if (result == null) {
@@ -3754,7 +3966,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             onNavigationRequest: (request) {
               final url = request.url;
               if (url.contains('payment-success') || url.contains(successUrl)) {
-                if (mounted) _onKhaltiPaymentSuccess();
+                if (mounted) unawaited(_onKhaltiPaymentSuccess());
                 return NavigationDecision.prevent;
               }
               if (url.contains('payment-failed')) {
@@ -3797,7 +4009,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     }
   }
 
-  void _onKhaltiPaymentSuccess() {
+  Future<void> _onKhaltiPaymentSuccess() async {
+    await widget.refreshDeliveryGps();
+    final id = _khaltiOrderId;
+    if (id != null) {
+      await widget.syncPendingOrderGps(id);
+    }
+    if (!mounted) return;
     setState(() => _phase = 'confirm_order');
   }
 
@@ -4223,62 +4441,146 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
   Widget _buildConfirmOrderPhase(Color primary) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.5,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.72,
+      ),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle,
-              size: 64,
-              color: Colors.green[600],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Payment successful!',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
-                color: Colors.black87,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Icon(
+                Icons.check_circle,
+                size: 64,
+                color: Colors.green[600],
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap below to confirm your order.',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: _onConfirmOrderAfterKhalti,
-                child: Text(
-                  'Confirm Order',
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+              const SizedBox(height: 16),
+              Text(
+                'Payment successful!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                  color: Colors.black87,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Delivery coordinates were refreshed for your door. Tap below to confirm.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Consumer<CartService>(
+                builder: (context, cart, _) {
+                  final lat = cart.deliveryLat;
+                  final lng = cart.deliveryLng;
+                  if (lat == null || lng == null) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.gps_not_fixed, color: Colors.orange[800]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'No GPS pin in cart',
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                      ],
+                    );
+                  }
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.gps_fixed, color: Colors.green[700]),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              'GPS fixed',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 110,
+                        width: double.infinity,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: FlutterMap(
+                            options: MapOptions(
+                              initialCenter: LatLng(lat, lng),
+                              initialZoom: 16,
+                              interactionOptions: const InteractionOptions(
+                                flags: InteractiveFlag.none,
+                              ),
+                            ),
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                                subdomains: const ['a', 'b', 'c', 'd'],
+                                userAgentPackageName: 'com.pawsewa.user_app',
+                              ),
+                              MarkerLayer(
+                                markers: [
+                                  Marker(
+                                    point: LatLng(lat, lng),
+                                    width: 32,
+                                    height: 32,
+                                    child: Icon(
+                                      Icons.location_on,
+                                      color: primary,
+                                      size: 32,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _onConfirmOrderAfterKhalti,
+                  child: Text(
+                    'Confirm Order',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

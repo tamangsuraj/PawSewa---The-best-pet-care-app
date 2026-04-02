@@ -11,10 +11,12 @@ const {
   assignRiderToOrder,
   bulkAssignOrders,
   initiateKhaltiForOrder,
+  updateMyOrderDeliveryGps,
 } = require('../controllers/orderController');
 const { protect, admin, authorize } = require('../middleware/authMiddleware');
 
 router.post('/', protect, createOrder);
+router.patch('/:orderId/delivery-gps', protect, updateMyOrderDeliveryGps);
 router.get('/my', protect, getMyOrders);
 router.get('/rider/assigned', protect, authorize('rider'), getRiderAssignedOrders);
 router.get('/rider/active', protect, authorize('rider'), getRiderActiveOrders);

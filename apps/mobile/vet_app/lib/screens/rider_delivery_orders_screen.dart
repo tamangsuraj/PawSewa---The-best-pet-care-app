@@ -199,37 +199,30 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
   Future<void> _navigateToDeliveryAddress(
       BuildContext context, Map<String, dynamic> order) async {
-    final dl = order['deliveryLocation'] as Map<String, dynamic>?;
-    if (dl == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Customer coordinates not found. Please contact support.',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+    double? lat;
+    double? lng;
+    final loc = order['location'] as Map<String, dynamic>?;
+    if (loc != null) {
+      final la = loc['lat'];
+      final ln = loc['lng'];
+      if (la is num && ln is num) {
+        lat = la.toDouble();
+        lng = ln.toDouble();
       }
-      return;
     }
-    final point = dl['point'] as Map<String, dynamic>?;
-    final coords = point?['coordinates'] as List?;
-    if (coords == null || coords.length < 2) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Customer coordinates not found. Please contact support.',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+    if (lat == null || lng == null) {
+      final dl = order['deliveryLocation'] as Map<String, dynamic>?;
+      final point = dl?['point'] as Map<String, dynamic>?;
+      final coords = point?['coordinates'] as List?;
+      if (coords != null && coords.length >= 2) {
+        final la = coords[1];
+        final ln = coords[0];
+        if (la is num && ln is num) {
+          lat = la.toDouble();
+          lng = ln.toDouble();
+        }
       }
-      return;
     }
-    final lat = coords[1] is num ? (coords[1] as num).toDouble() : null;
-    final lng = coords[0] is num ? (coords[0] as num).toDouble() : null;
     if (lat == null || lng == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -790,15 +783,29 @@ class _OrderCard extends StatelessWidget {
     final isUpdating = updatingOrderId == id;
     final next = nextStatus(status);
 
-    final deliveryPoint = order['deliveryLocation'] is Map ? (order['deliveryLocation'] as Map)['point'] : null;
-    final coords = deliveryPoint is Map ? deliveryPoint['coordinates'] : null;
-    final coordsList = coords is List ? coords : null; // [lng, lat]
-    final customerLatLng = (coordsList != null && coordsList.length >= 2)
-        ? LatLng(
-            (coordsList[1] as num).toDouble(),
-            (coordsList[0] as num).toDouble(),
-          )
-        : null;
+    final locMap = order['location'] is Map ? order['location'] as Map : null;
+    LatLng? customerLatLng;
+    if (locMap != null &&
+        locMap['lat'] is num &&
+        locMap['lng'] is num) {
+      customerLatLng = LatLng(
+        (locMap['lat'] as num).toDouble(),
+        (locMap['lng'] as num).toDouble(),
+      );
+    }
+    if (customerLatLng == null) {
+      final deliveryPoint = order['deliveryLocation'] is Map
+          ? (order['deliveryLocation'] as Map)['point']
+          : null;
+      final coords = deliveryPoint is Map ? deliveryPoint['coordinates'] : null;
+      final coordsList = coords is List ? coords : null;
+      if (coordsList != null && coordsList.length >= 2) {
+        customerLatLng = LatLng(
+          (coordsList[1] as num).toDouble(),
+          (coordsList[0] as num).toDouble(),
+        );
+      }
+    }
     double? distanceKm;
     final from = currentLatLng;
     final to = customerLatLng;
@@ -925,7 +932,7 @@ class _OrderCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             if ((status == 'processing' || status == 'out_for_delivery') &&
-                (order['deliveryLocation'] is Map)) ...[
+                customerLatLng != null) ...[
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -938,9 +945,9 @@ class _OrderCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.navigation_rounded, size: 20),
+                  icon: const Icon(Icons.map_rounded, size: 20),
                   label: Text(
-                    'Navigate',
+                    'View on map',
                     style: GoogleFonts.oswald(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

@@ -53,6 +53,12 @@ const orderSchema = new mongoose.Schema(
         },
       },
     },
+    // High-precision GPS + human-readable address (synced with deliveryLocation.point)
+    location: {
+      lat: { type: Number },
+      lng: { type: Number },
+      address: { type: String, trim: true },
+    },
     status: {
       type: String,
       enum: ['pending', 'processing', 'out_for_delivery', 'delivered'],
@@ -97,6 +103,12 @@ orderSchema.pre('save', function () {
   const coords = this.deliveryLocation?.point?.coordinates;
   if (Array.isArray(coords) && coords.length >= 2) {
     this.deliveryCoordinates = { lng: coords[0], lat: coords[1] };
+    const addr = this.deliveryLocation?.address || '';
+    this.location = {
+      lat: coords[1],
+      lng: coords[0],
+      address: addr,
+    };
   }
   const statusMap = {
     pending: 'Pending',
