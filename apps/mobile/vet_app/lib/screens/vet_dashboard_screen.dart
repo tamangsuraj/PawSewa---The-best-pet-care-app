@@ -19,6 +19,8 @@ import 'earnings_screen.dart';
 import 'my_business_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/pawsewa_brand_logo.dart';
+
 class VetDashboardScreen extends StatefulWidget {
   const VetDashboardScreen({super.key});
 
@@ -967,12 +969,28 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(AppConstants.secondaryColor),
       appBar: AppBar(
-        title: Text(
-          AppConstants.appName,
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const PawSewaBrandLogo(height: 28),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                AppConstants.appName,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
         elevation: 0,

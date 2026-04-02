@@ -11,6 +11,8 @@ import 'services/socket_service.dart';
 import 'services/push_notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
+import 'widgets/pawsewa_brand_logo.dart';
+import 'widgets/pawsewa_logo_spinner.dart';
 import 'cart/cart_service.dart';
 import 'cart/saved_addresses_service.dart';
 
@@ -43,6 +45,12 @@ void main() async {
 
   final savedAddresses = SavedAddressesService();
   await savedAddresses.load();
+
+  if (kDebugMode) {
+    debugPrint(
+      '[SUCCESS] Brand Assets Updated: New PawSewa Logo implemented across 4 platforms.',
+    );
+  }
 
   runApp(
     MultiProvider(
@@ -139,13 +147,21 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 120,
-              height: 120,
+              width: 132,
+              height: 132,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(AppConstants.primaryColor),
+                color: Colors.white,
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(AppConstants.primaryColor).withValues(alpha: 0.2),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.pets, size: 60, color: Colors.white),
+              child: const PawSewaBrandLogo(height: 96),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -157,11 +173,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Color(AppConstants.primaryColor),
-              ),
-            ),
+            const PawSewaLogoSpinner(size: 48),
           ],
         ),
       ),

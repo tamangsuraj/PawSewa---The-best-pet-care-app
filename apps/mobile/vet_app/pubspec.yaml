@@ -93,6 +93,9 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/brand/pawsewa_logo.png
+
   # Map / staff icons
   # When you add custom PNG/SVG markers, list them here, for example:
   # assets:

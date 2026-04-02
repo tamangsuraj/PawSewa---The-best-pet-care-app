@@ -8,6 +8,8 @@ import 'core/api_config.dart';
 import 'core/constants.dart';
 import 'core/storage_service.dart';
 import 'services/push_notification_service.dart';
+import 'widgets/pawsewa_brand_logo.dart';
+import 'widgets/pawsewa_logo_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/vet_dashboard_screen.dart';
 
@@ -43,6 +45,11 @@ void main() async {
   await PushNotificationService.instance.initialize();
   await PushNotificationService.instance.registerFcmTokenWithBackend();
   await _logHealthCheck();
+  if (kDebugMode) {
+    debugPrint(
+      '[SUCCESS] Brand Assets Updated: New PawSewa Logo implemented across 4 platforms.',
+    );
+  }
   runApp(const MyApp());
 }
 
@@ -128,8 +135,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 return Transform.scale(
                   scale: value,
                   child: Container(
-                    width: 120,
-                    height: 120,
+                    width: 132,
+                    height: 132,
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
@@ -141,11 +149,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.medical_services,
-                      size: 60,
-                      color: Color(AppConstants.primaryColor),
-                    ),
+                    child: const PawSewaBrandLogo(height: 96),
                   ),
                 );
               },
@@ -171,10 +175,20 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            
-            // Loading Indicator
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const PawSewaLogoSpinner(size: 44),
             ),
           ],
         ),

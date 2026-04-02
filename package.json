@@ -6,9 +6,13 @@
     "dev": "concurrently -n backend,website,admin -c blue,green,magenta \"npm run dev --prefix backend\" \"npm run dev --prefix apps/web/website\" \"npm run dev --prefix apps/web/admin\"",
     "dev:health": "node scripts/dev-health.js",
     "dev:clean": "node scripts/dev-health.js --kill",
-    "dev:all": "npm run dev:clean && npm run dev"
+    "dev:all": "npm run dev:clean && npm run dev",
+    "brand:assets": "node scripts/generate-brand-assets.js"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "png-to-ico": "^2.1.8",
+    "png2icons": "^2.0.1",
+    "sharp": "^0.33.5"
   }
 }

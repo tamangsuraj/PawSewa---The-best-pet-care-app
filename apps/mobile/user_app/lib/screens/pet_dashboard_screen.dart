@@ -20,6 +20,7 @@ import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
 import '../services/socket_service.dart';
+import '../widgets/pawsewa_brand_logo.dart';
 import 'package:flutter/foundation.dart';
 
 class PetDashboardScreen extends StatefulWidget {
@@ -384,16 +385,12 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Colors.white,
-                      size: 24,
-                    ),
+                    child: const PawSewaBrandLogo(height: 36),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -1009,24 +1006,39 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
           onPressed: () => Scaffold.of(context).openDrawer(),
           color: Colors.black87,
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        title: Row(
           children: [
-            Text(
-              AppConstants.appName,
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: Colors.black87,
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(AppConstants.secondaryColor),
+                borderRadius: BorderRadius.circular(8),
               ),
+              child: const PawSewaBrandLogo(height: 26),
             ),
-            Text(
-              _titleForIndex(),
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: const Color(AppConstants.primaryColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppConstants.appName,
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    _titleForIndex(),
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(AppConstants.primaryColor),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

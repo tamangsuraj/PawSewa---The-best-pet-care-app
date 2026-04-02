@@ -110,6 +110,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/brand/pawsewa_logo.png
     - assets/cash.png
     - assets/connectIPS.png
     - assets/credit.png
