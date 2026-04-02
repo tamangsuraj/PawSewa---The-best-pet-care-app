@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/khalti_verify_helper.dart';
 import '../../models/pet.dart';
 import '../../services/pet_service.dart';
 import '../shop/khalti_payment_screen.dart';
@@ -159,6 +160,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
       final data = resp.data is Map ? resp.data['data'] as Map? : null;
       final url = data?['paymentUrl']?.toString();
       final successUrl = data?['successUrl']?.toString() ?? '';
+      final pidx = data?['pidx']?.toString();
 
       if (url == null || url.isEmpty) {
         throw Exception('No payment URL received');
@@ -178,10 +180,21 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
       if (mounted) {
         setState(() => _paying = false);
         if (success == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Payment successful!'), backgroundColor: Colors.green),
+          final verified = await verifyKhaltiPaymentOrNotify(
+            context,
+            _apiClient,
+            pidx,
           );
-          widget.onBooked?.call();
+          if (!mounted) return;
+          if (verified) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Payment successful!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            widget.onBooked?.call();
+          }
         }
       }
     } catch (e) {

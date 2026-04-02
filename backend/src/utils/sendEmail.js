@@ -1,13 +1,27 @@
 const nodemailer = require('nodemailer');
+const logger = require('./logger');
 
-// Create transporter
+// Create transporter (Gmail SMTP with App Password)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
 });
+
+// Best‑effort startup sanity log for Gmail App Passwords
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  const pass = process.env.EMAIL_PASS || '';
+  if (process.env.EMAIL_USER.includes('@gmail.com') && pass.length !== 16) {
+    logger.warn(
+      'EMAIL_PASS is not 16 characters. Ensure this is a Google App Password, not your normal Gmail password.'
+    );
+  }
+}
 
 /**
  * Generate a 6-digit OTP
@@ -181,10 +195,13 @@ const sendOTPEmail = async (email, name, otp) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✅ OTP email sent to ${email}`);
+    logger.info(`Verification code ${otp} sent to ${email.toString().toLowerCase().trim()}.`);
     return true;
   } catch (error) {
-    console.error('❌ Error sending OTP email:', error);
+    logger.error(
+      `Nodemailer failed: ${error?.message || String(error)}`,
+      error?.stack || ''
+    );
     throw new Error('Failed to send verification email');
   }
 };

@@ -30,6 +30,28 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
   String? _errorMessage;
   String? _successMessage;
 
+  void _toastError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red.shade800,
+      ),
+    );
+  }
+
+  void _toastSuccess(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.green.shade800,
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _otpController.dispose();
@@ -71,6 +93,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         setState(() {
           _successMessage = 'Email verified successfully!';
         });
+        _toastSuccess('Email verified successfully!');
 
         // Navigate to dashboard
         await Future.delayed(const Duration(seconds: 1));
@@ -80,17 +103,27 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             (route) => false,
           );
         }
+      } else {
+        final msg = response.data is Map && response.data['message'] != null
+            ? response.data['message'].toString()
+            : 'Verification failed';
+        setState(() => _errorMessage = msg);
+        _toastError(msg);
       }
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = data is Map && data['message'] != null
           ? data['message'].toString()
           : (e.error?.toString() ?? e.message ?? 'Verification failed');
-      setState(() => _errorMessage = msg.replaceAll('Exception: ', ''));
+      final clean = msg.replaceAll('Exception: ', '');
+      setState(() => _errorMessage = clean);
+      _toastError(clean);
     } catch (e) {
+      final clean = e.toString().replaceAll('Exception: ', '');
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = clean;
       });
+      _toastError(clean);
     } finally {
       if (mounted) {
         setState(() {
@@ -117,17 +150,28 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
           _successMessage = 'New verification code sent to your email!';
           _otpController.clear();
         });
+        _toastSuccess('New verification code sent to your email.');
+      } else {
+        final msg = response.data is Map && response.data['message'] != null
+            ? response.data['message'].toString()
+            : 'Failed to resend code';
+        setState(() => _errorMessage = msg);
+        _toastError(msg);
       }
     } on DioException catch (e) {
       final data = e.response?.data;
       final msg = data is Map && data['message'] != null
           ? data['message'].toString()
           : (e.error?.toString() ?? e.message ?? 'Failed to resend code');
-      setState(() => _errorMessage = msg.replaceAll('Exception: ', ''));
+      final clean = msg.replaceAll('Exception: ', '');
+      setState(() => _errorMessage = clean);
+      _toastError(clean);
     } catch (e) {
+      final clean = e.toString().replaceAll('Exception: ', '');
       setState(() {
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = clean;
       });
+      _toastError(clean);
     } finally {
       if (mounted) {
         setState(() {

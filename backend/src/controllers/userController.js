@@ -91,10 +91,13 @@ const registerUser = asyncHandler(async (req, res) => {
   });
 
   if (user) {
+    logger.success(
+      `User created with role: CUSTOMER. Initiating email dispatch.`
+    );
     // Send OTP email
     try {
       await sendOTPEmail(email, name, otp);
-      
+      logger.info(`Verification code ${otp} sent to ${email.toString().toLowerCase().trim()}.`);
       res.status(201).json({
         success: true,
         message: 'Registration successful. Please check your email for the verification code.',
@@ -325,7 +328,7 @@ const resendOTP = asyncHandler(async (req, res) => {
   // Send OTP email
   try {
     await sendOTPEmail(email, user.name, otp);
-    
+    logger.info(`Verification code ${otp} sent to ${email.toString().toLowerCase().trim()}.`);
     res.json({
       success: true,
       message: 'New verification code sent to your email',
