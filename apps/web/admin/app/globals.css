@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  color: #171415; /* charcoal */
+  background: radial-gradient(circle at top left, #ffffff 0, #F7F4FC 42%, #e6ddff 100%);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

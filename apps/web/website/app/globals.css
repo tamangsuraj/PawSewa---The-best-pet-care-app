@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  /* Warm, soft background for pet-care theme */
+  background: radial-gradient(circle at top left, #ffffff 0, #F7F4FC 42%, #e6ddff 100%);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+}
+
+@keyframes paw-float {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotate(2deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes paw-drift {
+  0% {
+    transform: translate3d(-2%, 0, 0);
+  }
+  50% {
+    transform: translate3d(2%, -1.5%, 0);
+  }
+  100% {
+    transform: translate3d(-2%, 0, 0);
+  }
+}
+
+@layer components {
+  /* Glassmorphism card used for shop/service cards */
+  .paw-card-glass {
+    @apply rounded-2xl border border-white/60 bg-white/60 shadow-[0_18px_40px_rgba(23,20,21,0.08)] backdrop-blur-xl transition-all duration-300;
+  }
+
+  .paw-card-glass:hover {
+    @apply shadow-[0_24px_55px_rgba(23,20,21,0.16)] -translate-y-1;
+  }
+
+  /* Scroll-reveal section animation */
+  .paw-section {
+    @apply opacity-0 translate-y-6;
+  }
+
+  .paw-section-visible {
+    @apply opacity-100 translate-y-0;
+    transition: opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
+                transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .paw-float {
+    animation: paw-float 6.5s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .paw-float-slow {
+    animation: paw-float 9s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .paw-drift {
+    animation: paw-drift 14s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .paw-float,
+    .paw-float-slow,
+    .paw-drift {
+      animation: none !important;
+    }
+  }
+}

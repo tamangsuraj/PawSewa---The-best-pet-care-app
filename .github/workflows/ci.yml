@@ -15,6 +15,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: false
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -36,6 +38,8 @@ jobs:
         working-directory: apps/web/${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: false
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -56,6 +60,8 @@ jobs:
         working-directory: apps/mobile/${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: false
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
