@@ -40,11 +40,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
+      # List both lockfiles so cache resolution always finds real paths (matrix vars in
+      # cache-dependency-path can fail glob resolution on ubuntu-latest — see actions/setup-node#745).
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/web/${{ matrix.app }}/package-lock.json
+          cache-dependency-path: |
+            apps/web/website/package-lock.json
+            apps/web/admin/package-lock.json
       - run: npm ci
       - run: npm run build
 

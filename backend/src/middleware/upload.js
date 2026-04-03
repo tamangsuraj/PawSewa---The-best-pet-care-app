@@ -1,5 +1,5 @@
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { CloudinaryStorage } = require('./cloudinaryMulterStorage');
 const cloudinary = require('../config/cloudinary');
 
 const allowedMimeTypes = [
