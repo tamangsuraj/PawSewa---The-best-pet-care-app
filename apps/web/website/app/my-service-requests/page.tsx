@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import {
   AlertCircle,
@@ -39,8 +39,11 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-export default function MyServiceRequestsPage() {
+function MyServiceRequestsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const focusId = searchParams.get('focus');
+  const highlightedRef = useRef<HTMLDivElement | null>(null);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -93,6 +96,23 @@ export default function MyServiceRequestsPage() {
     today.setHours(0, 0, 0, 0);
     return d >= today;
   };
+
+  useEffect(() => {
+    if (!focusId || !requests.length) return;
+    const target = requests.find((r) => r._id === focusId);
+    if (!target) return;
+    if (isHistory(target.status)) setTab('history');
+    else if (isScheduled(target)) setTab('scheduled');
+    else setTab('active');
+  }, [focusId, requests]);
+
+  useEffect(() => {
+    if (!focusId) return;
+    const timer = window.setTimeout(() => {
+      highlightedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [focusId, tab, requests]);
 
   const activeList = requests.filter((r) => isActive(r.status));
   const historyList = requests.filter((r) => isHistory(r.status));
@@ -215,7 +235,12 @@ export default function MyServiceRequestsPage() {
             {currentList.map((req) => (
               <div
                 key={req._id}
-                className="bg-white rounded-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.02)] p-5 border border-gray-100/80 hover:border-[#703418]/20 transition-colors"
+                ref={focusId === req._id ? highlightedRef : undefined}
+                className={`bg-white rounded-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.02)] p-5 border transition-colors ${
+                  focusId === req._id
+                    ? 'border-[#703418] ring-2 ring-[#703418]/30'
+                    : 'border-gray-100/80 hover:border-[#703418]/20'
+                }`}
               >
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   {getStatusBadge(req.status)}
@@ -286,5 +311,19 @@ export default function MyServiceRequestsPage() {
         </button>
       )}
     </div>
+  );
+}
+
+export default function MyServiceRequestsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#F5F5F1]">
+          <p className="text-[#703418]">Loading…</p>
+        </div>
+      }
+    >
+      <MyServiceRequestsPageInner />
+    </Suspense>
   );
 }

@@ -384,47 +384,92 @@ const deleteProduct = asyncHandler(async (req, res) => {
 });
 
 // Public: GET /api/v1/products
-// Query: search, category, page, limit, minPrice, maxPrice
+// Query: search, category, page, limit, minPrice, maxPrice, petTypes (comma: dog,cat,rabbit), sort (recommended|newest|price_asc|price_desc)
 const getProducts = asyncHandler(async (req, res) => {
   try {
-    const { search, category, page = 1, limit = 20, minPrice, maxPrice } = req.query;
+    const {
+      search,
+      category,
+      page = 1,
+      limit = 24,
+      minPrice,
+      maxPrice,
+      petTypes,
+      sort,
+    } = req.query;
 
-    const filter = { $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }] };
-    if (category) {
-      const cat = await Category.findOne({ slug: category.toString() }).select('_id');
+    const andConditions = [];
+
+    andConditions.push({
+      $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
+    });
+
+    if (category && category.toString().trim() !== '') {
+      const cat = await Category.findOne({ slug: category.toString().trim() }).select('_id');
       if (cat) {
-        filter.category = cat._id;
+        andConditions.push({ category: cat._id });
       }
     }
+
     const minVal = minPrice != null && minPrice !== '' ? Number(minPrice) : NaN;
     const maxVal = maxPrice != null && maxPrice !== '' ? Number(maxPrice) : NaN;
+    const priceFilter = {};
     if (!Number.isNaN(minVal) && minVal >= 0) {
-      filter.price = filter.price || {};
-      filter.price.$gte = minVal;
+      priceFilter.$gte = minVal;
     }
     if (!Number.isNaN(maxVal) && maxVal >= 0) {
-      filter.price = filter.price || {};
-      filter.price.$lte = maxVal;
+      priceFilter.$lte = maxVal;
+    }
+    if (Object.keys(priceFilter).length) {
+      andConditions.push({ price: priceFilter });
     }
 
-    let query = Product.find(filter);
-
-    if (search && search.toString().trim() !== '') {
-      query = query.find({ $text: { $search: search.toString().trim() } });
+    if (petTypes && petTypes.toString().trim() !== '') {
+      const selected = petTypes
+        .toString()
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter((s) => ['dog', 'cat', 'rabbit'].includes(s));
+      if (selected.length) {
+        andConditions.push({
+          $or: [
+            { petTypes: { $exists: false } },
+            { petTypes: { $size: 0 } },
+            { petTypes: { $in: selected } },
+          ],
+        });
+      }
     }
 
-    const pageNum = Number(page) || 1;
-    const limitNum = Number(limit) || 20;
+    const searchTrim = search && search.toString().trim() !== '' ? search.toString().trim() : '';
+    if (searchTrim) {
+      andConditions.push({ $text: { $search: searchTrim } });
+    }
+
+    const findQuery = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+
+    const sortKey = sort ? sort.toString() : 'newest';
+    let sortObj = { createdAt: -1 };
+    if (sortKey === 'price_asc') {
+      sortObj = { price: 1, createdAt: -1 };
+    } else if (sortKey === 'price_desc') {
+      sortObj = { price: -1, createdAt: -1 };
+    } else if (sortKey === 'recommended') {
+      sortObj = { rating: -1, reviewCount: -1, createdAt: -1 };
+    }
+
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 24));
 
     const [items, total] = await Promise.all([
-      query
+      Product.find(findQuery)
         .populate('category', 'name slug')
         .populate('seller', 'name profilePicture')
-        .sort({ createdAt: -1 })
+        .sort(sortObj)
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum)
         .lean(),
-      Product.countDocuments(filter),
+      Product.countDocuments(findQuery),
     ]);
 
     const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';

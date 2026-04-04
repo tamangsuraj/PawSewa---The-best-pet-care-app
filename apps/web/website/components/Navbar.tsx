@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Button } from './ui/Button';
@@ -9,6 +10,7 @@ import { LogOut, User, Menu, X, ShoppingCart, Bell } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { InboxDropdown } from '@/components/nav/InboxDropdown';
 import { useChatHub } from '@/context/ChatHubContext';
+import { ShopNavbarSearch } from '@/components/shop/ShopNavbarSearch';
 
 const mainNav = [
   { href: '/', label: 'Home' },
@@ -17,6 +19,9 @@ const mainNav = [
 ];
 
 export function Navbar() {
+  const pathname = usePathname();
+  const shopActive = pathname.startsWith('/shop');
+  const myPetsActive = pathname.startsWith('/my-pets');
   const { user, logout, isLoading } = useAuth();
   const { totalItems } = useCart();
   const { openHub } = useChatHub();
@@ -32,19 +37,30 @@ export function Navbar() {
           </Link>
 
           <div className="hidden lg:flex items-center gap-1 xl:gap-2">
-            {mainNav.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors"
-              >
-                {label}
-              </Link>
-            ))}
+            {mainNav.map(({ href, label }) => {
+              const active = href === '/shop' ? shopActive : pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={
+                    active
+                      ? 'text-[#4B3621] text-sm font-medium px-3 py-2 rounded-xl bg-[#4B3621]/10 underline underline-offset-4 decoration-[#4B3621]'
+                      : 'text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors'
+                  }
+                >
+                  {label}
+                </Link>
+              );
+            })}
             {user ? (
               <Link
                 href="/my-pets"
-                className="text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors"
+                className={
+                  myPetsActive
+                    ? 'text-[#4B3621] text-sm font-medium px-3 py-2 rounded-xl bg-[#4B3621]/10 underline underline-offset-4 decoration-[#4B3621]'
+                    : 'text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors'
+                }
               >
                 My Pets
               </Link>
@@ -52,8 +68,10 @@ export function Navbar() {
             <InboxDropdown />
           </div>
 
+          <ShopNavbarSearch />
+
           {!isLoading && (
-            <div className="hidden lg:flex items-center gap-1">
+            <div className="hidden lg:flex items-center gap-1 shrink-0">
               <button
                 type="button"
                 className="p-2.5 rounded-xl text-[#4B3621] hover:bg-[#4B3621]/8 transition-colors relative"
@@ -145,7 +163,15 @@ export function Navbar() {
                 >
                   Inbox / Messages
                 </button>
-                <Link href="/my-pets" onClick={closeMobile} className="py-2.5 text-[#4B3621] font-medium">
+                <Link
+                  href="/my-pets"
+                  onClick={closeMobile}
+                  className={
+                    myPetsActive
+                      ? 'py-2.5 text-[#4B3621] font-medium underline underline-offset-4'
+                      : 'py-2.5 text-[#4B3621] font-medium'
+                  }
+                >
                   My Pets
                 </Link>
               </>

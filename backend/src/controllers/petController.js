@@ -3,6 +3,17 @@ const Pet = require('../models/Pet');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
 const { generatePetRemindersV1 } = require('../utils/reminderEngine');
+const {
+  buildWeightChart6Months,
+  pushWeightHistoryEntry,
+} = require('../utils/petWeightChart');
+
+/** Assign PawID via model pre-save hook when missing (legacy data). */
+async function ensurePetHasPawId(petId) {
+  const doc = await Pet.findById(petId);
+  if (!doc || doc.pawId) return;
+  await doc.save();
+}
 
 /**
  * @desc    Create a new pet
@@ -47,6 +58,12 @@ const createPet = asyncHandler(async (req, res) => {
       }
     }
 
+    const wn = weight !== undefined && weight !== null && weight !== '' ? Number(weight) : NaN;
+    const initialWeightHistory = [];
+    if (!Number.isNaN(wn) && wn >= 0) {
+      initialWeightHistory.push({ recordedAt: new Date(), weightKg: wn, source: 'owner' });
+    }
+
     const pet = await Pet.create({
       owner: req.user._id,
       name: name ?? '',
@@ -56,7 +73,8 @@ const createPet = asyncHandler(async (req, res) => {
       age,
       isOutdoor: isOutdoor === 'true' || isOutdoor === true,
       gender: gender ?? '',
-      weight,
+      weight: !Number.isNaN(wn) && wn >= 0 ? wn : weight,
+      weightHistory: initialWeightHistory,
       photoUrl,
       cloudinaryPublicId,
       medicalConditions,
@@ -107,7 +125,22 @@ const getMyPets = asyncHandler(async (req, res) => {
     }
     console.log('[Pets] /api/v1/pets/my-pets request at', new Date().toISOString(), 'user:', req.user._id.toString());
 
-    const pets = await Pet.find({ owner: req.user._id })
+    let pets = await Pet.find({ owner: req.user._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    for (const p of pets || []) {
+      if (!p.pawId) {
+        // eslint-disable-next-line no-await-in-loop
+        const doc = await Pet.findById(p._id);
+        if (doc && !doc.pawId) {
+          // eslint-disable-next-line no-await-in-loop
+          await doc.save();
+        }
+      }
+    }
+
+    pets = await Pet.find({ owner: req.user._id })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -206,6 +239,11 @@ const getPetById = asyncHandler(async (req, res) => {
     if (ownerId !== userId && req.user?.role !== 'admin') {
       return res.status(403).json({ success: false, message: 'Not authorized to access this pet' });
     }
+    if (!pet.pawId) {
+      await ensurePetHasPawId(id);
+      const petOut = await Pet.findById(id).populate('owner', 'name email').lean();
+      return res.status(200).json({ success: true, data: petOut });
+    }
     res.status(200).json({
       success: true,
       data: pet,
@@ -241,34 +279,50 @@ const getPetHealthSummary = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to access this pet' });
     }
 
+    if (!pet.pawId) {
+      await ensurePetHasPawId(id);
+    }
+    let petDoc = await Pet.findById(id).lean();
+    if (!petDoc) {
+      return res.status(404).json({ success: false, message: 'Pet not found' });
+    }
+
     const baseUrl = process.env.BASE_URL || '';
-    const photoUrl = pet.photoUrl;
+    const photoUrl = petDoc.photoUrl;
     const resolvedPhoto =
       photoUrl && typeof photoUrl === 'string' && !photoUrl.startsWith('http') && baseUrl
         ? `${String(baseUrl).replace(/\/$/, '')}/uploads/${photoUrl}`
         : photoUrl;
 
     let age = null;
-    if (pet.dob) {
+    if (petDoc.dob) {
       const now = new Date();
-      const birth = new Date(pet.dob);
+      const birth = new Date(petDoc.dob);
       const totalMonths = (now.getFullYear() - birth.getFullYear()) * 12 + (now.getMonth() - birth.getMonth());
       const years = Math.floor(totalMonths / 12);
       const months = totalMonths % 12;
       age = years >= 1 ? { years, months, display: `${years} ${years === 1 ? 'year' : 'years'}` } : { years: 0, months: totalMonths, display: `${totalMonths} ${totalMonths === 1 ? 'month' : 'months'}` };
-    } else if (typeof pet.age === 'number') {
-      age = { years: pet.age, months: 0, display: `${pet.age} ${pet.age === 1 ? 'year' : 'years'}` };
+    } else if (typeof petDoc.age === 'number') {
+      age = { years: petDoc.age, months: 0, display: `${petDoc.age} ${petDoc.age === 1 ? 'year' : 'years'}` };
     }
 
     let visit_days_ago = null;
-    if (pet.lastVetVisit) {
-      const last = new Date(pet.lastVetVisit);
+    if (petDoc.lastVetVisit) {
+      const last = new Date(petDoc.lastVetVisit);
       visit_days_ago = Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24));
     }
 
+    const weightChart6m = buildWeightChart6Months(petDoc);
+    const { weightHistory = [], ...petRest } = petDoc;
+    const weightHistoryRecent = [...weightHistory]
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime())
+      .slice(0, 48);
+
     const payload = {
-      ...pet,
-      photoUrl: resolvedPhoto ?? pet.photoUrl ?? null,
+      ...petRest,
+      weightHistory: weightHistoryRecent,
+      weightChart6m,
+      photoUrl: resolvedPhoto ?? petDoc.photoUrl ?? null,
       age,
       visit_days_ago,
     };
@@ -344,7 +398,17 @@ const updatePet = asyncHandler(async (req, res) => {
     if (dob !== undefined) pet.dob = dob ? new Date(dob) : undefined;
     if (age !== undefined) pet.age = age;
     if (gender != null) pet.gender = gender;
-    if (weight !== undefined) pet.weight = weight;
+    if (weight !== undefined) {
+      const w = Number(weight);
+      if (!Number.isNaN(w) && w >= 0) {
+        const prevW = pet.weight == null ? null : Number(pet.weight);
+        pet.weight = w;
+        const changed = prevW == null || Number.isNaN(prevW) || prevW !== w;
+        if (changed) {
+          pushWeightHistoryEntry(pet, w, new Date(), 'owner');
+        }
+      }
+    }
     if (medicalConditions !== undefined) pet.medicalConditions = medicalConditions;
     if (behavioralNotes !== undefined) pet.behavioralNotes = behavioralNotes;
     if (isVaccinated !== undefined) pet.isVaccinated = isVaccinated === 'true' || isVaccinated === true;
@@ -473,6 +537,12 @@ const adminCreatePetForCustomer = asyncHandler(async (req, res) => {
       return res.status(400).json({ success: false, message: 'User ID required' });
     }
 
+    const wnAdmin = weight !== undefined && weight !== null && weight !== '' ? Number(weight) : NaN;
+    const adminInitialHistory = [];
+    if (!Number.isNaN(wnAdmin) && wnAdmin >= 0) {
+      adminInitialHistory.push({ recordedAt: new Date(), weightKg: wnAdmin, source: 'vet' });
+    }
+
     const pet = await Pet.create({
       owner: userId,
       name: name ?? '',
@@ -481,7 +551,8 @@ const adminCreatePetForCustomer = asyncHandler(async (req, res) => {
       dob: dob ? new Date(dob) : undefined,
       age,
       gender: gender ?? '',
-      weight,
+      weight: !Number.isNaN(wnAdmin) && wnAdmin >= 0 ? wnAdmin : weight,
+      weightHistory: adminInitialHistory,
       photoUrl,
       cloudinaryPublicId,
       medicalConditions,

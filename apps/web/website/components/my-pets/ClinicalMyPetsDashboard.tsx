@@ -53,6 +53,26 @@ type PetReminder = {
   completedAt?: string;
 };
 
+type WeightChart6mRow = {
+  label: string;
+  yearMonth: string;
+  weightKg: number | null;
+  hasRecord: boolean;
+  recordedAt: string | null;
+  source: string | null;
+};
+
+type ChartWeightPoint = {
+  name: string;
+  yearMonth: string;
+  weightKg: number;
+  isCurrent: boolean;
+  isEstimate: boolean;
+  hasRecord: boolean;
+  recordedAt: string | null;
+  source: string | null;
+};
+
 type HealthSummary = PetListItem & {
   medicalHistory?: string[];
   medicalConditions?: string;
@@ -61,6 +81,7 @@ type HealthSummary = PetListItem & {
   reminders?: PetReminder[];
   age?: { years: number; months: number; display: string } | null;
   visit_days_ago?: number | null;
+  weightChart6m?: WeightChart6mRow[];
 };
 
 type UnifiedAppointment = {
@@ -172,7 +193,8 @@ function monthLabels(): { key: string; label: string }[] {
   return out;
 }
 
-function buildWeightChartData(currentKg: number | undefined) {
+/** Legacy fallback when API does not send weightChart6m (older backend). */
+function buildWeightChartDataLegacy(currentKg: number | undefined): ChartWeightPoint[] {
   const months = monthLabels();
   const w = typeof currentKg === 'number' && currentKg > 0 ? currentKg : 0;
   const isReal = w > 0;
@@ -181,11 +203,34 @@ function buildWeightChartData(currentKg: number | undefined) {
     const value = isReal ? (isLast ? w : Math.max(0.1, w * (0.88 + idx * 0.024))) : 0;
     return {
       name: m.label,
+      yearMonth: m.key,
       weightKg: Math.round(value * 10) / 10,
       isCurrent: isLast,
       isEstimate: isReal && !isLast,
+      hasRecord: Boolean(isReal && isLast),
+      recordedAt: null,
+      source: null,
     };
   });
+}
+
+function buildChartFromWeightApi(
+  rows: WeightChart6mRow[] | undefined,
+  fallbackKg: number | undefined
+): ChartWeightPoint[] {
+  if (!rows || rows.length !== 6) {
+    return buildWeightChartDataLegacy(fallbackKg);
+  }
+  return rows.map((row, idx) => ({
+    name: row.label,
+    yearMonth: row.yearMonth,
+    weightKg: row.weightKg != null && row.weightKg > 0 ? row.weightKg : 0,
+    isCurrent: idx === rows.length - 1,
+    isEstimate: !row.hasRecord,
+    hasRecord: row.hasRecord,
+    recordedAt: row.recordedAt,
+    source: row.source,
+  }));
 }
 
 const SIDEBAR_TABS = [
@@ -394,16 +439,31 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
   }, [activePetId, appointmentsUnified, serviceRequests]);
 
   const weightData = useMemo(
-    () => buildWeightChartData(health?.weight ?? pets.find((p) => p._id === activePetId)?.weight),
-    [health?.weight, pets, activePetId]
+    () =>
+      buildChartFromWeightApi(
+        health?.weightChart6m,
+        health?.weight ?? pets.find((p) => p._id === activePetId)?.weight
+      ),
+    [health?.weightChart6m, health?.weight, pets, activePetId]
   );
+
+  const currentWeightDisplayKg = useMemo(() => {
+    const rows = health?.weightChart6m;
+    if (rows?.length === 6) {
+      const last = rows[5];
+      if (last.hasRecord && last.weightKg != null) return last.weightKg;
+    }
+    const w = health?.weight ?? pets.find((p) => p._id === activePetId)?.weight;
+    return typeof w === 'number' && w > 0 ? w : null;
+  }, [health?.weightChart6m, health?.weight, pets, activePetId]);
 
   const statusInfo = healthStatusLabel(health);
   const activePet = pets.find((p) => p._id === activePetId);
   const heroName = health?.name || activePet?.name || 'Pet';
   const heroBreed = health?.breed || activePet?.breed || '—';
   const heroPhoto = health?.photoUrl || activePet?.photoUrl;
-  const idBadge = health?.pawId || health?._id?.slice(-8) || activePet?.pawId || activePetId.slice(-8);
+  const pawIdDisplay = health?.pawId || activePet?.pawId || '';
+  const idBadgeFallback = activePetId.replace(/[^a-fA-F0-9]/g, '').slice(-8).toUpperCase() || '—';
 
   const onRowNavigate = (row: AppointmentTableRow) => {
     if (row.kind === 'unified') {
@@ -413,9 +473,11 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
     }
   };
 
-  const barColors = weightData.map((d) =>
-    d.isCurrent ? '#3D2914' : d.weightKg > 0 ? '#C4A574' : '#E8DFD0'
-  );
+  const barColors = weightData.map((d) => {
+    if (d.weightKg <= 0) return '#E8DFD0';
+    if (d.isCurrent) return '#3D2914';
+    return '#C4A574';
+  });
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[#FAF7F2] text-[#3D2914]">
@@ -467,6 +529,11 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                 </select>
               </div>
               <p className="mt-1 truncate text-xs text-slate-600">{activePet?.breed || 'Mixed / —'}</p>
+              {(health?.pawId || activePet?.pawId) && (
+                <p className="mt-2 truncate rounded-lg border border-[#E8DFD0] bg-cream px-2 py-1.5 font-mono text-[11px] font-semibold text-primary">
+                  PawID: {health?.pawId || activePet?.pawId}
+                </p>
+              )}
             </div>
 
             <nav className="relative flex-1 space-y-1 px-2 py-4">
@@ -561,8 +628,10 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                         ) : (
                           <div className="flex h-full items-center justify-center text-7xl">🐾</div>
                         )}
-                        <div className="absolute bottom-3 right-3 rounded-full bg-[#3D2914] px-4 py-1.5 text-xs font-semibold tracking-wide text-white shadow">
-                          ID: #{String(idBadge).replace(/^#/, '')}
+                        <div className="absolute bottom-3 right-3 max-w-[calc(100%-1.5rem)] rounded-full bg-[#3D2914] px-4 py-1.5 text-xs font-semibold tracking-wide text-white shadow">
+                          <span className="block truncate font-mono">
+                            ID: {pawIdDisplay || idBadgeFallback}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -601,9 +670,9 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     <div className="rounded-2xl border border-[#E8DFD0] bg-white p-5 shadow-sm">
                       <div className="mb-2 flex items-center justify-between">
                         <h2 className="text-sm font-semibold text-primary">Weight tracker</h2>
-                        {weightData.some((d) => d.isCurrent && d.weightKg > 0) ? (
+                        {currentWeightDisplayKg != null ? (
                           <span className="text-xs font-medium text-slate-500">
-                            Current: {weightData[weightData.length - 1]?.weightKg} kg
+                            Current: {currentWeightDisplayKg} kg
                           </span>
                         ) : null}
                       </div>
@@ -619,16 +688,33 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                             <Tooltip
                               content={({ active, payload }) => {
                                 if (!active || !payload?.length) return null;
-                                const p = payload[0].payload as (typeof weightData)[0];
+                                const p = payload[0].payload as ChartWeightPoint;
                                 return (
                                   <div className="rounded-lg border border-[#E8DFD0] bg-white px-3 py-2 text-xs shadow-lg">
                                     <div className="font-semibold text-primary">{p.name}</div>
                                     <div className="text-slate-600">
-                                      {p.weightKg > 0 ? `${p.weightKg} kg` : 'No weight logged'}
+                                      {p.weightKg > 0 ? `${p.weightKg} kg` : 'No weigh-in this month'}
                                     </div>
-                                    {p.isEstimate ? (
+                                    {p.hasRecord && p.recordedAt ? (
+                                      <div className="mt-1 text-[10px] text-slate-500">
+                                        {new Date(p.recordedAt).toLocaleString('en-GB', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        })}
+                                        {p.source ? ` · ${p.source}` : ''}
+                                      </div>
+                                    ) : null}
+                                    {p.isEstimate && p.weightKg > 0 ? (
                                       <div className="mt-1 text-[10px] text-slate-400">
-                                        Estimated from latest record (not historical)
+                                        Estimated from latest record (legacy view)
+                                      </div>
+                                    ) : null}
+                                    {!p.hasRecord && p.weightKg <= 0 ? (
+                                      <div className="mt-1 text-[10px] text-slate-400">
+                                        Log weight via pet profile to build history
                                       </div>
                                     ) : null}
                                   </div>

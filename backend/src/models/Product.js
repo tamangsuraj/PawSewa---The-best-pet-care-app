@@ -59,6 +59,25 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    /**
+     * Marketplace filters (Shop UI). Empty / missing = applies to all pet types.
+     */
+    petTypes: {
+      type: [
+        {
+          type: String,
+          enum: ['dog', 'cat', 'rabbit'],
+        },
+      ],
+      default: [],
+    },
+    /** Uppercase pill on product card (e.g. NATURAL, HEALTH). Optional. */
+    badge: {
+      type: String,
+      trim: true,
+      maxlength: 32,
+      default: '',
+    },
   },
   {
     timestamps: true,

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
@@ -153,6 +154,9 @@ export default function PetsPage() {
                         <th className="px-6 py-3 text-left font-semibold text-gray-700">
                           Registered
                         </th>
+                        <th className="px-6 py-3 text-left font-semibold text-gray-700">
+                          Records
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -213,6 +217,18 @@ export default function PetsPage() {
                               month: 'short',
                               day: 'numeric',
                             })}
+                          </td>
+                          <td className="px-6 py-3 align-top">
+                            {pet.owner?._id ? (
+                              <Link
+                                href={`/customers/${pet.owner._id}`}
+                                className="text-xs font-semibold text-primary hover:underline"
+                              >
+                                Owner &amp; health
+                              </Link>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -38,6 +38,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -49,6 +50,7 @@ export default function LoginPage() {
     onSuccess: async (tokenResponse) => {
       setIsGoogleLoading(true);
       setFormError('');
+      clearErrors();
       
       try {
         // Get user info from Google using access token
@@ -265,7 +267,11 @@ export default function LoginPage() {
 
           {/* Google Sign-In Button */}
           <button
-            onClick={() => handleGoogleLogin()}
+            type="button"
+            onClick={() => {
+              clearErrors();
+              handleGoogleLogin();
+            }}
             disabled={isGoogleLoading}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >

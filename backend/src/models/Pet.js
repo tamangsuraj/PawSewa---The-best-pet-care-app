@@ -1,5 +1,18 @@
 const mongoose = require('mongoose');
 
+const weightEntrySchema = new mongoose.Schema(
+  {
+    recordedAt: { type: Date, required: true, default: Date.now, index: true },
+    weightKg: { type: Number, required: true, min: 0 },
+    source: {
+      type: String,
+      enum: ['owner', 'vet', 'system'],
+      default: 'owner',
+    },
+  },
+  { _id: true, timestamps: false }
+);
+
 const reminderSchema = new mongoose.Schema(
   {
     category: {
@@ -92,6 +105,11 @@ const petSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    /** Time-ordered weigh-ins for charts (capped on write in controller). */
+    weightHistory: {
+      type: [weightEntrySchema],
+      default: [],
+    },
     photoUrl: {
       type: String,
       default: '',
@@ -161,10 +179,10 @@ function generatePawId() {
   return `PAW-${year}-${suffix}`;
 }
 
-// Pre-save hook to ensure every pet has a globally unique pawId.
+// Pre-save hook to ensure every pet has a globally unique pawId (new + legacy docs).
 // Uses a short retry loop to guard against rare collisions.
 petSchema.pre('save', async function setPawIdIfMissing() {
-  if (!this.isNew || this.pawId) return;
+  if (this.pawId) return;
 
   const Pet = this.constructor;
   const maxAttempts = 5;
