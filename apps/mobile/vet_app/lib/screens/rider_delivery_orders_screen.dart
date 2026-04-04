@@ -10,6 +10,7 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/location_service.dart';
 import 'rider_en_route_screen.dart';
+import 'partner_marketplace_chat_screen.dart';
 
 /// For riders: list of assigned pet-supplies orders with status updates.
 /// Flow: Select status → Processing (at shop) → On the way (left shop) → Delivered.
@@ -74,6 +75,37 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       });
     } catch (_) {
       if (!mounted) return;
+    }
+  }
+
+  Future<void> _openCustomerChat(BuildContext context, Map<String, dynamic> order) async {
+    final id = order['_id']?.toString();
+    if (id == null) return;
+    try {
+      final r = await ApiClient().getRiderDeliveryChat(id);
+      final body = r.data;
+      if (body is Map && body['success'] == true && body['data'] is Map) {
+        final conv = body['data'] as Map<String, dynamic>;
+        final cid = conv['_id']?.toString();
+        final user = order['user'];
+        final custName = user is Map ? (user['name']?.toString() ?? 'Customer') : 'Customer';
+        if (!context.mounted || cid == null) return;
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PartnerMarketplaceChatScreen(
+              conversationId: cid,
+              peerName: custName,
+              peerSubtitle: 'Delivery chat',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Chat unavailable: $e')),
+        );
+      }
     }
   }
 
@@ -718,6 +750,9 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         currentLatLng: _currentLatLng,
                                         onUpdateStatus: _updateStatus,
                                         onNavigate: _navigateToDeliveryAddress,
+                                        onChatCustomer: (order['status']?.toString() ?? '') != 'pending'
+                                            ? () => _openCustomerChat(context, order)
+                                            : null,
                                         statusLabel: _statusLabel,
                                         nextStatus: _nextStatus,
                                       );
@@ -749,6 +784,7 @@ class _OrderCard extends StatelessWidget {
     required this.currentLatLng,
     required this.onUpdateStatus,
     required this.onNavigate,
+    this.onChatCustomer,
     required this.statusLabel,
     required this.nextStatus,
   });
@@ -758,6 +794,7 @@ class _OrderCard extends StatelessWidget {
   final LatLng? currentLatLng;
   final void Function(String orderId, String status) onUpdateStatus;
   final void Function(BuildContext context, Map<String, dynamic> order) onNavigate;
+  final VoidCallback? onChatCustomer;
   final String Function(String) statusLabel;
   final String? Function(String) nextStatus;
 
@@ -957,6 +994,32 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
+            ],
+            if (onChatCustomer != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onChatCustomer,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                  label: Text(
+                    'Chat with Customer',
+                    style: GoogleFonts.oswald(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isDark ? Colors.orange.shade800 : yangoBlue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
             ],
 
             if (next != null) ...[

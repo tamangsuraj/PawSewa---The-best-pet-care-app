@@ -90,6 +90,11 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       maxLength: 500,
     },
+    /** Set when status becomes delivered (for delivery-chat 30m grace window). */
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

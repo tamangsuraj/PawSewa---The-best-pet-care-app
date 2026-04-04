@@ -1,4 +1,5 @@
 class AppConstants {
+  // Default API/Socket host: see lib/config/app_config.dart (ngrok + PAWSEWA_BASE_URL).
   // API base URL — backend runs on port 3000 (not 5000).
   // • Physical device: use your PC's IPv4 (same Wi‑Fi as phone). Run `ipconfig` (Windows) to find it.
   // • Android emulator: set kUseEmulator = true to use 10.0.2.2 (emulator's alias for host localhost).

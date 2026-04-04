@@ -105,11 +105,14 @@ const adminOrShopOwner = (req, res, next) => {
 
 /** Normalize production role (VET -> veterinarian, RIDER -> rider, etc.) for authorization. */
 function normalizeRole(role) {
-  if (role === 'VET') return 'veterinarian';
-  if (role === 'ADMIN') return 'admin';
-  if (role === 'CUSTOMER') return 'pet_owner';
-  if (role === 'RIDER' || role === 'staff') return 'rider';
-  return role;
+  if (role == null) return role;
+  const r = String(role).trim();
+  const u = r.toUpperCase();
+  if (u === 'VET' || r === 'vet') return 'veterinarian';
+  if (u === 'ADMIN') return 'admin';
+  if (u === 'CUSTOMER' || r === 'customer') return 'pet_owner';
+  if (u === 'RIDER' || r === 'staff') return 'rider';
+  return r;
 }
 
 /**

@@ -5,8 +5,8 @@ function normalizeRole(role) {
   const r = String(role || '').trim();
   if (!r) return r;
   const upper = r.toUpperCase();
-  if (upper === 'CUSTOMER') return 'pet_owner';
-  if (upper === 'VET') return 'veterinarian';
+  if (upper === 'CUSTOMER' || r === 'customer') return 'pet_owner';
+  if (upper === 'VET' || r === 'vet') return 'veterinarian';
   if (upper === 'ADMIN') return 'admin';
   if (upper === 'RIDER') return 'rider';
   return r.toLowerCase();
@@ -236,11 +236,10 @@ function normalizeRoleInUpdate(update) {
 });
 
 // Track brand-new documents for post-save hooks (isNew is false after save).
-userSchema.pre('save', function (next) {
+userSchema.pre('save', function () {
   if (this.isNew) {
     this.$locals._pawsewaJustInserted = true;
   }
-  next();
 });
 
 // Hash password before saving

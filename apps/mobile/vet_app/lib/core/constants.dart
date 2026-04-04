@@ -1,4 +1,5 @@
 class AppConstants {
+  // Default API/Socket host: lib/config/app_config.dart (ngrok + PAWSEWA_BASE_URL).
   // API Configuration
   //
   // Use the SAME host as the customer app so both hit the same backend.

@@ -91,6 +91,7 @@ const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ cl
   { name: 'Reminders', href: '/reminders', icon: BellRing },
   { name: 'Communication Center', href: '/communication-center', icon: Megaphone },
   { name: 'Customer Chats', href: '/customer-chats', icon: MessageCircle },
+  { name: 'Marketplace Chats', href: '/marketplace-chats', icon: MessageCircle },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Veterinarians', href: '/veterinarians', icon: UserCheck },
   { name: 'Shop Owners', href: '/shops', icon: Store },

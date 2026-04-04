@@ -49,7 +49,18 @@ class _LoginScreenState extends State<LoginScreen> {
         final String token = userData['token'];
 
         // Role Guard: Allow partner roles (including production role VET)
-        final allowedRoles = ['veterinarian', 'VET', 'shop_owner', 'care_service', 'rider', 'hostel_owner', 'groomer', 'trainer', 'facility_owner'];
+        final allowedRoles = [
+          'veterinarian',
+          'VET',
+          'vet',
+          'shop_owner',
+          'care_service',
+          'rider',
+          'hostel_owner',
+          'groomer',
+          'trainer',
+          'facility_owner',
+        ];
 
         if (!allowedRoles.contains(role)) {
           if (mounted) {

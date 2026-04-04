@@ -81,20 +81,35 @@ const io = new SocketServer(server, {
 const { socketAuthMiddleware } = require('./sockets/socketAuth');
 const { registerChatHandler } = require('./sockets/chatHandler');
 const { registerCustomerCareSocket } = require('./sockets/customerCareSocket');
+const { registerMarketplaceChatSocket } = require('./sockets/marketplaceChatSocket');
+const { registerVetDirectSocket } = require('./sockets/vetDirectSocket');
+const { presenceConnect, presenceDisconnect } = require('./sockets/presenceStore');
 const { setIO } = require('./sockets/socketStore');
 const customerCareRoutes = require('./routes/customerCareRoutes');
+const marketplaceChatRoutes = require('./routes/marketplaceChatRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 io.use(socketAuthMiddleware);
 
 io.on('connection', (socket) => {
   const userId = socket.user?._id?.toString();
+  const host = (socket.handshake.headers && socket.handshake.headers.host) || '';
+  const transport = socket.conn?.transport?.name || 'unknown';
+  const tunnelHint = host.includes('ngrok') ? `ngrok:${host}` : host || 'local';
+  logger.info(`[CONNECTION] Socket connected (${tunnelHint}, transport=${transport}) userId=${userId || '?'}`);
   if (userId) {
     socket.join('user:' + userId);
+    presenceConnect(userId);
   }
+  socket.on('disconnect', () => {
+    if (userId) presenceDisconnect(userId);
+  });
 });
 
 registerChatHandler(io);
 registerCustomerCareSocket(io);
+registerMarketplaceChatSocket(io);
+registerVetDirectSocket(io);
 setIO(io);
 
 // ============================================
@@ -169,6 +184,8 @@ app.use('/api/v1/pets', petRoutes);
 app.use('/api/v1/vets', vetRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/customer-care', customerCareRoutes);
+app.use('/api/v1/marketplace-chat', marketplaceChatRoutes);
+app.use('/api/v1/chats', chatRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/service-requests', serviceRequestRoutes);
 app.use('/api/v1/admin', adminRoutes);
@@ -337,6 +354,9 @@ async function start() {
   server.listen(PORT, '0.0.0.0', () => {
     logger.info('Starting PawSewa Backend Server.');
     logger.success('[SUCCESS] Brand Deployed: PawSewa API ready (logos, chat, GPS order logging active).');
+    logger.success(
+      '[SUCCESS] Marketplace Chat Active: Seller, Rider, and Support modules synced.'
+    );
     logger.success('Server listening on Port:', PORT);
     logger.info('Environment:', process.env.NODE_ENV || 'development');
     logger.info('CORS enabled for localhost and local network.');

@@ -1,6 +1,8 @@
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const User = require('../models/User');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
 
@@ -202,12 +204,23 @@ const createProduct = asyncHandler(async (req, res) => {
     console.warn('[Product create] No files in req.files. Client must send FormData with field "images" and must not set Content-Type to application/json.');
   }
 
+  let sellerRef = null;
+  if (req.user?.role === 'shop_owner') {
+    sellerRef = req.user._id;
+  } else if (req.body?.seller && mongoose.Types.ObjectId.isValid(String(req.body.seller))) {
+    sellerRef = req.body.seller;
+  } else {
+    const so = await User.findOne({ role: 'shop_owner' }).sort({ createdAt: 1 }).select('_id').lean();
+    sellerRef = so?._id || req.user?._id || null;
+  }
+
   const product = await Product.create({
     name: String(name),
     description: description ? String(description) : '',
     price: numericPrice,
     stockQuantity: numericStock,
     category,
+    seller: sellerRef || undefined,
     images,
     isAvailable:
       typeof isAvailable === 'string'
@@ -217,7 +230,9 @@ const createProduct = asyncHandler(async (req, res) => {
         : Boolean(isAvailable),
   });
 
-  const populated = await Product.findById(product._id).populate('category', 'name slug');
+  const populated = await Product.findById(product._id)
+    .populate('category', 'name slug')
+    .populate('seller', 'name profilePicture email');
 
   let message = 'Product created successfully';
   if (uploadWarnings.length > 0) {
@@ -257,6 +272,13 @@ const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(id);
   if (!product) {
     return res.status(404).json({ success: false, message: 'Product not found' });
+  }
+
+  if (req.user?.role === 'shop_owner') {
+    if (product.seller && String(product.seller) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'Not your product' });
+    }
+    if (!product.seller) product.seller = req.user._id;
   }
 
   const { name, description, price, stockQuantity, category, isAvailable } = req.body || {};
@@ -311,7 +333,9 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   await product.save();
 
-  const populated = await Product.findById(product._id).populate('category', 'name slug');
+  const populated = await Product.findById(product._id)
+    .populate('category', 'name slug')
+    .populate('seller', 'name profilePicture email');
 
   res.status(200).json({
     success: true,
@@ -338,6 +362,11 @@ const deleteProduct = asyncHandler(async (req, res) => {
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+    if (req.user?.role === 'shop_owner') {
+      if (product.seller && String(product.seller) !== String(req.user._id)) {
+        return res.status(403).json({ success: false, message: 'Not your product' });
+      }
     }
     await product.deleteOne();
     res.status(200).json({
@@ -390,6 +419,7 @@ const getProducts = asyncHandler(async (req, res) => {
     const [items, total] = await Promise.all([
       query
         .populate('category', 'name slug')
+        .populate('seller', 'name profilePicture')
         .sort({ createdAt: -1 })
         .skip((pageNum - 1) * limitNum)
         .limit(limitNum)
@@ -431,7 +461,10 @@ const getProductById = asyncHandler(async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, message: 'Product ID required' });
     }
-    const product = await Product.findById(id).populate('category', 'name slug').lean();
+    const product = await Product.findById(id)
+      .populate('category', 'name slug')
+      .populate('seller', 'name profilePicture email')
+      .lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }

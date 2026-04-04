@@ -27,6 +27,18 @@ const productSchema = new mongoose.Schema(
       ref: 'Category',
       required: true,
     },
+    /** Store owner (shop_owner) for marketplace / seller chat. */
+    seller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    /** Optional alias for seller (vendor) — same ref as [seller] for APIs that send vendorId. */
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     images: [
       {
         type: String,

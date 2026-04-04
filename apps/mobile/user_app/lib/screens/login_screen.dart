@@ -215,10 +215,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final String token = result['token'];
       final userData = result['user'];
-      final String role = userData['role'];
+        final rawRole = userData['role']?.toString() ?? '';
+        final role = (rawRole == 'CUSTOMER' || rawRole == 'customer')
+            ? 'pet_owner'
+            : rawRole;
 
-      // Role Guard: Only allow pet_owner
-      if (role != 'pet_owner') {
+        // Role Guard: Only allow pet_owner (accept legacy CUSTOMER label from API)
+        if (role != 'pet_owner') {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

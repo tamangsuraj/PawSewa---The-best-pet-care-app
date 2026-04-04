@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useCart } from '@/context/CartContext';
-import { ChevronLeft, ShoppingCart, Plus, Star, Package } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ChevronLeft, Plus, Star, Package, MessageCircle } from 'lucide-react';
 import { Reviews } from '@/components/Reviews';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 
@@ -23,9 +25,12 @@ interface Product {
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
   const { addItem } = useCart();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [justAdded, setJustAdded] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -105,25 +110,52 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
             <p className="text-sm text-gray-600 mb-4">
               {inStock ? `In stock: ${product.stockQuantity}` : 'Out of stock'}
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                if (!inStock) return;
-                addItem({
-                  productId: product._id,
-                  name: product.name,
-                  price: product.price,
-                  quantity: 1,
-                });
-                setJustAdded(true);
-                setTimeout(() => setJustAdded(false), 2500);
-              }}
-              disabled={!inStock}
-              className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-5 h-5" />
-              {justAdded ? 'Added to Cart!' : 'Add to Cart'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!inStock) return;
+                  addItem({
+                    productId: product._id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: 1,
+                  });
+                  setJustAdded(true);
+                  setTimeout(() => setJustAdded(false), 2500);
+                }}
+                disabled={!inStock}
+                className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-5 h-5" />
+                {justAdded ? 'Added to Cart!' : 'Add to Cart'}
+              </button>
+              <button
+                type="button"
+                disabled={chatBusy}
+                onClick={async () => {
+                  if (!isAuthenticated) {
+                    router.push(`/login?next=/shop/${params.id}`);
+                    return;
+                  }
+                  setChatBusy(true);
+                  try {
+                    const res = await api.post('/marketplace-chat/seller/open', { productId: product._id });
+                    const convId = res.data?.data?._id;
+                    if (convId) router.push(`/marketplace-chat/${convId}`);
+                  } catch (e) {
+                    console.error(e);
+                    alert('Could not start seller chat. Try the PawSewa app.');
+                  } finally {
+                    setChatBusy(false);
+                  }
+                }}
+                className="flex items-center justify-center gap-2 flex-1 px-6 py-3 border-2 border-primary text-primary rounded-xl font-semibold hover:bg-primary/5"
+              >
+                <MessageCircle className="w-5 h-5" />
+                Chat with Seller
+              </button>
+            </div>
             {justAdded && (
               <p className="mt-2 text-sm text-green-600 font-medium">
                 Item added.{' '}

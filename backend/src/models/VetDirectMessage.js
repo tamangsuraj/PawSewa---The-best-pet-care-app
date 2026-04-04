@@ -1,23 +1,26 @@
 const mongoose = require('mongoose');
 
-/**
- * Message in a Customer Care conversation.
- * senderId / receiverId match the spec; createdAt serves as timestamp.
- */
-const customerCareMessageSchema = new mongoose.Schema(
+const vetDirectMessageSchema = new mongoose.Schema(
   {
-    conversation: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'CustomerCareConversation',
+    roomId: {
+      type: String,
       required: true,
       index: true,
+      trim: true,
     },
-    senderId: {
+    ownerUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
-    receiverId: {
+    vetUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
@@ -32,6 +35,6 @@ const customerCareMessageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-customerCareMessageSchema.index({ conversation: 1, createdAt: 1 });
+vetDirectMessageSchema.index({ roomId: 1, createdAt: 1 });
 
-module.exports = mongoose.model('CustomerCareMessage', customerCareMessageSchema);
+module.exports = mongoose.model('VetDirectMessage', vetDirectMessageSchema);

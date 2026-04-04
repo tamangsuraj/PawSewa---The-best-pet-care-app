@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const CustomerCareConversation = require('../models/CustomerCareConversation');
-const CustomerCareMessage = require('../models/CustomerCareMessage');
+const MarketplaceConversation = require('../models/MarketplaceConversation');
+const MarketplaceMessage = require('../models/MarketplaceMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../config/fcm');
@@ -9,6 +9,10 @@ const WELCOME_TEXT =
   'Namaste! Welcome to PawSewa. How can we help you and your pet today?';
 
 const ROOM_PREFIX = 'ccare:';
+
+/** Legacy collection names (Mongoose default pluralization). */
+const LEGACY_CONV_COLLECTION = 'customercareconversations';
+const LEGACY_MSG_COLLECTION = 'customercaremessages';
 
 function isPetOwnerRole(role) {
   if (!role) return false;
@@ -39,7 +43,73 @@ async function resolveCareAdminId() {
 }
 
 /**
- * Idempotent: create conversation + welcome message if missing.
+ * Copy one legacy Customer Care thread + messages into MarketplaceConversation / MarketplaceMessage (same _ids).
+ */
+async function migrateLegacyCustomerCareThread(legacyConv) {
+  const db = mongoose.connection.db;
+  if (!db || !legacyConv?._id) return null;
+
+  const convId = legacyConv._id;
+  const existing = await MarketplaceConversation.findById(convId).lean();
+  if (existing) {
+    return MarketplaceConversation.findById(convId);
+  }
+
+  const now = new Date();
+  try {
+    await db.collection('marketplaceconversations').insertOne({
+      _id: convId,
+      type: 'SUPPORT',
+      customer: legacyConv.customer,
+      partner: legacyConv.careAdmin,
+      order: null,
+      lastProduct: null,
+      lastProductName: '',
+      deliveryChatExpiresAt: null,
+      lastMessageAt: legacyConv.updatedAt || now,
+      createdAt: legacyConv.createdAt || now,
+      updatedAt: legacyConv.updatedAt || now,
+    });
+  } catch (e) {
+    if (e && e.code === 11000) {
+      return MarketplaceConversation.findById(convId);
+    }
+    throw e;
+  }
+
+  const oldMsgs = await db
+    .collection(LEGACY_MSG_COLLECTION)
+    .find({ conversation: convId })
+    .sort({ createdAt: 1 })
+    .toArray();
+
+  for (const m of oldMsgs) {
+    const mid = m._id;
+    const msgExists = await db.collection('marketplacemessages').findOne({ _id: mid });
+    if (msgExists) continue;
+    try {
+      await db.collection('marketplacemessages').insertOne({
+        _id: mid,
+        conversation: m.conversation,
+        sender: m.senderId,
+        receiver: m.receiverId,
+        content: m.text,
+        product: null,
+        productName: '',
+        createdAt: m.createdAt || now,
+        updatedAt: m.updatedAt || now,
+      });
+    } catch (err) {
+      if (err && err.code !== 11000) logger.warn('[customerCare] migrate message skip', mid, err.message);
+    }
+  }
+
+  logger.info('[customerCare] Migrated legacy thread to MarketplaceConversation', String(convId));
+  return MarketplaceConversation.findById(convId);
+}
+
+/**
+ * Idempotent: ensure SUPPORT conversation (+ welcome) or migrate legacy.
  */
 async function ensureDefaultCustomerCareConversation(customerUserId) {
   const careAdminId = await resolveCareAdminId();
@@ -51,22 +121,39 @@ async function ensureDefaultCustomerCareConversation(customerUserId) {
   }
   if (String(careAdminId) === String(customerUserId)) return null;
 
-  let conv = await CustomerCareConversation.findOne({ customer: customerUserId });
+  let conv = await MarketplaceConversation.findOne({
+    type: 'SUPPORT',
+    customer: customerUserId,
+  });
   if (conv) return conv;
 
-  conv = await CustomerCareConversation.create({
+  const db = mongoose.connection.db;
+  if (db) {
+    const custOid = mongoose.Types.ObjectId.isValid(String(customerUserId))
+      ? new mongoose.Types.ObjectId(String(customerUserId))
+      : customerUserId;
+    const legacy = await db.collection(LEGACY_CONV_COLLECTION).findOne({ customer: custOid });
+    if (legacy) {
+      conv = await migrateLegacyCustomerCareThread(legacy);
+      if (conv) return conv;
+    }
+  }
+
+  conv = await MarketplaceConversation.create({
+    type: 'SUPPORT',
     customer: customerUserId,
-    careAdmin: careAdminId,
+    partner: careAdminId,
+    lastMessageAt: new Date(),
   });
 
-  await CustomerCareMessage.create({
+  await MarketplaceMessage.create({
     conversation: conv._id,
-    senderId: careAdminId,
-    receiverId: customerUserId,
-    text: WELCOME_TEXT,
+    sender: careAdminId,
+    receiver: customerUserId,
+    content: WELCOME_TEXT,
   });
 
-  logger.info('Chat Engine: Default conversation created for User', String(customerUserId));
+  logger.info('Chat Engine: Default SUPPORT conversation created for User', String(customerUserId));
   logger.info('[INFO] Chat Room Created for user', String(customerUserId));
   return conv;
 }
@@ -76,7 +163,20 @@ function conversationRoom(conversationId) {
 }
 
 /**
+ * Expose legacy shape for API/clients expecting careAdmin.
+ */
+function toClientConversationShape(doc) {
+  if (doc == null) return doc;
+  const o = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  if (o && o.type === 'SUPPORT' && o.partner) {
+    o.careAdmin = o.partner;
+  }
+  return o;
+}
+
+/**
  * Persist message, optional socket emit, optional FCM when admin replies.
+ * @param {import('mongoose').Document} conversation — MarketplaceConversation (type SUPPORT)
  * @param {import('socket.io').Server|null} io
  */
 async function appendMessageAndNotify({
@@ -93,8 +193,14 @@ async function appendMessageAndNotify({
     throw err;
   }
 
+  if (conversation.type !== 'SUPPORT') {
+    const err = new Error('Invalid conversation type for Customer Care');
+    err.statusCode = 400;
+    throw err;
+  }
+
   const custId = conversation.customer.toString();
-  const designatedAdminId = conversation.careAdmin.toString();
+  const adminId = conversation.partner.toString();
   const sid = senderId.toString();
 
   const sender = await User.findById(senderId).select('role').lean();
@@ -107,23 +213,18 @@ async function appendMessageAndNotify({
     throw err;
   }
 
-  let receiverId;
-  if (senderIsCustomer) {
-    receiverId = conversation.careAdmin;
-  } else {
-    receiverId = conversation.customer;
-  }
+  const receiverId = senderIsCustomer ? conversation.partner : conversation.customer;
 
-  const msg = await CustomerCareMessage.create({
+  const msg = await MarketplaceMessage.create({
     conversation: conversation._id,
-    senderId,
-    receiverId,
-    text: trimmed,
+    sender: senderId,
+    receiver: receiverId,
+    content: trimmed.slice(0, 4000),
   });
 
-  await CustomerCareConversation.updateOne(
+  await MarketplaceConversation.updateOne(
     { _id: conversation._id },
-    { $set: { updatedAt: new Date() } }
+    { $set: { updatedAt: new Date(), lastMessageAt: new Date() } }
   ).exec();
 
   const payload = {
@@ -131,7 +232,7 @@ async function appendMessageAndNotify({
     messageId: msg._id.toString(),
     senderId: sid,
     receiverId: receiverId.toString(),
-    text: msg.text,
+    text: msg.content,
     timestamp: (msg.createdAt || new Date()).toISOString(),
   };
 
@@ -166,4 +267,5 @@ module.exports = {
   resolveCareAdminId,
   ensureDefaultCustomerCareConversation,
   appendMessageAndNotify,
+  toClientConversationShape,
 };

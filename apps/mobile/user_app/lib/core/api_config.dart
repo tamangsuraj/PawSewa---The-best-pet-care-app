@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'constants.dart';
+import '../config/app_config.dart';
 
 /// Central API config — single source of truth. Change here only.
 /// Supports:
@@ -9,10 +9,7 @@ import 'constants.dart';
 class ApiConfig {
   static const _keyHost = 'api_host_override';
 
-  static String _defaultHost() {
-    if (AppConstants.kUseEmulator) return '10.0.2.2';
-    return const String.fromEnvironment('API_HOST', defaultValue: '192.168.1.5');
-  }
+  static String _defaultHost() => AppConfig.defaultHostValue();
 
   /// Stored value: either host (IP) or full URL (e.g. https://xxx.ngrok-free.app)
   static Future<String> getHost() async {
@@ -65,5 +62,13 @@ class ApiConfig {
     final prefs = await SharedPreferences.getInstance();
     final v = prefs.getString(_keyHost);
     return v != null && v.trim().isNotEmpty;
+  }
+
+  /// ngrok free tier may inject an HTML warning page; this header reduces issues on REST calls.
+  static Map<String, String> ngrokHeadersForBaseUrl(String baseUrl) {
+    if (baseUrl.toLowerCase().contains('ngrok')) {
+      return {'ngrok-skip-browser-warning': 'true'};
+    }
+    return {};
   }
 }

@@ -18,6 +18,8 @@ import '../../core/api_config.dart';
 import '../../core/constants.dart';
 import '../../core/khalti_verify_helper.dart';
 import '../cart/delivery_pin_screen.dart';
+import '../messages/marketplace_thread_screen.dart';
+import '../../core/storage_service.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -1996,6 +1998,50 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
     }
   }
 
+  Future<void> _chatWithSeller(BuildContext outerContext) async {
+    final storage = StorageService();
+    final loggedIn = await storage.isLoggedIn();
+    if (!loggedIn) {
+      if (outerContext.mounted) {
+        ScaffoldMessenger.of(outerContext).showSnackBar(
+          const SnackBar(content: Text('Please log in to chat with the seller')),
+        );
+      }
+      return;
+    }
+    final productId = widget.product['_id']?.toString() ?? '';
+    if (productId.isEmpty) return;
+    try {
+      final r = await ApiClient().openSellerMarketplaceChat(productId);
+      final body = r.data;
+      if (body is Map && body['success'] == true && body['data'] is Map) {
+        final conv = body['data'] as Map<String, dynamic>;
+        final id = conv['_id']?.toString();
+        final partner = conv['partner'];
+        final name = partner is Map ? (partner['name']?.toString() ?? 'Seller') : 'Seller';
+        if (!outerContext.mounted || id == null) return;
+        Navigator.of(outerContext).pop();
+        await Navigator.of(outerContext).push(
+          MaterialPageRoute(
+            builder: (_) => MarketplaceThreadScreen(
+              conversationId: id,
+              threadType: 'SELLER',
+              peerName: name,
+              peerSubtitle: 'Store',
+              productIdForFirstMessage: productId,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (outerContext.mounted) {
+        ScaffoldMessenger.of(outerContext).showSnackBar(
+          SnackBar(content: Text('Could not open chat: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
@@ -2168,13 +2214,33 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  HapticFeedback.lightImpact();
+                                  _chatWithSeller(context);
+                                },
+                                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                                label: Text(
+                                  'Chat with Seller',
+                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: primary,
+                                  side: BorderSide(color: primary.withValues(alpha: 0.85)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       Padding(
                         padding: EdgeInsets.fromLTRB(
                           16,
-                          16,
+                          8,
                           16,
                           16 + bottomInset,
                         ),

@@ -1,4 +1,4 @@
-const CustomerCareConversation = require('../models/CustomerCareConversation');
+const MarketplaceConversation = require('../models/MarketplaceConversation');
 const logger = require('../utils/logger');
 const {
   conversationRoom,
@@ -7,7 +7,7 @@ const {
 } = require('../services/customerCareService');
 
 /**
- * Realtime Customer Care chat (separate from service-request rooms).
+ * Realtime Customer Care chat (unified MarketplaceConversation type SUPPORT).
  * @param {import('socket.io').Server} io
  */
 function registerCustomerCareSocket(io) {
@@ -28,16 +28,17 @@ function registerCustomerCareSocket(io) {
         return;
       }
       try {
-        const conv = await CustomerCareConversation.findById(conversationId)
-          .select('customer careAdmin')
+        const conv = await MarketplaceConversation.findById(conversationId)
+          .select('type customer partner')
           .lean();
-        if (!conv) {
+        if (!conv || conv.type !== 'SUPPORT') {
           callback?.({ success: false, message: 'Conversation not found' });
           return;
         }
         const isCustomer = conv.customer.toString() === userId;
         const adminOk = isAdminRole(socket.user?.role);
-        if (!isCustomer && !adminOk) {
+        const isCarePartner = conv.partner.toString() === userId;
+        if (!isCustomer && !adminOk && !isCarePartner) {
           callback?.({ success: false, message: 'Not allowed' });
           return;
         }
@@ -62,15 +63,16 @@ function registerCustomerCareSocket(io) {
         return;
       }
       try {
-        const conv = await CustomerCareConversation.findById(conversationId);
-        if (!conv) {
+        const conv = await MarketplaceConversation.findById(conversationId);
+        if (!conv || conv.type !== 'SUPPORT') {
           callback?.({ success: false, message: 'Conversation not found' });
           return;
         }
         const uid = userId.toString();
         const isCustomer = conv.customer.toString() === uid;
         const adminOk = isAdminRole(socket.user?.role);
-        if (!isCustomer && !adminOk) {
+        const isCarePartner = conv.partner.toString() === uid;
+        if (!isCustomer && !adminOk && !isCarePartner) {
           callback?.({ success: false, message: 'Not allowed' });
           return;
         }

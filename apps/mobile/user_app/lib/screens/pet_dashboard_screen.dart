@@ -18,7 +18,7 @@ import 'my_requests_screen.dart';
 import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
 import 'shop/my_orders_screen.dart';
-import 'messages/messages_screen.dart';
+import 'messages/messages_hub_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
@@ -438,9 +438,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       case 2:
         return 'Shop';
       case 3:
-        return 'Messages';
+        return 'Chats';
       case 4:
-        return 'Care';
+        return 'Pet Care+';
       case 5:
         return 'My Pets';
       default:
@@ -759,7 +759,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       case 2:
         return const ShopScreen();
       case 3:
-        return const MessagesScreen();
+        return const MessagesHubScreen();
       case 4:
         return const CareScreen();
       case 5:
@@ -1108,12 +1108,47 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     );
   }
 
+  /// Reference top bar: back to Home, centered serif title, solid chat icon.
+  PreferredSizeWidget _buildPetCarePlusAppBar(BuildContext context) {
+    const brown = Color(AppConstants.primaryColor);
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+        color: Colors.black87,
+        onPressed: () => setState(() => _currentIndex = 0),
+        tooltip: 'Home',
+      ),
+      centerTitle: true,
+      title: Text(
+        'Pet Care+',
+        style: GoogleFonts.fraunces(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: brown,
+        ),
+      ),
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.chat_bubble, color: Colors.black87, size: 22),
+          tooltip: 'Messages',
+          onPressed: () => setState(() => _currentIndex = 3),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: _currentIndex == 4
+          ? const Color(0xFFF8F9FA)
+          : const Color(AppConstants.secondaryColor),
       drawer: _buildDrawer(context),
-      appBar: AppBar(
+      appBar: _currentIndex == 4 ? _buildPetCarePlusAppBar(context) : AppBar(
         leading: IconButton(
           icon: const Icon(Icons.menu, size: 22),
           onPressed: () => Scaffold.of(context).openDrawer(),

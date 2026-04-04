@@ -11,6 +11,7 @@ import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../../widgets/pawsewa_brand_logo.dart';
+import 'vet_direct_chat_screen.dart';
 
 /// Customer Care chat — loads the default support conversation with PawSewa.
 class MessagesScreen extends StatefulWidget {
@@ -36,6 +37,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
   bool _typingRemote = false;
   Timer? _typingDebounce;
   Timer? _typingHide;
+  List<Map<String, dynamic>> _myVets = [];
+  Map<String, bool> _vetOnline = {};
+  Timer? _presenceTimer;
 
   @override
   void initState() {
@@ -46,10 +50,52 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _bootstrap() async {
     await _loadUserId();
     await _loadThread();
+    await _loadMyVets();
     await _socket.connect();
     _socket.addCustomerCareMessageListener(_onCareMessage);
     _socket.addCustomerCareTypingListener(_onCareTyping);
     await _joinWhenReady();
+    _refreshVetPresence();
+    _presenceTimer?.cancel();
+    _presenceTimer = Timer.periodic(
+      const Duration(seconds: 25),
+      (_) => _refreshVetPresence(),
+    );
+  }
+
+  Future<void> _loadMyVets() async {
+    try {
+      final res = await _api.getChatsMyVets();
+      final body = res.data;
+      if (body is Map && body['success'] == true) {
+        final list = body['data'] as List<dynamic>? ?? [];
+        if (!mounted) return;
+        setState(() {
+          _myVets = list
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        });
+      }
+    } catch (_) {
+      /* optional feature */
+    }
+  }
+
+  void _refreshVetPresence() {
+    final ids = _myVets
+        .map((v) => v['_id']?.toString())
+        .whereType<String>()
+        .toList();
+    if (ids.isEmpty || !_socket.isConnected) return;
+    _socket.queryVetPresence(ids, (map) {
+      if (!mounted) return;
+      setState(() {
+        _vetOnline = {
+          for (final e in map.entries)
+            e.key: e.value == true || e.value == 'true',
+        };
+      });
+    });
   }
 
   Future<void> _loadUserId() async {
@@ -213,6 +259,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    _presenceTimer?.cancel();
     _typingDebounce?.cancel();
     _typingHide?.cancel();
     _socket.removeCustomerCareMessageListener(_onCareMessage);

@@ -2,8 +2,13 @@ const asyncHandler = require('express-async-handler');
 const axios = require('axios');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const User = require('../models/User');
 const { getIO } = require('../sockets/socketStore');
 const logger = require('../utils/logger');
+const {
+  ensureDeliveryConversationForOrder,
+  setDeliveryConversationExpiry,
+} = require('../services/marketplaceChatService');
 const {
   KHALTI_BASE_URL,
   KHALTI_SECRET_KEY,
@@ -140,6 +145,7 @@ const createOrder = asyncHandler(async (req, res) => {
 const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id })
     .populate('items.product', 'name images')
+    .populate('assignedRider', 'name phone profilePicture')
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: orders });
@@ -262,7 +268,14 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   order.status = status;
+  if (status === 'delivered') {
+    order.deliveredAt = new Date();
+  }
   await order.save();
+
+  if (status === 'delivered') {
+    await setDeliveryConversationExpiry(order._id);
+  }
 
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
@@ -294,7 +307,6 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Order not found' });
   }
 
-  const User = require('../models/User');
   if (riderId) {
     const rider = await User.findById(riderId).select('role');
     if (!rider || rider.role !== 'rider') {
@@ -314,6 +326,8 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
 
   if (order.assignedRider) {
     logger.info('Order Assigned To Rider: Order', order._id.toString(), 'Rider', order.assignedRider.toString());
+    const plain = await Order.findById(orderId).lean();
+    if (plain) await ensureDeliveryConversationForOrder(plain);
   }
   const io = getIO();
   if (io) {
@@ -340,7 +354,6 @@ const bulkAssignOrders = asyncHandler(async (req, res) => {
     });
   }
 
-  const User = require('../models/User');
   const rider = await User.findById(riderId).select('role');
   if (!rider || rider.role !== 'rider') {
     return res.status(400).json({ success: false, message: 'Invalid rider' });
@@ -350,6 +363,13 @@ const bulkAssignOrders = asyncHandler(async (req, res) => {
     { _id: { $in: orderIds } },
     { $set: { assignedRider: riderId } }
   );
+
+  const refreshed = await Order.find({ _id: { $in: orderIds } }).lean();
+  for (const o of refreshed) {
+    if (o.assignedRider) {
+      await ensureDeliveryConversationForOrder(o);
+    }
+  }
 
   res.json({
     success: true,

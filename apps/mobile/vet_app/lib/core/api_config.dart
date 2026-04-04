@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../config/app_config.dart';
 import 'constants.dart';
 
 /// Central API config — single source of truth. Change here only.
@@ -7,13 +8,7 @@ import 'constants.dart';
 class ApiConfig {
   static const _keyHost = 'api_host_override';
 
-  static String _defaultHost() {
-    if (AppConstants.kUseEmulator) return '10.0.2.2';
-    return const String.fromEnvironment(
-      'API_HOST',
-      defaultValue: '192.168.1.5',
-    );
-  }
+  static String _defaultHost() => AppConfig.defaultHostValue();
 
   static Future<String> getHost() async {
     final prefs = await SharedPreferences.getInstance();
@@ -34,6 +29,15 @@ class ApiConfig {
     return 'http://$value:3000/api/v1';
   }
 
+  /// Socket.io server origin (same as API host, no path).
+  static Future<String> getSocketUrl() async {
+    final value = await getHost();
+    if (_isFullUrl(value)) {
+      return value.endsWith('/') ? value.substring(0, value.length - 1) : value;
+    }
+    return 'http://$value:3000';
+  }
+
   static Future<void> setHost(String host) async {
     final prefs = await SharedPreferences.getInstance();
     final trimmed = host.trim();
@@ -42,5 +46,22 @@ class ApiConfig {
     } else {
       await prefs.setString(_keyHost, trimmed);
     }
+  }
+
+  static Future<void> clearOverride() async {
+    await setHost('');
+  }
+
+  static Future<bool> hasOverride() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString(_keyHost);
+    return v != null && v.trim().isNotEmpty;
+  }
+
+  static Map<String, String> ngrokHeadersForBaseUrl(String baseUrl) {
+    if (baseUrl.toLowerCase().contains('ngrok')) {
+      return {'ngrok-skip-browser-warning': 'true'};
+    }
+    return {};
   }
 }

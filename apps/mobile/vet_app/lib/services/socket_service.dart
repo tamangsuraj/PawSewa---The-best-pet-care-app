@@ -6,7 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../core/api_config.dart';
 import '../core/storage_service.dart';
 
-/// Singleton Socket.io service: JWT auth, auto-reconnect, chat + status listeners.
+/// Singleton Socket.io: JWT auth, marketplace + service chat events (Partner app).
 class SocketService {
   SocketService._();
   static final SocketService _instance = SocketService._();
@@ -23,15 +23,12 @@ class SocketService {
   final List<void Function(Map<String, dynamic>)?> _customerCareTypingListeners = [];
   final List<void Function(Map<String, dynamic>)?> _marketplaceMsgListeners = [];
   final List<void Function(Map<String, dynamic>)?> _marketplaceTypingListeners = [];
-  final List<void Function(Map<String, dynamic>)?> _vetDirectMsgListeners = [];
-  final List<void Function(Map<String, dynamic>)?> _vetDirectTypingListeners = [];
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
 
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
 
-  /// Connect with stored JWT. Call after login. Enables auto-reconnect.
   Future<void> connect() async {
     if (_connecting || (_socket != null && _socket!.connected)) return;
     final token = await _storage.getToken();
@@ -44,7 +41,6 @@ class SocketService {
     try {
       final url = await ApiConfig.getSocketUrl();
       _socket?.dispose();
-      // WebSocket-only + forceNew: avoids ngrok free-tier HTML / polling rate-limit issues.
       final built = io.OptionBuilder()
           .setTransports(['websocket'])
           .enableForceNew()
@@ -90,7 +86,7 @@ class SocketService {
         _connecting = false;
         if (kDebugMode && !connectErrorLogged) {
           connectErrorLogged = true;
-          debugPrint('[SocketService] ConnectError: $err (reconnecting in background; tap "Can\'t connect? Set server IP" on login to fix)');
+          debugPrint('[SocketService] ConnectError: $err');
         }
       });
 
@@ -166,24 +162,6 @@ class SocketService {
         }
       });
 
-      _socket!.on('vet_direct_new_message', (data) {
-        final map = _toMap(data);
-        if (map != null) {
-          for (final cb in _vetDirectMsgListeners) {
-            cb?.call(map);
-          }
-        }
-      });
-
-      _socket!.on('vet_direct_is_typing', (data) {
-        final map = _toMap(data);
-        if (map != null) {
-          for (final cb in _vetDirectTypingListeners) {
-            cb?.call(map);
-          }
-        }
-      });
-
       _socket!.connect();
     } catch (e) {
       if (kDebugMode) debugPrint('[SocketService] connect error: $e');
@@ -198,7 +176,6 @@ class SocketService {
     return null;
   }
 
-  /// Disconnect and clear token usage (e.g. on logout).
   void disconnect() {
     _socket?.disconnect();
     _socket?.dispose();
@@ -206,7 +183,6 @@ class SocketService {
     _connecting = false;
   }
 
-  /// Join a service request chat room. Call when opening a request chat.
   void joinChatRoom(String requestId, void Function(dynamic) callback) {
     if (_socket == null || !_socket!.connected) {
       callback({'success': false, 'message': 'Not connected'});
@@ -221,7 +197,6 @@ class SocketService {
     );
   }
 
-  /// Send a chat message to a request room.
   void sendMessage(
     String requestId,
     String text,
@@ -244,7 +219,6 @@ class SocketService {
     );
   }
 
-  /// Emit typing indicator.
   void setTyping(String requestId, bool isTyping) {
     _socket?.emit('is_typing', {'requestId': requestId, 'isTyping': isTyping});
   }
@@ -289,30 +263,6 @@ class SocketService {
       'conversationId': conversationId,
       'isTyping': isTyping,
     });
-  }
-
-  void addCustomerCareMessageListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _customerCareMsgListeners.add(listener);
-  }
-
-  void removeCustomerCareMessageListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _customerCareMsgListeners.remove(listener);
-  }
-
-  void addCustomerCareTypingListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _customerCareTypingListeners.add(listener);
-  }
-
-  void removeCustomerCareTypingListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _customerCareTypingListeners.remove(listener);
   }
 
   void joinMarketplaceRoom(
@@ -386,111 +336,6 @@ class SocketService {
     _marketplaceTypingListeners.remove(listener);
   }
 
-  void queryVetPresence(
-    List<String> vetIds,
-    void Function(Map<String, dynamic>) callback,
-  ) {
-    if (_socket == null || !_socket!.connected) {
-      callback({});
-      return;
-    }
-    _socket!.emitWithAck(
-      'query_vet_presence',
-      vetIds,
-      ack: (data) {
-        if (data is Map) {
-          callback(Map<String, dynamic>.from(data));
-        } else {
-          callback({});
-        }
-      },
-    );
-  }
-
-  void joinVetDirectRoom({
-    required String ownerId,
-    required String vetId,
-    void Function(dynamic)? callback,
-  }) {
-    if (_socket == null || !_socket!.connected) {
-      callback?.call({'success': false, 'message': 'Not connected'});
-      return;
-    }
-    _socket!.emitWithAck(
-      'join_vet_direct_room',
-      {'ownerId': ownerId, 'vetId': vetId},
-      ack: (response) {
-        callback?.call(response is Map ? response : {'success': false});
-      },
-    );
-  }
-
-  void leaveVetDirectRoom({
-    required String ownerId,
-    required String vetId,
-  }) {
-    _socket?.emitWithAck(
-      'leave_vet_direct_room',
-      {'ownerId': ownerId, 'vetId': vetId},
-      ack: (_) {},
-    );
-  }
-
-  void sendVetDirectMessage({
-    required String ownerId,
-    required String vetId,
-    required String text,
-    void Function(dynamic)? callback,
-  }) {
-    if (_socket == null || !_socket!.connected) {
-      callback?.call({'success': false, 'message': 'Not connected'});
-      return;
-    }
-    _socket!.emitWithAck(
-      'send_vet_direct_message',
-      {'ownerId': ownerId, 'vetId': vetId, 'text': text},
-      ack: (response) {
-        callback?.call(response is Map ? response : {'success': false});
-      },
-    );
-  }
-
-  void setVetDirectTyping({
-    required String ownerId,
-    required String vetId,
-    required bool isTyping,
-  }) {
-    _socket?.emit('vet_direct_typing', {
-      'ownerId': ownerId,
-      'vetId': vetId,
-      'isTyping': isTyping,
-    });
-  }
-
-  void addVetDirectMessageListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _vetDirectMsgListeners.add(listener);
-  }
-
-  void removeVetDirectMessageListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _vetDirectMsgListeners.remove(listener);
-  }
-
-  void addVetDirectTypingListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _vetDirectTypingListeners.add(listener);
-  }
-
-  void removeVetDirectTypingListener(
-    void Function(Map<String, dynamic>) listener,
-  ) {
-    _vetDirectTypingListeners.remove(listener);
-  }
-
   void addNewMessageListener(void Function(Map<String, dynamic>) listener) {
     _newMessageListeners.add(listener);
   }
@@ -523,6 +368,30 @@ class SocketService {
 
   void removeIsTypingListener(void Function(Map<String, dynamic>) listener) {
     _isTypingListeners.remove(listener);
+  }
+
+  void addCustomerCareMessageListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareMsgListeners.add(listener);
+  }
+
+  void removeCustomerCareMessageListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareMsgListeners.remove(listener);
+  }
+
+  void addCustomerCareTypingListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareTypingListeners.add(listener);
+  }
+
+  void removeCustomerCareTypingListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareTypingListeners.remove(listener);
   }
 
   void addConnectListener(void Function() listener) {

@@ -14,12 +14,14 @@ import 'profile_editor_screen.dart';
 import 'all_pets_screen.dart';
 import 'service_task_detail_screen.dart';
 import 'shop_inventory_screen.dart';
+import 'seller_inquiries_screen.dart';
 import 'rider_delivery_orders_screen.dart';
 import 'earnings_screen.dart';
 import 'my_business_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
+import '../services/socket_service.dart';
 
 class VetDashboardScreen extends StatefulWidget {
   const VetDashboardScreen({super.key});
@@ -48,9 +50,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   List<dynamic> _serviceTasks = [];
   bool _loadingServiceTasks = false;
 
+  /// Bottom tab for shop owners: 0 = home dashboard, 1 = customer inquiries.
+  int _partnerNavIndex = 0;
+
   @override
   void initState() {
     super.initState();
+    SocketService.instance.connect();
     _loadUserData();
     _loadNewAssignments();
     _loadStats();
@@ -860,6 +866,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       case 'shop_owner':
         return [
           {
+            'icon': Icons.chat_bubble_outline,
+            'title': 'Customer Inquiries',
+            'subtitle': 'Daraz-style chats about your products',
+            'route': 'seller_inquiries',
+            'badge': 0,
+          },
+          {
             'icon': Icons.add_shopping_cart,
             'title': 'Shop Inventory',
             'subtitle': 'Add and manage products',
@@ -956,6 +969,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   }
 
   Future<void> _handleLogout() async {
+    SocketService.instance.disconnect();
     await _storage.clearAll();
     if (mounted) {
       Navigator.of(
@@ -966,686 +980,744 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final shopOwner = _userRole == 'shop_owner';
     return Scaffold(
       backgroundColor: const Color(AppConstants.secondaryColor),
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const PawSewaBrandLogo(height: 28),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                AppConstants.appName,
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(AppConstants.primaryColor),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: _handleLogout,
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(
-            (MediaQuery.sizeOf(context).width * 0.055).clamp(12.0, 28.0),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      const Color(AppConstants.primaryColor),
-                      const Color(AppConstants.accentColor),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(
-                        AppConstants.primaryColor,
-                      ).withValues(alpha: 77 / 255),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            _getRoleIcon(),
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _getRoleTitle(),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                _userName,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Day at a Glance – next upcoming task/appointment
-              if (_serviceTasks.isNotEmpty)
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: _buildDayAtGlanceCard(context),
-                ),
-
-              if (_userRole == 'veterinarian' && _isLoadingAssignments)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: const LinearProgressIndicator(
-                      minHeight: 6,
-                      color: Color(AppConstants.primaryColor),
-                      backgroundColor: Color(AppConstants.secondaryColor),
-                    ),
-                  ),
-                ),
-
-              // New Assignments Alert (for veterinarian partners)
-              if (_userRole == 'veterinarian' && _newAssignmentsCount > 0)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.red.shade600, Colors.red.shade700],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.red.withValues(alpha: 77 / 255),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: InkWell(
-                    onTap: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AllPetsScreen(),
-                        ),
-                      );
-                      if (!mounted) return;
-                      if (result == true) {
-                        _loadNewAssignments(); // Reload after viewing
-                        _loadStats();
-                      }
-                    },
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.notification_important,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'New Case Assignment!',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'You have $_newAssignmentsCount ${_newAssignmentsCount == 1 ? 'case' : 'cases'} waiting for you',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Ongoing Cases Alert (for veterinarian partners)
-              if (_userRole == 'veterinarian' && _ongoingCasesCount > 0)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.orange.shade600, Colors.orange.shade700],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.orange.withValues(alpha: 77 / 255),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: InkWell(
-                    onTap: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AllPetsScreen(),
-                        ),
-                      );
-                      if (result == true || mounted) {
-                        _loadNewAssignments();
-                        _loadStats();
-                      }
-                    },
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.pending_actions,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ongoing Cases',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                'You have $_ongoingCasesCount ${_ongoingCasesCount == 1 ? 'case' : 'cases'} in progress',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              // Duty Dashboard: Today's Tasks & Upcoming 48h (service requests)
-              if (_userRole == 'veterinarian') ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Duty Dashboard',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(AppConstants.primaryColor),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (_loadingServiceTasks)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 16),
-                    child: Center(
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Color(AppConstants.primaryColor),
-                        ),
-                      ),
-                    ),
-                  )
-                else ...[
-                  if (_todaysServiceTasks.isNotEmpty) ...[
-                    Text(
-                      'Today\'s Tasks',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ..._todaysServiceTasks.map(
-                      (task) => _buildDutyTaskCard(context, task),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-                  if (_upcoming48hServiceTasks.isNotEmpty) ...[
-                    Text(
-                      'Upcoming (48h)',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _upcoming48hServiceTasks.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: SizedBox(
-                              width: 220,
-                              child: _buildDutyTaskCard(
-                                context,
-                                _upcoming48hServiceTasks[index],
-                                compact: true,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  if (_todaysServiceTasks.isEmpty &&
-                      _upcoming48hServiceTasks.isEmpty &&
-                      _serviceTasks.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        'No tasks today or in the next 48 hours.',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ),
-                ],
-                const SizedBox(height: 16),
-              ],
-
-              // Quick Stats
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      appBar: shopOwner && _partnerNavIndex == 1
+          ? null
+          : AppBar(
+              title: Row(
                 children: [
-                  Flexible(
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const PawSewaBrandLogo(height: 28),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
                     child: Text(
-                      '${_getFilterLabel()}\'s Overview',
+                      AppConstants.appName,
                       style: GoogleFonts.poppins(
-                        fontSize: 20,
                         fontWeight: FontWeight.w600,
-                        color: const Color(AppConstants.accentColor),
+                        color: Colors.white,
                       ),
-                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (_userRole == 'veterinarian')
-                    PopupMenuButton<String>(
-                      onSelected: _changeFilter,
-                      icon: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                ],
+              ),
+              backgroundColor: const Color(AppConstants.primaryColor),
+              elevation: 0,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white),
+                  onPressed: _handleLogout,
+                  tooltip: 'Logout',
+                ),
+              ],
+            ),
+      body: Builder(
+        builder: (context) {
+          final homeBody = SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(
+                (MediaQuery.sizeOf(context).width * 0.055).clamp(12.0, 28.0),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Welcome Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          const Color(AppConstants.primaryColor),
+                          const Color(AppConstants.accentColor),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            AppConstants.primaryColor,
+                          ).withValues(alpha: 77 / 255),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                        decoration: BoxDecoration(
-                          color: const Color(AppConstants.primaryColor),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            const Icon(
-                              Icons.filter_list,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Filter',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                _getRoleIcon(),
                                 color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _getRoleTitle(),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    _userName,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
-                      ),
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'today',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.today,
-                                size: 18,
-                                color: _selectedFilter == 'today'
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Today',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == 'today'
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                  color: _selectedFilter == 'today'
-                                      ? const Color(AppConstants.primaryColor)
-                                      : Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: '48hours',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 18,
-                                color: _selectedFilter == '48hours'
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Past 48 Hours',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == '48hours'
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                  color: _selectedFilter == '48hours'
-                                      ? const Color(AppConstants.primaryColor)
-                                      : Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'week',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.date_range,
-                                size: 18,
-                                color: _selectedFilter == 'week'
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'This Week',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == 'week'
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                  color: _selectedFilter == 'week'
-                                      ? const Color(AppConstants.primaryColor)
-                                      : Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'month',
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.calendar_month,
-                                size: 18,
-                                color: _selectedFilter == 'month'
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                'This Month',
-                                style: GoogleFonts.poppins(
-                                  fontWeight: _selectedFilter == 'month'
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
-                                  color: _selectedFilter == 'month'
-                                      ? const Color(AppConstants.primaryColor)
-                                      : Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 32),
 
-              if (_userRole == 'veterinarian' && _isLoadingStats)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: const LinearProgressIndicator(
-                      minHeight: 6,
-                      color: Color(AppConstants.primaryColor),
-                      backgroundColor: Color(AppConstants.secondaryColor),
+                  // Day at a Glance – next upcoming task/appointment
+                  if (_serviceTasks.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 16,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: _buildDayAtGlanceCard(context),
+                    ),
+
+                  if (_userRole == 'veterinarian' && _isLoadingAssignments)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: const LinearProgressIndicator(
+                          minHeight: 6,
+                          color: Color(AppConstants.primaryColor),
+                          backgroundColor: Color(AppConstants.secondaryColor),
+                        ),
+                      ),
+                    ),
+
+                  // New Assignments Alert (for veterinarian partners)
+                  if (_userRole == 'veterinarian' && _newAssignmentsCount > 0)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.red.shade600, Colors.red.shade700],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.red.withValues(alpha: 77 / 255),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AllPetsScreen(),
+                            ),
+                          );
+                          if (!mounted) return;
+                          if (result == true) {
+                            _loadNewAssignments(); // Reload after viewing
+                            _loadStats();
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.notification_important,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'New Case Assignment!',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    'You have $_newAssignmentsCount ${_newAssignmentsCount == 1 ? 'case' : 'cases'} waiting for you',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Ongoing Cases Alert (for veterinarian partners)
+                  if (_userRole == 'veterinarian' && _ongoingCasesCount > 0)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.orange.shade600,
+                            Colors.orange.shade700,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withValues(alpha: 77 / 255),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: InkWell(
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AllPetsScreen(),
+                            ),
+                          );
+                          if (result == true || mounted) {
+                            _loadNewAssignments();
+                            _loadStats();
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.pending_actions,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Ongoing Cases',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  Text(
+                                    'You have $_ongoingCasesCount ${_ongoingCasesCount == 1 ? 'case' : 'cases'} in progress',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: Colors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.arrow_forward_ios,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  // Duty Dashboard: Today's Tasks & Upcoming 48h (service requests)
+                  if (_userRole == 'veterinarian') ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Duty Dashboard',
+                      style: GoogleFonts.poppins(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(AppConstants.primaryColor),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (_loadingServiceTasks)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 16),
+                        child: Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(AppConstants.primaryColor),
+                            ),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      if (_todaysServiceTasks.isNotEmpty) ...[
+                        Text(
+                          'Today\'s Tasks',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._todaysServiceTasks.map(
+                          (task) => _buildDutyTaskCard(context, task),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      if (_upcoming48hServiceTasks.isNotEmpty) ...[
+                        Text(
+                          'Upcoming (48h)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 120,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _upcoming48hServiceTasks.length,
+                            itemBuilder: (context, index) {
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: SizedBox(
+                                  width: 220,
+                                  child: _buildDutyTaskCard(
+                                    context,
+                                    _upcoming48hServiceTasks[index],
+                                    compact: true,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                      if (_todaysServiceTasks.isEmpty &&
+                          _upcoming48hServiceTasks.isEmpty &&
+                          _serviceTasks.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Text(
+                            'No tasks today or in the next 48 hours.',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Quick Stats
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${_getFilterLabel()}\'s Overview',
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(AppConstants.accentColor),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (_userRole == 'veterinarian')
+                        PopupMenuButton<String>(
+                          onSelected: _changeFilter,
+                          icon: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(AppConstants.primaryColor),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.filter_list,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Filter',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'today',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.today,
+                                    size: 18,
+                                    color: _selectedFilter == 'today'
+                                        ? const Color(AppConstants.primaryColor)
+                                        : Colors.grey,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Today',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: _selectedFilter == 'today'
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: _selectedFilter == 'today'
+                                          ? const Color(
+                                              AppConstants.primaryColor,
+                                            )
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: '48hours',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.access_time,
+                                    size: 18,
+                                    color: _selectedFilter == '48hours'
+                                        ? const Color(AppConstants.primaryColor)
+                                        : Colors.grey,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'Past 48 Hours',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: _selectedFilter == '48hours'
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: _selectedFilter == '48hours'
+                                          ? const Color(
+                                              AppConstants.primaryColor,
+                                            )
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'week',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.date_range,
+                                    size: 18,
+                                    color: _selectedFilter == 'week'
+                                        ? const Color(AppConstants.primaryColor)
+                                        : Colors.grey,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'This Week',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: _selectedFilter == 'week'
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: _selectedFilter == 'week'
+                                          ? const Color(
+                                              AppConstants.primaryColor,
+                                            )
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'month',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_month,
+                                    size: 18,
+                                    color: _selectedFilter == 'month'
+                                        ? const Color(AppConstants.primaryColor)
+                                        : Colors.grey,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    'This Month',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: _selectedFilter == 'month'
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                      color: _selectedFilter == 'month'
+                                          ? const Color(
+                                              AppConstants.primaryColor,
+                                            )
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (_userRole == 'veterinarian' && _isLoadingStats)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: const LinearProgressIndicator(
+                          minHeight: 6,
+                          color: Color(AppConstants.primaryColor),
+                          backgroundColor: Color(AppConstants.secondaryColor),
+                        ),
+                      ),
+                    ),
+
+                  // Stats Grid
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 1.3,
+                    children: _getRoleStats().map((stat) {
+                      return _buildStatCard(
+                        icon: stat['icon'] as IconData,
+                        title: stat['title'] as String,
+                        value: stat['value'] as String,
+                        color: stat['color'] as Color,
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Quick Actions
+                  Text(
+                    'Quick Actions',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(AppConstants.accentColor),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 16),
 
-              // Stats Grid
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.3,
-                children: _getRoleStats().map((stat) {
-                  return _buildStatCard(
-                    icon: stat['icon'] as IconData,
-                    title: stat['title'] as String,
-                    value: stat['value'] as String,
-                    color: stat['color'] as Color,
-                  );
-                }).toList(),
+                  ..._getRoleActions().map((action) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildActionButton(
+                        icon: action['icon'] as IconData,
+                        title: action['title'] as String,
+                        subtitle: action['subtitle'] as String,
+                        badge: action['badge'] as int? ?? 0,
+                        onTap: () async {
+                          final route = action['route'] as String?;
+                          if (route == 'profile') {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProfileEditorScreen(),
+                              ),
+                            );
+                            if (result == true) {
+                              _loadUserData(); // Reload user data after profile update
+                            }
+                          } else if (route == 'assignments') {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AllPetsScreen(),
+                              ),
+                            );
+                            if (result == true || mounted) {
+                              _loadNewAssignments(); // Reload after viewing
+                            }
+                          } else if (route == 'toggle_location') {
+                            await _toggleLocationSharing(!_shareLocation);
+                          } else if (route == 'shop_inventory') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ShopInventoryScreen(),
+                              ),
+                            );
+                          } else if (route == 'seller_inquiries') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SellerInquiriesScreen(),
+                              ),
+                            );
+                          } else if (route == 'rider_deliveries') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const RiderDeliveryOrdersScreen(),
+                              ),
+                            );
+                          } else if (route == 'earnings') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const EarningsScreen(),
+                              ),
+                            );
+                          } else if (route == 'my_business') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MyBusinessScreen(),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Feature coming soon!'),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                ],
               ),
-              const SizedBox(height: 32),
-
-              // Quick Actions
-              Text(
-                'Quick Actions',
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(AppConstants.accentColor),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              ..._getRoleActions().map((action) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildActionButton(
-                    icon: action['icon'] as IconData,
-                    title: action['title'] as String,
-                    subtitle: action['subtitle'] as String,
-                    badge: action['badge'] as int? ?? 0,
-                    onTap: () async {
-                      final route = action['route'] as String?;
-                      if (route == 'profile') {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ProfileEditorScreen(),
-                          ),
-                        );
-                        if (result == true) {
-                          _loadUserData(); // Reload user data after profile update
-                        }
-                      } else if (route == 'assignments') {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AllPetsScreen(),
-                          ),
-                        );
-                        if (result == true || mounted) {
-                          _loadNewAssignments(); // Reload after viewing
-                        }
-                      } else if (route == 'toggle_location') {
-                        await _toggleLocationSharing(!_shareLocation);
-                      } else if (route == 'shop_inventory') {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ShopInventoryScreen(),
-                          ),
-                        );
-                      } else if (route == 'rider_deliveries') {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RiderDeliveryOrdersScreen(),
-                          ),
-                        );
-                      } else if (route == 'earnings') {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const EarningsScreen(),
-                          ),
-                        );
-                      } else if (route == 'my_business') {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MyBusinessScreen(),
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Feature coming soon!')),
-                        );
-                      }
-                    },
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
+            ),
+          );
+          if (!shopOwner) return homeBody;
+          return IndexedStack(
+            index: _partnerNavIndex,
+            children: [homeBody, const SellerInquiriesScreen()],
+          );
+        },
       ),
+      bottomNavigationBar: shopOwner
+          ? NavigationBar(
+              selectedIndex: _partnerNavIndex,
+              onDestinationSelected: (int i) =>
+                  setState(() => _partnerNavIndex = i),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home_rounded),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  selectedIcon: Icon(Icons.chat_bubble_rounded),
+                  label: 'Shop Chats',
+                ),
+              ],
+            )
+          : null,
     );
   }
 

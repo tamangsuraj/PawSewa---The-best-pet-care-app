@@ -21,10 +21,11 @@ async function passwordMatches(storedPassword, candidatePassword) {
 function normalizeRoleForResponse(r) {
   if (!r) return r;
   const s = String(r).trim();
-  if (['VET', 'veterinarian'].includes(s)) return 'veterinarian';
+  const u = s.toUpperCase();
+  if (u === 'VET' || s === 'vet' || s === 'veterinarian') return 'veterinarian';
   if (['RIDER', 'rider', 'staff'].includes(s)) return 'rider';
   if (['ADMIN', 'admin'].includes(s)) return 'admin';
-  if (['CUSTOMER', 'pet_owner', 'customer'].includes(s)) return 'pet_owner';
+  if (u === 'CUSTOMER' || s === 'customer' || s === 'pet_owner') return 'pet_owner';
   return s;
 }
 
@@ -231,7 +232,7 @@ const verifyOTP = asyncHandler(async (req, res) => {
       _id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: normalizeRoleForResponse(user.role) || user.role,
       isVerified: user.isVerified,
       token: generateToken(user._id),
     },
@@ -833,26 +834,17 @@ const patchCurrentUser = asyncHandler(async (req, res) => {
  * @route GET /api/v1/users/me/linked-vets
  */
 const getLinkedVets = asyncHandler(async (req, res) => {
-  const uid = req.user._id;
-  const Pet = require('../models/Pet');
-
-  const pets = await Pet.find({ owner: uid }).select('linkedVetVisits').lean();
-  const fromPets = [];
-  for (const p of pets) {
-    const visits = p.linkedVetVisits;
-    if (!Array.isArray(visits)) continue;
-    for (const v of visits) {
-      if (v.veterinarian) fromPets.push(String(v.veterinarian));
-    }
+  const uid = req.user._id.toString();
+  const { collectVetIdsForOwner, VET_ROLES } = require('../utils/vetChatEligibility');
+  const vetIdStrings = await collectVetIdsForOwner(uid);
+  if (vetIdStrings.length === 0) {
+    return res.json({ success: true, data: [] });
   }
-
-  const merged = [...new Set(fromPets)].filter(Boolean);
-
   const vets = await User.find({
-    _id: { $in: merged },
-    role: 'veterinarian',
+    _id: { $in: vetIdStrings },
+    role: { $in: VET_ROLES },
   })
-    .select('name profilePicture clinicName specialization email')
+    .select('name profilePicture clinicName specialization specialty email')
     .lean();
 
   res.json({ success: true, data: vets });

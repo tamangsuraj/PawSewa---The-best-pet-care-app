@@ -31,6 +31,7 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ...ApiConfig.ngrokHeadersForBaseUrl(baseUrl),
         },
       ),
     );
@@ -111,6 +112,9 @@ class ApiClient {
     final baseUrl = await ApiConfig.getBaseUrl();
     if (kDebugMode) debugPrint('[API] Reinit base URL: $baseUrl');
     _dio.options.baseUrl = baseUrl;
+    final ng = ApiConfig.ngrokHeadersForBaseUrl(baseUrl);
+    _dio.options.headers.remove('ngrok-skip-browser-warning');
+    if (ng.isNotEmpty) _dio.options.headers.addAll(ng);
   }
 
   // Login
@@ -288,5 +292,36 @@ class ApiClient {
 
   Future<Response> getMyProviderApplication() async {
     return await _dio.get('/provider-applications/my');
+  }
+
+  // Marketplace chat (seller + rider)
+  Future<Response> getSellerMarketplaceInbox() async {
+    return await _dio.get('/marketplace-chat/seller/inbox');
+  }
+
+  Future<Response> getRiderMarketplaceInbox() async {
+    return await _dio.get('/marketplace-chat/rider/inbox');
+  }
+
+  Future<Response> getRiderDeliveryChat(String orderId) async {
+    return await _dio.get('/marketplace-chat/delivery/rider-order/$orderId');
+  }
+
+  Future<Response> getMarketplaceMessages(String conversationId) async {
+    return await _dio.get('/marketplace-chat/conversations/$conversationId/messages');
+  }
+
+  Future<Response> postMarketplaceMessage(
+    String conversationId, {
+    required String text,
+    String? productId,
+  }) async {
+    return await _dio.post(
+      '/marketplace-chat/conversations/$conversationId/messages',
+      data: {
+        'text': text,
+        if (productId != null && productId.isNotEmpty) 'productId': productId,
+      },
+    );
   }
 }

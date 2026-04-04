@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/storage_service.dart';
+import '../messages/marketplace_thread_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key, this.highlightOrderId});
@@ -204,6 +206,57 @@ class _OrderCard extends StatelessWidget {
     return p == 'paid' ? 'Paid' : 'Unpaid';
   }
 
+  bool get _canChatRider {
+    final ar = order['assignedRider'];
+    if (ar == null) return false;
+    if (ar is Map && ar.isEmpty) return false;
+    if (ar is String && ar.isEmpty) return false;
+    final st = order['status']?.toString() ?? '';
+    return st != 'pending';
+  }
+
+  Future<void> _openRiderChat(BuildContext context) async {
+    final storage = StorageService();
+    if (!await storage.isLoggedIn()) return;
+    final id = order['_id']?.toString();
+    if (id == null) return;
+    try {
+      final r = await ApiClient().getDeliveryChatByOrder(id);
+      final body = r.data;
+      if (body is Map && body['success'] == true && body['data'] is Map) {
+        final conv = body['data'] as Map<String, dynamic>;
+        final cid = conv['_id']?.toString();
+        final partner = conv['partner'];
+        final name = partner is Map ? (partner['name']?.toString() ?? 'Rider') : 'Rider';
+        if (context.mounted && cid != null) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MarketplaceThreadScreen(
+                conversationId: cid,
+                threadType: 'DELIVERY',
+                peerName: name,
+                peerSubtitle: 'Your order',
+                highContrast: true,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is DioException && e.response?.data is Map
+                  ? (e.response!.data as Map)['message']?.toString() ?? 'Chat unavailable'
+                  : 'Chat unavailable for this order',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = const Color(AppConstants.primaryColor);
@@ -306,6 +359,24 @@ class _OrderCard extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: Colors.grey[600],
+                ),
+              ),
+            ],
+            if (_canChatRider) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: () => _openRiderChat(context),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                  label: Text(
+                    'Chat with Rider',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  style: FilledButton.styleFrom(
+                    foregroundColor: primary,
+                    backgroundColor: primary.withValues(alpha: 0.12),
+                  ),
                 ),
               ),
             ],

@@ -25,9 +25,10 @@ class ApiClient {
         // Local network: keep timeouts reasonable to surface real connectivity issues
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
-        headers: const {
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          ...ApiConfig.ngrokHeadersForBaseUrl(baseUrl),
         },
       ),
     );
@@ -120,6 +121,9 @@ class ApiClient {
     final baseUrl = await ApiConfig.getBaseUrl();
     if (kDebugMode) debugPrint('[API] Reinit base URL: $baseUrl');
     _dio.options.baseUrl = baseUrl;
+    final ng = ApiConfig.ngrokHeadersForBaseUrl(baseUrl);
+    _dio.options.headers.remove('ngrok-skip-browser-warning');
+    if (ng.isNotEmpty) _dio.options.headers.addAll(ng);
   }
 
   // Login
@@ -287,6 +291,37 @@ class ApiClient {
     return await _dio.get('/orders/my');
   }
 
+  // Marketplace chat (seller + delivery)
+  Future<Response> getMarketplaceInbox() async {
+    return await _dio.get('/marketplace-chat/inbox');
+  }
+
+  Future<Response> openSellerMarketplaceChat(String productId) async {
+    return await _dio.post('/marketplace-chat/seller/open', data: {'productId': productId});
+  }
+
+  Future<Response> getDeliveryChatByOrder(String orderId) async {
+    return await _dio.get('/marketplace-chat/delivery/by-order/$orderId');
+  }
+
+  Future<Response> getMarketplaceMessages(String conversationId) async {
+    return await _dio.get('/marketplace-chat/conversations/$conversationId/messages');
+  }
+
+  Future<Response> postMarketplaceMessage(
+    String conversationId, {
+    required String text,
+    String? productId,
+  }) async {
+    return await _dio.post(
+      '/marketplace-chat/conversations/$conversationId/messages',
+      data: {
+        'text': text,
+        if (productId != null && productId.isNotEmpty) 'productId': productId,
+      },
+    );
+  }
+
   /// Initiate Khalti payment for a shop order. Returns pidx, paymentUrl, orderId.
   /// Backend creates the Khalti session; app should open paymentUrl in browser/WebView.
   Future<Response> initiateKhaltiForOrder(String orderId) async {
@@ -434,5 +469,31 @@ class ApiClient {
   /// Vets linked via appointments, service requests, or pet medical visit records (Vet Chat shortcuts).
   Future<Response> getLinkedVets() async {
     return await _dio.get('/users/me/linked-vets');
+  }
+
+  /// Vet Circle — vets eligible for 1:1 chat (shared medical / appointment history).
+  Future<Response> getChatsMyVets() async {
+    return await _dio.get('/chats/my-vets');
+  }
+
+  Future<Response> getVetDirectMessages({
+    required String ownerId,
+    required String vetId,
+  }) async {
+    return await _dio.get(
+      '/chats/vet-direct/messages',
+      queryParameters: {'ownerId': ownerId, 'vetId': vetId},
+    );
+  }
+
+  Future<Response> postVetDirectMessage({
+    required String ownerId,
+    required String vetId,
+    required String text,
+  }) async {
+    return await _dio.post(
+      '/chats/vet-direct/messages',
+      data: {'ownerId': ownerId, 'vetId': vetId, 'text': text},
+    );
   }
 }
