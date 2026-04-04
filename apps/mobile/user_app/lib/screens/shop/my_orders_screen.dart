@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/storage_service.dart';
+import '../../services/socket_service.dart';
 import '../messages/marketplace_thread_screen.dart';
 
 class MyOrdersScreen extends StatefulWidget {
@@ -24,11 +27,62 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
   String? _error;
+  String? _myUserId;
+
+  void _onOrderSocket(Map<String, dynamic> payload) {
+    final raw = payload['order'];
+    if (raw is! Map) return;
+    final order = Map<String, dynamic>.from(raw);
+    final user = order['user'];
+    String? ownerId;
+    if (user is Map) {
+      ownerId = user['_id']?.toString() ?? user['id']?.toString();
+    }
+    if (_myUserId != null && ownerId != null && ownerId != _myUserId) {
+      return;
+    }
+    final id = order['_id']?.toString();
+    if (id == null) return;
+    if (!mounted) return;
+    setState(() {
+      final idx = _orders.indexWhere((o) => o['_id']?.toString() == id);
+      if (idx >= 0) {
+        _orders = List<Map<String, dynamic>>.from(_orders);
+        _orders[idx] = {..._orders[idx], ...order};
+      } else {
+        _orders = [order, ..._orders];
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Order updated')),
+    );
+  }
+
+  Future<void> _initUserAndSocket() async {
+    final u = await StorageService().getUser();
+    if (u != null && u.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(u);
+        if (decoded is Map) {
+          _myUserId = decoded['_id']?.toString() ?? decoded['id']?.toString();
+        }
+      } catch (_) {}
+    }
+    await SocketService.instance.connect();
+    SocketService.instance.addOrderUpdateListener(_onOrderSocket);
+  }
 
   @override
   void initState() {
     super.initState();
     _load();
+    _initUserAndSocket();
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.removeOrderUpdateListener(_onOrderSocket);
+    super.dispose();
   }
 
   void _scrollToHighlighted() {
@@ -81,7 +135,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
@@ -92,7 +147,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,
-            color: Colors.black87,
+            color: Colors.white,
           ),
         ),
       ),

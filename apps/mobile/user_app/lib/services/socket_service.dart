@@ -27,6 +27,7 @@ class SocketService {
   final List<void Function(Map<String, dynamic>)?> _vetDirectTypingListeners = [];
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _orderUpdateListeners = [];
 
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
@@ -194,6 +195,15 @@ class SocketService {
         final map = _toMap(data);
         if (map != null) {
           for (final cb in _vetDirectTypingListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('orderUpdate', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _orderUpdateListeners) {
             cb?.call(map);
           }
         }
@@ -546,5 +556,14 @@ class SocketService {
 
   void addDisconnectListener(void Function(String) listener) {
     _disconnectListeners.add(listener);
+  }
+
+  /// Shop / delivery order status updates from backend (`orderUpdate` broadcast).
+  void addOrderUpdateListener(void Function(Map<String, dynamic>) listener) {
+    _orderUpdateListeners.add(listener);
+  }
+
+  void removeOrderUpdateListener(void Function(Map<String, dynamic>) listener) {
+    _orderUpdateListeners.remove(listener);
   }
 }

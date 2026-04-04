@@ -44,7 +44,9 @@ async function broadcastShopOrder(orderId, kind = 'update') {
   if (kind === 'assign_seller' && order.assignedSeller) {
     const sid =
       order.assignedSeller._id?.toString() || String(order.assignedSeller);
+    // Seller + admin dashboards: same event for simultaneous Care+ alerts
     io.to(`user:${sid}`).emit('order:assigned_seller', payload);
+    io.to('admin_room').emit('order:assigned_seller', payload);
   }
 
   if (kind === 'seller_confirmed') {

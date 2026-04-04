@@ -558,11 +558,18 @@ export default function LiveSuppliesPage() {
     socket.on('new:order', onNew);
     socket.on('order:paid', onPaid);
     socket.on('order:seller_confirmed', onSellerOk);
+    const onSellerAssigned = (payload: { order?: Order }) => {
+      if (payload?.order) mergeOrder(payload.order);
+      toast.success('Care+ seller assignment synced');
+      void loadOrders();
+    };
+    socket.on('order:assigned_seller', onSellerAssigned);
     return () => {
       socket.off('orderUpdate', handler);
       socket.off('new:order', onNew);
       socket.off('order:paid', onPaid);
       socket.off('order:seller_confirmed', onSellerOk);
+      socket.off('order:assigned_seller', onSellerAssigned);
     };
   }, [mergeOrder, loadOrders]);
 

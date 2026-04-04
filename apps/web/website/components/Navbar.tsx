@@ -16,11 +16,13 @@ const mainNav = [
   { href: '/', label: 'Home' },
   { href: '/services', label: 'Services' },
   { href: '/shop', label: 'Shop' },
+  { href: '/map', label: 'Map' },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
   const shopActive = pathname.startsWith('/shop');
+  const mapActive = pathname === '/map';
   const myPetsActive = pathname.startsWith('/my-pets');
   const { user, logout, isLoading } = useAuth();
   const { totalItems } = useCart();
@@ -33,15 +35,15 @@ export function Navbar() {
   const linkIdle =
     'text-paw-bark/90 hover:text-paw-ink hover:bg-paw-bark/[0.07]';
   const linkActive =
-    'text-paw-cream bg-gradient-to-br from-paw-bark to-paw-ink shadow-[0_4px_18px_rgba(61,46,36,0.22)] ring-1 ring-paw-ink/15';
+    'text-paw-cream bg-gradient-to-br from-paw-bark to-paw-ink shadow-[0_4px_18px_rgba(112,52,24,0.22)] ring-1 ring-paw-ink/15';
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-paw-bark/10 bg-white/78 backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_20px_56px_rgba(61,46,36,0.07)]">
+    <nav className="sticky top-0 z-50 border-b border-paw-bark/10 bg-white/80 backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_20px_56px_rgba(112,52,24,0.07)]">
       <div className="container mx-auto px-4 sm:px-5">
         <div className="flex items-center justify-between min-h-[4.75rem] py-2 sm:min-h-[5.125rem] sm:py-2.5">
           <Link
             href="/"
-            className="flex items-center min-w-0 shrink-0 pr-2 -ml-0.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-paw-teal-mid/45 focus-visible:ring-offset-2"
+            className="flex items-center min-w-0 shrink-0 pr-2 -ml-0.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-paw-teal-mid/40 focus-visible:ring-offset-2"
             onClick={closeMobile}
           >
             <PawSewaLogo variant="nav" height={60} blendWhiteMatte priority />
@@ -49,7 +51,12 @@ export function Navbar() {
 
           <div className="hidden lg:flex items-center gap-1 xl:gap-1.5">
             {mainNav.map(({ href, label }) => {
-              const active = href === '/shop' ? shopActive : pathname === href;
+              const active =
+                href === '/shop'
+                  ? shopActive
+                  : href === '/map'
+                    ? mapActive
+                    : pathname === href;
               return (
                 <Link
                   key={href}
@@ -126,7 +133,7 @@ export function Navbar() {
                   <Link href="/register">
                     <Button
                       variant="primary"
-                      className="rounded-full px-5 font-semibold shadow-[0_6px_22px_rgba(61,46,36,0.2)] bg-gradient-to-br from-paw-bark to-paw-ink hover:from-[#4d3828] hover:to-[#322318] text-paw-cream border border-paw-ink/12"
+                      className="rounded-full px-5 font-semibold shadow-[0_6px_22px_rgba(112,52,24,0.2)] bg-gradient-to-br from-paw-bark to-paw-ink hover:from-[#5c2c14] hover:to-[#4a2310] text-paw-cream border border-paw-ink/12"
                     >
                       Get Started
                     </Button>
@@ -148,7 +155,7 @@ export function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="lg:hidden border-t border-paw-bark/10 bg-white/92 backdrop-blur-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+        <div className="lg:hidden border-t border-paw-bark/10 bg-white/90 backdrop-blur-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
           <div className="container mx-auto px-4 py-4 flex flex-col gap-0.5">
             {mainNav.map(({ href, label }) => (
               <Link
@@ -200,7 +207,7 @@ export function Navbar() {
                 <Link
                   href="/login"
                   onClick={closeMobile}
-                  className="flex-1 text-center py-3 rounded-full border border-paw-bark/18 font-semibold text-paw-ink hover:bg-paw-bark/[0.05]"
+                  className="flex-1 text-center py-3 rounded-full border border-paw-bark/20 font-semibold text-paw-ink hover:bg-paw-bark/[0.05]"
                 >
                   Sign In
                 </Link>
