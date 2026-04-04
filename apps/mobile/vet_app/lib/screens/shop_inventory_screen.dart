@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
 
 class ShopInventoryScreen extends StatefulWidget {
@@ -33,25 +34,78 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
   final ImagePicker _picker = ImagePicker();
   List<XFile> _selectedImages = [];
 
+  List<Map<String, dynamic>> _assignedShopOrders = [];
+  bool _loadingShopOrders = false;
+
   // Add category
   final _categoryNameController = TextEditingController();
   XFile? _categoryImage;
   bool _creatingCategory = false;
 
+  void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
+    if (event != 'order:assigned_seller') return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New order assigned to your shop')),
+    );
+    _loadAssignedShopOrders();
+  }
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadAssignedShopOrders();
+    SocketService.instance.connect();
+    SocketService.instance.addShopOrderListener(_onShopOrderSocket);
   }
 
   @override
   void dispose() {
+    SocketService.instance.removeShopOrderListener(_onShopOrderSocket);
     _nameController.dispose();
     _priceController.dispose();
     _stockController.dispose();
     _descriptionController.dispose();
     _categoryNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadAssignedShopOrders() async {
+    setState(() => _loadingShopOrders = true);
+    try {
+      final r = await _apiClient.getSellerAssignedOrders();
+      final body = r.data;
+      if (body is Map && body['success'] == true && body['data'] is List) {
+        if (mounted) {
+          setState(() {
+            _assignedShopOrders = (body['data'] as List)
+                .map((e) => Map<String, dynamic>.from(e as Map))
+                .toList();
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _assignedShopOrders = []);
+    } finally {
+      if (mounted) setState(() => _loadingShopOrders = false);
+    }
+  }
+
+  Future<void> _confirmShopOrder(String orderId) async {
+    try {
+      await _apiClient.confirmSellerOrderStock(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Stock confirmed — admin notified')),
+      );
+      await _loadAssignedShopOrders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $e')),
+      );
+    }
   }
 
   Future<void> _createCategory() async {
@@ -235,10 +289,95 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                   )
                 : RefreshIndicator(
               color: primary,
-              onRefresh: _loadData,
+              onRefresh: () async {
+                await _loadData();
+                await _loadAssignedShopOrders();
+              },
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (_loadingShopOrders && _assignedShopOrders.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: LinearProgressIndicator(
+                        color: primary,
+                        backgroundColor: primary.withValues(alpha: 0.15),
+                      ),
+                    ),
+                  if (_assignedShopOrders.isNotEmpty) ...[
+                    Text(
+                      'Orders assigned to your shop',
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ..._assignedShopOrders.map((o) {
+                      final id = o['_id']?.toString() ?? '';
+                      final user = o['user'];
+                      final name = user is Map
+                          ? (user['name']?.toString() ?? 'Customer')
+                          : 'Customer';
+                      final addr = o['deliveryLocation'] is Map
+                          ? (o['deliveryLocation']['address']?.toString() ?? '')
+                          : '';
+                      final confirmed = o['sellerConfirmedAt'] != null;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Order …${id.length > 6 ? id.substring(id.length - 6) : id}',
+                                style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                name,
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              if (addr.isNotEmpty)
+                                Text(
+                                  addr,
+                                  style: GoogleFonts.outfit(fontSize: 12),
+                                ),
+                              const SizedBox(height: 8),
+                              if (confirmed)
+                                Text(
+                                  'Stock confirmed',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                )
+                              else
+                                ElevatedButton(
+                                  onPressed: id.isEmpty
+                                      ? null
+                                      : () => _confirmShopOrder(id),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primary,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: Text(
+                                    'Confirm stock',
+                                    style: GoogleFonts.outfit(),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 20),
+                  ],
                   if (_error != null)
                     Container(
                       margin: const EdgeInsets.only(bottom: 12),

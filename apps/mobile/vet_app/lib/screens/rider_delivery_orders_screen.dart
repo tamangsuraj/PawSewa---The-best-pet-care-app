@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/location_service.dart';
+import '../services/socket_service.dart';
 import 'rider_en_route_screen.dart';
 import 'partner_marketplace_chat_screen.dart';
 
@@ -48,6 +49,15 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   List<Map<String, dynamic>> _transactions = [];
   String? _riderId;
 
+  void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
+    if (event != 'job:available' && event != 'order:assigned_rider') return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New delivery assignment')),
+    );
+    _load();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +68,14 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     });
     _load();
     _loadCurrentLocationForDistance();
+    SocketService.instance.connect();
+    SocketService.instance.addShopOrderListener(_onShopOrderSocket);
+  }
+
+  @override
+  void dispose() {
+    SocketService.instance.removeShopOrderListener(_onShopOrderSocket);
+    super.dispose();
   }
 
   Future<void> _loadCurrentLocationForDistance() async {

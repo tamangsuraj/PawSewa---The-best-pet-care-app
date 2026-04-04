@@ -1,0 +1,4 @@
+2026-04-04 — Sprint start: audit task.md vs repo (apps/web/website, apps/web/admin, apps/mobile/user_app, apps/mobile/vet_app, backend).
+2026-04-04 — Backend: Order model extended (assignedSeller, sellerConfirmedAt, adminNote); orderSocketNotify service; assign-seller + seller-confirm + GET seller/assigned; targeted Socket.io (admin_room, user:rider, user:seller); Khalti paid emits order:paid.
+2026-04-04 — Admin supplies: Assign seller UI, OSM leaflet preview (same tile URL as user_app/service-requests), sockets new:order/order:paid/order:seller_confirmed, primary #703418 status button, modal stays open after assign.
+2026-04-04 — vet_app: SocketService shop-order events; rider delivery screen listens for job:available; shop inventory lists assigned orders + confirm stock API.

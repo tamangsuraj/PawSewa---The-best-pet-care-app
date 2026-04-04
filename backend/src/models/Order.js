@@ -78,6 +78,22 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    /** Care+ / marketplace: shop owner who fulfills picked items before rider pickup */
+    assignedSeller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    sellerConfirmedAt: {
+      type: Date,
+      default: null,
+    },
+    adminNote: {
+      type: String,
+      default: null,
+      trim: true,
+      maxLength: 2000,
+    },
     // deliveryStatus: Pending | Assigned | PickedUp | Delivered (synced with status)
     deliveryStatus: {
       type: String,
@@ -105,6 +121,7 @@ const orderSchema = new mongoose.Schema(
 orderSchema.index({ user: 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ assignedRider: 1, status: 1 });
+orderSchema.index({ assignedSeller: 1, status: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ 'deliveryLocation.point': '2dsphere' });
 

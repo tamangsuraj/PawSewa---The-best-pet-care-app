@@ -27,6 +27,9 @@ class SocketService {
   final List<void Function(Map<String, dynamic>)?> _vetDirectTypingListeners = [];
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
+  /// Rider/seller shop fulfillment: job:available, order:assigned_rider, order:assigned_seller
+  final List<void Function(String event, Map<String, dynamic> payload)?>
+      _shopOrderListeners = [];
 
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
@@ -195,6 +198,24 @@ class SocketService {
           }
         }
       });
+
+      void dispatchShopOrder(String event, dynamic data) {
+        final map = _toMap(data);
+        if (map == null) return;
+        for (final cb in _shopOrderListeners) {
+          cb?.call(event, map);
+        }
+      }
+
+      _socket!.on('job:available', (data) => dispatchShopOrder('job:available', data));
+      _socket!.on(
+        'order:assigned_rider',
+        (data) => dispatchShopOrder('order:assigned_rider', data),
+      );
+      _socket!.on(
+        'order:assigned_seller',
+        (data) => dispatchShopOrder('order:assigned_seller', data),
+      );
 
       _socket!.connect();
     } catch (e) {
@@ -518,5 +539,17 @@ class SocketService {
 
   void addDisconnectListener(void Function(String) listener) {
     _disconnectListeners.add(listener);
+  }
+
+  void addShopOrderListener(
+    void Function(String event, Map<String, dynamic> payload) listener,
+  ) {
+    _shopOrderListeners.add(listener);
+  }
+
+  void removeShopOrderListener(
+    void Function(String event, Map<String, dynamic> payload) listener,
+  ) {
+    _shopOrderListeners.remove(listener);
   }
 }

@@ -12,6 +12,7 @@ const Hostel = require('../models/Hostel');
 const Order = require('../models/Order');
 const PaymentLog = require('../models/PaymentLog');
 const logger = require('../utils/logger');
+const { broadcastShopOrder } = require('../services/orderSocketNotify');
 const {
   KHALTI_BASE_URL,
   KHALTI_SECRET_KEY,
@@ -443,6 +444,7 @@ const khaltiCallback = asyncHandler(async (req, res) => {
       order.paymentStatus = 'paid';
       order.paymentMethod = 'khalti';
       await order.save();
+      await broadcastShopOrder(purchaseOrderId, 'paid');
     }
     const payment = await Payment.findById(purchaseOrderId);
     if (payment && payment.status !== 'completed') {
@@ -900,6 +902,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
         order.paymentStatus = 'paid';
         order.paymentMethod = 'khalti';
         await order.save();
+        await broadcastShopOrder(purchaseOrderId, 'paid');
         console.log(`[${ts}] [INFO] Order ${purchaseOrderId} marked as paid (PIDX: ${pidx})`);
         return res.json({
           success: true,
@@ -1007,6 +1010,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
       order.paymentMethod = 'khalti';
       order.khaltiTransactionId = transactionId;
       await order.save();
+      await broadcastShopOrder(order._id, 'paid');
       logger.success(
         `Khalti payment verified for Order ${order._id}. Transaction: ${transactionId || 'n/a'}.`
       );

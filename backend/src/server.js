@@ -103,6 +103,9 @@ io.on('connection', (socket) => {
     socket.join('user:' + userId);
     presenceConnect(userId);
   }
+  if (socket.user?.role === 'admin') {
+    socket.join('admin_room');
+  }
   socket.on('disconnect', () => {
     if (userId) presenceDisconnect(userId);
   });

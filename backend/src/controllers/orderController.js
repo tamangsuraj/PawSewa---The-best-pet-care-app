@@ -3,8 +3,8 @@ const axios = require('axios');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
-const { getIO } = require('../sockets/socketStore');
 const logger = require('../utils/logger');
+const { broadcastShopOrder } = require('../services/orderSocketNotify');
 const {
   ensureDeliveryConversationForOrder,
   setDeliveryConversationExpiry,
@@ -132,11 +132,7 @@ const createOrder = asyncHandler(async (req, res) => {
   logger.success('[SUCCESS] GPS Order Logged', String(order._id), `lat=${lat}`, `lng=${lng}`);
   logger.info('New Order Received: ID', order._id.toString());
 
-  // Notify admin panel and any connected dashboards in real time
-  const io = getIO();
-  if (io) {
-    io.emit('orderUpdate', { order });
-  }
+  await broadcastShopOrder(order._id, 'new_order');
 
   res.status(201).json({ success: true, data: order });
 });
@@ -146,6 +142,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
   const orders = await Order.find({ user: req.user._id })
     .populate('items.product', 'name images')
     .populate('assignedRider', 'name phone profilePicture')
+    .populate('assignedSeller', 'name phone')
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: orders });
@@ -169,6 +166,7 @@ const adminGetOrders = asyncHandler(async (req, res) => {
     Order.find(filter)
       .populate('user', 'name email phone')
       .populate('assignedRider', 'name email phone')
+      .populate('assignedSeller', 'name email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -195,6 +193,7 @@ const getRiderAssignedOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find({ assignedRider: riderId })
     .populate('user', 'name email phone')
+    .populate('assignedSeller', 'name email phone')
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: orders });
@@ -204,6 +203,25 @@ const getRiderAssignedOrders = asyncHandler(async (req, res) => {
  * Rider: GET /api/v1/orders/rider/active
  * Returns orders assigned to the current rider that are still active (not delivered).
  */
+/**
+ * Shop owner: GET /api/v1/orders/seller/assigned
+ * Product orders assigned to this seller for fulfillment.
+ */
+const getSellerAssignedOrders = asyncHandler(async (req, res) => {
+  const sellerId = req.user?._id;
+  if (!sellerId) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  const orders = await Order.find({ assignedSeller: sellerId })
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name phone')
+    .populate('items.product', 'name images')
+    .sort({ createdAt: -1 });
+
+  res.json({ success: true, data: orders });
+});
+
 const getRiderActiveOrders = asyncHandler(async (req, res) => {
   const riderId = req.user?._id;
   if (!riderId) {
@@ -215,6 +233,7 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
     status: { $in: ['pending', 'processing', 'out_for_delivery'] },
   })
     .populate('user', 'name email phone')
+    .populate('assignedSeller', 'name email phone')
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: orders });
@@ -279,13 +298,11 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
-    .populate('assignedRider', 'name email phone');
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
 
   logger.info('Order Status Updated: ID', order._id.toString(), 'status', current, '->', status);
-  const io = getIO();
-  if (io) {
-    io.emit('orderUpdate', { order: updated });
-  }
+  await broadcastShopOrder(orderId, 'update');
 
   res.json({
     success: true,
@@ -322,22 +339,97 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
   await order.save();
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
-    .populate('assignedRider', 'name email phone');
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
 
   if (order.assignedRider) {
     logger.info('Order Assigned To Rider: Order', order._id.toString(), 'Rider', order.assignedRider.toString());
     const plain = await Order.findById(orderId).lean();
     if (plain) await ensureDeliveryConversationForOrder(plain);
-  }
-  const io = getIO();
-  if (io) {
-    io.emit('orderUpdate', { order: updated });
+    await broadcastShopOrder(orderId, 'assign_rider');
+  } else {
+    await broadcastShopOrder(orderId, 'update');
   }
 
   res.json({
     success: true,
     data: updated,
     message: order.assignedRider ? 'Rider assigned' : 'Order updated',
+  });
+});
+
+/**
+ * Admin: PATCH /api/v1/orders/:orderId/assign-seller
+ * Body: { sellerId: string }
+ */
+const assignSellerToOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { sellerId } = req.body || {};
+
+  if (!sellerId) {
+    return res.status(400).json({ success: false, message: 'sellerId is required' });
+  }
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const seller = await User.findById(sellerId).select('role');
+  if (!seller || seller.role !== 'shop_owner') {
+    return res.status(400).json({ success: false, message: 'Invalid seller (must be shop_owner)' });
+  }
+
+  order.assignedSeller = sellerId;
+  await order.save();
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
+
+  await broadcastShopOrder(orderId, 'assign_seller');
+
+  res.json({
+    success: true,
+    data: updated,
+    message: 'Seller assigned',
+  });
+});
+
+/**
+ * Shop owner: PATCH /api/v1/orders/:orderId/seller-confirm
+ * Marks stock confirmed for orders assigned to this seller.
+ */
+const confirmSellerOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const uid = req.user?._id?.toString();
+  if (!order.assignedSeller || order.assignedSeller.toString() !== uid) {
+    return res.status(403).json({
+      success: false,
+      message: 'This order is not assigned to your shop',
+    });
+  }
+
+  order.sellerConfirmedAt = new Date();
+  await order.save();
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
+
+  await broadcastShopOrder(orderId, 'seller_confirmed');
+
+  res.json({
+    success: true,
+    data: updated,
+    message: 'Stock confirmed',
   });
 });
 
@@ -369,6 +461,10 @@ const bulkAssignOrders = asyncHandler(async (req, res) => {
     if (o.assignedRider) {
       await ensureDeliveryConversationForOrder(o);
     }
+  }
+
+  for (const oid of orderIds) {
+    await broadcastShopOrder(oid, 'assign_rider');
   }
 
   res.json({
@@ -522,9 +618,12 @@ module.exports = {
   getMyOrders,
   adminGetOrders,
   getRiderAssignedOrders,
+  getSellerAssignedOrders,
   getRiderActiveOrders,
   updateOrderStatus,
   assignRiderToOrder,
+  assignSellerToOrder,
+  confirmSellerOrder,
   bulkAssignOrders,
   initiateKhaltiForOrder,
   updateMyOrderDeliveryGps,

@@ -246,6 +246,16 @@ class ApiClient {
     );
   }
 
+  /// Shop owner: orders assigned by admin for fulfillment.
+  Future<Response> getSellerAssignedOrders() async {
+    return await _dio.get('/orders/seller/assigned');
+  }
+
+  /// Shop owner: confirm items in stock before rider pickup.
+  Future<Response> confirmSellerOrderStock(String orderId) async {
+    return await _dio.patch('/orders/$orderId/seller-confirm');
+  }
+
   /// Get vet/care earnings (payments received from pet owners for completed services).
   Future<Response> getVetEarnings() async {
     return await _dio.get('/vets/earnings');

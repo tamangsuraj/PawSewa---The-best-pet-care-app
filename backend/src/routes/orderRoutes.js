@@ -6,9 +6,12 @@ const {
   getMyOrders,
   adminGetOrders,
   getRiderAssignedOrders,
+  getSellerAssignedOrders,
   getRiderActiveOrders,
   updateOrderStatus,
   assignRiderToOrder,
+  assignSellerToOrder,
+  confirmSellerOrder,
   bulkAssignOrders,
   initiateKhaltiForOrder,
   updateMyOrderDeliveryGps,
@@ -20,9 +23,12 @@ router.patch('/:orderId/delivery-gps', protect, updateMyOrderDeliveryGps);
 router.get('/my', protect, getMyOrders);
 router.get('/rider/assigned', protect, authorize('rider'), getRiderAssignedOrders);
 router.get('/rider/active', protect, authorize('rider'), getRiderActiveOrders);
+router.get('/seller/assigned', protect, authorize('shop_owner'), getSellerAssignedOrders);
 router.get('/', protect, admin, adminGetOrders);
 router.post('/bulk-assign', protect, admin, bulkAssignOrders);
 router.patch('/:orderId/assign', protect, admin, assignRiderToOrder);
+router.patch('/:orderId/assign-seller', protect, admin, assignSellerToOrder);
+router.patch('/:orderId/seller-confirm', protect, authorize('shop_owner'), confirmSellerOrder);
 router.patch('/:orderId/status', protect, updateOrderStatus);
 router.post('/:orderId/khalti/initiate', protect, initiateKhaltiForOrder);
 

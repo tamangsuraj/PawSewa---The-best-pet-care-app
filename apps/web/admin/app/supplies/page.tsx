@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import 'leaflet/dist/leaflet.css';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
 import {
@@ -18,6 +20,19 @@ import {
   UserPlus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const MapContainer = dynamic(
+  () => import('react-leaflet').then((m) => m.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import('react-leaflet').then((m) => m.TileLayer),
+  { ssr: false }
+);
+const Marker = dynamic(
+  () => import('react-leaflet').then((m) => m.Marker),
+  { ssr: false }
+);
 
 interface Rider {
   _id: string;
@@ -41,7 +56,17 @@ interface Order {
   };
   location?: { lat: number; lng: number; address?: string };
   assignedRider?: { _id: string; name?: string; email?: string; phone?: string };
+  assignedSeller?: { _id: string; name?: string; email?: string; phone?: string };
+  sellerConfirmedAt?: string | null;
   createdAt: string;
+}
+
+interface Seller {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role: string;
 }
 
 function orderPreciseCoords(order: Order): { lat: number; lng: number } | null {
@@ -82,22 +107,34 @@ const ORDER_STATUSES: Order['status'][] = [
 function OrderDetailModal({
   order,
   riders,
+  sellers,
   onClose,
   onUpdated,
 }: {
   order: Order;
   riders: Rider[];
+  sellers: Seller[];
   onClose: () => void;
   onUpdated: (updatedOrder?: Order) => void;
 }) {
   const [selectedRiderId, setSelectedRiderId] = useState<string>(
     order.assignedRider?._id ?? ''
   );
+  const [selectedSellerId, setSelectedSellerId] = useState<string>(
+    order.assignedSeller?._id ?? ''
+  );
   const [selectedStatus, setSelectedStatus] = useState<Order['status']>(
     order.status
   );
   const [assigning, setAssigning] = useState(false);
+  const [assigningSeller, setAssigningSeller] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  useEffect(() => {
+    setSelectedSellerId(order.assignedSeller?._id ?? '');
+    setSelectedRiderId(order.assignedRider?._id ?? '');
+    setSelectedStatus(order.status);
+  }, [order._id, order.assignedSeller?._id, order.assignedRider?._id, order.status]);
 
   const precise = orderPreciseCoords(order);
   const mapsSearchUrl = precise
@@ -105,6 +142,32 @@ function OrderDetailModal({
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         order.deliveryLocation?.address ?? ''
       )}`;
+  const osmUrl = precise
+    ? `https://www.openstreetmap.org/?mlat=${precise.lat}&mlon=${precise.lng}#map=16/${precise.lat}/${precise.lng}`
+    : null;
+
+  const handleAssignSeller = async () => {
+    if (!selectedSellerId) {
+      toast.error('Select a seller');
+      return;
+    }
+    setAssigningSeller(true);
+    try {
+      const resp = await api.patch<{ success: boolean; data?: Order }>(
+        `/orders/${order._id}/assign-seller`,
+        { sellerId: selectedSellerId }
+      );
+      toast.success('Seller assigned — partner app notified');
+      onUpdated(resp.data?.data);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || 'Failed to assign seller';
+      toast.error(msg);
+    } finally {
+      setAssigningSeller(false);
+    }
+  };
 
   const handleAssign = async () => {
     if (!selectedRiderId) {
@@ -202,19 +265,47 @@ function OrderDetailModal({
               <MapPin className="w-4 h-4" />
               Delivery location
             </h3>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-gray-900 mb-3">
+            <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+              <p className="text-gray-900">
                 {order.deliveryLocation?.address ?? '—'}
               </p>
-              <a
-                href={mapsSearchUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
-              >
-                <MapIcon className="w-4 h-4" aria-hidden />
-                View on Map
-              </a>
+              {precise ? (
+                <div className="rounded-lg border border-gray-200 overflow-hidden h-40 bg-gray-100">
+                  <MapContainer
+                    center={[precise.lat, precise.lng]}
+                    zoom={14}
+                    scrollWheelZoom={false}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                    />
+                    <Marker position={[precise.lat, precise.lng]} />
+                  </MapContainer>
+                </div>
+              ) : null}
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href={mapsSearchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
+                >
+                  <MapIcon className="w-4 h-4" aria-hidden />
+                  Google Maps
+                </a>
+                {osmUrl ? (
+                  <a
+                    href={osmUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
+                  >
+                    OpenStreetMap
+                  </a>
+                ) : null}
+              </div>
             </div>
           </div>
 
@@ -235,6 +326,47 @@ function OrderDetailModal({
             </p>
           </div>
 
+          {/* Assign seller (Care+ shop chain) */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Assign seller
+            </h3>
+            <p className="text-xs text-gray-500 mb-2">
+              Shop owner confirms stock before rider pickup. Partner app receives a real-time ping.
+            </p>
+            <div className="flex flex-wrap gap-2 items-end">
+              <div className="flex-1 min-w-[200px]">
+                <select
+                  value={selectedSellerId}
+                  onChange={(e) => setSelectedSellerId(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">Select seller</option>
+                  {sellers.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name} {s.phone ? `(${s.phone})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={handleAssignSeller}
+                disabled={assigningSeller || !selectedSellerId}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-sm font-medium"
+              >
+                {assigningSeller ? 'Assigning…' : 'Assign seller'}
+              </button>
+            </div>
+            {order.assignedSeller && (
+              <p className="mt-2 text-sm text-gray-600">
+                Current seller: {order.assignedSeller.name}
+                {order.sellerConfirmedAt ? ' · Stock confirmed' : ' · Awaiting confirmation'}
+              </p>
+            )}
+          </div>
+
           {/* Assign rider */}
           <div>
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -242,7 +374,8 @@ function OrderDetailModal({
               Assign rider
             </h3>
             <p className="text-xs text-gray-500 mb-2">
-              Once assigned, this order will appear in that rider&apos;s delivery app only.
+              Once assigned, this order will appear in that rider&apos;s delivery app (socket:
+              job:available).
             </p>
             <div className="flex flex-wrap gap-2 items-end">
               <div className="flex-1 min-w-[200px]">
@@ -297,7 +430,7 @@ function OrderDetailModal({
               <button
                 onClick={handleUpdateStatus}
                 disabled={updatingStatus}
-                className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 text-sm font-medium"
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-sm font-medium"
               >
                 {updatingStatus ? 'Updating…' : 'Update status'}
               </button>
@@ -314,6 +447,7 @@ const PAGE_SIZE = 20;
 export default function LiveSuppliesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -368,6 +502,18 @@ export default function LiveSuppliesPage() {
     }
   };
 
+  const loadSellers = async () => {
+    try {
+      const resp = await api.get<{ success: boolean; data?: Seller[] }>(
+        '/users',
+        { params: { role: 'shop_owner' } }
+      );
+      setSellers(resp.data?.data ?? []);
+    } catch {
+      setSellers([]);
+    }
+  };
+
   const mergeOrder = useCallback((updated: Order) => {
     setOrders((prev) =>
       prev.map((o) => (o._id === updated._id ? { ...o, ...updated } : o))
@@ -383,6 +529,7 @@ export default function LiveSuppliesPage() {
 
   useEffect(() => {
     loadRiders();
+    loadSellers();
   }, []);
 
   useEffect(() => {
@@ -394,10 +541,30 @@ export default function LiveSuppliesPage() {
       }
     };
     socket.on('orderUpdate', handler);
+    const onNew = (payload: { order?: Order }) => {
+      if (payload?.order) mergeOrder(payload.order);
+      toast.success('New shop order');
+      void loadOrders();
+    };
+    const onPaid = (payload: { order?: Order }) => {
+      if (payload?.order) mergeOrder(payload.order);
+      toast.success('Order payment received');
+      void loadOrders();
+    };
+    const onSellerOk = (payload: { order?: Order }) => {
+      if (payload?.order) mergeOrder(payload.order);
+      toast.success('Seller confirmed stock');
+    };
+    socket.on('new:order', onNew);
+    socket.on('order:paid', onPaid);
+    socket.on('order:seller_confirmed', onSellerOk);
     return () => {
       socket.off('orderUpdate', handler);
+      socket.off('new:order', onNew);
+      socket.off('order:paid', onPaid);
+      socket.off('order:seller_confirmed', onSellerOk);
     };
-  }, [mergeOrder]);
+  }, [mergeOrder, loadOrders]);
 
   useEffect(() => {
     if (detailOrder) loadRiders();
@@ -801,14 +968,15 @@ export default function LiveSuppliesPage() {
         <OrderDetailModal
           order={detailOrder}
           riders={riders}
+          sellers={sellers}
           onClose={() => setDetailOrder(null)}
           onUpdated={(updatedOrder) => {
             if (updatedOrder) {
               mergeOrder(updatedOrder);
+              setDetailOrder(updatedOrder);
             } else {
-              loadOrders();
+              void loadOrders();
             }
-            setDetailOrder(null);
           }}
         />
       )}
