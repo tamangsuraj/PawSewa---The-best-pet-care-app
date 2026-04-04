@@ -1166,7 +1166,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 'assets/brand/image_607767.png',
                 height: 26,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) =>
+                errorBuilder: (_, _, _) =>
                     const PawSewaBrandLogo(height: 26),
               ),
             ),

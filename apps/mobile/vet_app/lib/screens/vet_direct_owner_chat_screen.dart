@@ -1,38 +1,41 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../core/api_client.dart';
-import '../../core/constants.dart';
-import '../../services/socket_service.dart';
+import '../core/api_client.dart';
+import '../core/constants.dart';
+import '../core/storage_service.dart';
+import '../services/socket_service.dart';
 
-/// 1:1 chat with a vet (room id: ownerUserId_vetUserId).
-class VetDirectChatScreen extends StatefulWidget {
-  const VetDirectChatScreen({
+/// Vet-side 1:1 chat with a pet owner (room id: ownerUserId_vetUserId).
+class VetDirectOwnerChatScreen extends StatefulWidget {
+  const VetDirectOwnerChatScreen({
     super.key,
-    required this.vet,
+    required this.owner,
     required this.ownerId,
   });
 
-  final Map<String, dynamic> vet;
+  final Map<String, dynamic> owner;
   final String ownerId;
 
   @override
-  State<VetDirectChatScreen> createState() => _VetDirectChatScreenState();
+  State<VetDirectOwnerChatScreen> createState() =>
+      _VetDirectOwnerChatScreenState();
 }
 
-class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
+class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
   final _api = ApiClient();
   final _socket = SocketService.instance;
+  final _storage = StorageService();
   final _scroll = ScrollController();
   final _text = TextEditingController();
 
-  String get _vetId => widget.vet['_id']?.toString() ?? '';
-  String get _vetName => widget.vet['name']?.toString() ?? 'Vet';
+  String _vetId = '';
+  String get _ownerName => widget.owner['name']?.toString() ?? 'Pet owner';
   String? _pic;
 
   bool _loading = true;
@@ -45,11 +48,12 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
   @override
   void initState() {
     super.initState();
-    _pic = widget.vet['profilePicture']?.toString();
+    _pic = widget.owner['profilePicture']?.toString();
     _bootstrap();
   }
 
   Future<void> _bootstrap() async {
+    await _loadVetId();
     await _loadMessages();
     await _socket.connect();
     _socket.addVetDirectMessageListener(_onMsg);
@@ -57,7 +61,18 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
     _joinWhenReady();
   }
 
+  Future<void> _loadVetId() async {
+    final raw = await _storage.getUser();
+    if (raw == null) return;
+    try {
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      final id = m['_id'] ?? m['id'];
+      if (id != null) _vetId = id.toString();
+    } catch (_) {}
+  }
+
   Future<void> _joinWhenReady() async {
+    if (_vetId.isEmpty) return;
     for (var i = 0; i < 48; i++) {
       await Future.delayed(const Duration(milliseconds: 250));
       if (_socket.isConnected) {
@@ -74,6 +89,16 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
   }
 
   Future<void> _loadMessages() async {
+    if (_vetId.isEmpty) {
+      await _loadVetId();
+    }
+    if (_vetId.isEmpty) {
+      setState(() {
+        _error = 'Could not load your profile.';
+        _loading = false;
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -139,7 +164,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
       return;
     }
     final uid = data['userId']?.toString();
-    if (uid == widget.ownerId) return;
+    if (uid == _vetId) return;
     if (!mounted) return;
     if (data['isTyping'] == true) {
       setState(() => _typingRemote = true);
@@ -161,6 +186,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
   }
 
   void _onChanged(String v) {
+    if (_vetId.isEmpty) return;
     _typingDebounce?.cancel();
     if (v.trim().isNotEmpty) {
       _socket.setVetDirectTyping(
@@ -187,6 +213,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
   }
 
   Future<void> _send() async {
+    if (_vetId.isEmpty) return;
     final t = _text.text.trim();
     if (t.isEmpty) return;
     _socket.setVetDirectTyping(
@@ -238,12 +265,14 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
     _typingHide?.cancel();
     _socket.removeVetDirectMessageListener(_onMsg);
     _socket.removeVetDirectTypingListener(_onTyping);
-    _socket.setVetDirectTyping(
-      ownerId: widget.ownerId,
-      vetId: _vetId,
-      isTyping: false,
-    );
-    _socket.leaveVetDirectRoom(ownerId: widget.ownerId, vetId: _vetId);
+    if (_vetId.isNotEmpty) {
+      _socket.setVetDirectTyping(
+        ownerId: widget.ownerId,
+        vetId: _vetId,
+        isTyping: false,
+      );
+      _socket.leaveVetDirectRoom(ownerId: widget.ownerId, vetId: _vetId);
+    }
     _text.dispose();
     _scroll.dispose();
     super.dispose();
@@ -260,11 +289,13 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
               backgroundColor:
                   const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
               backgroundImage: _pic != null && _pic!.isNotEmpty
-                  ? CachedNetworkImageProvider(_pic!)
+                  ? NetworkImage(_pic!)
                   : null,
               child: _pic == null || _pic!.isEmpty
                   ? Text(
-                      _vetName.isNotEmpty ? _vetName[0].toUpperCase() : '?',
+                      _ownerName.isNotEmpty
+                          ? _ownerName[0].toUpperCase()
+                          : '?',
                       style: const TextStyle(
                         color: Color(AppConstants.primaryColor),
                         fontWeight: FontWeight.w600,
@@ -275,7 +306,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                _vetName,
+                _ownerName,
                 style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -317,7 +348,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Text(
-                                '$_vetName is typing…',
+                                '$_ownerName is typing…',
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   fontStyle: FontStyle.italic,
@@ -327,8 +358,8 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
                             );
                           }
                           final m = _messages[i];
-                          final mine = m['sender']?.toString() ==
-                              widget.ownerId;
+                          final mine =
+                              m['sender']?.toString() == _vetId;
                           final text = m['text']?.toString() ?? '';
                           return Align(
                             alignment: mine
@@ -373,7 +404,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
                               minLines: 1,
                               maxLines: 4,
                               decoration: InputDecoration(
-                                hintText: 'Message your vet…',
+                                hintText: 'Message pet owner…',
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(20),
                                 ),

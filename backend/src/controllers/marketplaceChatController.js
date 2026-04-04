@@ -255,5 +255,4 @@ module.exports = {
   postMessage,
   getConversation,
   adminListThreads,
-  conversationRoom,
 };

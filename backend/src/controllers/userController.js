@@ -152,7 +152,12 @@ const loginUser = asyncHandler(async (req, res) => {
   const matches = user && (await passwordMatches(user.password, password));
 
   if (user && matches) {
-    if (!user.isVerified && (user.role === 'pet_owner' || user.role === 'CUSTOMER')) {
+    if (
+      !user.isVerified &&
+      (user.role === 'pet_owner' ||
+        user.role === 'CUSTOMER' ||
+        user.role === 'customer')
+    ) {
       res.status(403);
       throw new Error('Please verify your email before logging in. Check your inbox for the verification code.');
     }

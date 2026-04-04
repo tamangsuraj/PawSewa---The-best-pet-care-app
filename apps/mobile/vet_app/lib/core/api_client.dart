@@ -324,4 +324,30 @@ class ApiClient {
       },
     );
   }
+
+  /// Owners whose pets this vet has treated (eligible for vet–owner chat).
+  Future<Response> getChatsMyPatients() async {
+    return await _dio.get('/chats/my-patients');
+  }
+
+  Future<Response> getVetDirectMessages({
+    required String ownerId,
+    required String vetId,
+  }) async {
+    return await _dio.get(
+      '/chats/vet-direct/messages',
+      queryParameters: {'ownerId': ownerId, 'vetId': vetId},
+    );
+  }
+
+  Future<Response> postVetDirectMessage({
+    required String ownerId,
+    required String vetId,
+    required String text,
+  }) async {
+    return await _dio.post(
+      '/chats/vet-direct/messages',
+      data: {'ownerId': ownerId, 'vetId': vetId, 'text': text},
+    );
+  }
 }

@@ -37,7 +37,7 @@ class _PawSewaLogoSpinnerState extends State<PawSewaLogoSpinner>
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => Image.asset(
+          errorBuilder: (_, _, _) => Image.asset(
             'assets/brand/pawsewa_logo.png',
             width: widget.size,
             height: widget.size,

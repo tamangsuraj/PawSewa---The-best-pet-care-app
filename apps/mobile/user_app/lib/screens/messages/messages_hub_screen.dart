@@ -176,7 +176,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: primary.withValues(alpha: 0.15),
-                child: const Icon(Icons.storefront, color: primary),
+                child: Icon(Icons.storefront, color: primary),
               ),
               title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
               subtitle: Text(

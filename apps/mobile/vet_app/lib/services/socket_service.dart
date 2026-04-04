@@ -23,6 +23,8 @@ class SocketService {
   final List<void Function(Map<String, dynamic>)?> _customerCareTypingListeners = [];
   final List<void Function(Map<String, dynamic>)?> _marketplaceMsgListeners = [];
   final List<void Function(Map<String, dynamic>)?> _marketplaceTypingListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _vetDirectMsgListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _vetDirectTypingListeners = [];
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
 
@@ -157,6 +159,24 @@ class SocketService {
         final map = _toMap(data);
         if (map != null) {
           for (final cb in _marketplaceTypingListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('vet_direct_new_message', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _vetDirectMsgListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('vet_direct_is_typing', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _vetDirectTypingListeners) {
             cb?.call(map);
           }
         }
@@ -334,6 +354,90 @@ class SocketService {
     void Function(Map<String, dynamic>) listener,
   ) {
     _marketplaceTypingListeners.remove(listener);
+  }
+
+  void joinVetDirectRoom({
+    required String ownerId,
+    required String vetId,
+    void Function(dynamic)? callback,
+  }) {
+    if (_socket == null || !_socket!.connected) {
+      callback?.call({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'join_vet_direct_room',
+      {'ownerId': ownerId, 'vetId': vetId},
+      ack: (response) {
+        callback?.call(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void leaveVetDirectRoom({
+    required String ownerId,
+    required String vetId,
+  }) {
+    _socket?.emitWithAck(
+      'leave_vet_direct_room',
+      {'ownerId': ownerId, 'vetId': vetId},
+      ack: (_) {},
+    );
+  }
+
+  void sendVetDirectMessage({
+    required String ownerId,
+    required String vetId,
+    required String text,
+    void Function(dynamic)? callback,
+  }) {
+    if (_socket == null || !_socket!.connected) {
+      callback?.call({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'send_vet_direct_message',
+      {'ownerId': ownerId, 'vetId': vetId, 'text': text},
+      ack: (response) {
+        callback?.call(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void setVetDirectTyping({
+    required String ownerId,
+    required String vetId,
+    required bool isTyping,
+  }) {
+    _socket?.emit('vet_direct_typing', {
+      'ownerId': ownerId,
+      'vetId': vetId,
+      'isTyping': isTyping,
+    });
+  }
+
+  void addVetDirectMessageListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _vetDirectMsgListeners.add(listener);
+  }
+
+  void removeVetDirectMessageListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _vetDirectMsgListeners.remove(listener);
+  }
+
+  void addVetDirectTypingListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _vetDirectTypingListeners.add(listener);
+  }
+
+  void removeVetDirectTypingListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _vetDirectTypingListeners.remove(listener);
   }
 
   void addNewMessageListener(void Function(Map<String, dynamic>) listener) {

@@ -18,6 +18,7 @@ import 'seller_inquiries_screen.dart';
 import 'rider_delivery_orders_screen.dart';
 import 'earnings_screen.dart';
 import 'my_business_screen.dart';
+import 'patient_chats_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
@@ -847,6 +848,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'badge': _newAssignmentsCount,
           },
           {
+            'icon': Icons.forum_outlined,
+            'title': 'Patient Chats',
+            'subtitle': 'Message pet owners you\'ve treated',
+            'route': 'patient_chats',
+            'badge': 0,
+          },
+          {
             'icon': Icons.location_searching,
             'title': _shareLocation
                 ? 'Sharing Live Location'
@@ -1629,6 +1637,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                             if (result == true) {
                               _loadUserData(); // Reload user data after profile update
                             }
+                          } else if (route == 'patient_chats') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PatientChatsScreen(),
+                              ),
+                            );
                           } else if (route == 'assignments') {
                             final result = await Navigator.push(
                               context,

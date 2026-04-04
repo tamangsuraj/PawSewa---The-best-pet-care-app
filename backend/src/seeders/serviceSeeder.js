@@ -16,6 +16,10 @@ const connectDB = require('../config/db');
 const Hostel = require('../models/Hostel');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
+const Training = require('../models/Training');
+const Center = require('../models/Center');
+const CareBooking = require('../models/CareBooking');
+const Pet = require('../models/Pet');
 
 const DEFAULT_VENDOR_PASSWORD = process.env.SEED_VENDOR_PASSWORD || 'SeedVendor#2026';
 
@@ -324,6 +328,58 @@ function buildCatalog() {
   ];
 }
 
+/** Past care bookings for testuser@pawsewa.com (sidebar / history). Requires masterUserSeeder run first. */
+async function seedCareBookingsForTestUser(hostelDocs) {
+  const testUser = await User.findOne({ email: 'testuser@pawsewa.com' }).select('_id').lean();
+  const pet = testUser ? await Pet.findOne({ owner: testUser._id }).select('_id').lean() : null;
+  if (!testUser || !pet || !hostelDocs.length) {
+    // eslint-disable-next-line no-console
+    console.log('[SEEDER] Care booking seed skipped (run masterUserSeeder first or no hostels).');
+    return;
+  }
+  const pick = (type) => hostelDocs.find((h) => h.serviceType === type) || hostelDocs[0];
+  const hHostel = pick('Hostel');
+  const hGroom = pick('Grooming');
+  const now = Date.now();
+  const rows = [
+    {
+      hostelId: hHostel._id,
+      petId: pet._id,
+      userId: testUser._id,
+      checkIn: new Date(now - 14 * 86400000),
+      checkOut: new Date(now - 10 * 86400000),
+      roomType: 'Standard suite',
+      nights: 4,
+      subtotal: 2000,
+      totalAmount: 2200,
+      status: 'completed',
+      paymentStatus: 'paid',
+      paymentMethod: 'cash_on_delivery',
+      serviceType: 'Hostel',
+      packageName: 'Boarding — seeded',
+    },
+    {
+      hostelId: hGroom._id,
+      petId: pet._id,
+      userId: testUser._id,
+      checkIn: new Date(now - 3 * 86400000),
+      checkOut: new Date(now - 3 * 86400000),
+      roomType: 'Salon slot',
+      nights: 1,
+      subtotal: 800,
+      totalAmount: 880,
+      status: 'paid',
+      paymentStatus: 'paid',
+      paymentMethod: 'online',
+      serviceType: 'Grooming',
+      packageName: 'Full groom — seeded',
+    },
+  ];
+  await CareBooking.insertMany(rows);
+  // eslint-disable-next-line no-console
+  console.log('[SEEDER] Care booking history linked to testuser@pawsewa.com (2 rows).');
+}
+
 function vendorForServiceType(serviceType) {
   const map = {
     Hostel: 'care.hostel@pawsewa.seed',
@@ -369,9 +425,13 @@ async function ensureVendor(def) {
 async function run() {
   await connectDB();
 
+  await Training.deleteMany({});
+  await Center.deleteMany({});
   const deleted = await Hostel.deleteMany({});
   // eslint-disable-next-line no-console
-  console.log(`[SEEDER] Cleared ${deleted.deletedCount} existing hostels/care listings.`);
+  console.log('[CLEANUP] All existing hostel/service rows wiped.');
+  // eslint-disable-next-line no-console
+  console.log(`[SEEDER] Removed ${deleted.deletedCount} hostel documents (trainings + centers cleared).`);
 
   const vendorByEmail = {};
   for (const def of VENDORS) {
@@ -423,6 +483,11 @@ async function run() {
     // eslint-disable-next-line no-console
     console.log(`[SEEDER] Successfully created ${n} premium pet services.`);
   }
+
+  await seedCareBookingsForTestUser(inserted);
+
+  // eslint-disable-next-line no-console
+  console.log('[SUCCESS] Database re-seeded. Master User and Care Services active.');
 
   await mongoose.disconnect();
   // eslint-disable-next-line no-console

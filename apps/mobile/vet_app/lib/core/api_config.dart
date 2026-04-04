@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
-import 'constants.dart';
 
 /// Central API config — single source of truth. Change here only.
 /// Supports: Local IP (192.168.1.5) or ngrok URL (https://xxx.ngrok-free.app)

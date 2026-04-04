@@ -18,7 +18,7 @@ class PawSewaBrandLogo extends StatelessWidget {
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Image.asset(
+        errorBuilder: (_, _, _) => Image.asset(
           'assets/brand/pawsewa_logo.png',
           height: height,
           fit: BoxFit.contain,

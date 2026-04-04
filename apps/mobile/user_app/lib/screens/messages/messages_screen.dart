@@ -299,7 +299,113 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     return SafeArea(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_myVets.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 0, 8),
+              child: Text(
+                'Your Pet\'s Vets',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(AppConstants.accentColor),
+                ),
+              ),
+            ),
+            SizedBox(
+              height: 104,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _myVets.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 16),
+                itemBuilder: (context, i) {
+                  final v = _myVets[i];
+                  final id = v['_id']?.toString() ?? '';
+                  final name = v['name']?.toString() ?? 'Vet';
+                  final pic = v['profilePicture']?.toString();
+                  final online = _vetOnline[id] == true;
+                  return GestureDetector(
+                    onTap: () {
+                      final oid = _myUserId;
+                      if (oid == null) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => VetDirectChatScreen(
+                            vet: v,
+                            ownerId: oid,
+                          ),
+                        ),
+                      );
+                    },
+                    child: SizedBox(
+                      width: 72,
+                      child: Column(
+                        children: [
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                radius: 32,
+                                backgroundColor: const Color(
+                                  AppConstants.primaryColor,
+                                ).withValues(alpha: 0.12),
+                                backgroundImage: pic != null && pic.isNotEmpty
+                                    ? NetworkImage(pic)
+                                    : null,
+                                child: pic == null || pic.isEmpty
+                                    ? Text(
+                                        name.isNotEmpty
+                                            ? name[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(AppConstants.primaryColor),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              if (online)
+                                Positioned(
+                                  right: 2,
+                                  bottom: 2,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            name.startsWith('Dr.') ? name : 'Dr. $name',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+          ],
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
@@ -312,8 +418,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     child: Image.asset(
                       'assets/brand/image_607767.png',
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => ColoredBox(
-                        color: const Color(AppConstants.primaryColor).withOpacity(0.12),
+                      errorBuilder: (_, _, _) => ColoredBox(
+                        color: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
                         child: const Center(
                           child: PawSewaBrandLogo(height: 32),
                         ),
@@ -326,6 +432,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        'Customer Care',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[700],
+                        ),
+                      ),
                       Text(
                         _careName,
                         style: GoogleFonts.poppins(

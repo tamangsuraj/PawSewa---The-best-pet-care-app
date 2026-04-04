@@ -11,6 +11,8 @@
     "sync:production": "node scripts/syncToProduction.js",
     "seed:care": "node scripts/seed-hostels-trainings-centers.js",
     "seed:services": "node src/seeders/serviceSeeder.js",
+    "seed:master-user": "node src/seeders/masterUserSeeder.js",
+    "seed:resync": "node src/seeders/masterUserSeeder.js && node src/seeders/serviceSeeder.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
