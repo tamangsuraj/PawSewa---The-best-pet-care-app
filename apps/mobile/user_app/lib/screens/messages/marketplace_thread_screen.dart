@@ -240,11 +240,11 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.peerName, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16)),
+            Text(widget.peerName, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16)),
             if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
               Text(
                 widget.peerSubtitle!,
-                style: GoogleFonts.poppins(fontSize: 11, color: widget.highContrast ? Colors.white70 : Colors.grey),
+                style: GoogleFonts.outfit(fontSize: 11, color: widget.highContrast ? Colors.white70 : Colors.grey),
               ),
           ],
         ),
@@ -278,7 +278,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
                             '${widget.peerName} is typing…',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
                               color: widget.highContrast ? Colors.white54 : Colors.grey,
@@ -310,7 +310,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                                   padding: const EdgeInsets.only(bottom: 4),
                                   child: Text(
                                     'Product: $pn',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: mine ? Colors.white70 : Colors.brown,
@@ -319,7 +319,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                                 ),
                               Text(
                                 content,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   color: mine ? Colors.white : (widget.highContrast ? Colors.white : Colors.black87),
                                 ),

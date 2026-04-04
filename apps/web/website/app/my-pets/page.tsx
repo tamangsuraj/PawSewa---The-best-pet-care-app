@@ -8,6 +8,8 @@ import {
   ClinicalMyPetsDashboard,
   type PetListItem,
 } from '@/components/my-pets/ClinicalMyPetsDashboard';
+import { PageShell } from '@/components/layout/PageShell';
+import { PawPrint } from 'lucide-react';
 
 function MyPetsClinicalShell() {
   const router = useRouter();
@@ -43,39 +45,41 @@ function MyPetsClinicalShell() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center bg-cream">
-        <p className="text-primary">Loading your pets…</p>
-      </div>
+      <PageShell className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-paw-bark">Loading your pets…</p>
+      </PageShell>
     );
   }
 
   if (pets.length === 0) {
     return (
-      <div className="min-h-[calc(100vh-4.25rem)] bg-cream px-4 py-12">
+      <PageShell className="min-h-[calc(100vh-4.25rem)] px-4 py-12">
         <div className="mx-auto max-w-2xl text-center">
-          <div className="rounded-2xl border border-[#E8DFD0] bg-white p-12 shadow-sm">
-            <div className="mb-6 text-6xl">🐾</div>
-            <h1 className="font-display text-3xl font-semibold text-primary">No pets yet</h1>
-            <p className="mt-3 text-slate-600">
+          <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-12 shadow-paw">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-paw-sand text-paw-bark">
+              <PawPrint className="h-8 w-8" strokeWidth={1.75} aria-hidden />
+            </div>
+            <h1 className="font-display text-3xl font-semibold text-paw-ink">No pets yet</h1>
+            <p className="mt-3 text-paw-bark/75">
               Add your first pet to unlock the clinical dashboard, health tracking, and appointments.
             </p>
             <button
               type="button"
               onClick={() => router.push('/my-pets/add')}
-              className="mt-8 rounded-xl bg-primary px-8 py-4 font-semibold text-white hover:opacity-95"
+              className="mt-8 rounded-full bg-paw-bark px-8 py-4 font-semibold text-paw-cream hover:bg-paw-ink shadow-paw"
             >
               Add your first pet
             </button>
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="mt-4 block w-full text-sm font-medium text-primary underline"
+              className="mt-4 block w-full text-sm font-medium text-paw-teal-mid hover:underline"
             >
               Back to home
             </button>
           </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
@@ -86,9 +90,9 @@ export default function MyPetsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[50vh] items-center justify-center bg-cream">
-          <p className="text-primary">Loading…</p>
-        </div>
+        <PageShell className="flex min-h-[50vh] items-center justify-center">
+          <p className="text-paw-bark">Loading…</p>
+        </PageShell>
       }
     >
       <MyPetsClinicalShell />

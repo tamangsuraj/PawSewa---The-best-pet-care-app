@@ -246,7 +246,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
         ),
         title: Text(
           'Pet $serviceType',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: primary),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: primary),
         ),
       ),
       body: _booking != null ? _buildCheckoutBody() : _buildBookingForm(),
@@ -307,13 +307,13 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('NPR ${price.toStringAsFixed(0)}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16, color: primary)),
-                        Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 14)),
-                        if (desc.isNotEmpty) Text(desc, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+                        Text('NPR ${price.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: primary)),
+                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
+                        if (desc.isNotEmpty) Text(desc, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600])),
                         Row(
                           children: [
                             Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                            Text(' $mins mins', style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600])),
+                            Text(' $mins mins', style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600])),
                           ],
                         ),
                       ],
@@ -382,8 +382,8 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(weekday, style: GoogleFonts.poppins(fontSize: 10, color: sel ? Colors.white : Colors.grey[700])),
-                        Text('${d.day}', style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14, color: sel ? Colors.white : Colors.grey[800])),
+                        Text(weekday, style: GoogleFonts.outfit(fontSize: 10, color: sel ? Colors.white : Colors.grey[700])),
+                        Text('${d.day}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: sel ? Colors.white : Colors.grey[800])),
                       ],
                     ),
                   ),
@@ -405,7 +405,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                     color: sel ? primary : Colors.grey[100],
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(t, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: sel ? Colors.white : Colors.grey[800])),
+                  child: Text(t, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: sel ? Colors.white : Colors.grey[800])),
                 ),
               );
             }).toList(),
@@ -421,15 +421,15 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                 Row(children: [
                   Icon(Icons.location_on, size: 18, color: primary),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(_userAddress.isEmpty ? 'Add address in profile' : _userAddress, style: GoogleFonts.poppins(fontSize: 13))),
-                  Text('Edit', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: primary)),
+                  Expanded(child: Text(_userAddress.isEmpty ? 'Add address in profile' : _userAddress, style: GoogleFonts.outfit(fontSize: 13))),
+                  Text('Edit', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: primary)),
                 ]),
                 const SizedBox(height: 8),
                 Row(children: [
                   Icon(Icons.phone, size: 18, color: primary),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(_userPhone.isEmpty ? 'Add phone in profile' : _userPhone, style: GoogleFonts.poppins(fontSize: 13))),
-                  Text('Edit', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: primary)),
+                  Expanded(child: Text(_userPhone.isEmpty ? 'Add phone in profile' : _userPhone, style: GoogleFonts.outfit(fontSize: 13))),
+                  Text('Edit', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: primary)),
                 ]),
               ],
             ),
@@ -455,7 +455,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: GoogleFonts.poppins(fontSize: 13, color: Colors.red)),
+            Text(_error!, style: GoogleFonts.outfit(fontSize: 13, color: Colors.red)),
           ],
         ],
       ),
@@ -465,7 +465,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
   Widget _sectionTitle(String text) {
     return Text(
       text,
-      style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+      style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
     );
   }
 
@@ -480,7 +480,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber.shade200)),
-      child: Text(text, style: GoogleFonts.poppins(fontSize: 14, color: Colors.amber.shade900)),
+      child: Text(text, style: GoogleFonts.outfit(fontSize: 14, color: Colors.amber.shade900)),
     );
   }
 
@@ -502,8 +502,8 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
             children: [
               Icon(icon, size: 24, color: primary),
               const SizedBox(height: 8),
-              Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-              Text(subtitle, style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600])),
+              Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              Text(subtitle, style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[600])),
             ],
           ),
         ),
@@ -517,8 +517,8 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
-          Text(value, style: GoogleFonts.poppins(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.w500, color: const Color(AppConstants.primaryColor))),
+          Text(label, style: GoogleFonts.outfit(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
+          Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.w500, color: const Color(AppConstants.primaryColor))),
         ],
       ),
     );
@@ -543,12 +543,12 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
           ),
           child: _creating
               ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text('Confirm & Pay with Khalti', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15)),
+              : Text('Confirm & Pay with Khalti', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
         ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: disabled ? null : () => _createBooking(paymentOnline: false),
-              child: Text('Book & Pay at Center (COD)', style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+              child: Text('Book & Pay at Center (COD)', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
             ),
           ],
         ),
@@ -564,7 +564,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Payment Summary', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Payment Summary', style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(16),
@@ -581,7 +581,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('PAY WITH', style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600])),
+          Text('PAY WITH', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600])),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _paying ? null : _payWithKhalti,
@@ -612,7 +612,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
         child: ElevatedButton.icon(
           onPressed: _paying ? null : _payWithKhalti,
           icon: _paying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.payment, size: 18),
-          label: Text('Confirm Grooming Appointment  Rs. ${total.toStringAsFixed(0)}', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+          label: Text('Confirm Grooming Appointment  Rs. ${total.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
           style: ElevatedButton.styleFrom(
             backgroundColor: primary,
             foregroundColor: Colors.white,

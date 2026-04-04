@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { PriceRangeDualSlider } from '@/components/shop/PriceRangeDualSlider';
 import { ShopFloatingCart } from '@/components/shop/ShopFloatingCart';
+import { PageShell } from '@/components/layout/PageShell';
 
 const PRICE_CAP = 10000;
 
@@ -37,8 +38,27 @@ interface Product {
   reviewCount?: number;
   badge?: string;
   petTypes?: string[];
+  targetPets?: string[];
+  recommendationTier?: 'match' | 'universal' | 'other';
   category?: CategoryRef | null;
   seller?: { _id: string; name?: string; profilePicture?: string } | null;
+}
+
+interface ShopProductsMeta {
+  userPetType: string | null;
+  primaryPetName: string | null;
+}
+
+function petMatchBadgeLabel(petType: string | null | undefined): string {
+  const u = (petType || '').toUpperCase();
+  if (u === 'DOG') return 'Best for Dogs';
+  if (u === 'CAT') return "Cat's Choice";
+  if (u === 'RABBIT') return 'Great for Rabbits';
+  if (u === 'BIRD') return 'Bird-friendly pick';
+  if (u === 'HAMSTER') return 'Small pet pick';
+  if (u === 'FISH') return 'Aquarium pick';
+  if (u === 'OTHER') return 'Picked for your pet';
+  return 'For your pet';
 }
 
 type CategoryPreset = 'all' | 'food' | 'health' | 'toys' | 'collars';
@@ -125,7 +145,7 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
           }`}
         />
       ))}
-      <span className="ml-1 text-[11px] text-[#4A2E1B]/55">({count})</span>
+      <span className="ml-1 text-[11px] text-paw-foreground/55">({count})</span>
     </div>
   );
 }
@@ -137,6 +157,11 @@ function ShopPageInner() {
 
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
+
+  const [shopMeta, setShopMeta] = useState<ShopProductsMeta>({
+    userPetType: null,
+    primaryPetName: null,
+  });
   const { openSellerChat } = useChatHub();
 
   const [categories, setCategories] = useState<CategoryRef[]>([]);
@@ -205,6 +230,13 @@ function ShopPageInner() {
       const resp = await api.get('/products', { params });
       const list = resp.data?.data || [];
       setProducts(Array.isArray(list) ? list : []);
+      const m = resp.data?.meta;
+      if (m && typeof m === 'object') {
+        setShopMeta({
+          userPetType: m.userPetType ? String(m.userPetType) : null,
+          primaryPetName: m.primaryPetName ? String(m.primaryPetName) : null,
+        });
+      }
       console.log('[WEB-SHOP] Pixel-perfect grid rendered and bound to MongoDB.');
       console.log('[WEB-SHOP] Dynamic filtering and Cart Widget active.');
     } catch (err: unknown) {
@@ -233,11 +265,12 @@ function ShopPageInner() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F8F6F0] pb-32 pt-6 text-[#4A2E1B]">
+    <PageShell padBottom>
+    <main className="pb-32 pt-6 text-paw-foreground">
       <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-8 px-4 lg:grid-cols-[minmax(250px,300px)_1fr] lg:gap-10 lg:px-8">
         <aside className="order-2 h-fit lg:sticky lg:top-[5.5rem] lg:order-1">
-          <div className="rounded-2xl border border-[#4A2E1B]/10 bg-white p-5 shadow-[0_4px_24px_rgba(74,46,27,0.06)]">
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-[#4A2E1B]/50">
+          <div className="rounded-2xl border border-paw-foreground/10 bg-white p-5 shadow-[0_4px_24px_rgba(74,46,27,0.06)]">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-paw-foreground/50">
               Shop categories
             </p>
             <ul className="space-y-1">
@@ -250,8 +283,8 @@ function ShopPageInner() {
                       onClick={() => setActivePreset(preset)}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${
                         active
-                          ? 'bg-[#4A2E1B]/12 font-semibold text-[#4A2E1B]'
-                          : 'text-[#4A2E1B]/80 hover:bg-[#F8F6F0]'
+                          ? 'bg-[#4A2E1B]/12 font-semibold text-paw-foreground'
+                          : 'text-paw-foreground/80 hover:bg-paw-panel'
                       }`}
                     >
                       <Icon className="h-5 w-5 shrink-0 opacity-80" />
@@ -262,8 +295,8 @@ function ShopPageInner() {
               })}
             </ul>
 
-            <div className="mt-8 border-t border-[#4A2E1B]/10 pt-6">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-[#4A2E1B]/50">
+            <div className="mt-8 border-t border-paw-foreground/10 pt-6">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-paw-foreground/50">
                 Pet type
               </p>
               <div className="space-y-2 text-sm">
@@ -274,13 +307,13 @@ function ShopPageInner() {
                 ].map(([label, checked, toggle]) => (
                   <label
                     key={label}
-                    className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1 hover:bg-[#F8F6F0]"
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1 hover:bg-paw-panel"
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={toggle}
-                      className="h-4 w-4 rounded border-[#4A2E1B]/30 text-[#4A2E1B] focus:ring-[#4A2E1B]"
+                      className="h-4 w-4 rounded border-paw-foreground/30 text-paw-foreground focus:ring-[#4A2E1B]"
                     />
                     <span>{label}</span>
                   </label>
@@ -288,8 +321,8 @@ function ShopPageInner() {
               </div>
             </div>
 
-            <div className="mt-8 border-t border-[#4A2E1B]/10 pt-6">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-[#4A2E1B]/50">
+            <div className="mt-8 border-t border-paw-foreground/10 pt-6">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-paw-foreground/50">
                 Price range
               </p>
               <PriceRangeDualSlider
@@ -309,18 +342,27 @@ function ShopPageInner() {
         <div className="order-1 min-w-0 lg:order-2">
           <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#4A2E1B]/55">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-paw-foreground/55">
                 Premium marketplace
               </p>
-              <h1 className="font-display mt-2 text-3xl font-bold tracking-tight text-[#4A2E1B] md:text-4xl">
-                Curated Care for Every Companion
+              <h1 className="font-display mt-2 text-3xl font-bold tracking-tight text-paw-foreground md:text-4xl">
+                {shopMeta.primaryPetName
+                  ? `Curated Care for Your ${shopMeta.primaryPetName}`
+                  : 'Curated Care for Every Companion'}
               </h1>
+              {!shopMeta.primaryPetName ? (
+                <p className="mt-1 text-sm text-paw-foreground/60">
+                  {isAuthenticated
+                    ? 'Trending & recommended picks from across the marketplace.'
+                    : 'Sign in and add a pet for picks tailored to your companion.'}
+                </p>
+              ) : null}
             </div>
             <div className="relative w-full shrink-0 sm:max-w-[220px]">
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as typeof sort)}
-                className="w-full cursor-pointer appearance-none rounded-full border border-[#4A2E1B]/15 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-[#4A2E1B] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4A2E1B]/15"
+                className="w-full cursor-pointer appearance-none rounded-full border border-paw-foreground/15 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-paw-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4A2E1B]/15"
                 aria-label="Sort products"
               >
                 <option value="recommended">Sort by: Recommended</option>
@@ -328,7 +370,7 @@ function ShopPageInner() {
                 <option value="price_asc">Sort by: Price (Low → High)</option>
                 <option value="price_desc">Sort by: Price (High → Low)</option>
               </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#4A2E1B]/45">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paw-foreground/45">
                 ▾
               </span>
             </div>
@@ -357,12 +399,12 @@ function ShopPageInner() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-[#4A2E1B]/20 bg-white/80 px-8 py-16 text-center shadow-sm">
-              <PawPrint className="mb-4 h-14 w-14 text-[#4A2E1B]/25" />
-              <h2 className="font-display text-xl font-semibold text-[#4A2E1B]">
+            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-paw-foreground/20 bg-white/80 px-8 py-16 text-center shadow-sm">
+              <PawPrint className="mb-4 h-14 w-14 text-paw-foreground/25" />
+              <h2 className="font-display text-xl font-semibold text-paw-foreground">
                 No products found in this category
               </h2>
-              <p className="mt-2 max-w-md text-sm text-[#4A2E1B]/65">
+              <p className="mt-2 max-w-md text-sm text-paw-foreground/65">
                 Try another category, adjust your filters, or clear the search. New arrivals land here as
                 soon as sellers list them.
               </p>
@@ -387,6 +429,11 @@ function ShopPageInner() {
               {products.map((product) => {
                 const imageUrl = product.images?.[0] || '';
                 const badge = productBadgeLabel(product);
+                const showPetMatchBadge =
+                  product.recommendationTier === 'match' && Boolean(shopMeta.userPetType);
+                const petMatchBadge = showPetMatchBadge
+                  ? petMatchBadgeLabel(shopMeta.userPetType)
+                  : null;
                 const vendor = (product.seller?.name || 'PawSewa Marketplace').toUpperCase();
                 const rating = typeof product.rating === 'number' ? product.rating : 0;
                 const reviewCount = typeof product.reviewCount === 'number' ? product.reviewCount : 0;
@@ -395,7 +442,7 @@ function ShopPageInner() {
                 return (
                   <article
                     key={product._id}
-                    className="group flex min-h-[400px] flex-col overflow-hidden rounded-2xl border border-[#4A2E1B]/8 bg-white shadow-[0_4px_20px_rgba(74,46,27,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(74,46,27,0.12)]"
+                    className="group flex min-h-[400px] flex-col overflow-hidden rounded-2xl border border-paw-foreground/8 bg-white shadow-[0_4px_20px_rgba(74,46,27,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(74,46,27,0.12)]"
                   >
                     <Link
                       href={`/shop/${product._id}`}
@@ -411,7 +458,7 @@ function ShopPageInner() {
                           unoptimized={imageUrl.startsWith('http://')}
                         />
                       ) : (
-                        <div className="flex h-full min-h-[200px] items-center justify-center text-[#4A2E1B]/25">
+                        <div className="flex h-full min-h-[200px] items-center justify-center text-paw-foreground/25">
                           <PawPrint className="h-16 w-16" />
                         </div>
                       )}
@@ -420,14 +467,19 @@ function ShopPageInner() {
                       >
                         {badge}
                       </span>
+                      {petMatchBadge ? (
+                        <span className="absolute bottom-3 left-3 rounded-md border border-paw-foreground/15 bg-white/90 px-2 py-0.5 text-[10px] font-medium normal-case tracking-tight text-paw-foreground/85 shadow-sm backdrop-blur-sm">
+                          {petMatchBadge}
+                        </span>
+                      ) : null}
                     </Link>
 
                     <div className="flex min-h-0 flex-[2] basis-0 flex-col p-4 pt-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#4A2E1B]/45">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-paw-foreground/45">
                         {vendor}
                       </p>
                       <Link href={`/shop/${product._id}`}>
-                        <h2 className="mt-1 line-clamp-2 min-h-[2.75rem] text-base font-bold leading-snug text-[#4A2E1B] hover:underline">
+                        <h2 className="mt-1 line-clamp-2 min-h-[2.75rem] text-base font-bold leading-snug text-paw-foreground hover:underline">
                           {product.name}
                         </h2>
                       </Link>
@@ -435,7 +487,7 @@ function ShopPageInner() {
                         <StarRow rating={rating} count={reviewCount} />
                       </div>
                       <div className="mt-auto flex items-center justify-between gap-2 pt-4">
-                        <span className="text-lg font-bold text-[#4A2E1B]">
+                        <span className="text-lg font-bold text-paw-foreground">
                           Rs. {Math.round(product.price).toLocaleString('en-NP')}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -443,7 +495,7 @@ function ShopPageInner() {
                             type="button"
                             title="Chat with seller"
                             onClick={() => void handleChat(product._id)}
-                            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#4A2E1B]/15 bg-white text-[#4A2E1B] shadow-sm transition-all hover:bg-[#F8F6F0] max-sm:opacity-100 sm:translate-x-1 sm:opacity-0 sm:group-hover:translate-x-0 sm:group-hover:opacity-100"
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-paw-foreground/15 bg-white text-paw-foreground shadow-sm transition-all hover:bg-paw-panel max-sm:opacity-100 sm:translate-x-1 sm:opacity-0 sm:group-hover:translate-x-0 sm:group-hover:opacity-100"
                           >
                             <MessageCircle className="h-5 w-5" />
                           </button>
@@ -459,6 +511,17 @@ function ShopPageInner() {
                                 price: product.price,
                                 quantity: 1,
                               });
+                              if (
+                                isAuthenticated &&
+                                product.recommendationTier === 'match'
+                              ) {
+                                void api
+                                  .post('/shop/recommendation-events', {
+                                    productId: product._id,
+                                    action: 'add_to_cart',
+                                  })
+                                  .catch(() => {});
+                              }
                             }}
                             className="flex h-11 w-11 items-center justify-center rounded-full bg-[#4A2E1B] text-[#F8F6F0] shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
                           >
@@ -477,6 +540,7 @@ function ShopPageInner() {
 
       <ShopFloatingCart />
     </main>
+    </PageShell>
   );
 }
 
@@ -484,9 +548,9 @@ export default function ShopPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[50vh] items-center justify-center bg-[#F8F6F0] text-[#4A2E1B]">
-          Loading shop…
-        </div>
+        <PageShell className="flex min-h-[50vh] items-center justify-center">
+          <p className="text-paw-foreground">Loading shop…</p>
+        </PageShell>
       }
     >
       <ShopPageInner />

@@ -17,6 +17,8 @@ import {
   Navigation,
 } from 'lucide-react';
 import Link from 'next/link';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
 
 interface ServiceRequest {
   _id: string;
@@ -160,23 +162,22 @@ function MyServiceRequestsPageInner() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F5F1] flex items-center justify-center">
+      <PageShell className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#703418] border-t-transparent mb-4" />
-          <p className="text-[#703418] text-xl">Loading your appointments…</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent mb-4" />
+          <p className="text-paw-bark text-xl">Loading your appointments…</p>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F1]">
-      <div className="bg-[#703418] text-white py-12">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold">My Services</h1>
-          <p className="mt-1 text-white/90">Active, scheduled, and past appointments</p>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        eyebrow="Scheduling"
+        title="My services"
+        subtitle="Active, scheduled, and past appointments."
+      />
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {error && (
@@ -189,19 +190,20 @@ function MyServiceRequestsPageInner() {
         <div className="flex items-center gap-2 mb-6">
           <button
             onClick={fetchMyRequests}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-xl border border-[#703418]/20 text-[#703418] hover:bg-[#703418] hover:text-white transition-colors font-medium shadow-sm"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-paw-bark/20 bg-paw-cream/90 text-paw-bark hover:bg-paw-bark hover:text-paw-cream transition-colors font-medium shadow-sm"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
         </div>
 
-        <div className="flex rounded-2xl bg-white/80 p-1 shadow-sm border border-gray-100 mb-8">
+        <div className="flex rounded-2xl paw-card-glass p-1 shadow-paw border border-paw-bark/10 mb-8">
           {(['active', 'history', 'scheduled'] as const).map((t) => (
             <button
               key={t}
+              type="button"
               onClick={() => setTab(t)}
-              className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors ${tab === t ? 'bg-[#703418] text-white shadow' : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`flex-1 py-3 px-4 rounded-xl font-semibold transition-colors ${tab === t ? 'bg-paw-bark text-paw-cream shadow-paw' : 'text-paw-bark/70 hover:bg-paw-sand/60'}`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -209,9 +211,9 @@ function MyServiceRequestsPageInner() {
         </div>
 
         {currentList.length === 0 ? (
-          <div className="bg-white rounded-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.02)] p-10 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-[#703418]/10 flex items-center justify-center mx-auto mb-6">
-              <Calendar className="w-10 h-10 text-[#703418]" />
+          <div className="paw-card-glass rounded-[20px] border border-paw-bark/10 shadow-paw p-10 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-paw-bark/10 flex items-center justify-center mx-auto mb-6">
+              <Calendar className="w-10 h-10 text-paw-bark" />
             </div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">
               {tab === 'active' && 'No active appointments'}
@@ -225,7 +227,7 @@ function MyServiceRequestsPageInner() {
             </p>
             <Link
               href="/services/request"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-[#703418] text-white rounded-2xl font-semibold hover:bg-[#5a2912] transition-colors shadow-lg"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-paw-bark text-paw-cream font-semibold hover:bg-paw-ink transition-colors shadow-paw-lg"
             >
               Book Now
             </Link>
@@ -236,10 +238,10 @@ function MyServiceRequestsPageInner() {
               <div
                 key={req._id}
                 ref={focusId === req._id ? highlightedRef : undefined}
-                className={`bg-white rounded-[20px] shadow-[0_4px_16px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.02)] p-5 border transition-colors ${
+                className={`paw-card-glass rounded-[20px] shadow-paw p-5 border transition-colors ${
                   focusId === req._id
-                    ? 'border-[#703418] ring-2 ring-[#703418]/30'
-                    : 'border-gray-100/80 hover:border-[#703418]/20'
+                    ? 'border-paw-bark ring-2 ring-paw-bark/30'
+                    : 'border-paw-bark/10 hover:border-paw-bark/25'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -250,12 +252,12 @@ function MyServiceRequestsPageInner() {
                   {req.pet?.name ?? 'Pet'} · {req.serviceType}
                 </p>
                 <p className="text-sm text-gray-600 mt-1 flex items-center gap-1">
-                  <Calendar className="w-4 h-4 text-[#703418]" />
+                  <Calendar className="w-4 h-4 text-paw-bark" />
                   {formatDate(req.preferredDate)} — {req.timeWindow}
                 </p>
                 {req.location?.address && (
                   <p className="text-sm text-gray-700 flex items-start gap-2 mt-2">
-                    <MapPin className="w-4 h-4 mt-0.5 text-[#703418] flex-shrink-0" />
+                    <MapPin className="w-4 h-4 mt-0.5 text-paw-bark flex-shrink-0" />
                     <span className="line-clamp-2">{req.location.address}</span>
                   </p>
                 )}
@@ -267,8 +269,8 @@ function MyServiceRequestsPageInner() {
                 )}
                 {(req.status === 'assigned' || req.status === 'in_progress') &&
                   req.location?.coordinates && (
-                    <div className="mt-3 p-3 rounded-xl bg-[#F5F5F1] border border-[#703418]/10">
-                      <p className="text-sm font-medium text-[#703418] flex items-center gap-2">
+                    <div className="mt-3 p-3 rounded-xl bg-paw-sand/60 border border-paw-bark/10">
+                      <p className="text-sm font-medium text-paw-ink flex items-center gap-2">
                         <Navigation className="w-4 h-4" />
                         View live map & ETA in the mobile app
                       </p>
@@ -278,7 +280,7 @@ function MyServiceRequestsPageInner() {
                   <div className="mt-4 flex gap-2">
                     <button
                       type="button"
-                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-[#703418] text-[#703418] font-medium hover:bg-[#703418]/5 transition-colors"
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-paw-bark text-paw-bark font-medium hover:bg-paw-bark/5 transition-colors"
                       onClick={() => alert('Thank you! Review submitted.')}
                     >
                       <Star className="w-4 h-4" />
@@ -286,7 +288,7 @@ function MyServiceRequestsPageInner() {
                     </button>
                     <button
                       type="button"
-                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-[#703418] text-[#703418] font-medium hover:bg-[#703418]/5 transition-colors"
+                      className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-paw-bark text-paw-bark font-medium hover:bg-paw-bark/5 transition-colors"
                       onClick={() => alert('Prescription ready for download.')}
                     >
                       <Download className="w-4 h-4" />
@@ -304,13 +306,13 @@ function MyServiceRequestsPageInner() {
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-6 right-6 h-10 w-10 rounded-full bg-[#703418] text-white shadow-lg flex items-center justify-center hover:bg-[#5a2912] transition-colors"
+          className="fixed bottom-6 right-6 h-10 w-10 rounded-full bg-paw-bark text-paw-cream shadow-paw-lg flex items-center justify-center hover:bg-paw-ink transition-colors"
           aria-label="Back to top"
         >
           ↑
         </button>
       )}
-    </div>
+    </PageShell>
   );
 }
 
@@ -318,9 +320,9 @@ export default function MyServiceRequestsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#F5F5F1]">
-          <p className="text-[#703418]">Loading…</p>
-        </div>
+        <PageShell className="flex min-h-screen items-center justify-center">
+          <p className="text-paw-bark">Loading…</p>
+        </PageShell>
       }
     >
       <MyServiceRequestsPageInner />

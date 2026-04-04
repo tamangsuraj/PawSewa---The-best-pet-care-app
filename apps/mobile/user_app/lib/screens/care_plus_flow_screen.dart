@@ -123,7 +123,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         _selectedAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Please complete all steps before submitting', style: GoogleFonts.poppins()),
+          content: Text('Please complete all steps before submitting', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -157,7 +157,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
           SnackBar(
             content: Text(
               'Care+ request created in draft. Next, integrate payment flow.',
-              style: GoogleFonts.poppins(),
+              style: GoogleFonts.outfit(),
             ),
             backgroundColor: Colors.green,
           ),
@@ -169,7 +169,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
           SnackBar(
             content: Text(
               'Failed to create Care+ request (${resp.statusCode})',
-              style: GoogleFonts.poppins(),
+              style: GoogleFonts.outfit(),
             ),
             backgroundColor: Colors.red,
           ),
@@ -179,7 +179,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to submit: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to submit: $e', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -197,7 +197,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       appBar: AppBar(
         title: Text(
           'Care+ Service',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -223,7 +223,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                         const SizedBox(height: 16),
                         Text(
                           _loadError!,
-                          style: GoogleFonts.poppins(color: Colors.red),
+                          style: GoogleFonts.outfit(color: Colors.red),
                           textAlign: TextAlign.center,
                         ),
                       ],
@@ -270,7 +270,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                                   )
                                 : Text(
                                     isLast ? 'Submit' : 'Next',
-                                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                                   ),
                           ),
                           const SizedBox(width: 8),
@@ -279,7 +279,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                               onPressed: _submitting ? null : details.onStepCancel,
                               child: Text(
                                 'Back',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   color: Colors.grey[700],
                                 ),
                               ),
@@ -328,7 +328,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
     if (_pets.isEmpty) {
       return Text(
         'No pets found. Please add a pet first.',
-        style: GoogleFonts.poppins(color: Colors.grey[700]),
+        style: GoogleFonts.outfit(color: Colors.grey[700]),
       );
     }
     return SizedBox(
@@ -357,7 +357,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                 children: [
                   Text(
                     pet['name']?.toString() ?? 'Pet',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: const Color(AppConstants.accentColor),
@@ -366,7 +366,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '${pet['breed'] ?? 'Unknown'} • ${pet['age'] ?? '?'} yrs',
-                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -412,7 +412,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                       children: [
                         Text(
                           type,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
@@ -420,14 +420,14 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                         const SizedBox(height: 4),
                         Text(
                           s['description'] as String,
-                          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                          style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
                         ),
                       ],
                     ),
                   ),
                   Text(
                     'NPR ${(s['price'] as num).toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: const Color(AppConstants.primaryColor),
@@ -451,7 +451,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       children: [
         Text(
           'Preferred Date & Time',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: Colors.grey[800],
@@ -464,14 +464,14 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
           leading: const Icon(Icons.calendar_today, color: Color(AppConstants.primaryColor)),
           title: Text(
             dateStr,
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.outfit(),
           ),
           onTap: _pickDateTime,
         ),
         const SizedBox(height: 16),
         Text(
           'Notes (optional)',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: Colors.grey[800],
@@ -483,7 +483,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
           onChanged: (v) => _notes = v,
           decoration: InputDecoration(
             hintText: 'Any special instructions for the care provider…',
-            hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+            hintStyle: GoogleFonts.outfit(color: Colors.grey[500]),
             filled: true,
             fillColor: Colors.white,
             border: OutlineInputBorder(
@@ -503,7 +503,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       children: [
         Text(
           'Service Location',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: Colors.grey[800],
@@ -512,7 +512,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         const SizedBox(height: 8),
         Text(
           'Long-press or tap on the map to set your home location for Care+ services.',
-          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+          style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -556,7 +556,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         Text(
           _selectedAddress ??
               'Tap the map to place the pin, then we will use reverse geocoding to fetch address (TODO).',
-          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+          style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]),
         ),
       ],
     );
@@ -576,7 +576,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         children: [
           Text(
             'Review your Care+ booking',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -600,7 +600,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
           const SizedBox(height: 8),
           Text(
             'On next iteration, this will open Khalti / eSewa checkout and only mark as Pending Review after successful payment.',
-            style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+            style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -615,7 +615,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         children: [
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               color: Colors.grey[700],
             ),
@@ -625,7 +625,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
                 color: Colors.grey[900],

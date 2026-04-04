@@ -165,8 +165,32 @@ const verifyProviderSubscription = async (req, res, next) => {
   next();
 };
 
+/**
+ * Attach req.user when a valid Bearer token is present; otherwise continue (no 401).
+ * Use for optional personalization on public catalogue routes.
+ */
+const optionalAuth = async (req, res, next) => {
+  req.user = null;
+  try {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return next();
+    const token = auth.split(' ')[1];
+    if (!token || token === 'undefined' || token === 'null') return next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const u = await User.findById(decoded.id).select('-password');
+    if (u) {
+      req.user = u;
+      if (req.user.role) req.user.role = normalizeRole(req.user.role);
+    }
+  } catch (_) {
+    /* invalid/expired token — treat as anonymous */
+  }
+  next();
+};
+
 module.exports = {
   protect,
+  optionalAuth,
   admin,
   adminOrShopOwner,
   authorize,

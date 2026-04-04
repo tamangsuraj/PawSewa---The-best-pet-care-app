@@ -174,12 +174,12 @@ class _CareScreenState extends State<CareScreen> {
                   children: [
                     Text(
                       'Filter categories',
-                      style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'Choose which sections to show on Pet Care+.',
-                      style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -190,7 +190,7 @@ class _CareScreenState extends State<CareScreen> {
                         final label = c['header']!;
                         final on = working.contains(type);
                         return FilterChip(
-                          label: Text(label, style: GoogleFonts.poppins(fontSize: 12)),
+                          label: Text(label, style: GoogleFonts.outfit(fontSize: 12)),
                           selected: on,
                           onSelected: (sel) {
                             setModal(() {
@@ -224,7 +224,7 @@ class _CareScreenState extends State<CareScreen> {
                         backgroundColor: primary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text('Apply', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+                      child: Text('Apply', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
                     ),
                     TextButton(
                       onPressed: () {
@@ -233,7 +233,7 @@ class _CareScreenState extends State<CareScreen> {
                       },
                       child: Text(
                         'Reset — show all',
-                        style: GoogleFonts.poppins(color: primary, fontWeight: FontWeight.w600),
+                        style: GoogleFonts.outfit(color: primary, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -256,11 +256,11 @@ class _CareScreenState extends State<CareScreen> {
             controller: _searchController,
             focusNode: _searchFocus,
             onChanged: (_) => setState(() {}),
-            style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+            style: GoogleFonts.outfit(fontSize: 14, color: Colors.black87),
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search services nearby...',
-              hintStyle: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[500]),
+              hintStyle: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[500]),
               prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[600], size: 22),
               filled: true,
               fillColor: const Color(0xFFF3F4F6),
@@ -313,7 +313,7 @@ class _CareScreenState extends State<CareScreen> {
                 Expanded(
                   child: Text(
                     header,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
                       color: primary,
@@ -331,7 +331,7 @@ class _CareScreenState extends State<CareScreen> {
                   ),
                   child: Text(
                     'See All',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: primary,
@@ -349,7 +349,7 @@ class _CareScreenState extends State<CareScreen> {
                 source.isEmpty
                     ? 'No listings in this category yet.'
                     : 'No services match your search.',
-                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
               ),
             )
           else
@@ -402,7 +402,7 @@ class _CareScreenState extends State<CareScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      Text(_error!, style: GoogleFonts.poppins(color: Colors.grey[700])),
+                      Text(_error!, style: GoogleFonts.outfit(color: Colors.grey[700])),
                       const SizedBox(height: 8),
                       TextButton(onPressed: _loadHostels, child: const Text('Retry')),
                     ],

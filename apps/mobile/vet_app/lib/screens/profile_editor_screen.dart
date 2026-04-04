@@ -171,7 +171,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
             SnackBar(
               content: Text(
                 isComplete ? '✅ Profile Verified & Public!' : 'Profile updated successfully',
-                style: GoogleFonts.poppins(),
+                style: GoogleFonts.outfit(),
               ),
               backgroundColor: isComplete ? Colors.green : const Color(AppConstants.primaryColor),
               duration: const Duration(seconds: 3),
@@ -193,7 +193,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message, style: GoogleFonts.poppins()),
+          content: Text(message, style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -207,7 +207,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       appBar: AppBar(
         title: Text(
           'Edit Partner Profile',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -311,7 +311,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     Expanded(
                       child: Text(
                         'Working hours and location details are managed by the Admin team.',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 13,
                           color: const Color(AppConstants.accentColor),
                         ),
@@ -338,7 +338,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
                           'Save Profile',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -368,10 +368,10 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       maxLength: maxLength,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.poppins(),
+      style: GoogleFonts.outfit(),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.poppins(),
+        labelStyle: GoogleFonts.outfit(),
         prefixIcon: Icon(icon, color: const Color(AppConstants.primaryColor)),
         filled: true,
         fillColor: Colors.white,
@@ -401,7 +401,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         initialValue: _selectedSpecialty,
         decoration: InputDecoration(
           labelText: 'Specialty',
-          labelStyle: GoogleFonts.poppins(),
+          labelStyle: GoogleFonts.outfit(),
           prefixIcon: const Icon(Icons.medical_services, color: Color(AppConstants.primaryColor)),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
@@ -411,7 +411,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         items: _specialties.map((specialty) {
           return DropdownMenuItem(
             value: specialty,
-            child: Text(specialty, style: GoogleFonts.poppins()),
+            child: Text(specialty, style: GoogleFonts.outfit()),
           );
         }).toList(),
         onChanged: (value) {

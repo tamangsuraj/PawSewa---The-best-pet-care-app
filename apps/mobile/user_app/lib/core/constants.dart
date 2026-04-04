@@ -28,12 +28,15 @@ class AppConstants {
   static const String tokenKey = "user_auth_token";
   static const String userKey = "user_data";
 
-  // Brand Colors (2026 Bento / Modern)
-  static const int primaryColor = 0xFF703418; // PawSewa Brown
-  static const int secondaryColor = 0xFFFFFFFF; // Pure white
-  static const int accentColor = 0xFFA67B5B; // Light Brown
-  /// Cream/Sand background for Bento dashboards (#F5F5F1)
-  static const int bentoBackgroundColor = 0xFFF5F5F1;
+  // Brand — organic editorial (aligned with customer website tokens)
+  static const int primaryColor = 0xFF4B3621; // warm bark brown
+  static const int inkColor = 0xFF3D2E24; // deep ink for type
+  static const int secondaryColor = 0xFFFAF6F0; // cream surface
+  static const int accentColor = 0xFF0D9488; // care teal
+  static const int accentWarmColor = 0xFFA67B5B; // warm tan chips / legacy accents
+  static const int sandColor = 0xFFEBE3D6;
+  /// Dashboard / bento canvas
+  static const int bentoBackgroundColor = 0xFFF5EDE4;
 
   /// User-facing status labels for service requests (My Services dashboard)
   static const Map<String, String> serviceRequestStatusLabels = {

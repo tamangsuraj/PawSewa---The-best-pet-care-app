@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 
 class MyBusinessScreen extends StatefulWidget {
   const MyBusinessScreen({super.key});
@@ -166,11 +167,11 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           'My Business',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -182,7 +183,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           tabs: const [
             Tab(text: 'Billing'),
             Tab(text: 'My Services'),
@@ -190,12 +191,20 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Stack(
+        clipBehavior: Clip.none,
         children: [
-          _buildBillingTab(),
-          _buildServicesTab(),
-          _buildBookingsTab(),
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBillingTab(),
+                _buildServicesTab(),
+                _buildBookingsTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -220,7 +229,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.red.shade200),
               ),
-              child: Text(_error!, style: GoogleFonts.poppins(fontSize: 13, color: Colors.red.shade800)),
+              child: Text(_error!, style: GoogleFonts.outfit(fontSize: 13, color: Colors.red.shade800)),
             ),
           _buildBillingContent(),
         ],
@@ -265,7 +274,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                     Expanded(
                       child: Text(
                         isActive ? 'Active Subscription' : 'No active subscription',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey[900],
@@ -281,7 +290,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       'Valid until: ${DateTime.tryParse(validUntil)?.toString().split(' ').first ?? validUntil}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
@@ -292,7 +301,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       'Plan: ${planConfig['name'] ?? sub?['plan'] ?? 'Basic'} · ${planConfig['maxListings'] == -1 ? 'Unlimited' : planConfig['maxListings']} listings',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
@@ -306,7 +315,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
           const SizedBox(height: 24),
           Text(
             'Select a plan',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.grey[800],
@@ -346,7 +355,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
         children: [
           Text(
             name,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: _primary,
@@ -357,7 +366,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
             maxListings == -1
                 ? 'Unlimited listings · Featured · 5% platform fee'
                 : '$maxListings listings · Max 3 photos · $feePercent% platform fee',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               color: Colors.grey[600],
             ),
@@ -416,7 +425,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
             const SizedBox(height: 16),
             Text(
               'No services yet',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 16,
                 color: Colors.grey[600],
               ),
@@ -455,7 +464,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                   children: [
                     Text(
                       name,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[900],
@@ -466,7 +475,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                     const SizedBox(height: 4),
                     Text(
                       serviceType,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
@@ -487,7 +496,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                       ),
                       child: Text(
                         isAvailable ? 'Available' : 'Unavailable',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: isAvailable
@@ -525,7 +534,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
             const SizedBox(height: 16),
             Text(
               'No incoming bookings',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 16,
                 color: Colors.grey[600],
               ),
@@ -573,7 +582,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                   Expanded(
                     child: Text(
                       petName,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[900],
@@ -591,7 +600,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                     ),
                     child: Text(
                       status.toUpperCase(),
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _primary,
@@ -603,7 +612,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
               const SizedBox(height: 4),
               Text(
                 'Owner: $ownerName · $hostelName',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.grey[600],
                 ),
@@ -613,7 +622,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Check-in: ${DateTime.tryParse(checkIn)?.toString().split(' ').first ?? checkIn} · $nights night(s)',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       color: Colors.grey[600],
                     ),
@@ -624,7 +633,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Rs. $total',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: _primary,

@@ -121,7 +121,7 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
 
   return (
     <section className="mt-8">
-      <h2 className="text-lg font-bold text-primary mb-3">{title}</h2>
+      <h2 className="text-lg font-bold text-paw-bark mb-3">{title}</h2>
       <div className="flex items-center gap-2 mb-4">
         <div className="flex text-amber-500">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -139,7 +139,7 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
         <button
           type="button"
           onClick={() => setEditingId('new')}
-          className="mb-4 flex items-center gap-2 text-primary font-medium hover:underline"
+          className="mb-4 flex items-center gap-2 text-paw-bark font-medium hover:underline"
         >
           <MessageSquare className="w-4 h-4" />
           Write a review
@@ -150,7 +150,7 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
           <button
             type="button"
             onClick={() => setEditingId(myReview._id)}
-            className="flex items-center gap-1 text-primary font-medium hover:underline"
+            className="flex items-center gap-1 text-paw-bark font-medium hover:underline"
           >
             <Pencil className="w-4 h-4" />
             Edit your review
@@ -188,14 +188,14 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
             onChange={(e) => setFormComment(e.target.value)}
             rows={3}
             maxLength={2000}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-paw-bark focus:border-paw-bark outline-none"
             placeholder="Share your experience..."
           />
           <div className="mt-3 flex gap-2">
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50"
+              className="px-4 py-2 bg-paw-bark text-white rounded-lg font-medium hover:bg-paw-bark/90 disabled:opacity-50"
             >
               {submitting ? 'Saving...' : myReview ? 'Update review' : 'Submit review'}
             </button>
@@ -224,7 +224,7 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
             <div key={r._id} className="p-4 rounded-xl bg-gray-50 border border-gray-100">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm">
+                  <div className="w-8 h-8 rounded-full bg-paw-bark/20 flex items-center justify-center text-paw-bark font-semibold text-sm">
                     {(r.user?.name || 'U').charAt(0).toUpperCase()}
                   </div>
                   <span className="font-medium text-gray-800">{r.user?.name || 'Anonymous'}</span>

@@ -276,7 +276,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
             Expanded(
               child: Text(
                 _vetName,
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -318,7 +318,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Text(
                                 '$_vetName is typing…',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 12,
                                   fontStyle: FontStyle.italic,
                                   color: Colors.grey[600],
@@ -352,7 +352,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
                               ),
                               child: Text(
                                 text,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   color: mine ? Colors.white : Colors.black87,
                                 ),

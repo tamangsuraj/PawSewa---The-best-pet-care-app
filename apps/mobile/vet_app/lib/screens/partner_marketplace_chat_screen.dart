@@ -236,7 +236,7 @@ class _PartnerMarketplaceChatScreenState
           children: [
             Text(
               widget.peerName,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w600,
                 color: fg,
               ),
@@ -244,7 +244,7 @@ class _PartnerMarketplaceChatScreenState
             if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
               Text(
                 widget.peerSubtitle!,
-                style: GoogleFonts.poppins(fontSize: 11, color: subColor),
+                style: GoogleFonts.outfit(fontSize: 11, color: subColor),
               ),
           ],
         ),
@@ -283,7 +283,7 @@ class _PartnerMarketplaceChatScreenState
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       '${widget.peerName} is typing…',
-                      style: GoogleFonts.poppins(fontSize: 12, color: subColor),
+                      style: GoogleFonts.outfit(fontSize: 12, color: subColor),
                     ),
                   ),
                 Expanded(
@@ -334,7 +334,7 @@ class _PartnerMarketplaceChatScreenState
                               if (pn != null && pn.isNotEmpty)
                                 Text(
                                   'Product: $pn',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 11,
                                     color: mine
                                         ? Colors.white70
@@ -345,7 +345,7 @@ class _PartnerMarketplaceChatScreenState
                                 ),
                               Text(
                                 content,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   color: textCol,
                                 ),

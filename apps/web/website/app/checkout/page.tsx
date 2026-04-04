@@ -6,6 +6,8 @@ import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { createOrder, initiatePayment } from '@/lib/api';
 import { ShoppingCart, MapPin, Loader2 } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -74,9 +76,9 @@ export default function CheckoutPage() {
 
   if (authLoading || !hydrated || items.length === 0) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </main>
+      <PageShell className="flex min-h-screen items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-paw-bark" />
+      </PageShell>
     );
   }
 
@@ -84,19 +86,19 @@ export default function CheckoutPage() {
   const grandTotal = subtotal + deliveryFee;
 
   return (
-    <main className="min-h-screen bg-gray-50 py-10 px-4">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Checkout</h1>
+    <PageShell>
+      <PageHero eyebrow="Shop" title="Checkout" subtitle="Delivery address and order summary before Khalti." />
 
+      <div className="max-w-2xl mx-auto px-4 py-10">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleCheckout} className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="paw-card-glass rounded-2xl border border-paw-bark/10 shadow-paw p-6">
+            <h2 className="font-semibold text-paw-ink mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5" />
               Delivery Address
             </h2>
@@ -105,17 +107,17 @@ export default function CheckoutPage() {
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Enter your full delivery address (street, area, city)"
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+              className="w-full px-4 py-3 border border-paw-bark/15 rounded-2xl focus:ring-2 focus:ring-paw-teal-mid/30 focus:border-paw-teal-mid bg-white/90"
               required
             />
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="paw-card-glass rounded-2xl border border-paw-bark/10 shadow-paw p-6">
+            <h2 className="font-semibold text-paw-ink mb-4 flex items-center gap-2">
               <ShoppingCart className="w-5 h-5" />
               Order Summary
             </h2>
-            <ul className="space-y-2 mb-4">
+            <ul className="space-y-2 mb-4 text-paw-bark/90">
               {items.map((i) => (
                 <li
                   key={i.productId}
@@ -147,7 +149,7 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3.5 bg-paw-bark text-paw-cream font-medium rounded-full hover:bg-paw-ink disabled:opacity-50 flex items-center justify-center gap-2 shadow-paw"
           >
             {loading ? (
               <>
@@ -158,11 +160,11 @@ export default function CheckoutPage() {
               'Pay with Khalti'
             )}
           </button>
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-paw-bark/55">
             You will be redirected to Khalti to pay. If you cancel, you can return to the shop or try again from checkout.
           </p>
         </form>
       </div>
-    </main>
+    </PageShell>
   );
 }

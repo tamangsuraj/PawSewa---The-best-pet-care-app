@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Calendar
 } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
 
 interface Case {
   _id: string;
@@ -68,9 +70,10 @@ export default function MyCasesPage() {
         setCases(response.data.data || []);
       }
       setError('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching cases:', err);
-      setError(err.response?.data?.message || 'Failed to load cases');
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || 'Failed to load cases');
     } finally {
       setLoading(false);
     }
@@ -128,41 +131,37 @@ export default function MyCasesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5E6CA] flex items-center justify-center">
+      <PageShell className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#703418] border-t-transparent mb-4"></div>
-          <p className="text-[#703418] text-xl">Loading your cases...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent mb-4" />
+          <p className="text-paw-bark text-xl">Loading your cases...</p>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5E6CA]">
-      {/* Header */}
-      <div className="bg-[#703418] text-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">My Cases</h1>
-              <p className="text-[#F5E6CA]">Track your veterinary assistance requests</p>
-            </div>
-            <button
-              onClick={fetchMyCases}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-[#703418] rounded-lg font-semibold hover:bg-gray-100 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        eyebrow="Dispatch"
+        title="My cases"
+        subtitle="Track your veterinary assistance requests."
+        actions={
+          <button
+            type="button"
+            onClick={fetchMyCases}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-paw-cream/15 border border-white/20 text-paw-cream font-semibold hover:bg-paw-cream/25 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        }
+      />
 
-      {/* Content */}
       <div className="container mx-auto px-4 py-12">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Pending</p>
@@ -174,7 +173,7 @@ export default function MyCasesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Active</p>
@@ -186,7 +185,7 @@ export default function MyCasesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Completed</p>
@@ -198,14 +197,14 @@ export default function MyCasesPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-[#703418]">
+          <div className="paw-card-glass rounded-2xl shadow-paw p-6 border-2 border-paw-bark/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Total Cases</p>
-                <p className="text-3xl font-bold text-[#703418]">{totalCount}</p>
+                <p className="text-3xl font-bold text-paw-bark">{totalCount}</p>
               </div>
-              <div className="bg-[#703418] bg-opacity-10 p-4 rounded-full">
-                <svg className="w-8 h-8 text-[#703418]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="bg-paw-bark/10 p-4 rounded-full">
+                <svg className="w-8 h-8 text-paw-bark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
               </div>
@@ -214,7 +213,7 @@ export default function MyCasesPage() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="bg-white rounded-2xl shadow-lg p-2 mb-8 flex gap-2 overflow-x-auto">
+        <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-2 mb-8 flex gap-2 overflow-x-auto">
           {[
             { value: 'all', label: 'All Cases' },
             { value: 'pending', label: 'Pending' },
@@ -225,10 +224,10 @@ export default function MyCasesPage() {
             <button
               key={filter.value}
               onClick={() => setFilterStatus(filter.value)}
-              className={`px-6 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap ${
+              className={`px-6 py-3 rounded-xl font-semibold transition-colors whitespace-nowrap ${
                 filterStatus === filter.value
-                  ? 'bg-[#703418] text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-paw-bark text-paw-cream shadow-paw'
+                  : 'text-paw-bark/70 hover:bg-paw-sand/80'
               }`}
             >
               {filter.label}
@@ -246,22 +245,22 @@ export default function MyCasesPage() {
 
         {/* Cases List */}
         {filteredCases.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
-            <div className="text-6xl mb-4">📋</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw p-12 text-center">
+            <h2 className="font-display text-2xl font-semibold text-paw-ink mb-2">
               {filterStatus === 'all' ? 'No Cases Yet' : `No ${filterStatus.replace('_', ' ')} Cases`}
             </h2>
-            <p className="text-gray-600 mb-6">
-              {filterStatus === 'all' 
+            <p className="text-paw-bark/70 mb-6">
+              {filterStatus === 'all'
                 ? "You haven't submitted any assistance requests yet."
                 : `You don't have any ${filterStatus.replace('_', ' ')} cases.`}
             </p>
             {filterStatus === 'all' && (
               <button
+                type="button"
                 onClick={() => router.push('/request-assistance')}
-                className="px-8 py-4 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-lg"
+                className="px-8 py-4 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors text-lg shadow-paw"
               >
-                🚨 Request Assistance
+                Request assistance
               </button>
             )}
           </div>
@@ -270,12 +269,12 @@ export default function MyCasesPage() {
             {filteredCases.map((caseData) => (
               <div
                 key={caseData._id}
-                className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6 hover:shadow-paw-lg transition-shadow"
               >
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* Pet Info */}
                   <div className="flex items-start gap-4 lg:w-1/3">
-                    <div className="w-20 h-20 bg-[#703418] bg-opacity-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div className="w-20 h-20 bg-paw-bark/10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {caseData.pet.image ? (
                         <img
                           src={caseData.pet.image}
@@ -287,7 +286,7 @@ export default function MyCasesPage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-[#703418] mb-1">
+                      <h3 className="text-xl font-semibold text-paw-ink mb-1">
                         {caseData.pet.name}
                       </h3>
                       <p className="text-gray-600 text-sm">
@@ -318,16 +317,14 @@ export default function MyCasesPage() {
 
                     {/* Assigned Vet Info */}
                     {caseData.assignedVet && (
-                      <div className="mt-4 p-4 bg-white rounded-lg border-2 border-[#703418]">
-                        <p className="text-sm font-semibold text-[#703418] mb-2">
-                          Assigned Veterinarian:
-                        </p>
+                      <div className="mt-4 p-4 rounded-xl border-2 border-paw-bark/15 bg-paw-sand/40">
+                        <p className="text-sm font-semibold text-paw-ink mb-2">Assigned veterinarian</p>
                         <div className="flex items-center gap-3">
-                          <div className="bg-[#703418] bg-opacity-10 p-2 rounded-full">
-                            <User className="w-5 h-5 text-[#703418]" />
+                          <div className="bg-paw-bark/10 p-2 rounded-full">
+                            <User className="w-5 h-5 text-paw-bark" />
                           </div>
                           <div>
-                            <p className="font-bold text-[#703418]">
+                            <p className="font-bold text-paw-ink">
                               Dr. {caseData.assignedVet.name}
                             </p>
                             <p className="text-sm text-gray-700">
@@ -335,7 +332,7 @@ export default function MyCasesPage() {
                             </p>
                             {caseData.assignedVet.phone && (
                               <div className="flex items-center gap-1 mt-1">
-                                <Phone className="w-3 h-3 text-[#703418]" />
+                                <Phone className="w-3 h-3 text-paw-bark" />
                                 <span className="text-sm text-gray-800">
                                   {caseData.assignedVet.phone}
                                 </span>
@@ -371,20 +368,25 @@ export default function MyCasesPage() {
 
         {/* CTA Section */}
         {cases.length > 0 && (
-          <div className="mt-12 bg-[#703418] text-white rounded-2xl shadow-lg p-8 text-center">
-            <h2 className="text-2xl font-bold mb-3">Need More Help?</h2>
-            <p className="text-[#F5E6CA] mb-6">
-              Submit another assistance request for your pet
-            </p>
-            <button
-              onClick={() => router.push('/request-assistance')}
-              className="px-8 py-4 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors text-lg"
-            >
-              🚨 Request Assistance
-            </button>
+          <div className="mt-12 relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream p-8 text-center shadow-paw-lg border border-white/10">
+            <div
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_50%_100%,rgba(13,148,136,0.2),transparent_50%)]"
+              aria-hidden
+            />
+            <div className="relative">
+              <h2 className="font-display text-2xl font-semibold mb-3">Need more help?</h2>
+              <p className="text-paw-cream/85 mb-6">Submit another assistance request for your pet.</p>
+              <button
+                type="button"
+                onClick={() => router.push('/request-assistance')}
+                className="px-8 py-4 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors text-lg shadow-paw"
+              >
+                Request assistance
+              </button>
+            </div>
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

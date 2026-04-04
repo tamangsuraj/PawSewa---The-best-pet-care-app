@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { AlertCircle } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
+import { PageShell } from '@/components/layout/PageShell';
 import Link from 'next/link';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
@@ -45,7 +46,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, user, isLoading: authLoading } = useAuth();
+  const { loginWithToken, user, isLoading: authLoading } = useAuth();
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -53,6 +54,7 @@ export default function RegisterPage() {
   const {
     register: registerField,
     handleSubmit,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -64,7 +66,8 @@ export default function RegisterPage() {
     onSuccess: async (tokenResponse) => {
       setIsGoogleLoading(true);
       setError('');
-      
+      clearErrors();
+
       try {
         // Get user info from Google using access token
         const userInfoResponse = await axios.get(
@@ -75,29 +78,32 @@ export default function RegisterPage() {
         const googleUser = userInfoResponse.data;
 
         // Send user info to backend
+        const displayName =
+          googleUser.name?.trim() ||
+          googleUser.email?.split('@')[0] ||
+          'User';
+
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/auth/google`,
-          { 
+          {
             googleToken: tokenResponse.access_token,
             email: googleUser.email,
-            name: googleUser.name,
-            googleId: googleUser.sub
+            name: displayName,
+            googleId: googleUser.sub,
           }
         );
 
         if (response.data.success) {
           const { token, user: userData } = response.data.data;
-          
+
           // Only allow pet_owner
           if (userData.role !== 'pet_owner') {
             setError('This is the customer website. Only pet owners can register here.');
             return;
           }
 
-          // Save to localStorage
-          localStorage.setItem('token', token);
-          localStorage.setItem('user', JSON.stringify(userData));
-          
+          loginWithToken({ token, ...userData });
+
           router.push('/dashboard');
         }
       } catch (err: any) {
@@ -175,31 +181,41 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left Side - Illustration */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary to-accent items-center justify-center p-12">
-        <div className="text-center text-white">
-          <div className="mx-auto mb-8 flex justify-center rounded-2xl bg-white/10 p-6 border border-white/20 backdrop-blur-sm">
-            <PawSewaLogo variant="hero" height={112} className="brightness-0 invert" />
+    <PageShell className="flex min-h-screen">
+      <div className="hidden lg:flex lg:w-[46%] relative items-center justify-center p-12 overflow-hidden bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_20%_30%,rgba(13,148,136,0.22),transparent_55%)]"
+          aria-hidden
+        />
+        <div className="relative text-center text-paw-cream max-w-md paw-hero-stagger flex flex-col items-center gap-0">
+          <div className="mx-auto mb-8 flex justify-center rounded-[1.5rem] bg-white/10 p-7 border border-white/20 backdrop-blur-md shadow-paw-lg">
+            <PawSewaLogo variant="hero" height={100} className="brightness-0 invert opacity-95" />
           </div>
-          <h1 className="text-4xl font-bold mb-4">Welcome to PawSewa</h1>
-          <p className="text-xl text-secondary">
-            The best pet care platform for you and your furry friends
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-paw-cream/75 mb-2">
+            Nepal · care &amp; commerce
+          </p>
+          <h1 className="font-display text-4xl font-semibold tracking-tight mb-4">
+            Welcome to PawSewa
+          </h1>
+          <p className="text-lg text-paw-cream/85 leading-relaxed font-sans">
+            Clinical rigor and editorial warmth — one home for every companion.
           </p>
         </div>
       </div>
 
-      {/* Right Side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+      <div className="w-full lg:w-[54%] flex items-center justify-center p-6 sm:p-10">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-primary mb-2">Join the PawSewa Family</h2>
-            <p className="text-gray-600">Create your account and start caring for your pets</p>
+            <p className="paw-eyebrow-center mb-3">Create account</p>
+            <h2 className="font-display text-3xl font-semibold text-paw-ink tracking-tight mb-2">
+              Join the family
+            </h2>
+            <p className="text-paw-bark/70 text-sm">Profiles, shop, and vets — unified.</p>
           </div>
 
-          {/* Error Alert */}
+          <div className="paw-card-glass rounded-[1.75rem] p-6 sm:p-8 border border-paw-bark/10 shadow-paw">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+            <div className="mb-6 p-4 bg-red-50/90 border border-red-200/80 rounded-2xl flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-red-800">Registration Failed</p>
@@ -292,18 +308,22 @@ export default function RegisterPage() {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">OR</span>
+              <span className="px-4 bg-paw-cream/90 text-paw-bark/50 font-medium tracking-widest">OR</span>
             </div>
           </div>
 
           {/* Google Sign-In Button */}
           <button
-            onClick={() => handleGoogleLogin()}
+            type="button"
+            onClick={() => {
+              clearErrors();
+              handleGoogleLogin();
+            }}
             disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-full border-2 border-paw-bark/15 bg-white/90 hover:bg-white hover:border-paw-bark/25 shadow-sm transition-all disabled:opacity-50"
           >
             {isGoogleLoading ? (
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-paw-bark border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -316,23 +336,24 @@ export default function RegisterPage() {
 
           <p className="mt-6 text-center text-gray-600">
             Already have an account?{' '}
-            <Link href="/login" className="text-primary font-medium hover:underline">
+            <Link href="/login" className="text-paw-teal-mid font-semibold hover:underline">
               Login here
             </Link>
           </p>
 
           {/* Vet Contact Note */}
-          <div className="mt-4 p-4 bg-secondary/30 rounded-lg text-center">
-            <p className="text-sm text-gray-700">
+          <div className="mt-4 p-4 bg-paw-sand/50 rounded-2xl border border-paw-bark/8 text-center">
+            <p className="text-sm text-paw-bark/80">
               Are you a Vet?{' '}
-              <Link href="/contact" className="text-primary font-medium hover:underline">
+              <Link href="/contact" className="text-paw-teal-mid font-semibold hover:underline">
                 Contact us
               </Link>
               {' '}to join our professional network.
             </p>
           </div>
+          </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 
 /// Wallet / Earnings screen for vets and care staff.
 /// Displays payments received from pet owners for completed services.
@@ -60,14 +61,14 @@ class _EarningsScreenState extends State<EarningsScreen> {
     const primary = Color(AppConstants.primaryColor);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 0,
         title: Text(
           'Earnings',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,
             color: Colors.white,
@@ -81,8 +82,13 @@ class _EarningsScreenState extends State<EarningsScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: _loading
+                ? const Center(
               child: CircularProgressIndicator(
                 color: Color(AppConstants.primaryColor),
               ),
@@ -103,7 +109,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                         Text(
                           _error!,
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
                             color: Colors.grey[700],
                           ),
@@ -155,7 +161,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                           children: [
                             Text(
                               'Total Earnings',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 14,
                                 color: Colors.white70,
                                 fontWeight: FontWeight.w500,
@@ -164,7 +170,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             const SizedBox(height: 4),
                             Text(
                               'Rs. ${_totalEarnings.toStringAsFixed(0)}',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 32,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -173,7 +179,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                             const SizedBox(height: 8),
                             Text(
                               '$_transactionCount completed payment${_transactionCount == 1 ? '' : 's'} from pet owners',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 color: Colors.white70,
                               ),
@@ -184,7 +190,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'Transaction History',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey[800],
@@ -209,7 +215,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               const SizedBox(height: 16),
                               Text(
                                 'No payments yet',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   color: Colors.grey[600],
                                 ),
@@ -217,7 +223,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                               Text(
                                 'Payments from pet owners will appear here after completed services.',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 12,
                                   color: Colors.grey[500],
                                 ),
@@ -230,6 +236,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
                     ],
                   ),
                 ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -282,7 +291,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
               children: [
                 Text(
                   '$serviceType • $customer${petName.isNotEmpty ? ' ($petName)' : ''}',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[900],
@@ -293,7 +302,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 if (dateStr.isNotEmpty)
                   Text(
                     dateStr,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 11,
                       color: Colors.grey[500],
                     ),
@@ -303,7 +312,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 if (gateway.isNotEmpty)
                   Text(
                     gateway.toUpperCase(),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 10,
                       color: Colors.grey[400],
                       fontWeight: FontWeight.w500,
@@ -320,7 +329,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
               alignment: Alignment.centerRight,
               child: Text(
                 'Rs. ${amount.toStringAsFixed(0)}',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.green[700],

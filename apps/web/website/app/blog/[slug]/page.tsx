@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getAllBlogPosts, getBlogPostBySlug, formatDate } from '@/lib/blog';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
 
 type Props = {
   params: { slug: string };
@@ -43,7 +45,7 @@ function renderMarkdown(md: string) {
     blocks.push(
       <ul key={key} className="list-disc pl-6 space-y-2">
         {list.map((t, i) => (
-          <li key={`${key}-${i}`} className="text-gray-800 font-inter">
+          <li key={`${key}-${i}`} className="text-paw-bark/90">
             {t}
           </li>
         ))}
@@ -108,7 +110,7 @@ function renderMarkdown(md: string) {
     if (h2) {
       flushList(`l-${idx}`);
       blocks.push(
-        <h2 key={key} className="text-2xl font-bold font-poppins text-gray-900 mt-8">
+        <h2 key={key} className="font-display text-2xl font-semibold text-paw-ink mt-8">
           {inline(h2[1])}
         </h2>
       );
@@ -118,7 +120,7 @@ function renderMarkdown(md: string) {
     if (h1) {
       flushList(`l-${idx}`);
       blocks.push(
-        <h1 key={key} className="text-3xl font-bold font-poppins text-gray-900 mt-8">
+        <h1 key={key} className="font-display text-3xl font-semibold text-paw-ink mt-8">
           {inline(h1[1])}
         </h1>
       );
@@ -132,7 +134,7 @@ function renderMarkdown(md: string) {
 
     flushList(`l-${idx}`);
     blocks.push(
-      <p key={key} className="text-gray-800 font-inter leading-7 mt-4">
+      <p key={key} className="text-paw-bark/85 leading-7 mt-4">
         {inline(line)}
       </p>
     );
@@ -146,59 +148,52 @@ export default function BlogPostPage({ params }: Props) {
   const post = getBlogPostBySlug(params.slug);
   if (!post) {
     return (
-      <main className="min-h-screen bg-white">
-        <section className="container mx-auto px-4 py-16">
-          <h1 className="text-3xl font-bold font-poppins text-gray-900 mb-3">
-            Post not found
-          </h1>
-          <Link href="/blog" className="text-primary font-semibold">
-            ← Back to Blog
+      <PageShell>
+        <div className="container mx-auto px-4 py-16">
+          <h1 className="font-display text-3xl font-semibold text-paw-ink mb-3">Post not found</h1>
+          <Link href="/blog" className="text-paw-teal-mid font-semibold hover:underline">
+            ← Back to blog
           </Link>
-        </section>
-      </main>
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="container mx-auto px-4 pt-12 pb-6">
-        <Link href="/blog" className="text-primary font-semibold">
-          ← Back to Blog
-        </Link>
-      </section>
+    <PageShell>
+      <PageHero
+        eyebrow="Article"
+        title={post.title}
+        subtitle={post.description || undefined}
+      />
 
-      <article className="container mx-auto px-4 pb-16">
-        <header className="bg-secondary rounded-3xl p-8 md:p-10 border border-gray-100">
+      <article className="container mx-auto px-4 pb-16 -mt-4">
+        <header className="paw-card-glass rounded-2xl border border-paw-bark/10 p-6 md:p-8 shadow-paw mb-10">
           <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
-            <span className="text-xs font-semibold text-primary bg-white px-3 py-1 rounded-full">
+            <span className="text-xs font-semibold text-paw-bark bg-paw-cream/80 px-3 py-1 rounded-full border border-paw-bark/10">
               {formatDate(post.date)}
             </span>
             {post.tags.map((t) => (
               <span
                 key={t}
-                className="text-xs font-semibold text-gray-700 bg-white/70 px-3 py-1 rounded-full"
+                className="text-xs font-semibold text-paw-bark/80 bg-white/80 px-3 py-1 rounded-full border border-paw-bark/8"
               >
                 {t}
               </span>
             ))}
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold font-poppins text-gray-900">
-            {post.title}
-          </h1>
-          {post.description ? (
-            <p className="text-gray-700 font-inter mt-3 text-lg max-w-3xl">
-              {post.description}
-            </p>
-          ) : null}
+          <Link href="/blog" className="text-sm font-semibold text-paw-teal-mid hover:underline">
+            ← Back to blog
+          </Link>
         </header>
 
-        <div className="prose max-w-none mt-10">
-          <div className="max-w-3xl">
+        <div className="prose max-w-none">
+          <div className="max-w-3xl text-paw-bark/90">
             {renderMarkdown(post.content)}
           </div>
         </div>
       </article>
-    </main>
+    </PageShell>
   );
 }
 

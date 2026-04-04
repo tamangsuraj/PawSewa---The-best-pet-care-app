@@ -218,6 +218,10 @@ class ApiClient {
     double? maxPrice,
     int? page,
     int? limit,
+    /// Align with web shop: recommended uses rating/reviews + pet personalization when logged in.
+    String? sort,
+    /// Optional override; backend also derives from JWT + primary pet when omitted.
+    String? userPetType,
   }) async {
     return await _dio.get(
       '/products',
@@ -228,7 +232,20 @@ class ApiClient {
         if (maxPrice != null && maxPrice >= 0) 'maxPrice': maxPrice,
         if (page != null && page >= 1) 'page': page,
         if (limit != null && limit >= 1) 'limit': limit,
+        if (sort != null && sort.isNotEmpty) 'sort': sort,
+        if (userPetType != null && userPetType.isNotEmpty) 'userPetType': userPetType,
       },
+    );
+  }
+
+  /// Log add-to-cart / view on personalized (match) recommendations for admin activity.
+  Future<Response> postShopRecommendationEvent({
+    required String productId,
+    String action = 'add_to_cart',
+  }) async {
+    return await _dio.post(
+      '/shop/recommendation-events',
+      data: {'productId': productId, 'action': action},
     );
   }
 

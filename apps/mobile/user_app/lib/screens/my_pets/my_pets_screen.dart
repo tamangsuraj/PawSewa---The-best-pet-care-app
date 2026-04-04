@@ -84,7 +84,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                       Expanded(
                         child: Text(
                           'My Pets',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             color: const Color(0xFF1A3C34),
@@ -113,7 +113,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                                 const SizedBox(width: 6),
                                 Text(
                                   'Add New Pet',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.white,
@@ -175,7 +175,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
               const SizedBox(height: 20),
               Text(
                 'No Pets Found',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF1A3C34),
@@ -185,7 +185,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
               const SizedBox(height: 8),
               Text(
                 'Add your first pet to get started.',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 15,
                   color: Colors.grey[600],
                 ),
@@ -205,7 +205,7 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
                     ),
                     child: Text(
                       'Add Your First Pet',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,

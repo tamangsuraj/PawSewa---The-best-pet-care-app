@@ -30,6 +30,8 @@ interface Product {
   stockQuantity: number;
   isAvailable: boolean;
   images?: string[];
+  targetPets?: string[];
+  tags?: string[];
   category?: {
     _id: string;
     name: string;
@@ -99,6 +101,11 @@ export default function ShopOwnersPage() {
   const [categoryName, setCategoryName] = useState('');
   const [categoryImage, setCategoryImage] = useState<File | null>(null);
   const [images, setImages] = useState<FileList | null>(null);
+  const TARGET_PET_OPTIONS = ['DOG', 'CAT', 'RABBIT', 'BIRD', 'HAMSTER', 'FISH', 'OTHER'] as const;
+  const [targetPetSelection, setTargetPetSelection] = useState<string[]>([]);
+  const [universalProduct, setUniversalProduct] = useState(true);
+  const [productTags, setProductTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState('');
 
   const {
     register: registerProduct,
@@ -221,12 +228,18 @@ export default function ShopOwnersPage() {
       isAvailable: true,
     });
     setImages(null);
+    setTargetPetSelection([]);
+    setUniversalProduct(true);
+    setProductTags([]);
+    setTagDraft('');
     setProductError('');
     setProductFormOpen(true);
   };
 
   const openEditProduct = (product: Product) => {
     setEditingProduct(product);
+    const tp = Array.isArray(product.targetPets) ? product.targetPets.map((t) => String(t).toUpperCase()) : [];
+    const isUniversal = tp.length === 0;
     resetProductForm({
       name: product.name,
       description: product.description || '',
@@ -236,6 +249,10 @@ export default function ShopOwnersPage() {
       isAvailable: product.isAvailable,
     });
     setImages(null);
+    setTargetPetSelection(isUniversal ? [] : tp);
+    setUniversalProduct(isUniversal);
+    setProductTags(Array.isArray(product.tags) ? product.tags : []);
+    setTagDraft('');
     setProductError('');
     setProductFormOpen(true);
   };
@@ -245,6 +262,10 @@ export default function ShopOwnersPage() {
   };
 
   const handleSubmitProduct = async (values: ProductFormValues) => {
+    if (!universalProduct && targetPetSelection.length === 0) {
+      setProductError('Select at least one target pet type, or mark the product as Universal.');
+      return;
+    }
     setProductFormLoading(true);
     setProductError('');
 
@@ -258,6 +279,16 @@ export default function ShopOwnersPage() {
         formData.append('category', values.category);
       }
       formData.append('isAvailable', values.isAvailable ? 'true' : 'false');
+      if (universalProduct) {
+        formData.append('targetPetsUniversal', 'true');
+      } else {
+        formData.append('targetPets', JSON.stringify(targetPetSelection));
+      }
+      if (productTags.length) {
+        formData.append('tags', JSON.stringify(productTags));
+      } else {
+        formData.append('tags', JSON.stringify([]));
+      }
       if (images && images.length > 0) {
         Array.from(images).forEach((file) => {
           formData.append('images', file);
@@ -433,6 +464,8 @@ export default function ShopOwnersPage() {
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Category</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Price</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Stock</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Target pets</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tags</th>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
               <th className="px-6 py-3 text-right text-sm font-semibold text-gray-700">Actions</th>
             </tr>
@@ -440,7 +473,7 @@ export default function ShopOwnersPage() {
           <tbody className="divide-y divide-gray-200">
             {products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                   No products found. Click &quot;Add Product&quot; to create one.
                 </td>
               </tr>
@@ -455,6 +488,16 @@ export default function ShopOwnersPage() {
                     NPR {product.price.toFixed(0)}
                   </td>
                   <td className="px-6 py-4 text-gray-700">{product.stockQuantity}</td>
+                  <td className="px-6 py-4 text-xs text-gray-700 max-w-[140px]">
+                    {product.targetPets && product.targetPets.length > 0
+                      ? product.targetPets.join(', ')
+                      : (
+                          <span className="text-gray-400 italic">Universal</span>
+                        )}
+                  </td>
+                  <td className="px-6 py-4 text-xs text-gray-600 max-w-[160px] truncate">
+                    {product.tags && product.tags.length > 0 ? product.tags.join(', ') : '—'}
+                  </td>
                   <td className="px-6 py-4">
                     {product.isAvailable ? (
                       <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium border border-emerald-200">
@@ -824,6 +867,105 @@ export default function ShopOwnersPage() {
                   <label htmlFor="isAvailable" className="text-sm text-gray-700">
                     Active / visible in customer app
                   </label>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={universalProduct}
+                    onChange={(e) => {
+                      setUniversalProduct(e.target.checked);
+                      if (e.target.checked) setTargetPetSelection([]);
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-primary"
+                  />
+                  <span className="text-sm font-medium text-gray-800">Universal (all pet types)</span>
+                </label>
+                {!universalProduct && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                      Target pet type
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {TARGET_PET_OPTIONS.map((opt) => (
+                        <label
+                          key={opt}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={targetPetSelection.includes(opt)}
+                            onChange={() => {
+                              setTargetPetSelection((prev) =>
+                                prev.includes(opt) ? prev.filter((x) => x !== opt) : [...prev, opt]
+                              );
+                            }}
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-primary"
+                          />
+                          {opt}
+                        </label>
+                      ))}
+                    </div>
+                    {!universalProduct && targetPetSelection.length === 0 && (
+                      <p className="mt-2 text-xs text-amber-700">
+                        Select at least one pet type, or enable Universal.
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Tags</p>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {productTags.map((t) => (
+                      <span
+                        key={t}
+                        className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                      >
+                        {t}
+                        <button
+                          type="button"
+                          className="font-bold leading-none"
+                          onClick={() => setProductTags((prev) => prev.filter((x) => x !== t))}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={tagDraft}
+                      onChange={(e) => setTagDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const v = tagDraft.trim();
+                          if (v && !productTags.includes(v)) {
+                            setProductTags((prev) => [...prev, v].slice(0, 24));
+                            setTagDraft('');
+                          }
+                        }
+                      }}
+                      placeholder="Type a tag and press Enter (e.g. Wellness)"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900"
+                    />
+                    <button
+                      type="button"
+                      className="rounded-lg bg-gray-200 px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-300"
+                      onClick={() => {
+                        const v = tagDraft.trim();
+                        if (v && !productTags.includes(v)) {
+                          setProductTags((prev) => [...prev, v].slice(0, 24));
+                          setTagDraft('');
+                        }
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
               </div>
 

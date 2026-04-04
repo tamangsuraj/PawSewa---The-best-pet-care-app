@@ -59,7 +59,7 @@ export function PriceRangeDualSlider({
 
   return (
     <div className="pt-1">
-      <div className="mb-3 flex justify-between text-xs font-medium text-[#4A2E1B]/70">
+      <div className="mb-3 flex justify-between text-xs font-medium text-paw-foreground/70">
         <span>{formatLabel(valueMin)}</span>
         <span>{valueMax >= max ? `${formatLabel(max)}+` : formatLabel(valueMax)}</span>
       </div>

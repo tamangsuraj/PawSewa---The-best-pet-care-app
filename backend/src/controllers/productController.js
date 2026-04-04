@@ -3,8 +3,16 @@ const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
 const User = require('../models/User');
+const Pet = require('../models/Pet');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
+const {
+  parseTargetPetsFromBody,
+  parseTagsFromBody,
+  targetPetsToPetTypes,
+  petSpeciesToTargetPetType,
+  recommendationTierForProduct,
+} = require('../utils/productPersonalization');
 
 // Admin: POST /api/v1/categories
 // Body (multipart): name (string, required), image (file, optional)
@@ -150,6 +158,9 @@ function uploadCategoryImageBuffer(buffer, mimetype) {
 const createProduct = asyncHandler(async (req, res) => {
   try {
   const { name, description, price, stockQuantity, category, isAvailable } = req.body || {};
+  const targetPets = parseTargetPetsFromBody(req.body);
+  const tags = parseTagsFromBody(req.body.tags);
+  const petTypes = targetPetsToPetTypes(targetPets);
 
   if (!name || !price || !stockQuantity || !category) {
     return res.status(400).json({
@@ -222,6 +233,9 @@ const createProduct = asyncHandler(async (req, res) => {
     category,
     seller: sellerRef || undefined,
     images,
+    targetPets,
+    tags,
+    petTypes,
     isAvailable:
       typeof isAvailable === 'string'
         ? isAvailable === 'true'
@@ -317,6 +331,19 @@ const updateProduct = asyncHandler(async (req, res) => {
       typeof isAvailable === 'string' ? isAvailable === 'true' : Boolean(isAvailable);
   }
 
+  if (
+    req.body?.targetPets !== undefined ||
+    req.body?.targetPetsUniversal !== undefined ||
+    req.body?.universal !== undefined
+  ) {
+    const nextTargets = parseTargetPetsFromBody(req.body);
+    product.targetPets = nextTargets;
+    product.petTypes = targetPetsToPetTypes(nextTargets);
+  }
+  if (req.body?.tags !== undefined) {
+    product.tags = parseTagsFromBody(req.body.tags);
+  }
+
   if (Array.isArray(req.files) && req.files.length > 0) {
     const images = [];
     for (const file of req.files) {
@@ -384,7 +411,8 @@ const deleteProduct = asyncHandler(async (req, res) => {
 });
 
 // Public: GET /api/v1/products
-// Query: search, category, page, limit, minPrice, maxPrice, petTypes (comma: dog,cat,rabbit), sort (recommended|newest|price_asc|price_desc)
+// Query: search, category, page, limit, minPrice, maxPrice, petTypes, userPetType (override),
+// sort (recommended|newest|price_asc|price_desc). Optional JWT: primary pet used for personalization.
 const getProducts = asyncHandler(async (req, res) => {
   try {
     const {
@@ -396,6 +424,7 @@ const getProducts = asyncHandler(async (req, res) => {
       maxPrice,
       petTypes,
       sort,
+      userPetType: userPetTypeQuery,
     } = req.query;
 
     const andConditions = [];
@@ -431,11 +460,18 @@ const getProducts = asyncHandler(async (req, res) => {
         .map((s) => s.trim().toLowerCase())
         .filter((s) => ['dog', 'cat', 'rabbit'].includes(s));
       if (selected.length) {
+        const lowerToUpper = { dog: 'DOG', cat: 'CAT', rabbit: 'RABBIT' };
+        const targetUpper = selected.map((s) => lowerToUpper[s]).filter(Boolean);
         andConditions.push({
           $or: [
-            { petTypes: { $exists: false } },
-            { petTypes: { $size: 0 } },
+            {
+              $and: [
+                { $or: [{ petTypes: { $exists: false } }, { petTypes: { $size: 0 } }] },
+                { $or: [{ targetPets: { $exists: false } }, { targetPets: { $size: 0 } }] },
+              ],
+            },
             { petTypes: { $in: selected } },
+            ...(targetUpper.length ? [{ targetPets: { $in: targetUpper } }] : []),
           ],
         });
       }
@@ -448,29 +484,104 @@ const getProducts = asyncHandler(async (req, res) => {
 
     const findQuery = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
 
-    const sortKey = sort ? sort.toString() : 'newest';
-    let sortObj = { createdAt: -1 };
-    if (sortKey === 'price_asc') {
-      sortObj = { price: 1, createdAt: -1 };
-    } else if (sortKey === 'price_desc') {
-      sortObj = { price: -1, createdAt: -1 };
-    } else if (sortKey === 'recommended') {
-      sortObj = { rating: -1, reviewCount: -1, createdAt: -1 };
+    let userPetNorm = null;
+    let primaryPetName = null;
+    if (userPetTypeQuery && String(userPetTypeQuery).trim()) {
+      userPetNorm = String(userPetTypeQuery).trim().toUpperCase();
+    } else if (req.user?._id) {
+      const pet = await Pet.findOne({ owner: req.user._id })
+        .sort({ updatedAt: -1 })
+        .select('name species')
+        .lean();
+      if (pet) {
+        primaryPetName = pet.name || null;
+        userPetNorm = petSpeciesToTargetPetType(pet.species);
+      }
     }
 
+    if (userPetNorm && req.user?.email === 'testuser@pawsewa.com') {
+      logger.info('[RECS] Personalized sorting active for User: testuser@pawsewa.com.');
+    } else if (userPetNorm && req.user?.email) {
+      logger.info('[RECS] Personalized sorting active for User:', req.user.email);
+    }
+
+    const sortKey = sort ? sort.toString() : 'newest';
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.min(100, Math.max(1, Number(limit) || 24));
 
-    const [items, total] = await Promise.all([
-      Product.find(findQuery)
-        .populate('category', 'name slug')
-        .populate('seller', 'name profilePicture')
-        .sort(sortObj)
-        .skip((pageNum - 1) * limitNum)
-        .limit(limitNum)
-        .lean(),
-      Product.countDocuments(findQuery),
-    ]);
+    const pipeline = [{ $match: findQuery }];
+
+    if (userPetNorm) {
+      pipeline.push({
+        $addFields: {
+          __rec: {
+            $let: {
+              vars: {
+                eff: {
+                  $cond: [
+                    { $gt: [{ $size: { $ifNull: ['$targetPets', []] } }, 0] },
+                    { $ifNull: ['$targetPets', []] },
+                    {
+                      $map: {
+                        input: { $ifNull: ['$petTypes', []] },
+                        as: 'pt',
+                        in: { $toUpper: '$$pt' },
+                      },
+                    },
+                  ],
+                },
+              },
+              in: {
+                $cond: [
+                  { $eq: [{ $size: '$$eff' }, 0] },
+                  1,
+                  {
+                    $cond: [{ $in: [userPetNorm, '$$eff'] }, 2, 0],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      });
+    } else {
+      pipeline.push({ $addFields: { __rec: 1 } });
+    }
+
+    if (sortKey === 'price_asc') {
+      pipeline.push({ $sort: { __rec: -1, price: 1, createdAt: -1 } });
+    } else if (sortKey === 'price_desc') {
+      pipeline.push({ $sort: { __rec: -1, price: -1, createdAt: -1 } });
+    } else if (sortKey === 'recommended') {
+      pipeline.push({ $sort: { __rec: -1, rating: -1, reviewCount: -1, createdAt: -1 } });
+    } else {
+      pipeline.push({ $sort: { __rec: -1, createdAt: -1 } });
+    }
+
+    pipeline.push({ $skip: (pageNum - 1) * limitNum });
+    pipeline.push({ $limit: limitNum });
+    pipeline.push({ $project: { _id: 1 } });
+
+    const [ordered, total] = await Promise.all([Product.aggregate(pipeline), Product.countDocuments(findQuery)]);
+
+    const ids = ordered.map((x) => x._id);
+    const itemsRaw =
+      ids.length > 0
+        ? await Product.find({ _id: { $in: ids } })
+            .populate('category', 'name slug')
+            .populate('seller', 'name profilePicture')
+            .lean()
+        : [];
+
+    const order = new Map(ids.map((id, i) => [String(id), i]));
+    itemsRaw.sort((a, b) => order.get(String(a._id)) - order.get(String(b._id)));
+
+    const items = itemsRaw.map((p) => {
+      const tier = recommendationTierForProduct(p, userPetNorm);
+      const out = { ...p };
+      if (tier) out.recommendationTier = tier;
+      return out;
+    });
 
     const dbName = require('mongoose').connection.db?.databaseName || process.env.DB_NAME || 'unknown';
     const collectionName = Product.collection?.name || 'products';
@@ -486,6 +597,10 @@ const getProducts = asyncHandler(async (req, res) => {
         page: pageNum,
         limit: limitNum,
       },
+      meta: {
+        userPetType: userPetNorm,
+        primaryPetName,
+      },
     });
     logger.info('[SUCCESS] Returned', count, 'products to client.');
   } catch (err) {
@@ -495,6 +610,7 @@ const getProducts = asyncHandler(async (req, res) => {
       success: true,
       data: [],
       pagination: { total: 0, page: 1, limit: 20 },
+      meta: {},
     });
   }
 });

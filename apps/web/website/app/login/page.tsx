@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
+import { PageShell } from '@/components/layout/PageShell';
 import Link from 'next/link';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
@@ -17,13 +18,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(
-      /[^A-Za-z0-9]/,
-      'Password must include at least one special character',
-    ),
+  // Login only checks presence; strength rules apply on register, not here.
+  password: z.string().min(1, 'Password is required'),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -60,15 +56,18 @@ export default function LoginPage() {
         );
 
         const googleUser = userInfoResponse.data;
+        const displayName =
+          googleUser.name?.trim() ||
+          googleUser.email?.split('@')[0] ||
+          'User';
 
-        // Send user info to backend
         const response = await axios.post(
           `${process.env.NEXT_PUBLIC_API_URL}/auth/google`,
-          { 
+          {
             googleToken: tokenResponse.access_token,
             email: googleUser.email,
-            name: googleUser.name,
-            googleId: googleUser.sub
+            name: displayName,
+            googleId: googleUser.sub,
           }
         );
 
@@ -169,22 +168,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-secondary via-white to-secondary p-4">
+    <PageShell className="flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md">
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Logo & Title */}
+        <div className="paw-card-glass rounded-[1.5rem] p-8 sm:p-10 shadow-paw-lg">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-4 rounded-xl bg-secondary/40 px-4 py-3 border border-primary/15">
-              <PawSewaLogo variant="nav" height={48} />
+            <div className="inline-flex items-center justify-center mb-5 rounded-2xl bg-white/80 px-5 py-4 border border-paw-bark/10 shadow-sm">
+              <PawSewaLogo variant="nav" height={56} blendWhiteMatte />
             </div>
-            <h2 className="text-3xl font-bold text-primary mb-2">Welcome Back</h2>
-            <p className="text-gray-600">Login to your PawSewa account</p>
+            <p className="paw-eyebrow-center text-[0.65rem] mb-3">Member access</p>
+            <h2 className="font-display text-3xl sm:text-[2rem] font-semibold text-paw-ink tracking-tight mb-2">
+              Welcome back
+            </h2>
+            <p className="text-paw-bark/70 text-sm">Sign in to your PawSewa home</p>
           </div>
 
-          {/* Error Alert */}
           {formError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+            <div className="mb-6 p-4 bg-red-50/90 border border-red-200/80 rounded-2xl flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-red-800">Login Failed</p>
@@ -219,7 +218,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-[42px] text-gray-500 hover:text-primary transition-colors"
+                className="absolute right-3 top-[42px] text-gray-500 hover:text-paw-teal-mid transition-colors"
               >
                 {showPassword ? (
                   <EyeOff className="w-5 h-5" />
@@ -236,11 +235,11 @@ export default function LoginPage() {
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-primary focus:ring-primary rounded"
+                  className="w-4 h-4 text-paw-bark focus:ring-paw-teal-mid rounded border-paw-bark/20"
                 />
                 <span className="text-gray-600">Remember me</span>
               </label>
-              <Link href="/forgot-password" className="text-primary hover:underline">
+              <Link href="/forgot-password" className="text-paw-teal-mid font-medium hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -261,7 +260,7 @@ export default function LoginPage() {
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">OR</span>
+              <span className="px-4 bg-white/90 text-paw-bark/50 font-medium tracking-widest">OR</span>
             </div>
           </div>
 
@@ -273,10 +272,10 @@ export default function LoginPage() {
               handleGoogleLogin();
             }}
             disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-full border-2 border-paw-bark/15 bg-white/90 hover:bg-white hover:border-paw-bark/25 shadow-sm transition-all disabled:opacity-50"
           >
             {isGoogleLoading ? (
-              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-paw-bark border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <img
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -296,20 +295,24 @@ export default function LoginPage() {
           {/* Register Link */}
           <p className="text-center text-gray-600">
             Don't have an account?{' '}
-            <Link href="/register" className="text-primary font-medium hover:underline">
+            <Link href="/register" className="text-paw-teal-mid font-semibold hover:underline">
               Create one now
             </Link>
           </p>
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-gray-500 mt-6">
-          By continuing, you agree to PawSewa's{' '}
-          <Link href="/terms" className="underline">Terms of Service</Link>
-          {' '}and{' '}
-          <Link href="/privacy" className="underline">Privacy Policy</Link>
+        <p className="text-center text-xs text-paw-bark/45 mt-8 tracking-wide">
+          By continuing, you agree to PawSewa&apos;s{' '}
+          <Link href="/terms" className="text-paw-teal-mid underline underline-offset-2">
+            Terms
+          </Link>{' '}
+          &amp;{' '}
+          <Link href="/privacy" className="text-paw-teal-mid underline underline-offset-2">
+            Privacy
+          </Link>
         </p>
       </div>
-    </div>
+    </PageShell>
   );
 }

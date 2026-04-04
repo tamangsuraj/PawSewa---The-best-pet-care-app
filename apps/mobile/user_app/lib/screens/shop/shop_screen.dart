@@ -20,6 +20,7 @@ import '../../core/khalti_verify_helper.dart';
 import '../cart/delivery_pin_screen.dart';
 import '../messages/marketplace_thread_screen.dart';
 import '../../core/storage_service.dart';
+import '../../widgets/editorial_canvas.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -91,6 +92,10 @@ class _ShopScreenState extends State<ShopScreen> {
   final Set<String> _favouriteIds = {};
   final TextEditingController _searchController = TextEditingController();
 
+  /// From last `/products` response `meta` (JWT + primary pet).
+  String? _curatedPetName;
+  String? _shopUserPetType;
+
   void _onSearchChanged() => setState(() {});
 
   @override
@@ -117,9 +122,11 @@ class _ShopScreenState extends State<ShopScreen> {
       final respProds = await _apiClient.getProducts(
         page: 1,
         limit: _productsPageSize,
+        sort: 'recommended',
       );
       if (!mounted) return;
       List<Map<String, dynamic>> prods = _parseListFromResponse(respProds.data);
+      final shopMeta = _metaFromProductsResponse(respProds.data);
       final pagination = respProds.data is Map ? respProds.data['pagination'] as Map? : null;
       final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
       final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
@@ -166,6 +173,12 @@ class _ShopScreenState extends State<ShopScreen> {
         _loading = false;
         _favouriteIds.clear();
         _favouriteIds.addAll(favIds);
+        if (shopMeta.containsKey('primaryPetName')) {
+          _curatedPetName = shopMeta['primaryPetName'];
+        }
+        if (shopMeta.containsKey('userPetType')) {
+          _shopUserPetType = shopMeta['userPetType'];
+        }
       });
     } catch (e) {
       if (kDebugMode && e is DioException) {
@@ -274,6 +287,60 @@ class _ShopScreenState extends State<ShopScreen> {
     return [];
   }
 
+  /// Personalization meta from GET /products (same as customer web).
+  static Map<String, String> _metaFromProductsResponse(dynamic data) {
+    if (data is! Map) return {};
+    final meta = data['meta'];
+    if (meta is! Map) return {};
+    final out = <String, String>{};
+    final n = meta['primaryPetName']?.toString();
+    if (n != null && n.isNotEmpty) out['primaryPetName'] = n;
+    final u = meta['userPetType']?.toString();
+    if (u != null && u.isNotEmpty) out['userPetType'] = u;
+    return out;
+  }
+
+  static String? _petMatchBadgeLabelForType(String? code) {
+    switch (code?.toUpperCase()) {
+      case 'DOG':
+        return 'Best for Dogs';
+      case 'CAT':
+        return "Cat's Choice";
+      case 'RABBIT':
+        return 'Great for Rabbits';
+      case 'BIRD':
+        return 'Bird-friendly pick';
+      case 'HAMSTER':
+        return 'Small pet pick';
+      case 'FISH':
+        return 'Aquarium pick';
+      case 'OTHER':
+        return 'Picked for your pet';
+      default:
+        return null;
+    }
+  }
+
+  String? _personalizedBadgeForProduct(Map<String, dynamic> p) {
+    if (p['recommendationTier']?.toString() != 'match') return null;
+    final ut = _shopUserPetType;
+    if (ut == null || ut.isEmpty) return null;
+    return _petMatchBadgeLabelForType(ut) ?? 'For your pet';
+  }
+
+  void _maybeLogRecommendationAddToCart(Map<String, dynamic> product) {
+    if (product['recommendationTier']?.toString() != 'match') return;
+    final id = product['_id']?.toString();
+    if (id == null || id.isEmpty) return;
+    unawaited(
+      () async {
+        try {
+          await _apiClient.postShopRecommendationEvent(productId: id);
+        } catch (_) {}
+      }(),
+    );
+  }
+
   static String _friendlyShopError(Object e) {
     if (e is DioException) {
       final msg = e.error?.toString();
@@ -311,6 +378,7 @@ class _ShopScreenState extends State<ShopScreen> {
       setState(() => _loading = true);
       List<Map<String, dynamic>> prods;
       bool hasMore = false;
+      Map<String, String> shopMeta = {};
       if (slug == kFavouritesSlug) {
         final resp = await _apiClient.getFavourites(
           search: _searchQuery.isEmpty ? null : _searchQuery,
@@ -328,9 +396,11 @@ class _ShopScreenState extends State<ShopScreen> {
           maxPrice: _filterMaxPrice,
           page: 1,
           limit: _productsPageSize,
+          sort: 'recommended',
         );
         if (!mounted) return;
         prods = _parseListFromResponse(resp.data);
+        shopMeta = _metaFromProductsResponse(resp.data);
         final pagination = resp.data is Map ? resp.data['pagination'] as Map? : null;
         final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
         final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
@@ -356,6 +426,14 @@ class _ShopScreenState extends State<ShopScreen> {
         _selectedCategorySlug = slug;
         _selectedCategoryName = name;
         _loading = false;
+        if (slug != kFavouritesSlug) {
+          if (shopMeta.containsKey('primaryPetName')) {
+            _curatedPetName = shopMeta['primaryPetName'];
+          }
+          if (shopMeta.containsKey('userPetType')) {
+            _shopUserPetType = shopMeta['userPetType'];
+          }
+        }
       });
     } catch (e) {
       if (kDebugMode && e is DioException) {
@@ -393,7 +471,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     padding: const EdgeInsets.all(16),
                     child: Text(
                       'Filter by category & price',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
@@ -435,7 +513,7 @@ class _ShopScreenState extends State<ShopScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       'Price (NPR)',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey,
@@ -578,6 +656,7 @@ class _ShopScreenState extends State<ShopScreen> {
             for (var i = 0; i < qty; i++) {
               cart.addItem(productId: id, name: name, price: price);
             }
+            _maybeLogRecommendationAddToCart(product);
           }
           if (mounted && _selectedCategorySlug == kFavouritesSlug) {
             _loadProductsByCategory(kFavouritesSlug);
@@ -590,7 +669,7 @@ class _ShopScreenState extends State<ShopScreen> {
     if (cart.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Your basket is empty.', style: GoogleFonts.poppins()),
+          content: Text('Your basket is empty.', style: GoogleFonts.outfit()),
         ),
       );
       return;
@@ -650,7 +729,7 @@ class _ShopScreenState extends State<ShopScreen> {
         SnackBar(
           content: Text(
             'Please add a delivery address first.',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.outfit(),
           ),
           backgroundColor: Colors.red,
         ),
@@ -830,7 +909,12 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   String _categorySubtitle() {
-    if (_selectedCategorySlug.isEmpty) return 'Browse our products.';
+    if (_selectedCategorySlug.isEmpty) {
+      if (_curatedPetName != null && _curatedPetName!.isNotEmpty) {
+        return 'Curated care for your $_curatedPetName';
+      }
+      return 'Browse our products.';
+    }
     switch (_selectedCategorySlug.toLowerCase()) {
       case 'pet-food':
         return 'Balanced meals tailored for dogs and cats.';
@@ -858,10 +942,11 @@ class _ShopScreenState extends State<ShopScreen> {
         final grandTotal = subtotal + delivery;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Stack(
               children: [
+                const EditorialBodyBackdrop(),
                 CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(child: _buildPromoAndSearchHeader()),
@@ -892,7 +977,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                   children: [
                                     Text(
                                       _error!,
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.outfit(
                                         color: Colors.red[700],
                                         fontSize: 14,
                                       ),
@@ -938,7 +1023,7 @@ class _ShopScreenState extends State<ShopScreen> {
                             child: Center(
                               child: Text(
                                 'No products found.',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   color: Colors.grey[600],
                                 ),
                               ),
@@ -985,6 +1070,8 @@ class _ShopScreenState extends State<ShopScreen> {
                                       return _ProductCard(
                                         product: p,
                                         quantity: qty,
+                                        personalizedBadge:
+                                            _personalizedBadgeForProduct(p),
                                         onTapImage: () => _openProductDetail(p),
                                         onTapAdd: () {
                                           if (qty == 0) {
@@ -1001,6 +1088,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                               name: name,
                                               price: price,
                                             );
+                                            _maybeLogRecommendationAddToCart(p);
                                           }
                                         },
                                         onTapMinus: qty > 0
@@ -1054,6 +1142,7 @@ class _ShopScreenState extends State<ShopScreen> {
         maxPrice: _filterMaxPrice,
         page: nextPage,
         limit: _productsPageSize,
+        sort: 'recommended',
       );
       if (!mounted) return;
       final more = _parseListFromResponse(resp.data);
@@ -1103,7 +1192,7 @@ class _ShopScreenState extends State<ShopScreen> {
                   onSubmitted: (_) => _runSearch(),
                   decoration: InputDecoration(
                     hintText: 'Search products',
-                    hintStyle: GoogleFonts.poppins(
+                    hintStyle: GoogleFonts.outfit(
                       fontSize: 14,
                       color: Colors.grey[600],
                     ),
@@ -1143,7 +1232,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       vertical: 12,
                     ),
                   ),
-                  style: GoogleFonts.poppins(fontSize: 14),
+                  style: GoogleFonts.outfit(fontSize: 14),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1185,7 +1274,7 @@ class _ShopScreenState extends State<ShopScreen> {
         children: [
           Text(
             _selectedCategoryName,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),
@@ -1193,7 +1282,7 @@ class _ShopScreenState extends State<ShopScreen> {
           const SizedBox(height: 4),
           Text(
             _categorySubtitle(),
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+            style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]),
           ),
         ],
       ),
@@ -1371,7 +1460,7 @@ class _PromoSlide extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -1380,7 +1469,7 @@ class _PromoSlide extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.95),
                         ),
@@ -1435,7 +1524,7 @@ class _SearchFilterChip extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey.shade700,
@@ -1579,7 +1668,7 @@ class _CategoryCircleStrip extends StatelessWidget {
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 10,
                             fontWeight: isActive
                                 ? FontWeight.w700
@@ -1631,7 +1720,7 @@ class _LoadMoreCell extends StatelessWidget {
                   )
                 : Text(
                     'Load more',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                       color: primary,
@@ -1651,6 +1740,7 @@ class _LoadMoreCell extends StatelessWidget {
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
   final int quantity;
+  final String? personalizedBadge;
   final VoidCallback onTapImage;
   final VoidCallback onTapAdd;
   final VoidCallback? onTapMinus;
@@ -1658,6 +1748,7 @@ class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
     required this.quantity,
+    this.personalizedBadge,
     required this.onTapImage,
     required this.onTapAdd,
     required this.onTapMinus,
@@ -1707,38 +1798,79 @@ class _ProductCard extends StatelessWidget {
             flex: 3,
             child: GestureDetector(
               onTap: onTapImage,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: imageBg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: imageUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.contain,
-                          width: double.infinity,
-                          height: double.infinity,
-                          placeholder: (_, _) => Icon(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: imageBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: imageUrl != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              height: double.infinity,
+                              placeholder: (_, _) => Icon(
+                                Icons.pets,
+                                size: 28,
+                                color: primary.withValues(alpha: 0.5),
+                              ),
+                              errorWidget: (_, _, _) => Icon(
+                                Icons.pets,
+                                size: 40,
+                                color: primary.withValues(alpha: 0.5),
+                              ),
+                            ),
+                          )
+                        : Icon(
                             Icons.pets,
                             size: 28,
                             color: primary.withValues(alpha: 0.5),
                           ),
-                          errorWidget: (_, _, _) => Icon(
-                            Icons.pets,
-                            size: 40,
-                            color: primary.withValues(alpha: 0.5),
+                  ),
+                  if (personalizedBadge != null &&
+                      personalizedBadge!.isNotEmpty)
+                    Positioned(
+                      left: 4,
+                      bottom: 4,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: primary.withValues(alpha: 0.2),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            personalizedBadge!,
+                            style: GoogleFonts.outfit(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87.withValues(alpha: 0.85),
+                            ),
                           ),
                         ),
-                      )
-                    : Icon(
-                        Icons.pets,
-                        size: 28,
-                        color: primary.withValues(alpha: 0.5),
                       ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -1748,7 +1880,7 @@ class _ProductCard extends StatelessWidget {
             name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: Colors.black87,
@@ -1760,7 +1892,7 @@ class _ProductCard extends StatelessWidget {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 11,
               fontWeight: FontWeight.w400,
               color: Colors.grey.shade600,
@@ -1773,7 +1905,7 @@ class _ProductCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Rs. ${price.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w500,
                     fontSize: 13,
                     color: Colors.black87,
@@ -1912,7 +2044,7 @@ class _FloatingCartBar extends StatelessWidget {
                 '$totalItems item${totalItems == 1 ? '' : 's'}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -1934,7 +2066,7 @@ class _FloatingCartBar extends StatelessWidget {
                 'Rs. ${subtotal.toStringAsFixed(2)}/-',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 14,
@@ -1944,7 +2076,7 @@ class _FloatingCartBar extends StatelessWidget {
             const Spacer(),
             Text(
               'View basket',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -2102,7 +2234,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                             Expanded(
                               child: Text(
                                 'Add item to basket',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 16,
                                 ),
@@ -2167,7 +2299,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                               name,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
@@ -2180,7 +2312,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                                     : desc,
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 12,
                                   color: Colors.grey.shade600,
                                 ),
@@ -2189,7 +2321,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                             const SizedBox(height: 10),
                             Text(
                               'Rs. ${price.toStringAsFixed(0)}',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
@@ -2199,7 +2331,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                               children: [
                                 Text(
                                   'Quantity',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 12,
                                   ),
@@ -2225,7 +2357,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                                 icon: const Icon(Icons.chat_bubble_outline_rounded),
                                 label: Text(
                                   'Chat with Seller',
-                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                                 ),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: primary,
@@ -2277,7 +2409,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                                         'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.outfit(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w700,
                                           fontSize: 16,
@@ -2450,7 +2582,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   children: [
                     Text(
                       'Checkout & confirmation',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                       ),
@@ -2483,7 +2615,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       decoration: InputDecoration(
                         hintText:
                             'Delivery notes (optional) — e.g. gate code, floor',
-                        hintStyle: GoogleFonts.poppins(
+                        hintStyle: GoogleFonts.outfit(
                           fontSize: 13,
                           color: Colors.grey[600],
                         ),
@@ -2498,13 +2630,13 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           vertical: 12,
                         ),
                       ),
-                      style: GoogleFonts.poppins(fontSize: 13),
+                      style: GoogleFonts.outfit(fontSize: 13),
                       maxLines: 2,
                     ),
                     const SizedBox(height: 18),
                     Text(
                       'Delivery date & time',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
@@ -2532,7 +2664,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 18),
                     Text(
                       'Your items (${entries.length})',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
@@ -2561,7 +2693,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 children: [
                                   Text(
                                     item.name,
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -2570,7 +2702,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                   ),
                                   Text(
                                     'Rs. ${item.price.toStringAsFixed(0)} × ${item.quantity} = Rs. ${(item.price * item.quantity).toStringAsFixed(0)}',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 12,
                                       color: Colors.grey[700],
                                     ),
@@ -2600,7 +2732,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 18),
                     Text(
                       'Promo code',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
@@ -2621,7 +2753,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                               SnackBar(
                                 content: Text(
                                   message,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     color: Colors.white,
                                   ),
                                 ),
@@ -2648,7 +2780,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 _appliedPromoCode != null
                                     ? '$_appliedPromoCode • Rs. ${_discountAmount.toStringAsFixed(0)} off'
                                     : 'Apply promo code',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2665,7 +2797,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 18),
                     Text(
                       'Bill details',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
@@ -2689,7 +2821,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 18),
                     Text(
                       'Payment method',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 14,
                       ),
@@ -2714,7 +2846,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 'Select payment method',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -2752,7 +2884,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     },
                     child: Text(
                       'Confirm order',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                       ),
@@ -2814,14 +2946,14 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       : _checkoutGpsRefreshed
                           ? 'GPS fixed — exact pin for delivery'
                           : 'Enable location permission for the most precise pin (saved map pin is used otherwise).',
-                  style: GoogleFonts.poppins(fontSize: 12),
+                  style: GoogleFonts.outfit(fontSize: 12),
                 ),
               ),
               TextButton(
                 onPressed: _checkoutGpsLoading ? null : _refreshCheckoutGps,
                 child: Text(
                   'Refresh',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2899,7 +3031,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               Expanded(
                 child: Text(
                   cart.deliveryAddress ?? 'Add delivery address',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -2919,7 +3051,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       children: [
         Text(
           'Deliver to',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 13,
             color: Colors.grey[700],
@@ -2971,7 +3103,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                         children: [
                           Text(
                             addr.label,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                               color: Colors.black87,
@@ -2979,7 +3111,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           ),
                           Text(
                             addr.address,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: Colors.grey[700],
                             ),
@@ -3013,7 +3145,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 const SizedBox(width: 10),
                 Text(
                   'Add new address',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                     color: primary,
@@ -3049,7 +3181,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
             children: [
               Text(
                 label.toUpperCase(),
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: isSelected ? primary : Colors.black87,
@@ -3063,7 +3195,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     : label == 'Tomorrow'
                     ? 'Next day'
                     : 'Later',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 10,
                   color: Colors.grey[700],
                 ),
@@ -3092,7 +3224,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         ),
         child: Text(
           label,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontSize: 12,
             color: isSelected ? primary : Colors.black87,
           ),
@@ -3109,7 +3241,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               fontWeight: isEmphasis ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -3122,7 +3254,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
               : 'Rs. ${amount.toStringAsFixed(0)}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontSize: isEmphasis ? 15 : 13,
             fontWeight: isEmphasis ? FontWeight.w800 : FontWeight.w600,
           ),
@@ -3309,7 +3441,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         SnackBar(
           content: Text(
             'Please fill all required fields.',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.outfit(),
           ),
         ),
       );
@@ -3332,7 +3464,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Address saved.', style: GoogleFonts.poppins())),
+      SnackBar(content: Text('Address saved.', style: GoogleFonts.outfit())),
     );
   }
 
@@ -3371,7 +3503,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                     ),
                     Text(
                       'Add address',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 18,
                       ),
@@ -3392,7 +3524,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                       focusNode: _locationSearchFocus,
                       decoration: InputDecoration(
                         hintText: 'Search e.g. Putalisadak, Kathmandu',
-                        hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                        hintStyle: GoogleFonts.outfit(color: Colors.grey),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _locationSearching
                             ? const Padding(
@@ -3417,7 +3549,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                           vertical: 12,
                         ),
                       ),
-                      style: GoogleFonts.poppins(),
+                      style: GoogleFonts.outfit(),
                       onChanged: (value) {
                         if (value.trim().isEmpty) {
                           setState(() => _locationSuggestions = []);
@@ -3460,7 +3592,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                               ),
                               title: Text(
                                 place.displayName,
-                                style: GoogleFonts.poppins(fontSize: 12),
+                                style: GoogleFonts.outfit(fontSize: 12),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -3514,14 +3646,14 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                           child: _loadingAddress
                               ? Text(
                                   'Fetching address…',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 13,
                                     color: Colors.grey[700],
                                   ),
                                 )
                               : Text(
                                   _address ?? 'Tap map or set location',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 13,
                                     color: Colors.grey[800],
                                   ),
@@ -3533,7 +3665,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                           onPressed: _openFullMapPicker,
                           child: Text(
                             'SET LOCATION',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w700,
                               color: primary,
                             ),
@@ -3603,7 +3735,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                     onPressed: _saveAddress,
                     child: Text(
                       'SAVE ADDRESS',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 16,
                       ),
@@ -3733,7 +3865,7 @@ class _PromoSheetState extends State<_PromoSheet> {
                     Expanded(
                       child: Text(
                         'Use promo code',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
                         ),
@@ -3824,7 +3956,7 @@ class _PromoSheetState extends State<_PromoSheet> {
                             Expanded(
                               child: Text(
                                 _successMessage!,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.green[800],
@@ -3854,7 +3986,7 @@ class _PromoSheetState extends State<_PromoSheet> {
                             Expanded(
                               child: Text(
                                 _errorMessage!,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   color: Colors.red[800],
                                 ),
@@ -3868,7 +4000,7 @@ class _PromoSheetState extends State<_PromoSheet> {
                     Center(
                       child: Text(
                         'Cart total: Rs. ${widget.cartTotal.toStringAsFixed(0)}',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: Colors.grey[600],
                         ),
@@ -4082,7 +4214,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         SnackBar(
           content: Text(
             '$_selected is coming soon. Please use Cash on Delivery, Fonepay, or Khalti.',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.outfit(),
           ),
           backgroundColor: Colors.orange,
         ),
@@ -4150,7 +4282,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               Text(
                 'Confirming payment with Khalti…',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+                style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w500),
               ),
             ],
           ),
@@ -4203,7 +4335,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             : 'Payment Method',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           color: Colors.black87,
@@ -4218,7 +4350,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     _error!,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       color: Colors.red[700],
                     ),
@@ -4234,7 +4366,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                         children: [
                     Text(
                       'Local Users',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                         color: Colors.black87,
@@ -4287,7 +4419,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
@@ -4332,7 +4464,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                     const SizedBox(height: 24),
                     Text(
                       'International Users',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
                         color: Colors.black87,
@@ -4385,7 +4517,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
@@ -4451,7 +4583,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                         children: [
                           Text(
                             'Total Amount',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 14,
                               color: Colors.black54,
                             ),
@@ -4462,7 +4594,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                               'Rs. ${widget.amount.toStringAsFixed(0)}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w700,
                                 fontSize: 18,
                                 color: Colors.black87,
@@ -4487,7 +4619,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           onPressed: _phase == 'khalti_loading' ? null : _onConfirmPaymentMethod,
                           child: Text(
                             'Confirm Payment Method',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
@@ -4538,7 +4670,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                 Expanded(
                   child: Text(
                     'Pay with Khalti',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w700,
                       fontSize: 18,
                       color: Colors.black87,
@@ -4580,7 +4712,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               Text(
                 'Payment successful!',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontWeight: FontWeight.w700,
                   fontSize: 20,
                   color: Colors.black87,
@@ -4590,7 +4722,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               Text(
                 'Delivery coordinates were refreshed for your door. Tap below to confirm.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   color: Colors.grey[700],
                 ),
@@ -4608,7 +4740,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                         const SizedBox(width: 8),
                         Text(
                           'No GPS pin in cart',
-                          style: GoogleFonts.poppins(fontSize: 13),
+                          style: GoogleFonts.outfit(fontSize: 13),
                         ),
                       ],
                     );
@@ -4623,7 +4755,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                           Flexible(
                             child: Text(
                               'GPS fixed',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                               ),
@@ -4690,7 +4822,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   onPressed: _onConfirmOrderAfterKhalti,
                   child: Text(
                     'Confirm Order',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),

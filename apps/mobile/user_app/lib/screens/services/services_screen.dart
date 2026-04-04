@@ -20,7 +20,7 @@ class ServicesScreen extends StatelessWidget {
           children: [
             Text(
               'Services',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
                 color: const Color(AppConstants.accentColor),
@@ -29,7 +29,7 @@ class ServicesScreen extends StatelessWidget {
             SizedBox(height: size.height * 0.01),
             Text(
               'Request emergency help or book appointments for your pets.',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
             ),
             SizedBox(height: size.height * 0.03),
             _ServiceCard(
@@ -114,7 +114,7 @@ class _ServiceCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
@@ -123,7 +123,7 @@ class _ServiceCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[700],
                       ),

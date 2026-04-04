@@ -104,7 +104,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text('Leave a review', style: GoogleFonts.poppins()),
+              title: Text('Leave a review', style: GoogleFonts.outfit()),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -112,7 +112,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   children: [
                     Text(
                       'Rating',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -134,7 +134,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                     const SizedBox(height: 16),
                     Text(
                       'Comment (optional)',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 6),
                     TextField(
@@ -155,13 +155,13 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   onPressed: () {
                     if (ctx.mounted) Navigator.of(ctx).pop(false);
                   },
-                  child: Text('Cancel', style: GoogleFonts.poppins()),
+                  child: Text('Cancel', style: GoogleFonts.outfit()),
                 ),
                 FilledButton(
                   onPressed: () {
                     if (ctx.mounted) Navigator.of(ctx).pop(true);
                   },
-                  child: Text('Submit', style: GoogleFonts.poppins()),
+                  child: Text('Submit', style: GoogleFonts.outfit()),
                 ),
               ],
             );
@@ -291,7 +291,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
       appBar: AppBar(
         title: Text(
           'My Services',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,
             color: Colors.white,
@@ -312,11 +312,11 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-          labelStyle: GoogleFonts.poppins(
+          labelStyle: GoogleFonts.outfit(
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
-          unselectedLabelStyle: GoogleFonts.poppins(fontSize: 13),
+          unselectedLabelStyle: GoogleFonts.outfit(fontSize: 13),
           tabs: const [
             Tab(text: 'Active'),
             Tab(text: 'History'),
@@ -335,7 +335,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   const SizedBox(height: 16),
                   Text(
                     'Loading your appointments…',
-                    style: GoogleFonts.poppins(color: Colors.grey[700]),
+                    style: GoogleFonts.outfit(color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -364,7 +364,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: GoogleFonts.poppins(color: Colors.grey[700]),
+              style: GoogleFonts.outfit(color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -373,7 +373,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
               icon: const Icon(Icons.refresh_rounded),
               label: Text(
                 'Retry',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(AppConstants.primaryColor),
@@ -465,7 +465,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   const SizedBox(height: 20),
                   Text(
                     title,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
@@ -475,7 +475,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   const SizedBox(height: 8),
                   Text(
                     subtitle,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       color: Colors.grey[600],
                     ),
@@ -497,7 +497,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                       icon: const Icon(Icons.add_rounded),
                       label: Text(
                         'Book Now',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),
@@ -575,7 +575,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                     Expanded(
                       child: Text(
                         serviceType,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: const Color(AppConstants.accentColor),
@@ -587,7 +587,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                 const SizedBox(height: 12),
                 Text(
                   pet?['name'] ?? 'Pet',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[900],
@@ -600,7 +600,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                       preferredDate?.toString().split('T').first,
                       timeWindow,
                     ].whereType<String>().join(' • '),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       color: Colors.grey[600],
                     ),
@@ -618,7 +618,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                                   ?.substring(0, 1)
                                   .toUpperCase() ??
                               'V',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -629,7 +629,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                       Expanded(
                         child: Text(
                           '${staff['name'] ?? 'Staff'}',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 13,
                             color: Colors.grey[700],
                           ),
@@ -652,7 +652,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                       Expanded(
                         child: Text(
                           request['location']['address'],
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: Colors.grey[700],
                           ),
@@ -687,7 +687,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                             request['review']?['submittedAt'] != null
                                 ? 'Reviewed'
                                 : 'Leave Review',
-                            style: GoogleFonts.poppins(fontSize: 12),
+                            style: GoogleFonts.outfit(fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(
@@ -712,7 +712,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                           icon: const Icon(Icons.download_rounded, size: 18),
                           label: Text(
                             'Prescription',
-                            style: GoogleFonts.poppins(fontSize: 12),
+                            style: GoogleFonts.outfit(fontSize: 12),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(
@@ -765,7 +765,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
           ],
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: color,
@@ -844,7 +844,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                 Expanded(
                   child: Text(
                     'View live map & ETA',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: const Color(AppConstants.primaryColor),
@@ -861,7 +861,7 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                   },
                   child: Text(
                     expanded ? 'Collapse' : 'Expand',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: const Color(AppConstants.primaryColor),

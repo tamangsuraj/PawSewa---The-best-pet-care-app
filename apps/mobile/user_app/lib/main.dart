@@ -7,6 +7,7 @@ import 'core/api_client.dart';
 import 'core/api_config.dart';
 import 'core/storage_service.dart';
 import 'core/constants.dart';
+import 'theme/pawsewa_theme.dart';
 import 'services/socket_service.dart';
 import 'services/push_notification_service.dart';
 import 'screens/login_screen.dart';
@@ -69,34 +70,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.white,
-        primaryColor: const Color(AppConstants.primaryColor),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(AppConstants.primaryColor),
-          primary: const Color(AppConstants.primaryColor),
-          secondary: const Color(AppConstants.accentColor),
-          surface: Colors.white,
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.transparent,
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(AppConstants.primaryColor),
-          foregroundColor: Colors.white,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(AppConstants.primaryColor),
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ),
+      theme: PawsewaTheme.light(),
       home: const SplashScreen(),
     );
   }
@@ -139,40 +113,53 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 132,
-              height: 132,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(AppConstants.primaryColor).withValues(alpha: 0.2),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+      backgroundColor: const Color(AppConstants.secondaryColor),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFFDF9F4),
+              Color(AppConstants.secondaryColor),
+              Color(0xFFF0E6DA),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 132,
+                height: 132,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
+                      blurRadius: 32,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
+                ),
+                child: const PawSewaBrandLogo(height: 96),
               ),
-              child: const PawSewaBrandLogo(height: 96),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'PawSewa',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(AppConstants.primaryColor),
+              const SizedBox(height: 24),
+              Text(
+                'PawSewa',
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontSize: 34,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(AppConstants.inkColor),
+                    ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const PawSewaLogoSpinner(size: 48),
-          ],
+              const SizedBox(height: 24),
+              const PawSewaLogoSpinner(size: 48),
+            ],
+          ),
         ),
       ),
     );

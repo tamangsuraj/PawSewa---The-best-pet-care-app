@@ -14,6 +14,7 @@ import {
   Download
 } from 'lucide-react';
 import axios from 'axios';
+import { PageShell } from '@/components/layout/PageShell';
 
 interface Vet {
   _id: string;
@@ -62,39 +63,44 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <PageShell className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-          <p className="mt-4 text-gray-600">Loading profile...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent" />
+          <p className="mt-4 text-paw-bark/70">Loading profile...</p>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (error || !vet) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Stethoscope className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Profile Not Found</h2>
-          <p className="text-gray-600 mb-6">{error || 'This veterinarian profile does not exist'}</p>
-          <Link href="/vets">
-            <button className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90">
-              Back to Directory
-            </button>
+      <PageShell className="flex min-h-screen items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <Stethoscope className="w-16 h-16 text-paw-bark/25 mx-auto mb-4" />
+          <h2 className="font-display text-2xl font-semibold text-paw-ink mb-2">Profile not found</h2>
+          <p className="text-paw-bark/70 mb-6">{error || 'This veterinarian profile does not exist'}</p>
+          <Link
+            href="/vets"
+            className="inline-block px-6 py-3 rounded-full bg-paw-bark text-paw-cream hover:bg-paw-ink transition-colors font-medium shadow-paw"
+          >
+            Back to directory
           </Link>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <PageShell>
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-accent text-white py-8 px-4">
-        <div className="container mx-auto">
+      <div className="relative overflow-hidden bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream py-8 px-4">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_90%_0%,rgba(13,148,136,0.18),transparent_55%)]"
+          aria-hidden
+        />
+        <div className="container mx-auto relative">
           <Link href="/vets">
-            <button className="flex items-center gap-2 text-white hover:text-secondary transition-colors mb-4">
+            <button className="flex items-center gap-2 text-paw-cream hover:text-white transition-colors mb-4 text-sm font-medium">
               <ArrowLeft className="w-5 h-5" />
               Back to Directory
             </button>
@@ -108,7 +114,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               {/* Profile Header */}
-              <div className="bg-gradient-to-r from-primary to-accent p-8 text-white">
+              <div className="bg-gradient-to-br from-paw-bark via-paw-ink to-paw-teal-mid p-8 text-paw-cream">
                 <div className="flex flex-col md:flex-row items-center gap-6">
                   <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-xl overflow-hidden">
                     {vet.profilePicture ? (
@@ -118,7 +124,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-6xl font-bold text-primary">
+                      <span className="text-6xl font-bold text-paw-bark">
                         {vet.name.charAt(0).toUpperCase()}
                       </span>
                     )}
@@ -127,7 +133,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                     <h1 className="text-4xl font-bold mb-2 font-poppins">
                       Dr. {vet.name}
                     </h1>
-                    <p className="text-xl text-secondary mb-2">
+                    <p className="text-xl text-paw-cream/85 mb-2">
                       {vet.specialty || vet.specialization || 'General Practitioner'}
                     </p>
                     <div className="flex items-center justify-center md:justify-start gap-1 text-yellow-300">
@@ -165,7 +171,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                 </h3>
                 <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
                   <p className="text-gray-700 font-inter">
-                    <strong className="text-primary">{vet.specialty || vet.specialization || 'General Veterinary Medicine'}</strong>
+                    <strong className="text-paw-bark">{vet.specialty || vet.specialization || 'General Veterinary Medicine'}</strong>
                     <br />
                     Providing expert care in diagnosis, treatment, and preventive medicine for all types of pets.
                   </p>
@@ -179,10 +185,10 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                     <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
                       <p className="text-gray-700 font-inter">
                         {vet.workingHours.open && vet.workingHours.close && (
-                          <><strong className="text-primary">Hours:</strong> {vet.workingHours.open} - {vet.workingHours.close}<br /></>
+                          <><strong className="text-paw-bark">Hours:</strong> {vet.workingHours.open} - {vet.workingHours.close}<br /></>
                         )}
                         {vet.workingHours.days && vet.workingHours.days.length > 0 && (
-                          <><strong className="text-primary">Days:</strong> {vet.workingHours.days.join(', ')}</>
+                          <><strong className="text-paw-bark">Days:</strong> {vet.workingHours.days.join(', ')}</>
                         )}
                       </p>
                     </div>
@@ -194,27 +200,27 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                 </h3>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
                   <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
                     Routine Health Check-ups
                   </li>
                   <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
                     Vaccinations & Immunizations
                   </li>
                   <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
                     Diagnostic Services
                   </li>
                   <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
                     Emergency Care
                   </li>
                   <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
                     Surgical Procedures
                   </li>
                   <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
+                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
                     Pet Wellness Consultations
                   </li>
                 </ul>
@@ -232,7 +238,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
               <div className="space-y-4 mb-8">
                 {vet.clinicName && (
                   <div className="flex items-start gap-3">
-                    <Building2 className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                    <Building2 className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-sm text-gray-500 font-poppins">Clinic</p>
                       <p className="text-gray-800 font-medium">{vet.clinicName}</p>
@@ -242,7 +248,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
                 {(vet.clinicLocation || vet.clinicAddress || vet.location) && (
                   <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                    <MapPin className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-sm text-gray-500 font-poppins">Location</p>
                       <p className="text-gray-800 font-medium">
@@ -254,12 +260,12 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
                 {vet.phone && (
                   <div className="flex items-start gap-3">
-                    <Phone className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                    <Phone className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
                     <div>
                       <p className="text-sm text-gray-500 font-poppins">Phone</p>
                       <a 
                         href={`tel:${vet.phone}`}
-                        className="text-gray-800 font-medium hover:text-primary"
+                        className="text-gray-800 font-medium hover:text-paw-bark"
                       >
                         {vet.phone}
                       </a>
@@ -268,12 +274,12 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                 )}
 
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-primary mt-1 flex-shrink-0" />
+                  <Mail className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
                   <div>
                     <p className="text-sm text-gray-500 font-poppins">Email</p>
                     <a 
                       href={`mailto:${vet.email}`}
-                      className="text-gray-800 font-medium hover:text-primary break-all"
+                      className="text-gray-800 font-medium hover:text-paw-bark break-all"
                     >
                       {vet.email}
                     </a>
@@ -283,7 +289,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
               {/* CTA Buttons */}
               <div className="space-y-3">
-                <button className="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium flex items-center justify-center gap-2">
+                <button className="w-full py-3 bg-paw-bark text-white rounded-lg hover:bg-paw-bark/90 transition-colors font-medium flex items-center justify-center gap-2">
                   <Calendar className="w-5 h-5" />
                   Book Appointment
                 </button>
@@ -308,6 +314,6 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

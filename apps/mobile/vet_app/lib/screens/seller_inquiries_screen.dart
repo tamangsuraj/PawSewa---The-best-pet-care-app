@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 import 'partner_marketplace_chat_screen.dart';
 
 /// Customer inquiries for shop owners (Daraz-style inbox).
@@ -48,64 +49,121 @@ class _SellerInquiriesScreenState extends State<SellerInquiriesScreen> {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text('Customer Inquiries', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        title: Text(
+          'Customer Inquiries',
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: primary))
-          : _error != null
-          ? Center(child: Text(_error!, textAlign: TextAlign.center))
-          : _rows.isEmpty
-          ? Center(
-              child: Text(
-                'No inquiries yet.',
-                style: GoogleFonts.poppins(color: Colors.grey[600]),
-              ),
-            )
-          : RefreshIndicator(
-              color: primary,
-              onRefresh: _load,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: _rows.length,
-                itemBuilder: (context, i) {
-                  final row = _rows[i];
-                  final id = row['_id']?.toString() ?? '';
-                  final cust = row['customer'];
-                  final name = cust is Map ? (cust['name']?.toString() ?? 'Customer') : 'Customer';
-                  final product = row['lastProductName']?.toString() ?? '';
-                  return Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: primary.withValues(alpha: 0.12),
-                        child: const Icon(Icons.person, color: primary),
-                      ),
-                      title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                        product.isNotEmpty ? 'About: $product' : 'Tap to reply',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => PartnerMarketplaceChatScreen(
-                              conversationId: id,
-                              peerName: name,
-                              peerSubtitle: product.isNotEmpty ? product : null,
-                              highContrast: false,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: primary),
+                  )
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              color: const Color(AppConstants.inkColor),
                             ),
                           ),
-                        ).then((_) => _load());
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
+                        ),
+                      )
+                    : _rows.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No inquiries yet.',
+                              style: GoogleFonts.outfit(
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          )
+                        : RefreshIndicator(
+                            color: primary,
+                            onRefresh: _load,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: _rows.length,
+                              itemBuilder: (context, i) {
+                                final row = _rows[i];
+                                final id = row['_id']?.toString() ?? '';
+                                final cust = row['customer'];
+                                final name = cust is Map
+                                    ? (cust['name']?.toString() ?? 'Customer')
+                                    : 'Customer';
+                                final product =
+                                    row['lastProductName']?.toString() ?? '';
+                                return Card(
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    side: BorderSide(
+                                      color: primary.withValues(alpha: 0.1),
+                                    ),
+                                  ),
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor:
+                                          primary.withValues(alpha: 0.12),
+                                      child: const Icon(
+                                        Icons.person,
+                                        color: primary,
+                                      ),
+                                    ),
+                                    title: Text(
+                                      name,
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      product.isNotEmpty
+                                          ? 'About: $product'
+                                          : 'Tap to reply',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    onTap: () {
+                                      Navigator.of(context)
+                                          .push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  PartnerMarketplaceChatScreen(
+                                                conversationId: id,
+                                                peerName: name,
+                                                peerSubtitle: product
+                                                        .isNotEmpty
+                                                    ? product
+                                                    : null,
+                                                highContrast: false,
+                                              ),
+                                            ),
+                                          )
+                                          .then((_) => _load());
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
+      ),
     );
   }
 }

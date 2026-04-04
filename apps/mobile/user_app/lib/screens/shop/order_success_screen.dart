@@ -54,7 +54,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                   const SizedBox(height: 24),
                   Text(
                     'Congratulations!',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: Colors.black87,
@@ -64,7 +64,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'Your order has been placed successfully.\nThank you for shopping with PawSewa!',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 15,
                       color: Colors.black54,
                       height: 1.4,
@@ -99,7 +99,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                           icon: const Icon(Icons.receipt_long_rounded, size: 20),
                           label: Text(
                             'View order',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 16,
                             ),
@@ -121,7 +121,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                       ),
                       child: Text(
                         'Done',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
                         ),

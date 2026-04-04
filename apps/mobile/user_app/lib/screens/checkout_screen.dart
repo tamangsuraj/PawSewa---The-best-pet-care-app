@@ -29,7 +29,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not open payment page', style: GoogleFonts.poppins()),
+          content: Text('Could not open payment page', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -53,7 +53,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start Khalti payment: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to start Khalti payment: $e', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -79,7 +79,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start eSewa payment: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to start eSewa payment: $e', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -97,7 +97,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       appBar: AppBar(
         title: Text(
           'Checkout',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -113,7 +113,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           children: [
             Text(
               'Select a payment method',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[900],
@@ -122,7 +122,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             const SizedBox(height: 8),
             Text(
               'Amount: NPR ${widget.amount.toStringAsFixed(2)}',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 14,
                 color: Colors.grey[700],
               ),
@@ -153,7 +153,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         SnackBar(
                           content: Text(
                             'Bank transfer flow not implemented yet.',
-                            style: GoogleFonts.poppins(),
+                            style: GoogleFonts.outfit(),
                           ),
                         ),
                       );
@@ -200,7 +200,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     Text(
                       label,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.grey[900],
@@ -209,7 +209,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         color: Colors.grey[600],
                       ),

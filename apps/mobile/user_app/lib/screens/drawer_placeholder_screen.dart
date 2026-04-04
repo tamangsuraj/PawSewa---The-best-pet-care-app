@@ -15,7 +15,7 @@ class DrawerPlaceholderScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           title,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
@@ -35,7 +35,7 @@ class DrawerPlaceholderScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 'Coming soon',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   color: Colors.grey.shade600,
                 ),
@@ -44,7 +44,7 @@ class DrawerPlaceholderScreen extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: const Color(AppConstants.primaryColor),

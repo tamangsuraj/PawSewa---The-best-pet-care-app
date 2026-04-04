@@ -94,7 +94,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
             children: [
               Text(
                 'Choose Photo Source',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
                   color: const Color(AppConstants.accentColor),
@@ -108,7 +108,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 ),
                 title: Text(
                   'Camera',
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.outfit(),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -122,7 +122,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 ),
                 title: Text(
                   'Gallery',
-                  style: GoogleFonts.poppins(),
+                  style: GoogleFonts.outfit(),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -236,7 +236,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
       appBar: AppBar(
         title: Text(
           'Register New Pet',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: const Color(AppConstants.primaryColor),
           ),
@@ -314,7 +314,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 // Pet Name
                 Text(
                   'Pet Name',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -347,7 +347,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       vertical: 16,
                     ),
                   ),
-                  style: GoogleFonts.poppins(color: Colors.black87),
+                  style: GoogleFonts.outfit(color: Colors.black87),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter pet name';
@@ -360,7 +360,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 // Species Dropdown
                 Text(
                   'Species',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -400,7 +400,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       value: species,
                       child: Text(
                         species,
-                        style: GoogleFonts.poppins(color: Colors.black87),
+                        style: GoogleFonts.outfit(color: Colors.black87),
                       ),
                     );
                   }).toList(),
@@ -421,7 +421,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 // Breed
                 Text(
                   'Breed',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -454,14 +454,14 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       vertical: 16,
                     ),
                   ),
-                  style: GoogleFonts.poppins(color: Colors.black87),
+                  style: GoogleFonts.outfit(color: Colors.black87),
                 ),
                 const SizedBox(height: 20),
 
                 // Date of Birth
                 Text(
                   'Date of Birth (Optional)',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -487,7 +487,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                           _selectedDob == null
                               ? 'mm/dd/yyyy'
                               : DateFormat('MM/dd/yyyy').format(_selectedDob!),
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             color: _selectedDob == null
                                 ? Colors.grey[400]
                                 : Colors.black87,
@@ -513,7 +513,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         children: [
                           Text(
                             'Gender',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
@@ -553,7 +553,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                                 value: gender,
                                 child: Text(
                                   gender,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     color: Colors.black87,
                                   ),
                                 ),
@@ -581,7 +581,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                         children: [
                           Text(
                             'Weight (Optional)',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
@@ -597,7 +597,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                               hintText: '0.0',
                               hintStyle: TextStyle(color: Colors.grey[400]),
                               suffixText: 'kg',
-                              suffixStyle: GoogleFonts.poppins(
+                              suffixStyle: GoogleFonts.outfit(
                                 color: Colors.grey[600],
                               ),
                               filled: true,
@@ -621,7 +621,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                                 vertical: 16,
                               ),
                             ),
-                            style: GoogleFonts.poppins(color: Colors.black87),
+                            style: GoogleFonts.outfit(color: Colors.black87),
                           ),
                         ],
                       ),
@@ -633,7 +633,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                 // Medical Conditions
                 Text(
                   'Existing Medical Conditions or Allergies (Optional)',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -665,14 +665,14 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     ),
                     contentPadding: const EdgeInsets.all(16),
                   ),
-                  style: GoogleFonts.poppins(color: Colors.black87),
+                  style: GoogleFonts.outfit(color: Colors.black87),
                 ),
                 const SizedBox(height: 20),
 
                 // Behavioral Notes
                 Text(
                   'Behavioral Notes (Optional)',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -704,14 +704,14 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     ),
                     contentPadding: const EdgeInsets.all(16),
                   ),
-                  style: GoogleFonts.poppins(color: Colors.black87),
+                  style: GoogleFonts.outfit(color: Colors.black87),
                 ),
                 const SizedBox(height: 20),
 
                 // Vaccination Status
                 Text(
                   'Vaccination Status (Optional)',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: Colors.black87,
@@ -729,7 +729,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     },
                     title: Text(
                       'Up to date with all core vaccines',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
                         color: Colors.black87,
                       ),
@@ -751,7 +751,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                   },
                   title: RichText(
                     text: TextSpan(
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         color: Colors.black87,
                       ),
@@ -809,7 +809,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
                             const SizedBox(width: 8),
                             Text(
                               'Register Pet',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,

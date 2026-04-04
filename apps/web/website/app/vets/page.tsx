@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, MapPin, Stethoscope, Filter } from 'lucide-react';
 import axios from 'axios';
+import { PageShell } from '@/components/layout/PageShell';
 
 interface Vet {
   _id: string;
@@ -75,15 +76,19 @@ export default function VetDirectoryPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-accent text-white py-16 px-4">
-        <div className="container mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 font-poppins">
-            Find a Veterinarian
+    <PageShell>
+      <div className="relative overflow-hidden bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream py-16 px-4">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_80%_20%,rgba(13,148,136,0.2),transparent_50%)]"
+          aria-hidden
+        />
+        <div className="container mx-auto relative">
+          <p className="paw-eyebrow text-paw-cream/75 mb-3">Directory</p>
+          <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight mb-4">
+            Find a veterinarian
           </h1>
-          <p className="text-xl text-secondary font-inter">
-            Connect with certified veterinary professionals in your area
+          <p className="text-lg md:text-xl text-paw-cream/85 max-w-2xl leading-relaxed">
+            Connect with certified professionals in your area.
           </p>
         </div>
       </div>
@@ -92,12 +97,12 @@ export default function VetDirectoryPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar Filters */}
           <div className="lg:w-64">
-            <div className="bg-white rounded-xl shadow-md p-6 sticky top-24">
+            <div className="paw-card-glass rounded-2xl shadow-paw border border-paw-bark/8 p-6 sticky top-24">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-gray-800 font-poppins">Filters</h3>
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="lg:hidden text-primary"
+                  className="lg:hidden text-paw-bark"
                 >
                   <Filter className="w-5 h-5" />
                 </button>
@@ -116,7 +121,7 @@ export default function VetDirectoryPage() {
                       placeholder="Name or location..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-paw-bark focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -129,7 +134,7 @@ export default function VetDirectoryPage() {
                   <select
                     value={specializationFilter}
                     onChange={(e) => setSpecializationFilter(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-paw-bark focus:border-transparent"
                   >
                     <option value="">All Specializations</option>
                     {specializations.map((spec) => (
@@ -147,7 +152,7 @@ export default function VetDirectoryPage() {
                       setSearchQuery('');
                       setSpecializationFilter('');
                     }}
-                    className="w-full py-2 text-primary hover:text-primary/80 font-medium text-sm"
+                    className="w-full py-2 text-paw-bark hover:text-paw-bark/80 font-medium text-sm"
                   >
                     Clear All Filters
                   </button>
@@ -160,13 +165,13 @@ export default function VetDirectoryPage() {
           <div className="flex-1">
             <div className="mb-6">
               <p className="text-gray-600 font-inter">
-                Showing <span className="font-semibold text-primary">{filteredVets.length}</span> veterinarians
+                Showing <span className="font-semibold text-paw-bark">{filteredVets.length}</span> veterinarians
               </p>
             </div>
 
             {loading ? (
               <div className="text-center py-20">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent"></div>
                 <p className="mt-4 text-gray-600">Loading veterinarians...</p>
               </div>
             ) : filteredVets.length === 0 ? (
@@ -181,9 +186,9 @@ export default function VetDirectoryPage() {
                   <Link key={vet._id} href={`/vets/${vet._id}`}>
                     <div className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all transform hover:-translate-y-2 overflow-hidden cursor-pointer h-full">
                       {/* Vet Image/Avatar */}
-                      <div className="h-48 bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                      <div className="h-48 bg-gradient-to-br from-paw-bark via-paw-ink to-paw-teal-mid flex items-center justify-center">
                         <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-lg">
-                          <span className="text-5xl font-bold text-primary">
+                          <span className="text-5xl font-bold text-paw-bark">
                             {vet.name.charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -197,7 +202,7 @@ export default function VetDirectoryPage() {
                         
                         <div className="space-y-2 mb-4">
                           {vet.specialization && (
-                            <div className="flex items-center gap-2 text-primary">
+                            <div className="flex items-center gap-2 text-paw-bark">
                               <Stethoscope className="w-4 h-4" />
                               <span className="text-sm font-medium">{vet.specialization}</span>
                             </div>
@@ -217,7 +222,7 @@ export default function VetDirectoryPage() {
                           )}
                         </div>
 
-                        <button className="w-full py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium">
+                        <button className="w-full py-3 bg-paw-bark text-white rounded-lg hover:bg-paw-bark/90 transition-colors font-medium">
                           View Profile
                         </button>
                       </div>
@@ -229,6 +234,6 @@ export default function VetDirectoryPage() {
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

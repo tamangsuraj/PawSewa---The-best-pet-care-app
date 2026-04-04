@@ -26,6 +26,7 @@ import 'my_service_requests_screen.dart';
 import '../services/socket_service.dart';
 import '../services/push_notification_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
+import '../widgets/editorial_canvas.dart';
 import 'package:flutter/foundation.dart';
 
 class PetDashboardScreen extends StatefulWidget {
@@ -112,7 +113,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       children: [
                         Text(
                           name,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w700,
                             fontSize: 18,
                           ),
@@ -120,7 +121,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         const SizedBox(height: 8),
                         Text(
                           'Vet Chat is available on your service requests with this veterinarian. Open My Requests to send or read messages.',
-                          style: GoogleFonts.poppins(fontSize: 14),
+                          style: GoogleFonts.outfit(fontSize: 14),
                         ),
                         const SizedBox(height: 16),
                         FilledButton(
@@ -241,7 +242,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   Expanded(
                     child: Text(
                       pet.name,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: const Color(AppConstants.primaryColor),
@@ -312,7 +313,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                             children: [
                               Text(
                                 'Digital Paw ID',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: const Color(AppConstants.primaryColor),
@@ -321,7 +322,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               const SizedBox(height: 4),
                               SelectableText(
                                 pet.pawId ?? '',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
                                   color: Colors.brown[800],
@@ -330,7 +331,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               const SizedBox(height: 4),
                               Text(
                                 'Long press to copy or let your vet scan the QR.',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 11,
                                   color: Colors.brown[600],
                                 ),
@@ -380,7 +381,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         // For now just close; delete flow can be added back if needed
                       },
                       icon: const Icon(Icons.close),
-                      label: Text('Close', style: GoogleFonts.poppins()),
+                      label: Text('Close', style: GoogleFonts.outfit()),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(AppConstants.primaryColor),
                         foregroundColor: Colors.white,
@@ -410,7 +411,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
             width: 100,
             child: Text(
               '$label:',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[700],
               ),
@@ -419,7 +420,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           Expanded(
             child: Text(
               value,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 color: const Color(AppConstants.accentColor),
               ),
             ),
@@ -513,7 +514,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       children: [
                         Text(
                           _userName,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -539,7 +540,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               ),
                               child: Text(
                                 'Edit Profile',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
@@ -564,7 +565,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     leading: Icon(Icons.shopping_bag_outlined, color: _primaryBrown, size: 24),
                     title: Text(
                       'Pet Supply Order',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
@@ -589,7 +590,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     leading: Icon(Icons.calendar_today_outlined, color: _primaryBrown, size: 24),
                     title: Text(
                       'Appointments',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
@@ -614,7 +615,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     leading: Icon(Icons.bed_outlined, color: _primaryBrown, size: 24),
                     title: Text(
                       'Pet Hostel',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
@@ -716,7 +717,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       leading: Icon(icon, color: color, size: 24),
       title: Text(
         label,
-        style: GoogleFonts.poppins(
+        style: GoogleFonts.outfit(
           fontSize: 15,
           fontWeight: FontWeight.w500,
           color: Colors.black87,
@@ -740,7 +741,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     ),
                     title: Text(
                       label,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w400,
                         color: Colors.black87,
@@ -831,14 +832,14 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                             children: [
                               Text(
                                 'Welcome Back!',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 16,
                                   color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               Text(
                                 _userName,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -885,7 +886,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               ),
                               label: Text(
                                 'Request Assistance',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
@@ -921,7 +922,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               ),
                               label: Text(
                                 'My Requests',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
@@ -942,7 +943,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       Flexible(
                         child: Text(
                           'My Pets',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: const Color(AppConstants.accentColor),
@@ -953,7 +954,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       const SizedBox(width: 8),
                       Text(
                         '${_pets.length} ${_pets.length == 1 ? 'Pet' : 'Pets'}',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 14,
                           color: Colors.grey[600],
                         ),
@@ -998,7 +999,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               const SizedBox(height: 16),
                               Text(
                                 'No Pets Yet',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
                                   color: const Color(AppConstants.accentColor),
@@ -1007,7 +1008,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               const SizedBox(height: 8),
                               Text(
                                 'Add your first pet to get started!',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   color: Colors.grey[600],
                                 ),
@@ -1066,11 +1067,11 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
             elevation: 0,
             selectedItemColor: primary,
             unselectedItemColor: Colors.grey[600],
-            selectedLabelStyle: GoogleFonts.poppins(
+            selectedLabelStyle: GoogleFonts.outfit(
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
-            unselectedLabelStyle: GoogleFonts.poppins(
+            unselectedLabelStyle: GoogleFonts.outfit(
               fontSize: 9,
               fontWeight: FontWeight.w500,
             ),
@@ -1178,7 +1179,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 children: [
                   Text(
                     AppConstants.appName,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.bold,
                       fontSize: 13,
                       color: Colors.black87,
@@ -1186,7 +1187,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   ),
                   Text(
                     _titleForIndex(),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 10,
                       fontWeight: FontWeight.w500,
                       color: const Color(AppConstants.primaryColor),
@@ -1222,6 +1223,16 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(
+            child: _currentIndex == 4
+                ? const ColoredBox(color: Color(0xFFF8F9FA))
+                : IgnorePointer(
+                    child: EditorialCanvas(
+                      variant: EditorialSurfaceVariant.customer,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+          ),
+          Positioned.fill(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),
               switchInCurve: Curves.easeInOut,
@@ -1254,7 +1265,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
               icon: const Icon(Icons.add, color: Colors.white),
               label: Text(
                 'Add Pet',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),

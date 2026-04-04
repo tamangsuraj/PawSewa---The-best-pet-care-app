@@ -45,6 +45,7 @@ const careBookingRoutes = require('./routes/careBookingRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const providerApplicationRoutes = require('./routes/providerApplicationRoutes');
 const productRoutes = require('./routes/productRoutes');
+const shopRecommendationRoutes = require('./routes/shopRecommendationRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const favouriteRoutes = require('./routes/favouriteRoutes');
@@ -209,6 +210,7 @@ app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/reminders', reminderRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1', productRoutes);
+app.use('/api/v1', shopRecommendationRoutes);
 
 // Global health/ping for cross-platform sync verification. Returns DB name and user count.
 app.get('/api/v1/health', async (req, res) => {

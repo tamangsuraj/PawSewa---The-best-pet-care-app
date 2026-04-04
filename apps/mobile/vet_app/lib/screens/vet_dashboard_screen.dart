@@ -22,6 +22,7 @@ import 'patient_chats_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
+import '../widgets/editorial_canvas.dart';
 import '../services/socket_service.dart';
 
 class VetDashboardScreen extends StatefulWidget {
@@ -104,7 +105,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             children: [
               Text(
                 'Day at a Glance',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: primary,
@@ -113,7 +114,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               const SizedBox(height: 4),
               Text(
                 window.isNotEmpty ? window : 'Next assignment',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.grey[700],
                 ),
@@ -123,7 +124,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               const SizedBox(height: 8),
               Text(
                 petName,
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -133,7 +134,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               const SizedBox(height: 2),
               Text(
                 'Owner: $ownerName',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.grey[700],
                 ),
@@ -153,7 +154,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   ),
                   child: Text(
                     serviceType,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: primary,
@@ -517,7 +518,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   ),
                   child: Text(
                     timeLabel,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: primary,
@@ -528,7 +529,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               Expanded(
                 child: Text(
                   pet?['name'] ?? 'Pet',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: compact ? 14 : 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.grey[900],
@@ -541,7 +542,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           const SizedBox(height: 4),
           Text(
             serviceType,
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]),
+            style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -564,7 +565,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     icon: const Icon(Icons.map_rounded, size: 18),
                     label: Text(
                       'Open in Map',
-                      style: GoogleFonts.poppins(fontSize: 12),
+                      style: GoogleFonts.outfit(fontSize: 12),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primary,
@@ -609,7 +610,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'Open map',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: primary,
@@ -718,25 +719,25 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.shopping_cart,
             'title': 'Orders',
             'value': '0',
-            'color': Colors.blue,
+            'color': const Color(AppConstants.accentColor),
           },
           {
             'icon': Icons.inventory,
             'title': 'Products',
             'value': '0',
-            'color': Colors.green,
+            'color': const Color(AppConstants.accentWarmColor),
           },
           {
             'icon': Icons.attach_money,
             'title': 'Revenue',
             'value': '\$0',
-            'color': Colors.orange,
+            'color': const Color(AppConstants.primaryColor),
           },
           {
             'icon': Icons.trending_up,
             'title': 'Sales',
             'value': '0',
-            'color': Colors.purple,
+            'color': const Color(0xFF0F766E),
           },
         ];
       case 'care_service':
@@ -1008,7 +1009,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   Expanded(
                     child: Text(
                       AppConstants.appName,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -1030,7 +1031,11 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       body: Builder(
         builder: (context) {
           final homeBody = SafeArea(
-            child: SingleChildScrollView(
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const EditorialBodyBackdrop(),
+                SingleChildScrollView(
               padding: EdgeInsets.all(
                 (MediaQuery.sizeOf(context).width * 0.055).clamp(12.0, 28.0),
               ),
@@ -1086,7 +1091,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 children: [
                                   Text(
                                     _getRoleTitle(),
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 14,
                                       color: Colors.white.withValues(
                                         alpha: 0.9,
@@ -1097,7 +1102,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   ),
                                   Text(
                                     _userName,
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
@@ -1203,7 +1208,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 children: [
                                   Text(
                                     'New Case Assignment!',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
@@ -1211,7 +1216,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   ),
                                   Text(
                                     'You have $_newAssignmentsCount ${_newAssignmentsCount == 1 ? 'case' : 'cases'} waiting for you',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 14,
                                       color: Colors.white.withValues(
                                         alpha: 0.9,
@@ -1288,7 +1293,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 children: [
                                   Text(
                                     'Ongoing Cases',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
@@ -1296,7 +1301,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   ),
                                   Text(
                                     'You have $_ongoingCasesCount ${_ongoingCasesCount == 1 ? 'case' : 'cases'} in progress',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 14,
                                       color: Colors.white.withValues(
                                         alpha: 0.9,
@@ -1321,7 +1326,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Duty Dashboard',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: const Color(AppConstants.primaryColor),
@@ -1346,7 +1351,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       if (_todaysServiceTasks.isNotEmpty) ...[
                         Text(
                           'Today\'s Tasks',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey[800],
@@ -1361,7 +1366,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       if (_upcoming48hServiceTasks.isNotEmpty) ...[
                         Text(
                           'Upcoming (48h)',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey[800],
@@ -1397,7 +1402,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                           padding: const EdgeInsets.only(bottom: 16),
                           child: Text(
                             'No tasks today or in the next 48 hours.',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 13,
                               color: Colors.grey[600],
                             ),
@@ -1414,7 +1419,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       Flexible(
                         child: Text(
                           '${_getFilterLabel()}\'s Overview',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 20,
                             fontWeight: FontWeight.w600,
                             color: const Color(AppConstants.accentColor),
@@ -1446,7 +1451,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 const SizedBox(width: 4),
                                 Text(
                                   'Filter',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
@@ -1470,7 +1475,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   const SizedBox(width: 12),
                                   Text(
                                     'Today',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: _selectedFilter == 'today'
                                           ? FontWeight.w600
                                           : FontWeight.normal,
@@ -1498,7 +1503,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   const SizedBox(width: 12),
                                   Text(
                                     'Past 48 Hours',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: _selectedFilter == '48hours'
                                           ? FontWeight.w600
                                           : FontWeight.normal,
@@ -1526,7 +1531,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   const SizedBox(width: 12),
                                   Text(
                                     'This Week',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: _selectedFilter == 'week'
                                           ? FontWeight.w600
                                           : FontWeight.normal,
@@ -1554,7 +1559,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                   const SizedBox(width: 12),
                                   Text(
                                     'This Month',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: _selectedFilter == 'month'
                                           ? FontWeight.w600
                                           : FontWeight.normal,
@@ -1609,7 +1614,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   // Quick Actions
                   Text(
                     'Quick Actions',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       color: const Color(AppConstants.accentColor),
@@ -1706,6 +1711,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                 ],
               ),
             ),
+                ],
+              ),
           );
           if (!shopOwner) return homeBody;
           return IndexedStack(
@@ -1717,6 +1724,11 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       bottomNavigationBar: shopOwner
           ? NavigationBar(
               selectedIndex: _partnerNavIndex,
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              indicatorColor: const Color(AppConstants.accentColor)
+                  .withValues(alpha: 0.2),
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               onDestinationSelected: (int i) =>
                   setState(() => _partnerNavIndex = i),
               destinations: const [
@@ -1762,7 +1774,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           const SizedBox(height: 8),
           Text(
             value,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: const Color(AppConstants.accentColor),
@@ -1770,7 +1782,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           ),
           Text(
             title,
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -1839,7 +1851,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       ),
                       child: Text(
                         badge > 99 ? '99+' : badge.toString(),
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
@@ -1860,7 +1872,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       Expanded(
                         child: Text(
                           title,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: const Color(AppConstants.accentColor),
@@ -1879,7 +1891,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                           ),
                           child: Text(
                             badge.toString(),
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
@@ -1890,7 +1902,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   ),
                   Text(
                     subtitle,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       color: Colors.grey[600],
                     ),

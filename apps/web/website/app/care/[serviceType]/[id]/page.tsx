@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ChevronLeft, Droplets, Scissors, Hand, Ear, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import { Reviews } from '@/components/Reviews';
+import { PageShell } from '@/components/layout/PageShell';
 
 const SERVICE_LABELS: Record<string, string> = {
   hostel: 'Hostel',
@@ -63,17 +64,19 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center text-primary">
-        Loading...
-      </div>
+      <PageShell className="flex min-h-screen items-center justify-center">
+        <p className="text-paw-bark">Loading...</p>
+      </PageShell>
     );
   }
   if (!center) {
     return (
-      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-4 px-4">
-        <p className="text-gray-600">Not found.</p>
-        <Link href={`/care/${serviceType}`} className="text-primary font-semibold">Back to {label}</Link>
-      </div>
+      <PageShell className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
+        <p className="text-paw-bark/75">Not found.</p>
+        <Link href={`/care/${serviceType}`} className="text-paw-teal-mid font-semibold hover:underline">
+          Back to {label}
+        </Link>
+      </PageShell>
     );
   }
 
@@ -81,13 +84,17 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
   const isGrooming = serviceType === 'grooming';
 
   return (
-    <div className="min-h-screen bg-white pb-24">
-      <header className="sticky top-0 z-20 bg-white/95 border-b border-gray-200">
+    <PageShell>
+    <div className="pb-24">
+      <header className="sticky top-0 z-20 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md">
         <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Link href={`/care/${serviceType}`} className="p-2 -ml-2 rounded-lg hover:bg-gray-100 text-primary">
+          <Link
+            href={`/care/${serviceType}`}
+            className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors"
+          >
             <ChevronLeft className="w-6 h-6" />
           </Link>
-          <h1 className="text-lg font-bold text-primary">{label} Details</h1>
+          <h1 className="text-lg font-semibold text-paw-ink font-display">{label} details</h1>
         </div>
       </header>
 
@@ -102,7 +109,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
         {displayImages.length > 1 && displayImages[0] && (
           <div className="flex gap-2 overflow-x-auto py-3 -mx-4 px-4">
             {displayImages.map((src, i) => (
-              <button key={i} type="button" onClick={() => setSelectedImageIndex(i)} className={`shrink-0 w-12 h-12 rounded-full overflow-hidden border-2 ${selectedImageIndex === i ? 'border-primary' : 'border-gray-200'}`}>
+              <button key={i} type="button" onClick={() => setSelectedImageIndex(i)} className={`shrink-0 w-12 h-12 rounded-full overflow-hidden border-2 ${selectedImageIndex === i ? 'border-paw-bark' : 'border-gray-200'}`}>
                 <Image src={src} alt="" width={48} height={48} className="object-cover w-full h-full" />
               </button>
             ))}
@@ -110,7 +117,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
         )}
 
         <section className="mt-6">
-          <h2 className="text-xl font-bold text-primary mb-2">{isGrooming ? 'Professional Spa & Hygiene' : 'About'}</h2>
+          <h2 className="text-xl font-bold text-paw-bark mb-2">{isGrooming ? 'Professional Spa & Hygiene' : 'About'}</h2>
           <p className="text-gray-700 leading-relaxed">
             {center.description || 'Quality care for your pet. Book a session with us.'}
           </p>
@@ -119,12 +126,12 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
         {isGrooming && (
           <>
             <section className="mt-8">
-              <h2 className="text-lg font-bold text-primary mb-3">Included Services</h2>
+              <h2 className="text-lg font-bold text-paw-bark mb-3">Included Services</h2>
               <div className="grid grid-cols-2 gap-3">
                 {INCLUDED_ICONS.map(({ label: l, icon: Icon }) => (
                   <div key={l} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-paw-bark/10 flex items-center justify-center">
+                      <Icon className="w-5 h-5 text-paw-bark" />
                     </div>
                     <span className="text-sm font-medium text-gray-800">{l}</span>
                   </div>
@@ -132,10 +139,10 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
               </div>
             </section>
             <section className="mt-8">
-              <h2 className="text-lg font-bold text-primary mb-3">Our Groomers</h2>
+              <h2 className="text-lg font-bold text-paw-bark mb-3">Our Groomers</h2>
               <div className="flex gap-4">
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100 flex-1">
-                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+                  <div className="w-12 h-12 rounded-full bg-paw-bark/20 flex items-center justify-center text-paw-bark font-bold">
                     {(center.ownerId as { name?: string })?.name?.charAt(0) ?? 'A'}
                   </div>
                   <div>
@@ -157,17 +164,18 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
         />
       </main>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-paw-bark/10 bg-paw-cream/95 backdrop-blur-md p-4">
         <div className="container mx-auto flex items-center justify-between gap-4">
           <div>
             <p className="text-sm text-gray-600">From</p>
-            <p className="text-xl font-bold text-primary">NPR {price.toLocaleString()} {serviceType === 'hostel' ? '/ night' : '/ session'}</p>
+            <p className="text-xl font-bold text-paw-bark">NPR {price.toLocaleString()} {serviceType === 'hostel' ? '/ night' : '/ session'}</p>
           </div>
-          <Link href={`/care/${serviceType}/${center._id}/book`} className="flex-1 max-w-[200px] py-3 rounded-xl bg-primary text-white font-semibold text-center hover:bg-primary/90 transition-colors">
+          <Link href={`/care/${serviceType}/${center._id}/book`} className="flex-1 max-w-[200px] py-3 rounded-full bg-paw-bark text-paw-cream font-semibold text-center hover:bg-paw-ink transition-colors shadow-paw">
             Book Now
           </Link>
         </div>
       </div>
     </div>
+    </PageShell>
   );
 }

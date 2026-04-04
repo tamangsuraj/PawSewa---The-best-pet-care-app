@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
 import Image from 'next/image';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
 
 export default function AddPetPage() {
   const router = useRouter();
@@ -102,23 +104,24 @@ export default function AddPetPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5E6CA]">
-      {/* Header */}
-      <div className="bg-[#703418] text-white py-12">
-        <div className="container mx-auto px-4">
+    <PageShell>
+      <PageHero
+        leading={
           <button
+            type="button"
             onClick={() => router.push('/my-pets')}
-            className="mb-4 text-[#F5E6CA] hover:text-white transition-colors"
+            className="text-sm font-medium text-paw-cream/90 hover:text-white transition-colors"
           >
             ← Back to My Pets
           </button>
-          <h1 className="text-4xl font-bold">Register New Pet</h1>
-        </div>
-      </div>
+        }
+        eyebrow="Profiles"
+        title="Register new pet"
+        subtitle="Add details and a photo so care and bookings stay accurate."
+      />
 
-      {/* Form */}
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-8">
+        <div className="max-w-2xl mx-auto paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Photo Upload */}
             <div className="flex flex-col items-center">
@@ -143,7 +146,7 @@ export default function AddPetPage() {
                       <span className="text-4xl text-gray-400">📷</span>
                     )}
                   </div>
-                  <div className="absolute bottom-0 right-0 w-10 h-10 bg-[#703418] rounded-full flex items-center justify-center text-white text-xl">
+                  <div className="absolute bottom-0 right-0 w-10 h-10 bg-paw-bark rounded-full flex items-center justify-center text-paw-cream text-xl shadow-paw">
                     +
                   </div>
                 </div>
@@ -162,7 +165,7 @@ export default function AddPetPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. Buddy"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
@@ -175,7 +178,7 @@ export default function AddPetPage() {
                 required
                 value={formData.species}
                 onChange={(e) => setFormData({ ...formData, species: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
               >
                 <option value="">Select species</option>
                 {speciesList.map((species) => (
@@ -196,7 +199,7 @@ export default function AddPetPage() {
                 value={formData.breed}
                 onChange={(e) => setFormData({ ...formData, breed: e.target.value })}
                 placeholder="e.g. Golden Retriever"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
@@ -210,7 +213,7 @@ export default function AddPetPage() {
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
                 max={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
@@ -224,7 +227,7 @@ export default function AddPetPage() {
                   required
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
                 >
                   <option value="">Select</option>
                   {genderList.map((gender) => (
@@ -246,7 +249,7 @@ export default function AddPetPage() {
                     value={formData.weight}
                     onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
                     placeholder="0.0"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
                   />
                   <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600">
                     kg
@@ -265,7 +268,7 @@ export default function AddPetPage() {
                 value={formData.medicalConditions}
                 onChange={(e) => setFormData({ ...formData, medicalConditions: e.target.value })}
                 placeholder="Describe any existing conditions, allergies, or past surgeries..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
@@ -279,7 +282,7 @@ export default function AddPetPage() {
                 value={formData.behavioralNotes}
                 onChange={(e) => setFormData({ ...formData, behavioralNotes: e.target.value })}
                 placeholder="Describe temperament, any anxiety, or specific behaviors (e.g., friendly with dogs, nervous around strangers)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#703418] focus:border-transparent bg-white text-gray-900"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-paw-teal-mid focus:border-transparent bg-white text-gray-900"
               />
             </div>
 
@@ -293,7 +296,7 @@ export default function AddPetPage() {
                   type="checkbox"
                   checked={formData.isVaccinated}
                   onChange={(e) => setFormData({ ...formData, isVaccinated: e.target.checked })}
-                  className="w-5 h-5 text-[#703418] border-gray-300 rounded focus:ring-[#703418]"
+                  className="w-5 h-5 text-paw-bark border-gray-300 rounded focus:ring-paw-teal-mid"
                 />
                 <span className="text-gray-900">Up to date with all core vaccines</span>
               </label>
@@ -306,13 +309,13 @@ export default function AddPetPage() {
                   type="checkbox"
                   checked={formData.agreedToTerms}
                   onChange={(e) => setFormData({ ...formData, agreedToTerms: e.target.checked })}
-                  className="w-5 h-5 text-[#703418] border-gray-300 rounded focus:ring-[#703418] mt-0.5"
+                  className="w-5 h-5 text-paw-bark border-gray-300 rounded focus:ring-paw-teal-mid mt-0.5"
                 />
                 <span className="text-sm text-gray-900">
                   I agree to the{' '}
-                  <span className="text-[#703418] underline">terms & Conditions</span>
+                  <span className="text-paw-bark underline">terms & Conditions</span>
                   {' '}and{' '}
-                  <span className="text-[#703418] underline">Privacy Policy</span>
+                  <span className="text-paw-bark underline">Privacy Policy</span>
                 </span>
               </label>
             </div>
@@ -321,20 +324,13 @@ export default function AddPetPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-[#703418] text-white py-4 rounded-xl font-semibold hover:bg-[#8B4513] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full bg-paw-bark text-paw-cream py-4 rounded-full font-semibold hover:bg-paw-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-paw"
             >
-              {loading ? (
-                'Registering...'
-              ) : (
-                <>
-                  <span>🐾</span>
-                  <span>Register Pet</span>
-                </>
-              )}
+              {loading ? 'Registering...' : 'Register pet'}
             </button>
           </form>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

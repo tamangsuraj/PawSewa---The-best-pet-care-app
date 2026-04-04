@@ -157,7 +157,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
         SnackBar(
           content: Text(
             'Please place the pin and wait for address.',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.outfit(),
           ),
           backgroundColor: Colors.red,
         ),
@@ -184,7 +184,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       appBar: AppBar(
         title: Text(
           widget.returnAddress ? 'Select Location' : 'Select Delivery Location',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
@@ -200,7 +200,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
               focusNode: _searchFocusNode,
               decoration: InputDecoration(
                 hintText: 'Search e.g. Putalisadak, Kathmandu',
-                hintStyle: GoogleFonts.poppins(color: Colors.grey),
+                hintStyle: GoogleFonts.outfit(color: Colors.grey),
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searching
                     ? const Padding(
@@ -223,7 +223,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                   vertical: 12,
                 ),
               ),
-              style: GoogleFonts.poppins(),
+              style: GoogleFonts.outfit(),
               onChanged: (value) {
                 if (value.trim().isEmpty) {
                   setState(() => _searchResults = []);
@@ -265,7 +265,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                     ),
                     title: Text(
                       place.displayName,
-                      style: GoogleFonts.poppins(fontSize: 13),
+                      style: GoogleFonts.outfit(fontSize: 13),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -315,11 +315,11 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_loadingAddress)
-                  Text('Fetching address…', style: GoogleFonts.poppins())
+                  Text('Fetching address…', style: GoogleFonts.outfit())
                 else if (_address != null)
                   Text(
                     _address!,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       color: Colors.grey[800],
                     ),
@@ -327,7 +327,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                 else
                   Text(
                     'Tap on the map to place the delivery pin, or search above.',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       color: Colors.grey[600],
                     ),
@@ -344,7 +344,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                     ),
                     child: Text(
                       'Use this location',
-                      style: GoogleFonts.poppins(),
+                      style: GoogleFonts.outfit(),
                     ),
                   ),
                 ),

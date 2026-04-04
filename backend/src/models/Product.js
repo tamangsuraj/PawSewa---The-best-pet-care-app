@@ -61,6 +61,7 @@ const productSchema = new mongoose.Schema(
     },
     /**
      * Marketplace filters (Shop UI). Empty / missing = applies to all pet types.
+     * Kept in sync from targetPets for dog/cat/rabbit filters.
      */
     petTypes: {
       type: [
@@ -69,6 +70,24 @@ const productSchema = new mongoose.Schema(
           enum: ['dog', 'cat', 'rabbit'],
         },
       ],
+      default: [],
+    },
+    /**
+     * Target species for personalization (uppercase: DOG, CAT, RABBIT, …).
+     * Empty array = universal (all pets).
+     */
+    targetPets: {
+      type: [
+        {
+          type: String,
+          enum: ['DOG', 'CAT', 'RABBIT', 'BIRD', 'HAMSTER', 'FISH', 'OTHER'],
+        },
+      ],
+      default: [],
+    },
+    /** Free-form merchandising tags (e.g. Wellness, Organic). */
+    tags: {
+      type: [{ type: String, trim: true, maxlength: 40 }],
       default: [],
     },
     /** Uppercase pill on product card (e.g. NATURAL, HEALTH). Optional. */
@@ -86,6 +105,9 @@ const productSchema = new mongoose.Schema(
 
 // Text search on name + description
 productSchema.index({ name: 'text', description: 'text' });
+
+// eslint-disable-next-line no-console
+console.log('[BACKEND] Product schema updated with targetPets and tags.');
 
 module.exports = mongoose.model('Product', productSchema, 'products');
 

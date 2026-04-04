@@ -306,7 +306,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 0, 8),
               child: Text(
                 'Your Pet\'s Vets',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: const Color(AppConstants.accentColor),
@@ -392,7 +392,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
                             ),
@@ -434,7 +434,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     children: [
                       Text(
                         'Customer Care',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: Colors.grey[700],
@@ -442,7 +442,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       ),
                       Text(
                         _careName,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                           color: const Color(AppConstants.accentColor),
@@ -450,7 +450,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       ),
                       Text(
                         'We\'re here to help you and your pet',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: Colors.grey[600],
                         ),
@@ -473,7 +473,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
                       'Customer Care is typing…',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
                         color: Colors.grey[600],
@@ -501,7 +501,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ),
                     child: Text(
                       text,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
                         color: mine ? Colors.white : Colors.black87,
                       ),

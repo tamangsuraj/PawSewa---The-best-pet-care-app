@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 
 class ShopInventoryScreen extends StatefulWidget {
   const ShopInventoryScreen({super.key});
@@ -215,15 +216,25 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       appBar: AppBar(
         title: Text(
           'Shop Inventory',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
         ),
         backgroundColor: primary,
         foregroundColor: Colors.white,
       ),
-      backgroundColor: const Color(AppConstants.secondaryColor),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(AppConstants.primaryColor),
+                    ),
+                  )
+                : RefreshIndicator(
+              color: primary,
               onRefresh: _loadData,
               child: ListView(
                 padding: const EdgeInsets.all(16),
@@ -238,12 +249,12 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                       child: Text(
                         _error!,
-                        style: GoogleFonts.poppins(color: Colors.red[700]),
+                        style: GoogleFonts.outfit(color: Colors.red[700]),
                       ),
                     ),
                   Text(
                     'Add New Product',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -259,7 +270,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Images (optional)',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -284,7 +295,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                         ),
                         child: Text(
                           'Choose Images',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -295,7 +306,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                           _selectedImages.isEmpty
                               ? 'No images selected'
                               : '${_selectedImages.length} image(s) selected',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: Colors.grey[700],
                           ),
@@ -374,7 +385,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                       Text(
                         'Active / visible in apps',
-                        style: GoogleFonts.poppins(fontSize: 13),
+                        style: GoogleFonts.outfit(fontSize: 13),
                       ),
                     ],
                   ),
@@ -390,14 +401,14 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                       child: Text(
                         _saving ? 'Saving…' : 'Create Product',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
                   Text(
                     'Existing Products',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
@@ -412,7 +423,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       ),
                       child: Text(
                         'No products yet. Add your first product above.',
-                        style: GoogleFonts.poppins(color: Colors.grey[700]),
+                        style: GoogleFonts.outfit(color: Colors.grey[700]),
                       ),
                     )
                   else
@@ -503,7 +514,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                 name,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.black87,
@@ -514,7 +525,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                 subtitle,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w400,
                                   color: Colors.grey.shade600,
@@ -525,7 +536,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                 children: [
                                   Text(
                                     'Rs. ${price.toStringAsFixed(0)}',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.w500,
                                       fontSize: 13,
                                       color: Colors.black87,
@@ -594,6 +605,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -610,7 +624,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         children: [
           Text(
             'Add Category',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -640,7 +654,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                 ),
                 child: Text(
                   'Choose Image',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w500),
                 ),
               ),
               const SizedBox(width: 12),
@@ -649,7 +663,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                   _categoryImage == null
                       ? 'No image selected'
                       : 'Image selected',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     color: Colors.grey[700],
                   ),
@@ -669,7 +683,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
               ),
               child: Text(
                 _creatingCategory ? 'Creating…' : 'Create Category',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w500),
               ),
             ),
           ),

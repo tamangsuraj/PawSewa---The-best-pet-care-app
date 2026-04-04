@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Package,
   MapPin,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -50,6 +51,16 @@ interface RecentOrderRow {
   location?: { lat: number; lng: number };
 }
 
+interface ShopRecommendationActivityRow {
+  _id: string;
+  action?: string;
+  personalizedMatch?: boolean;
+  userPetType?: string;
+  createdAt: string;
+  user?: { name?: string; email?: string };
+  product?: { name?: string; price?: number; targetPets?: string[] };
+}
+
 function recentOrderCoords(o: RecentOrderRow): { lat: number; lng: number } | null {
   const loc = o.location;
   if (
@@ -77,6 +88,8 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<RecentOrderRow[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [shopRecActivity, setShopRecActivity] = useState<ShopRecommendationActivityRow[]>([]);
+  const [shopRecLoading, setShopRecLoading] = useState(true);
 
   useEffect(() => {
     fetchDashboardData();
@@ -99,6 +112,25 @@ export default function DashboardPage() {
       }
     };
     loadOrders();
+  }, []);
+
+  useEffect(() => {
+    const loadShopRec = async () => {
+      try {
+        const response = await api.get<{
+          success: boolean;
+          data?: ShopRecommendationActivityRow[];
+        }>('/admin/shop-recommendation-activity', { params: { limit: 15 } });
+        if (response.data.success && Array.isArray(response.data.data)) {
+          setShopRecActivity(response.data.data);
+        }
+      } catch {
+        /* Non-admin or route unavailable */
+      } finally {
+        setShopRecLoading(false);
+      }
+    };
+    loadShopRec();
   }, []);
 
   const fetchDashboardData = async () => {
@@ -266,6 +298,76 @@ export default function DashboardPage() {
                     </div>
                   ) : (
                     <p className="text-gray-500 text-center py-8">No users yet</p>
+                  )}
+                </div>
+
+                {/* Shop: personalized recommendation interactions */}
+                <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-primary" />
+                    Shop recommendation activity
+                  </h2>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Logged when customers add a product to cart that matched their pet type (personalized
+                    picks).
+                  </p>
+                  {shopRecLoading ? (
+                    <p className="text-gray-500 text-center py-6">Loading…</p>
+                  ) : shopRecActivity.length === 0 ? (
+                    <p className="text-gray-500 text-center py-6">No recommendation events yet</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-left text-gray-500">
+                            <th className="py-2 pr-4 font-medium">When</th>
+                            <th className="py-2 pr-4 font-medium">Customer</th>
+                            <th className="py-2 pr-4 font-medium">Product</th>
+                            <th className="py-2 pr-4 font-medium">Action</th>
+                            <th className="py-2 font-medium">Match</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shopRecActivity.map((row) => (
+                            <tr
+                              key={row._id}
+                              className="border-b border-gray-100 hover:bg-gray-50"
+                            >
+                              <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">
+                                {new Date(row.createdAt).toLocaleString()}
+                              </td>
+                              <td className="py-3 pr-4 text-gray-900">
+                                <span className="font-medium">{row.user?.name ?? '—'}</span>
+                                {row.user?.email ? (
+                                  <span className="block text-xs text-gray-500">{row.user.email}</span>
+                                ) : null}
+                              </td>
+                              <td className="py-3 pr-4 text-gray-900">
+                                {row.product?.name ?? '—'}
+                                {row.product?.price != null ? (
+                                  <span className="block text-xs text-gray-500">
+                                    NPR {Number(row.product.price).toFixed(0)}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="py-3 pr-4 text-gray-600 capitalize">
+                                {(row.action ?? 'add_to_cart').replace(/_/g, ' ')}
+                              </td>
+                              <td className="py-3">
+                                {row.personalizedMatch ? (
+                                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 border border-emerald-200">
+                                    Pet match
+                                    {row.userPetType ? ` (${row.userPetType})` : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
 

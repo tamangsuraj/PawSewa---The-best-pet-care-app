@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { getAllBlogPosts, formatDate } from '@/lib/blog';
+import { PageShell } from '@/components/layout/PageShell';
 
 export const metadata: Metadata = {
   title: 'PawSewa Blog',
@@ -11,13 +12,18 @@ export default function BlogIndexPage() {
   const posts = getAllBlogPosts();
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="bg-gradient-to-r from-primary to-accent text-white py-16 px-4">
-        <div className="container mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3 font-poppins">
-            PawSewa Blog
+    <PageShell>
+      <section className="relative overflow-hidden bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream py-16 px-4">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_15%_40%,rgba(13,148,136,0.2),transparent_55%)]"
+          aria-hidden
+        />
+        <div className="container mx-auto relative">
+          <p className="paw-eyebrow text-paw-cream/75 mb-3">Editorial</p>
+          <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight mb-3">
+            PawSewa blog
           </h1>
-          <p className="text-secondary text-lg md:text-xl font-inter max-w-3xl">
+          <p className="text-paw-cream/85 text-lg md:text-xl max-w-3xl leading-relaxed">
             Guides, tips, and updates to help you care for your pets better.
           </p>
         </div>
@@ -25,7 +31,7 @@ export default function BlogIndexPage() {
 
       <section className="container mx-auto px-4 py-12">
         {posts.length === 0 ? (
-          <div className="bg-secondary rounded-2xl p-10 text-center">
+          <div className="bg-paw-sand rounded-2xl p-10 text-center">
             <p className="text-gray-700 font-inter">No blog posts yet.</p>
           </div>
         ) : (
@@ -34,18 +40,18 @@ export default function BlogIndexPage() {
               <Link
                 key={p.slug}
                 href={`/blog/${p.slug}`}
-                className="group bg-white rounded-2xl border border-gray-100 shadow-md hover:shadow-xl transition-all transform hover:-translate-y-1 overflow-hidden"
+                className="group paw-card-glass rounded-2xl border border-paw-bark/10 shadow-paw hover:shadow-paw-lg transition-all hover:-translate-y-0.5 overflow-hidden"
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between gap-3 mb-3">
-                    <span className="text-xs font-semibold text-primary bg-secondary px-3 py-1 rounded-full">
+                    <span className="text-xs font-semibold text-paw-bark bg-paw-sand px-3 py-1 rounded-full">
                       {formatDate(p.date)}
                     </span>
                     <span className="text-xs text-gray-500 font-inter">
                       {p.tags.slice(0, 2).join(' · ')}
                     </span>
                   </div>
-                  <h2 className="text-xl font-bold text-gray-900 font-poppins group-hover:text-primary transition-colors">
+                  <h2 className="font-display text-xl font-semibold text-paw-ink group-hover:text-paw-bark transition-colors">
                     {p.title}
                   </h2>
                   {p.description ? (
@@ -53,7 +59,7 @@ export default function BlogIndexPage() {
                       {p.description}
                     </p>
                   ) : null}
-                  <div className="mt-5 text-primary font-semibold">
+                  <div className="mt-5 text-paw-bark font-semibold">
                     Read more →
                   </div>
                 </div>
@@ -62,7 +68,7 @@ export default function BlogIndexPage() {
           </div>
         )}
       </section>
-    </main>
+    </PageShell>
   );
 }
 

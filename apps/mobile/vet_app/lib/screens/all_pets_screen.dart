@@ -150,7 +150,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         SnackBar(
           content: Text(
             'Could not open maps app',
-            style: GoogleFonts.poppins(),
+            style: GoogleFonts.outfit(),
           ),
         ),
       );
@@ -187,7 +187,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         return AlertDialog(
           title: Text(
             'Complete Visit',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
           content: TextField(
             controller: controller,
@@ -195,13 +195,13 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             decoration: InputDecoration(
               labelText: 'Visit Notes',
               hintText: 'Summarize diagnosis, treatment, and follow-up advice...',
-              labelStyle: GoogleFonts.poppins(),
+              labelStyle: GoogleFonts.outfit(),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text('Cancel', style: GoogleFonts.poppins()),
+              child: Text('Cancel', style: GoogleFonts.outfit()),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(ctx).pop(true),
@@ -210,7 +210,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
               ),
               child: Text(
                 'Save & Complete',
-                style: GoogleFonts.poppins(color: Colors.white),
+                style: GoogleFonts.outfit(color: Colors.white),
               ),
             ),
           ],
@@ -232,7 +232,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Visit completed and notes saved!', style: GoogleFonts.poppins()),
+            content: Text('Visit completed and notes saved!', style: GoogleFonts.outfit()),
             backgroundColor: Colors.green,
           ),
         );
@@ -242,7 +242,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to complete visit: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to complete visit: $e', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -264,7 +264,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Visit started!', style: GoogleFonts.poppins()),
+            content: Text('Visit started!', style: GoogleFonts.outfit()),
             backgroundColor: Colors.blue,
           ),
         );
@@ -274,7 +274,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start visit: $e', style: GoogleFonts.poppins()),
+          content: Text('Failed to start visit: $e', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -288,7 +288,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       appBar: AppBar(
         title: Text(
           'My Assigned Cases',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -314,7 +314,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _error!,
-                        style: GoogleFonts.poppins(color: Colors.red),
+                        style: GoogleFonts.outfit(color: Colors.red),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -323,7 +323,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(AppConstants.primaryColor),
                         ),
-                        child: Text('Retry', style: GoogleFonts.poppins(color: Colors.white)),
+                        child: Text('Retry', style: GoogleFonts.outfit(color: Colors.white)),
                       ),
                     ],
                   ),
@@ -337,7 +337,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                           const SizedBox(height: 16),
                           Text(
                             'No assigned cases yet',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 18,
                               color: Colors.grey[600],
                             ),
@@ -345,7 +345,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                           const SizedBox(height: 8),
                           Text(
                             'Cases will appear here when assigned by the dispatch team',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 14,
                               color: Colors.grey[500],
                             ),
@@ -429,7 +429,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                                             : _filterStatus == 'completed'
                                                 ? 'No completed cases yet'
                                                 : 'No assigned cases yet',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.outfit(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.grey[700],
@@ -438,7 +438,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                                       const SizedBox(height: 8),
                                       Text(
                                         'Cases will appear here when assigned by the dispatch team',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.outfit(
                                           fontSize: 14,
                                           color: Colors.grey[500],
                                         ),
@@ -478,7 +478,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
           const SizedBox(height: 4),
           Text(
             count.toString(),
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 20,
               fontWeight: FontWeight.bold,
               color: color,
@@ -486,7 +486,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
           ),
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 11,
               color: Colors.grey[700],
             ),
@@ -520,7 +520,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
           children: [
             Text(
               label,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 color: isSelected 
@@ -540,7 +540,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                 ),
                 child: Text(
                   count.toString(),
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.white : Colors.grey[700],
@@ -656,7 +656,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                     Expanded(
                       child: Text(
                         urgencyLabel,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: urgencyColor,
@@ -692,7 +692,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                   ),
                   child: Text(
                     statusText,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: statusColor,
@@ -708,7 +708,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                     ),
                     child: Text(
                       'PAID',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: Colors.green.shade800,
@@ -750,7 +750,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                     children: [
                       Text(
                         pet?['name'] ?? 'Unknown Pet',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: const Color(AppConstants.accentColor),
@@ -758,7 +758,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       ),
                       Text(
                         '${pet?['breed'] ?? 'Unknown'} • ${pet?['age'] ?? '?'} years',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 13,
                           color: Colors.grey[600],
                         ),
@@ -786,7 +786,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       const SizedBox(width: 8),
                       Text(
                         owner?['name'] ?? 'Unknown',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -801,7 +801,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                         const SizedBox(width: 8),
                         Text(
                           owner['phone'],
-                          style: GoogleFonts.poppins(fontSize: 13),
+                          style: GoogleFonts.outfit(fontSize: 13),
                         ),
                       ],
                     ),
@@ -814,7 +814,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             // Issue / notes (Cases use issueDescription, Service Requests use notes)
             Text(
               'Notes:',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[700],
@@ -823,7 +823,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
             const SizedBox(height: 4),
             Text(
               caseData['notes'] ?? caseData['issueDescription'] ?? 'No description',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 14,
                 color: Colors.grey[800],
               ),
@@ -844,7 +844,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                         (caseData['location'] is Map && caseData['location']?['address'] != null)
                             ? caseData['location']['address'] as String
                             : (caseData['location']?.toString() ?? 'No location'),
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 13,
                           color: Colors.grey[600],
                         ),
@@ -861,7 +861,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                           icon: const Icon(Icons.map, size: 16, color: Color(AppConstants.primaryColor)),
                           label: Text(
                             'Open in Maps',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: const Color(AppConstants.primaryColor),
                               fontWeight: FontWeight.w600,
@@ -890,7 +890,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                   ),
                   child: Text(
                     'Start Visit',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -912,7 +912,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                   ),
                   child: Text(
                     'Complete Visit',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,

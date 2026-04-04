@@ -50,7 +50,7 @@ class CareAllServicesScreen extends StatelessWidget {
         ),
         title: Text(
           sectionTitle,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 17,
             color: primary,
@@ -62,7 +62,7 @@ class CareAllServicesScreen extends StatelessWidget {
           ? Center(
               child: Text(
                 'No services in this category yet.',
-                style: GoogleFonts.poppins(color: Colors.grey[600]),
+                style: GoogleFonts.outfit(color: Colors.grey[600]),
               ),
             )
           : ListView.separated(

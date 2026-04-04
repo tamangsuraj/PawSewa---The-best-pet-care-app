@@ -89,7 +89,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ),
         title: Text(
           'My Orders',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,
             color: Colors.black87,
@@ -107,7 +107,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   children: [
                     Text(
                       _error!,
-                      style: GoogleFonts.poppins(color: Colors.red[700]),
+                      style: GoogleFonts.outfit(color: Colors.red[700]),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
@@ -134,7 +134,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'No orders yet',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 16,
                       color: Colors.grey[600],
                     ),
@@ -142,7 +142,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Your shop orders will appear here.',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       color: Colors.grey[500],
                     ),
@@ -287,7 +287,7 @@ class _OrderCard extends StatelessWidget {
               children: [
                 Text(
                   '#${id.length >= 6 ? id.substring(id.length - 6) : id}',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: Colors.black87,
@@ -295,7 +295,7 @@ class _OrderCard extends StatelessWidget {
                 ),
                 Text(
                   paymentStatus,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     color: paymentStatus == 'Paid'
                         ? Colors.green[700]
@@ -313,7 +313,7 @@ class _OrderCard extends StatelessWidget {
                           '${(e is Map ? e['name'] : null) ?? 'Item'} × ${(e is Map ? e['quantity'] : null) ?? 1}',
                     )
                     .join(', '),
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 13,
                   color: Colors.grey[700],
                 ),
@@ -335,7 +335,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   child: Text(
                     status,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: primary,
@@ -344,7 +344,7 @@ class _OrderCard extends StatelessWidget {
                 ),
                 Text(
                   'NPR ${total.toStringAsFixed(0)}',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                     color: Colors.black87,
@@ -356,7 +356,7 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 _formatDate(createdAt),
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.grey[600],
                 ),
@@ -371,7 +371,7 @@ class _OrderCard extends StatelessWidget {
                   icon: const Icon(Icons.chat_bubble_outline, size: 18),
                   label: Text(
                     'Chat with Rider',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13),
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
                   style: FilledButton.styleFrom(
                     foregroundColor: primary,

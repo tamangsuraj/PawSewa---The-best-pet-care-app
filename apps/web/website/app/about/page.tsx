@@ -1,180 +1,144 @@
+import Link from 'next/link';
+import { Heart, Zap, UserRound, Clock, Smartphone, Target, Leaf } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
+
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#F5E6CA]">
-      {/* Header */}
-      <div className="bg-[#703418] text-white py-16">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-2">About PawSewa</h1>
-          <p className="text-[#F5E6CA]">Your trusted partner in pet care</p>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        eyebrow="Our story"
+        title="About PawSewa"
+        subtitle="Your trusted partner in pet care — from dispatch to shop and clinic."
+      />
 
-      {/* Content */}
       <div className="container mx-auto px-4 py-12">
-        {/* Mission Section */}
-        <div className="bg-white rounded-2xl shadow-lg p-12 mb-8">
+        <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw p-10 md:p-12 mb-10">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="text-6xl mb-6">🐾</div>
-            <h2 className="text-3xl font-bold text-[#703418] mb-6">Our Mission</h2>
-            <p className="text-xl text-gray-700 leading-relaxed mb-6">
-              At PawSewa, we're dedicated to providing exceptional veterinary care and pet services 
-              through our innovative centralized dispatcher model. We connect pet owners with the 
-              best available veterinarians, ensuring your furry friends receive immediate, 
-              professional care when they need it most.
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-paw-teal/10 text-paw-teal-mid">
+              <Heart className="h-8 w-8" strokeWidth={1.75} aria-hidden />
+            </div>
+            <h2 className="font-display text-3xl font-semibold text-paw-ink mb-6">Our mission</h2>
+            <p className="text-xl text-paw-bark/85 leading-relaxed mb-6">
+              At PawSewa, we connect pet owners with veterinarians and services through a centralized
+              dispatcher model — so your companion gets timely, professional attention.
             </p>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              Our mission is to make quality pet healthcare accessible, efficient, and stress-free 
-              for every pet owner in Nepal.
+            <p className="text-lg text-paw-bark/70 leading-relaxed">
+              We aim to make quality pet healthcare accessible, efficient, and calm for every household
+              in Nepal.
             </p>
           </div>
         </div>
 
-        {/* How It Works */}
         <div className="mb-12">
-          <h2 className="text-3xl font-bold text-[#703418] text-center mb-8">How PawSewa Works</h2>
+          <h2 className="font-display text-3xl font-semibold text-paw-ink text-center mb-10">
+            How PawSewa works
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-              <div className="w-16 h-16 bg-[#703418] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                1
+            {[
+              {
+                step: '1',
+                title: 'Request assistance',
+                body: 'Submit your pet’s issue through the app or site. We handle vet matching — you focus on your pet.',
+              },
+              {
+                step: '2',
+                title: 'We assign a vet',
+                body: 'Our team reviews your case and assigns the best available veterinarian for the shift and specialty.',
+              },
+              {
+                step: '3',
+                title: 'Get expert care',
+                body: 'The assigned vet reaches out and provides care. Track status in real time from your dashboard.',
+              },
+            ].map((item) => (
+              <div
+                key={item.step}
+                className="paw-card-glass rounded-2xl border border-paw-bark/8 p-8 text-center shadow-paw"
+              >
+                <div className="w-16 h-16 bg-gradient-to-br from-paw-bark to-paw-ink text-paw-cream rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-paw-glow">
+                  {item.step}
+                </div>
+                <h3 className="text-xl font-semibold text-paw-ink mb-3">{item.title}</h3>
+                <p className="text-paw-bark/75 leading-relaxed">{item.body}</p>
               </div>
-              <h3 className="text-xl font-bold text-[#703418] mb-3">Request Assistance</h3>
-              <p className="text-gray-600">
-                Submit your pet's issue through our mobile app or website. No need to choose a vet - 
-                we handle that for you.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-              <div className="w-16 h-16 bg-[#703418] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                2
-              </div>
-              <h3 className="text-xl font-bold text-[#703418] mb-3">We Assign a Vet</h3>
-              <p className="text-gray-600">
-                Our admin team reviews your case and assigns the best available veterinarian based 
-                on their expertise and current shift.
-              </p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-              <div className="w-16 h-16 bg-[#703418] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
-                3
-              </div>
-              <h3 className="text-xl font-bold text-[#703418] mb-3">Get Expert Care</h3>
-              <p className="text-gray-600">
-                The assigned veterinarian contacts you and provides professional care for your pet. 
-                Track the status in real-time.
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Why Choose Us */}
-        <div className="bg-gradient-to-br from-[#703418] to-[#8B4513] text-white rounded-2xl shadow-lg p-12 mb-12">
-          <h2 className="text-3xl font-bold text-center mb-8">Why Choose PawSewa?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="flex items-start gap-4">
-              <div className="text-3xl">⚡</div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">Fast Response</h3>
-                <p className="text-[#F5E6CA]">
-                  Our centralized system ensures quick assignment and immediate veterinary attention.
-                </p>
+        <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream p-10 md:p-12 mb-12 shadow-paw-lg border border-white/10">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_10%_90%,rgba(13,148,136,0.18),transparent_55%)]"
+            aria-hidden
+          />
+          <h2 className="font-display text-3xl font-semibold text-center mb-10 relative">
+            Why choose PawSewa?
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto relative">
+            {[
+              { icon: Zap, title: 'Fast response', body: 'Centralized routing for quicker assignment and follow-up.' },
+              { icon: UserRound, title: 'Expert veterinarians', body: 'Licensed professionals with deep clinical experience.' },
+              { icon: Clock, title: 'Shift-based coverage', body: 'Structured availability so help is there when it matters.' },
+              { icon: Smartphone, title: 'Simple to use', body: 'Clear flows on web and mobile — less friction, more care.' },
+              { icon: Target, title: 'Smart matching', body: 'We align your pet’s needs with the right clinician.' },
+              { icon: Leaf, title: 'Compassionate care', body: 'Every animal is treated with patience and respect.' },
+            ].map(({ icon: Icon, title, body }) => (
+              <div key={title} className="flex items-start gap-4">
+                <div className="shrink-0 rounded-xl bg-white/10 p-2.5 border border-white/15">
+                  <Icon className="h-6 w-6 text-paw-cream" strokeWidth={1.75} aria-hidden />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold mb-2">{title}</h3>
+                  <p className="text-paw-cream/85 leading-relaxed">{body}</p>
+                </div>
               </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="text-3xl">👨‍⚕️</div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">Expert Veterinarians</h3>
-                <p className="text-[#F5E6CA]">
-                  All our vets are licensed professionals with years of experience in pet care.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="text-3xl">🕐</div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">24/7 Availability</h3>
-                <p className="text-[#F5E6CA]">
-                  Our shift-based system ensures veterinary care is available round the clock.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="text-3xl">📱</div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">Easy to Use</h3>
-                <p className="text-[#F5E6CA]">
-                  Simple mobile apps and website interface make requesting help effortless.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="text-3xl">🎯</div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">Smart Matching</h3>
-                <p className="text-[#F5E6CA]">
-                  We match your pet's needs with the most suitable veterinarian available.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="text-3xl">💚</div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">Compassionate Care</h3>
-                <p className="text-[#F5E6CA]">
-                  We treat every pet with love and care, as if they were our own.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* Our Team */}
         <div className="mb-12">
-          <h2 className="text-3xl font-bold text-[#703418] text-center mb-8">Our Team</h2>
-          <div className="bg-white rounded-2xl shadow-lg p-12">
+          <h2 className="font-display text-3xl font-semibold text-paw-ink text-center mb-8">Our team</h2>
+          <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/8 p-10 md:p-12 shadow-paw">
             <div className="max-w-3xl mx-auto text-center">
-              <p className="text-lg text-gray-700 leading-relaxed mb-6">
-                PawSewa is powered by a dedicated team of veterinary professionals, dispatchers, 
-                and pet care specialists who work together to ensure your pet receives the best 
-                possible care.
+              <p className="text-lg text-paw-bark/80 leading-relaxed mb-6">
+                PawSewa is built by veterinary professionals, dispatchers, and pet-care specialists
+                working as one crew for your companions.
               </p>
-              <p className="text-lg text-gray-700 leading-relaxed">
-                Our veterinarians specialize in various fields including surgery, dentistry, 
-                emergency care, and general practice. Each member of our team shares a common 
-                passion: the health and happiness of your pets.
+              <p className="text-lg text-paw-bark/80 leading-relaxed">
+                Our vets cover surgery, dentistry, emergency care, and general practice — united by
+                one goal: your pet’s health and peace of mind.
               </p>
             </div>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="bg-[#703418] text-white rounded-2xl shadow-lg p-12 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Experience Better Pet Care?</h2>
-          <p className="text-xl text-[#F5E6CA] mb-8">
-            Join thousands of pet owners who trust PawSewa for their pet's health
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/register"
-              className="inline-block px-8 py-4 bg-white text-[#703418] rounded-lg font-semibold hover:bg-gray-100 transition-colors text-lg"
-            >
-              Get Started
-            </a>
-            <a
-              href="/vets"
-              className="inline-block px-8 py-4 bg-[#8B4513] text-white rounded-lg font-semibold hover:bg-[#A0522D] transition-colors text-lg"
-            >
-              Browse Veterinarians
-            </a>
+        <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-paw-bark to-paw-umber text-paw-cream p-10 md:p-12 text-center shadow-paw-lg border border-white/10">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(13,148,136,0.2),transparent_50%)]"
+            aria-hidden
+          />
+          <div className="relative">
+            <h2 className="font-display text-3xl font-semibold mb-4">Ready for better pet care?</h2>
+            <p className="text-xl text-paw-cream/85 mb-8 max-w-xl mx-auto">
+              Join pet owners who rely on PawSewa for health, shop, and services in one place.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/register"
+                className="inline-block px-8 py-4 rounded-full bg-paw-cream text-paw-ink font-semibold hover:bg-white transition-colors text-lg shadow-paw"
+              >
+                Get started
+              </Link>
+              <Link
+                href="/vets"
+                className="inline-block px-8 py-4 rounded-full bg-white/10 border border-white/25 text-paw-cream font-semibold hover:bg-white/15 transition-colors text-lg"
+              >
+                Browse veterinarians
+              </Link>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

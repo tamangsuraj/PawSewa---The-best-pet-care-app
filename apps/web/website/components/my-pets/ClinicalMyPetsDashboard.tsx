@@ -16,6 +16,7 @@ import {
   X,
   Plus,
   AlertTriangle,
+  PawPrint,
 } from 'lucide-react';
 import {
   BarChart,
@@ -29,6 +30,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useChatHub } from '@/context/ChatHubContext';
 import { clsx } from 'clsx';
+import { PageShell } from '@/components/layout/PageShell';
 
 export type PetListItem = {
   _id: string;
@@ -480,18 +482,19 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
   });
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#FAF7F2] text-[#3D2914]">
+    <PageShell className="min-h-[calc(100vh-4.25rem)]">
+    <div className="relative min-h-[calc(100vh-4.25rem)] text-paw-ink">
       {/* Mobile top bar (below global Navbar) */}
-      <div className="sticky top-[4.25rem] z-30 flex items-center justify-between border-b border-[#E8DFD0] bg-[#FAF7F2] px-4 py-3 lg:hidden">
+      <div className="sticky top-[4.25rem] z-30 flex items-center justify-between border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md px-4 py-3 lg:hidden">
         <button
           type="button"
           aria-label="Open menu"
-          className="rounded-lg p-2 text-primary hover:bg-white"
+          className="rounded-lg p-2 text-paw-bark hover:bg-white"
           onClick={() => setMobileNavOpen(true)}
         >
           <Menu className="h-6 w-6" />
         </button>
-        <span className="font-semibold text-primary">My Pets</span>
+        <span className="font-semibold text-paw-bark">My Pets</span>
         <span className="w-10" />
       </div>
 
@@ -499,7 +502,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
         {/* Sidebar */}
         <aside
           className={clsx(
-            'fixed bottom-0 left-0 top-[4.25rem] z-50 w-[min(100%,280px)] transform border-r border-[#E8DFD0] bg-white transition-transform lg:static lg:top-auto lg:z-0 lg:h-auto lg:min-h-[calc(100vh-4.25rem)] lg:w-64 lg:shrink-0 lg:translate-x-0',
+            'fixed bottom-0 left-0 top-[4.25rem] z-50 w-[min(100%,280px)] transform border-r border-paw-bark/10 bg-white/95 backdrop-blur-sm shadow-paw transition-transform lg:static lg:top-auto lg:z-0 lg:h-auto lg:min-h-[calc(100vh-4.25rem)] lg:w-64 lg:shrink-0 lg:translate-x-0',
             mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )}
         >
@@ -513,11 +516,13 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                   {activePet?.photoUrl ? (
                     <Image src={activePet.photoUrl} alt="" fill className="object-cover" unoptimized />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xl">🐾</div>
+                    <div className="flex h-full w-full items-center justify-center text-paw-bark/35">
+                      <PawPrint className="h-7 w-7" strokeWidth={1.5} aria-hidden />
+                    </div>
                   )}
                 </div>
                 <select
-                  className="min-w-0 flex-1 rounded-lg border border-[#E8DFD0] bg-cream px-2 py-2 text-sm font-medium text-primary"
+                  className="min-w-0 flex-1 rounded-lg border border-[#E8DFD0] bg-cream px-2 py-2 text-sm font-medium text-paw-bark"
                   value={activePetId}
                   onChange={(e) => setActivePetId(e.target.value)}
                 >
@@ -530,7 +535,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
               </div>
               <p className="mt-1 truncate text-xs text-slate-600">{activePet?.breed || 'Mixed / —'}</p>
               {(health?.pawId || activePet?.pawId) && (
-                <p className="mt-2 truncate rounded-lg border border-[#E8DFD0] bg-cream px-2 py-1.5 font-mono text-[11px] font-semibold text-primary">
+                <p className="mt-2 truncate rounded-lg border border-[#E8DFD0] bg-cream px-2 py-1.5 font-mono text-[11px] font-semibold text-paw-bark">
                   PawID: {health?.pawId || activePet?.pawId}
                 </p>
               )}
@@ -547,14 +552,14 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     className={clsx(
                       'relative flex w-full items-center gap-3 rounded-lg py-2.5 pl-3 pr-3 text-left text-sm font-medium transition-colors lg:pl-4',
                       active
-                        ? 'bg-cream text-primary shadow-sm'
-                        : 'text-slate-600 hover:bg-cream/80 hover:text-primary'
+                        ? 'bg-cream text-paw-bark shadow-sm'
+                        : 'text-slate-600 hover:bg-cream/80 hover:text-paw-bark'
                     )}
                   >
                     <span
                       className={clsx(
                         'absolute left-0 top-1/2 hidden h-8 w-1 -translate-y-1/2 rounded-r lg:block',
-                        active ? 'bg-primary' : 'bg-transparent'
+                        active ? 'bg-paw-bark' : 'bg-transparent'
                       )}
                     />
                     <Icon className="h-5 w-5 shrink-0 opacity-80" />
@@ -606,7 +611,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
         ) : null}
 
         {/* Main */}
-        <main className="relative flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10">
+        <main className="relative flex-1 overflow-y-auto bg-paw-cream/20 px-4 py-6 sm:px-6 lg:px-10">
           {fetchError ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {fetchError}
@@ -626,9 +631,11 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                         {heroPhoto ? (
                           <Image src={heroPhoto} alt={heroName} fill className="object-cover" unoptimized />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-7xl">🐾</div>
+                          <div className="flex h-full items-center justify-center text-paw-bark/25">
+                            <PawPrint className="h-24 w-24" strokeWidth={1} aria-hidden />
+                          </div>
                         )}
-                        <div className="absolute bottom-3 right-3 max-w-[calc(100%-1.5rem)] rounded-full bg-[#3D2914] px-4 py-1.5 text-xs font-semibold tracking-wide text-white shadow">
+                        <div className="absolute bottom-3 right-3 max-w-[calc(100%-1.5rem)] rounded-full bg-paw-bark px-4 py-1.5 text-xs font-semibold tracking-wide text-paw-cream shadow-paw">
                           <span className="block truncate font-mono">
                             ID: {pawIdDisplay || idBadgeFallback}
                           </span>
@@ -639,7 +646,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                         Pet medical profile
                       </p>
-                      <h1 className="font-display mt-2 text-4xl font-semibold text-primary md:text-5xl">
+                      <h1 className="font-display mt-2 text-4xl font-semibold text-paw-bark md:text-5xl">
                         {heroName}
                       </h1>
                       <div className="mt-6 grid grid-cols-1 gap-4 border-t border-[#E8DFD0] pt-6 sm:grid-cols-3">
@@ -669,7 +676,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     {/* Weight */}
                     <div className="rounded-2xl border border-[#E8DFD0] bg-white p-5 shadow-sm">
                       <div className="mb-2 flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-primary">Weight tracker</h2>
+                        <h2 className="text-sm font-semibold text-paw-bark">Weight tracker</h2>
                         {currentWeightDisplayKg != null ? (
                           <span className="text-xs font-medium text-slate-500">
                             Current: {currentWeightDisplayKg} kg
@@ -691,7 +698,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                                 const p = payload[0].payload as ChartWeightPoint;
                                 return (
                                   <div className="rounded-lg border border-[#E8DFD0] bg-white px-3 py-2 text-xs shadow-lg">
-                                    <div className="font-semibold text-primary">{p.name}</div>
+                                    <div className="font-semibold text-paw-bark">{p.name}</div>
                                     <div className="text-slate-600">
                                       {p.weightKg > 0 ? `${p.weightKg} kg` : 'No weigh-in this month'}
                                     </div>
@@ -756,7 +763,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
                     {/* Vaccinations */}
                     <div className="rounded-2xl border border-[#E8DFD0] bg-white p-5 shadow-sm">
-                      <h2 className="text-sm font-semibold text-primary">Vaccination history</h2>
+                      <h2 className="text-sm font-semibold text-paw-bark">Vaccination history</h2>
                       <ul className="mt-4 space-y-3">
                         {vaccinationRows.length ? (
                           vaccinationRows.map((row) => (
@@ -765,7 +772,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                               className="flex flex-col gap-2 border-b border-[#F0EBE3] pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                             >
                               <div>
-                                <p className="font-medium text-primary">{row.name}</p>
+                                <p className="font-medium text-paw-bark">{row.name}</p>
                                 <p className="text-xs text-slate-500">Administered / due: {row.dateLabel}</p>
                               </div>
                               <button
@@ -790,12 +797,12 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     </div>
 
                     {/* Daily care */}
-                    <div className="relative rounded-2xl bg-primary p-5 text-white shadow-md">
+                    <div className="relative rounded-2xl bg-paw-bark p-5 text-white shadow-md">
                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                         <h2 className="text-sm font-semibold text-white">Daily care schedule</h2>
                         <Link
                           href="/vets"
-                          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary shadow-sm hover:bg-cream"
+                          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-paw-bark shadow-sm hover:bg-cream"
                         >
                           <Plus className="h-4 w-4" />
                           Book vet visit
@@ -828,7 +835,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
                   {/* Appointments table */}
                   <section className="mt-10 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
-                    <h2 className="text-sm font-semibold text-primary">Recent appointments</h2>
+                    <h2 className="text-sm font-semibold text-paw-bark">Recent appointments</h2>
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full min-w-[640px] border-collapse text-left text-sm">
                         <thead>
@@ -871,7 +878,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                             <tr>
                               <td colSpan={5} className="py-8 text-center text-slate-500">
                                 No appointments for this pet yet.{' '}
-                                <Link href="/vets" className="font-semibold text-primary underline">
+                                <Link href="/vets" className="font-semibold text-paw-bark underline">
                                   Book a clinic visit
                                 </Link>
                                 .
@@ -889,7 +896,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
           {activeTab === 'health' && (
             <div className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-[#E8DFD0] bg-white p-6 shadow-sm">
-              <h2 className="font-display text-2xl text-primary">Health records</h2>
+              <h2 className="font-display text-2xl text-paw-bark">Health records</h2>
               <div>
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Conditions</h3>
                 <p className="mt-2 text-slate-700">{health?.medicalConditions || 'None recorded.'}</p>
@@ -911,7 +918,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
           {activeTab === 'appointments' && (
             <div className="mx-auto max-w-4xl rounded-2xl border border-[#E8DFD0] bg-white p-6 shadow-sm">
-              <h2 className="font-display text-2xl text-primary">Appointments</h2>
+              <h2 className="font-display text-2xl text-paw-bark">Appointments</h2>
               <p className="mt-2 text-sm text-slate-600">
                 Full history for {heroName}. Select a row to open details.
               </p>
@@ -943,8 +950,8 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
           {activeTab === 'prescriptions' && (
             <div className="mx-auto max-w-2xl rounded-2xl border border-[#E8DFD0] bg-white p-8 text-center shadow-sm">
-              <Pill className="mx-auto h-10 w-10 text-primary opacity-70" />
-              <h2 className="mt-4 font-display text-2xl text-primary">Prescriptions</h2>
+              <Pill className="mx-auto h-10 w-10 text-paw-bark opacity-70" />
+              <h2 className="mt-4 font-display text-2xl text-paw-bark">Prescriptions</h2>
               <p className="mt-3 text-slate-600">
                 Prescriptions from your vet will appear here when linked to visits. For now, check your
                 health records or ask your clinic via{' '}
@@ -962,10 +969,10 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
           {activeTab === 'settings' && (
             <div className="mx-auto max-w-lg space-y-4 rounded-2xl border border-[#E8DFD0] bg-white p-6 shadow-sm">
-              <h2 className="font-display text-2xl text-primary">Settings</h2>
+              <h2 className="font-display text-2xl text-paw-bark">Settings</h2>
               <Link
                 href="/my-pets/add"
-                className="block rounded-xl border border-[#E8DFD0] bg-cream px-4 py-3 font-medium text-primary hover:bg-[#F0EBE3]"
+                className="block rounded-xl border border-[#E8DFD0] bg-cream px-4 py-3 font-medium text-paw-bark hover:bg-[#F0EBE3]"
               >
                 Add another pet
               </Link>
@@ -994,7 +1001,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
           aria-labelledby="vaccine-modal-title"
         >
           <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <h2 id="vaccine-modal-title" className="text-lg font-semibold text-primary">
+            <h2 id="vaccine-modal-title" className="text-lg font-semibold text-paw-bark">
               {vaccineModal.title}
             </h2>
             <p className="mt-4 whitespace-pre-wrap text-sm text-slate-700">{vaccineModal.body}</p>
@@ -1004,7 +1011,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
             </p>
             <button
               type="button"
-              className="mt-6 w-full rounded-xl bg-primary py-3 font-semibold text-white hover:opacity-95"
+              className="mt-6 w-full rounded-xl bg-paw-bark py-3 font-semibold text-white hover:opacity-95"
               onClick={() => setVaccineModal((m) => ({ ...m, open: false }))}
             >
               Close
@@ -1013,5 +1020,6 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
         </div>
       ) : null}
     </div>
+    </PageShell>
   );
 }

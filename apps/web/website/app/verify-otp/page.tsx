@@ -6,13 +6,15 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import api from '@/lib/api';
+import { MailCheck } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
 
 export const dynamic = 'force-dynamic';
 
 export default function VerifyOTPPage() {
   const router = useRouter();
   const { loginWithToken } = useAuth();
-  
+
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +23,6 @@ export default function VerifyOTPPage() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    // Read URL params on the client only (avoids Next prerender issues).
     const params = new URLSearchParams(window.location.search);
     const emailParam = params.get('email');
     if (emailParam) {
@@ -45,18 +46,17 @@ export default function VerifyOTPPage() {
 
       if (response.data.success) {
         setSuccess('Email verified successfully! Redirecting to dashboard...');
-        
-        // Login with the token received
+
         const userData = response.data.data;
         loginWithToken(userData);
-        
-        // Redirect to dashboard after 2 seconds
+
         setTimeout(() => {
           router.push('/dashboard');
         }, 2000);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Verification failed. Please try again.');
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -74,90 +74,88 @@ export default function VerifyOTPPage() {
 
       if (response.data.success) {
         setSuccess('New verification code sent to your email!');
-        setOtp(''); // Clear the OTP input
+        setOtp('');
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to resend code. Please try again.');
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || 'Failed to resend code. Please try again.');
     } finally {
       setResending(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F5E6CA] to-[#A67B5B] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+    <PageShell className="flex min-h-screen items-center justify-center p-4 sm:p-6">
+      <div className="paw-card-glass w-full max-w-md rounded-[1.75rem] border border-paw-bark/10 p-8 shadow-paw-lg">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🐾</div>
-          <h1 className="text-3xl font-bold text-[#703418] mb-2">Verify Your Email</h1>
-          <p className="text-gray-600">
-            We've sent a 6-digit code to
-          </p>
-          <p className="text-[#703418] font-semibold mt-1">{email}</p>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-paw-teal/10 text-paw-teal-mid">
+            <MailCheck className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+          </div>
+          <p className="paw-eyebrow-center mb-2">Almost there</p>
+          <h1 className="font-display text-3xl font-semibold text-paw-ink tracking-tight mb-2">
+            Verify your email
+          </h1>
+          <p className="text-paw-bark/70 text-sm">We sent a 6-digit code to</p>
+          <p className="text-paw-bark font-semibold mt-1">{email}</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-2xl mb-4 text-sm">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-3 rounded-2xl mb-4 text-sm">
             {success}
           </div>
         )}
 
         <form onSubmit={handleVerify} className="space-y-6">
           <div>
-            <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
-              Verification Code
+            <label htmlFor="otp" className="block text-sm font-medium text-paw-bark/80 mb-2">
+              Verification code
             </label>
             <Input
               id="otp"
               type="text"
-              placeholder="Enter 6-digit code"
+              placeholder="000000"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
               maxLength={6}
               required
-              className="text-center text-2xl tracking-widest font-bold"
+              className="text-center text-2xl tracking-[0.35em] font-semibold"
             />
-            <p className="text-xs text-gray-500 mt-2">
-              Code expires in 10 minutes
-            </p>
+            <p className="text-xs text-paw-bark/50 mt-2">Code expires in 10 minutes</p>
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading || otp.length !== 6}
-            className="w-full"
-          >
-            {loading ? 'Verifying...' : 'Verify Email'}
+          <Button type="submit" disabled={loading || otp.length !== 6} className="w-full" variant="primary">
+            {loading ? 'Verifying...' : 'Verify email'}
           </Button>
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600 mb-2">
-            Didn't receive the code?
-          </p>
+          <p className="text-sm text-paw-bark/60 mb-2">Didn&apos;t receive the code?</p>
           <button
+            type="button"
             onClick={handleResendOTP}
             disabled={resending}
-            className="text-[#703418] hover:text-[#A67B5B] font-semibold text-sm transition-colors disabled:opacity-50"
+            className="text-paw-teal-mid hover:text-paw-teal font-semibold text-sm transition-colors disabled:opacity-50"
           >
-            {resending ? 'Sending...' : 'Resend Code'}
+            {resending ? 'Sending...' : 'Resend code'}
           </button>
         </div>
 
         <div className="mt-6 text-center">
           <button
+            type="button"
             onClick={() => router.push('/login')}
-            className="text-sm text-gray-600 hover:text-[#703418] transition-colors"
+            className="text-sm text-paw-bark/60 hover:text-paw-bark transition-colors"
           >
-            Back to Login
+            Back to login
           </button>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

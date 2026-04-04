@@ -367,12 +367,12 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const yangoBlue = Color(0xFF0054FF);
+    const accent = Color(AppConstants.accentColor);
     const successGreen = Color(0xFF00C853);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
 
-    final bg = isDark ? Colors.black : Colors.grey.shade50;
+    final bg = isDark ? Colors.black : const Color(AppConstants.secondaryColor);
     final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
     final textStrong = isDark ? Colors.white : Colors.black87;
     final textMuted = isDark ? Colors.white70 : Colors.grey.shade700;
@@ -390,7 +390,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
           elevation: 0,
           title: Text(
             'Rider Control Center',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontWeight: FontWeight.w600,
               fontSize: 18,
               color: Colors.white,
@@ -403,8 +403,21 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
             ),
             onPressed: () => Navigator.of(context).pop(),
           ),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            indicatorColor: accent,
+            indicatorWeight: 3,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white.withValues(alpha: 0.72),
+            dividerColor: Colors.transparent,
+            labelStyle: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            unselectedLabelStyle: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+            tabs: const [
               Tab(icon: Icon(Icons.local_shipping_rounded), text: 'Deliveries'),
               Tab(icon: Icon(Icons.account_balance_wallet_rounded), text: 'Earnings History'),
             ],
@@ -438,7 +451,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                               children: [
                                 Text(
                                   'Status',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: textMuted,
@@ -458,11 +471,11 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                     const SizedBox(width: 10),
                                     Text(
                                       _online ? 'ONLINE' : 'OFFLINE',
-                                      style: GoogleFonts.oswald(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w700,
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
                                         color: textStrong,
-                                        letterSpacing: 0.6,
+                                        letterSpacing: 0.8,
                                       ),
                                     ),
                                   ],
@@ -515,7 +528,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                             children: [
                               Text(
                                 "Today's Earnings",
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white.withValues(alpha: 0.85),
@@ -524,7 +537,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 'Rs. ${_todaysEarnings.toStringAsFixed(0)}',
-                                style: GoogleFonts.oswald(
+                                style: GoogleFonts.fraunces(
                                   fontSize: 34,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -534,7 +547,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 'Total Tasks Completed: $_totalTasksCompleted',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white.withValues(alpha: 0.9),
@@ -554,22 +567,28 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                 _MetricChip(
                                   label: 'Rating',
                                   value: _rating.toStringAsFixed(1),
-                                  color: yangoBlue,
-                                  textStrong: Colors.white,
+                                  color: accent,
+                                  textStrong: isDark
+                                      ? Colors.white
+                                      : const Color(AppConstants.inkColor),
                                 ),
                                 const SizedBox(width: 12),
                                 _MetricChip(
                                   label: 'Acceptance Rate',
                                   value: '${(_acceptanceRate * 100).toStringAsFixed(0)}%',
-                                  color: Colors.blueAccent,
-                                  textStrong: Colors.white,
+                                  color: const Color(AppConstants.accentWarmColor),
+                                  textStrong: isDark
+                                      ? Colors.white
+                                      : const Color(AppConstants.inkColor),
                                 ),
                                 const SizedBox(width: 12),
                                 _MetricChip(
                                   label: 'Cancellation Rate',
                                   value: '${(_cancellationRate * 100).toStringAsFixed(0)}%',
-                                  color: Colors.grey,
-                                  textStrong: Colors.white,
+                                  color: Colors.grey.shade600,
+                                  textStrong: isDark
+                                      ? Colors.white
+                                      : const Color(AppConstants.inkColor),
                                 ),
                               ],
                             ),
@@ -611,7 +630,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Active',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                       color: _filter == 'active'
@@ -650,7 +669,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     'Delivered',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.w600,
                                       fontSize: 14,
                                       color: _filter == 'delivered'
@@ -680,7 +699,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                   children: [
                                     Text(
                                       _error!,
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.outfit(
                                         color: Colors.red[700],
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -716,7 +735,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         _filter == 'active'
                                             ? 'No active deliveries'
                                             : 'No completed deliveries yet',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.outfit(
                                           fontSize: 16,
                                           color: Colors.grey[600],
                                           fontWeight: FontWeight.w600,
@@ -727,7 +746,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         _filter == 'active'
                                             ? 'Assigned orders will appear here.'
                                             : 'Delivered orders show up here.',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.outfit(
                                           fontSize: 14,
                                           color: Colors.grey[500],
                                           fontWeight: FontWeight.w500,
@@ -800,7 +819,7 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const yangoBlue = Color(0xFF0054FF);
+    const accent = Color(AppConstants.accentColor);
     const successGreen = Color(0xFF00C853);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
@@ -867,7 +886,7 @@ class _OrderCard extends StatelessWidget {
               children: [
                 Text(
                   '#$shortId',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                     color: textStrong,
@@ -878,10 +897,10 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       distanceText,
-                      style: GoogleFonts.oswald(
+                      style: GoogleFonts.fraunces(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: yangoBlue,
+                        color: accent,
                         letterSpacing: 0.4,
                       ),
                     ),
@@ -897,7 +916,7 @@ class _OrderCard extends StatelessWidget {
                       ),
                       child: Text(
                         statusLabel(status),
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _statusColor(status),
@@ -911,7 +930,7 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Pickup: PawSewa Shop',
-              style: GoogleFonts.oswald(
+              style: GoogleFonts.outfit(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: textMuted,
@@ -923,7 +942,7 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Drop-off: $address',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: isDark ? Colors.white : Colors.black87,
@@ -941,7 +960,7 @@ class _OrderCard extends StatelessWidget {
                           '${(e is Map ? e['name'] : null) ?? 'Item'} × ${(e is Map ? e['quantity'] : null) ?? 1}',
                     )
                     .join(', '),
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
                   color: Colors.grey[600],
                 ),
@@ -955,10 +974,10 @@ class _OrderCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Total Rs. ${total.toStringAsFixed(0)}',
-                    style: GoogleFonts.oswald(
+                    style: GoogleFonts.fraunces(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: yangoBlue,
+                      color: accent,
                       letterSpacing: 0.4,
                     ),
                     maxLines: 1,
@@ -975,7 +994,7 @@ class _OrderCard extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: () => onNavigate(context, order),
                   style: FilledButton.styleFrom(
-                    backgroundColor: yangoBlue,
+                    backgroundColor: accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -985,10 +1004,10 @@ class _OrderCard extends StatelessWidget {
                   icon: const Icon(Icons.map_rounded, size: 20),
                   label: Text(
                     'View on map',
-                    style: GoogleFonts.oswald(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
@@ -1004,14 +1023,14 @@ class _OrderCard extends StatelessWidget {
                   icon: const Icon(Icons.chat_bubble_outline, size: 20),
                   label: Text(
                     'Chat with Customer',
-                    style: GoogleFonts.oswald(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.2,
                     ),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: isDark ? Colors.orange.shade800 : yangoBlue,
+                    backgroundColor: isDark ? Colors.orange.shade800 : accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
@@ -1027,7 +1046,7 @@ class _OrderCard extends StatelessWidget {
               SwipeActionButton(
                 disabled: isUpdating,
                 backgroundColor:
-                    next == 'delivered' ? successGreen : yangoBlue,
+                    next == 'delivered' ? successGreen : accent,
                 label:
                     next == 'delivered' ? 'Swipe to Complete' : 'Swipe to Start',
                 onSwiped: () => onUpdateStatus(id, next),
@@ -1045,7 +1064,7 @@ class _OrderCard extends StatelessWidget {
       case 'pending':
         return Colors.orange;
       case 'processing':
-        return Colors.blue;
+        return const Color(AppConstants.accentColor);
       case 'out_for_delivery':
         return Colors.deepOrange;
       case 'delivered':
@@ -1084,7 +1103,7 @@ class _MetricChip extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: textStrong.withValues(alpha: 0.85),
@@ -1093,7 +1112,7 @@ class _MetricChip extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.oswald(
+            style: GoogleFonts.fraunces(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: textStrong,
@@ -1133,7 +1152,7 @@ class _EarningsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
-    const yangoBlue = Color(0xFF0054FF);
+    const accent = Color(AppConstants.accentColor);
     const successGreen = Color(0xFF00C853);
 
     final total = transactions.length;
@@ -1180,7 +1199,7 @@ class _EarningsTab extends StatelessWidget {
                   children: [
                     Text(
                       "Today's Earnings",
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white.withValues(alpha: 0.85),
@@ -1189,7 +1208,7 @@ class _EarningsTab extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Rs. ${todaysSum.toStringAsFixed(0)}',
-                      style: GoogleFonts.oswald(
+                      style: GoogleFonts.fraunces(
                         fontSize: 34,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -1199,7 +1218,7 @@ class _EarningsTab extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'Deliveries Completed: $total',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.white.withValues(alpha: 0.9),
@@ -1214,7 +1233,7 @@ class _EarningsTab extends StatelessWidget {
               // Bar chart for last 7 days
               Text(
                 'Earnings (Last 7 Days)',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: isDark ? Colors.white : Colors.black87,
@@ -1240,14 +1259,14 @@ class _EarningsTab extends StatelessWidget {
                               duration: const Duration(milliseconds: 220),
                               height: barHeight,
                               decoration: BoxDecoration(
-                                color: ratio > 0 ? yangoBlue : Colors.grey,
+                                color: ratio > 0 ? accent : Colors.grey,
                                 borderRadius: BorderRadius.circular(10),
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               _formatDay(day),
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: isDark ? Colors.white70 : Colors.grey.shade700,
@@ -1266,7 +1285,7 @@ class _EarningsTab extends StatelessWidget {
 
               Text(
                 'Transaction History',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: isDark ? Colors.white : Colors.black87,
@@ -1291,7 +1310,7 @@ class _EarningsTab extends StatelessWidget {
                       const SizedBox(height: 12),
                       Text(
                         'No completed deliveries yet',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: isDark ? Colors.white70 : Colors.grey.shade700,
@@ -1344,7 +1363,7 @@ class _EarningsTab extends StatelessWidget {
                             children: [
                               Text(
                                 '#$shortId',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   color: isDark ? Colors.white : Colors.black87,
@@ -1359,7 +1378,7 @@ class _EarningsTab extends StatelessWidget {
                                 ),
                                 child: Text(
                                   'PAID',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                     color: successGreen,
@@ -1372,7 +1391,7 @@ class _EarningsTab extends StatelessWidget {
                           if (dt != null)
                             Text(
                               '$dateStr · $timeStr',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: isDark ? Colors.white70 : Colors.grey.shade600,
@@ -1381,10 +1400,10 @@ class _EarningsTab extends StatelessWidget {
                           const SizedBox(height: 10),
                           Text(
                             'Payout Total: Rs. ${payoutTotal.toStringAsFixed(0)}',
-                            style: GoogleFonts.oswald(
+                            style: GoogleFonts.fraunces(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              color: yangoBlue,
+                              color: accent,
                               letterSpacing: 0.4,
                             ),
                           ),
@@ -1419,7 +1438,7 @@ class _PayoutRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: Colors.grey.shade600,
@@ -1427,7 +1446,7 @@ class _PayoutRow extends StatelessWidget {
           ),
           Text(
             value,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w800,
               color: Colors.black87,
@@ -1537,11 +1556,11 @@ class _SwipeActionButtonState extends State<SwipeActionButton> {
             Center(
               child: Text(
                 widget.loading ? 'Updating...' : widget.label,
-                style: GoogleFonts.oswald(
-                  fontSize: 16,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: widget.backgroundColor,
-                  letterSpacing: 0.6,
+                  letterSpacing: 0.15,
                 ),
               ),
             ),

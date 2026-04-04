@@ -156,7 +156,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
           child: Text(
             'No seller chats yet.\nOpen a product and tap “Chat with Seller”.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(color: Colors.grey[700]),
+            style: GoogleFonts.outfit(color: Colors.grey[700]),
           ),
         ),
       );
@@ -178,7 +178,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
                 backgroundColor: primary.withValues(alpha: 0.15),
                 child: Icon(Icons.storefront, color: primary),
               ),
-              title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              title: Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
               subtitle: Text(
                 sub.isNotEmpty ? sub : 'Tap to continue',
                 maxLines: 1,
@@ -205,7 +205,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
           child: Text(
             'No active delivery chats.\nWhen a rider is assigned, chat from My Orders.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(color: Colors.grey[700]),
+            style: GoogleFonts.outfit(color: Colors.grey[700]),
           ),
         ),
       );
@@ -226,7 +226,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
                 backgroundColor: Colors.orange.shade100,
                 child: Icon(Icons.delivery_dining, color: Colors.orange.shade800),
               ),
-              title: Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              title: Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
               subtitle: const Text('Delivery in progress'),
               onTap: () => _openDeliveryThread(row),
             ),

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { PageShell } from '@/components/layout/PageShell';
 
 export default function MarketplaceChatPage({
   params,
@@ -57,12 +58,12 @@ export default function MarketplaceChatPage({
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-        <Link href="/shop" className="p-2 -ml-2 rounded-lg hover:bg-gray-100 text-primary">
+    <PageShell className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md px-4 py-3 flex items-center gap-3">
+        <Link href="/shop" className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors">
           <ChevronLeft className="w-6 h-6" />
         </Link>
-        <h1 className="text-lg font-bold text-primary">Chat</h1>
+        <h1 className="text-lg font-semibold text-paw-ink font-display">Chat</h1>
       </header>
       <main className="flex-1 overflow-y-auto p-4 space-y-2">
         {loading ? (
@@ -74,7 +75,7 @@ export default function MarketplaceChatPage({
               className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-gray-100 text-gray-900"
             >
               {m.productName ? (
-                <p className="text-xs font-semibold text-primary mb-1">Product: {m.productName}</p>
+                <p className="text-xs font-semibold text-paw-bark mb-1">Product: {m.productName}</p>
               ) : null}
               <p>{m.content}</p>
             </div>
@@ -93,11 +94,11 @@ export default function MarketplaceChatPage({
         <button
           type="button"
           onClick={send}
-          className="px-4 py-2 rounded-full bg-primary text-white text-sm font-semibold"
+          className="px-4 py-2 rounded-full bg-paw-bark text-white text-sm font-semibold"
         >
           Send
         </button>
       </div>
-    </div>
+    </PageShell>
   );
 }

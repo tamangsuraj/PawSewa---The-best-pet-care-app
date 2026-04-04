@@ -25,8 +25,11 @@ class AppConstants {
   static const String tokenKey = "partner_auth_token";
   static const String userKey = "partner_user_data";
 
-  // Brand Colors - PawSewa Brown Theme (matching user app)
-  static const int primaryColor = 0xFF703418; // PawSewa Brown
-  static const int secondaryColor = 0xFFFDF8F5; // Bone White
-  static const int accentColor = 0xFF8B4513; // Darker Brown
+  // Brand — partner / clinical luxe (deeper ink, teal accent; fonts via PartnerTheme)
+  static const int primaryColor = 0xFF3D2E24; // ink — authority
+  static const int inkColor = 0xFF2C2219; // deeper type
+  static const int secondaryColor = 0xFFF5F0EA; // warm bone
+  static const int accentColor = 0xFF14B8A6; // bright teal CTA
+  static const int accentWarmColor = 0xFF9A6B45; // warm bronze chips
+  static const int sandColor = 0xFFE8DFD4;
 }

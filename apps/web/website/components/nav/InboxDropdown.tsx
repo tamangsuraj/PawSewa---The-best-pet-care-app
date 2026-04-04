@@ -37,7 +37,7 @@ export function InboxDropdown() {
     return (
       <a
         href="/login?next=/"
-        className="text-[#4B3621]/80 hover:text-[#4B3621] text-sm font-medium px-2 py-1 rounded-lg hover:bg-[#4B3621]/5 transition-colors"
+        className="text-[#4B3621]/88 hover:text-[#2e2118] text-sm font-semibold px-3.5 py-2 rounded-full hover:bg-[#4B3621]/[0.07] transition-colors"
       >
         Inbox
       </a>
@@ -55,10 +55,10 @@ export function InboxDropdown() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-xl transition-colors border ${
+        className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full transition-all border ${
           open || hubOpen
-            ? 'bg-[#4B3621] text-[#FAF7F2] border-[#4B3621]'
-            : 'text-[#4B3621] border-transparent hover:bg-[#4B3621]/8'
+            ? 'text-[#FAF7F2] bg-gradient-to-br from-[#5c4330] to-[#3d2a1c] border-[#4B3621]/25 shadow-[0_4px_14px_rgba(75,54,33,0.2)]'
+            : 'text-[#4B3621]/88 border-transparent hover:bg-[#4B3621]/[0.07]'
         }`}
         aria-expanded={open}
         aria-haspopup="true"

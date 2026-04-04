@@ -5,6 +5,8 @@ import '../core/api_client.dart';
 import '../core/api_config.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
+import '../widgets/pawsewa_brand_logo.dart';
 import '../services/google_auth_service.dart';
 import '../services/permission_service.dart';
 import '../services/push_notification_service.dart';
@@ -268,54 +270,90 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final shortest = size.width < size.height ? size.width : size.height;
+    final padding = (size.width * 0.06).clamp(16.0, 28.0);
+    final logoSize = (shortest * 0.2).clamp(72.0, 100.0);
+    final primary = const Color(AppConstants.primaryColor);
+    final ink = const Color(AppConstants.inkColor);
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo/Icon
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: const Color(AppConstants.primaryColor),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.pets,
-                      size: 50,
-                      color: Colors.white,
-                    ),
+      body: EditorialCanvas(
+        variant: EditorialSurfaceVariant.customer,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: padding,
+                vertical: padding * 1.2,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: primary.withValues(alpha: 0.1)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ink.withValues(alpha: 0.08),
+                        blurRadius: 36,
+                        offset: const Offset(0, 20),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: logoSize,
+                            height: logoSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: primary.withValues(alpha: 0.12),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: ink.withValues(alpha: 0.06),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            padding: EdgeInsets.all(logoSize * 0.14),
+                            child: PawSewaBrandLogo(height: logoSize * 0.72),
+                          ),
+                          SizedBox(height: size.height * 0.02),
 
                   // App Name
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
                       AppConstants.appName,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: const Color(AppConstants.primaryColor),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: size.height * 0.01),
                   Text(
                     'Create Your Account',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
+                    style: GoogleFonts.fraunces(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
                       color: const Color(AppConstants.accentColor),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  SizedBox(height: size.height * 0.03),
 
                   // Name Field
                   TextFormField(
@@ -474,9 +512,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: _showSetServerIpDialog,
                     child: Text(
                       "Can't connect? Set server URL",
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
-                        color: Colors.grey,
+                        color: primary.withValues(alpha: 0.75),
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -499,7 +537,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
                               'Create Account',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -515,7 +553,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: GoogleFonts.poppins(color: Colors.black87),
+                        style: GoogleFonts.outfit(color: ink),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -527,7 +565,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                         child: Text(
                           'Login',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             color: const Color(AppConstants.primaryColor),
                             fontWeight: FontWeight.bold,
                           ),
@@ -540,18 +578,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Divider
                   Row(
                     children: [
-                      const Expanded(child: Divider(thickness: 1)),
+                      Expanded(
+                        child: Divider(
+                          thickness: 1,
+                          color: primary.withValues(alpha: 0.14),
+                        ),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           'OR',
-                          style: GoogleFonts.poppins(
-                            color: Colors.grey,
+                          style: GoogleFonts.outfit(
+                            color: ink.withValues(alpha: 0.45),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const Expanded(child: Divider(thickness: 1)),
+                      Expanded(
+                        child: Divider(
+                          thickness: 1,
+                          color: primary.withValues(alpha: 0.14),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 24),
@@ -563,11 +611,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.grey, width: 1.5),
+                        side: BorderSide(
+                          color: primary.withValues(alpha: 0.28),
+                          width: 1.5,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        backgroundColor: Colors.white,
+                        backgroundColor: Colors.white.withValues(alpha: 0.85),
                       ),
                       icon: _isGoogleLoading
                           ? const SizedBox(
@@ -582,15 +633,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                       label: Text(
                         'Continue with Google',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: ink,
                         ),
                       ),
                     ),
                   ),
                 ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

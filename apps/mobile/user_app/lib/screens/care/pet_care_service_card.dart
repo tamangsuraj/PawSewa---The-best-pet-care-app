@@ -131,7 +131,7 @@ class PetCareServiceCard extends StatelessWidget {
                                   ),
                                   child: Text(
                                     'Verified',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white,
@@ -148,7 +148,7 @@ class PetCareServiceCard extends StatelessWidget {
                                   ),
                                   child: Text(
                                     'Premium',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.white,
@@ -174,7 +174,7 @@ class PetCareServiceCard extends StatelessWidget {
                         children: [
                           Text(
                             name,
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: Colors.black87,
@@ -190,7 +190,7 @@ class PetCareServiceCard extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   loc,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     color: Colors.grey[600],
                                   ),
@@ -215,7 +215,7 @@ class PetCareServiceCard extends StatelessWidget {
                               const SizedBox(width: 2),
                               Text(
                                 rating.toStringAsFixed(1),
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: _tealRating,
@@ -236,7 +236,7 @@ class PetCareServiceCard extends StatelessWidget {
                   children: [
                     Text(
                       'Rs. ${numPrice.toStringAsFixed(0)}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: Colors.black87,
@@ -246,7 +246,7 @@ class PetCareServiceCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         priceSubtitle().toUpperCase(),
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           letterSpacing: 0.4,

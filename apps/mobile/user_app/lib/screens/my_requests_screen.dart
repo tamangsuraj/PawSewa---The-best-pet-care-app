@@ -123,7 +123,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       appBar: AppBar(
         title: Text(
           'My Requests',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,
             color: Colors.white,
@@ -148,7 +148,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Loading your requests…',
-                    style: GoogleFonts.poppins(color: Colors.grey[700]),
+                    style: GoogleFonts.outfit(color: Colors.grey[700]),
                   ),
                 ],
               ),
@@ -189,14 +189,14 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             const SizedBox(height: 16),
             Text(
               _error!,
-              style: GoogleFonts.poppins(color: Colors.grey[700]),
+              style: GoogleFonts.outfit(color: Colors.grey[700]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadAll,
               icon: const Icon(Icons.refresh_rounded),
-              label: Text('Retry', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              label: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(AppConstants.primaryColor),
                 foregroundColor: Colors.white,
@@ -238,11 +238,11 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
           const SizedBox(height: 8),
           Text(
             count.toString(),
-            style: GoogleFonts.poppins(fontSize: 22, fontWeight: FontWeight.bold, color: color),
+            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: color),
           ),
           Text(
             label,
-            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -271,7 +271,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       child: FilterChip(
         label: Text(
           label,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             color: selected ? Colors.white : Colors.grey[700],
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
@@ -299,13 +299,13 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
             const SizedBox(height: 20),
             Text(
               _filterStatus == 'all' ? 'No requests yet' : 'No ${_filterStatus.replaceAll('_', ' ')} requests',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
               'Use Request Assistance or Book Appointment to create one. They all appear here and in admin Live Cases.',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -317,7 +317,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                 ).then((_) => _loadAll());
               },
               icon: const Icon(Icons.add_rounded),
-              label: Text('Request assistance or book', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              label: Text('Request assistance or book', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(AppConstants.primaryColor),
                 foregroundColor: Colors.white,
@@ -430,7 +430,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       ),
                       child: Text(
                         isAppointment ? 'Appointment' : 'Assistance',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: isAppointment ? Colors.blue.shade800 : Colors.amber.shade800,
@@ -451,7 +451,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                           const SizedBox(width: 4),
                           Text(
                             statusText,
-                            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
+                            style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: statusColor),
                           ),
                         ],
                       ),
@@ -494,7 +494,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                         children: [
                           Text(
                             pet?['name']?.toString() ?? 'Pet',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: const Color(AppConstants.accentColor),
@@ -505,14 +505,14 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                           const SizedBox(height: 2),
                           Text(
                             title,
-                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800]),
+                            style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[800]),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           if (subtitle.isNotEmpty)
                             Text(
                               subtitle,
-                              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                              style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -525,7 +525,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                                 Expanded(
                                   child: Text(
                                     location,
-                                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -575,28 +575,28 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
               const SizedBox(height: 20),
               Text(
                 'Request Assistance',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
               if (pet != null)
                 Text(
                   'Pet: ${pet['name']}',
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+                  style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
                 ),
               const SizedBox(height: 8),
               Text(
                 item['issueDescription']?.toString() ?? 'No description',
-                style: GoogleFonts.poppins(fontSize: 14),
+                style: GoogleFonts.outfit(fontSize: 14),
               ),
               const SizedBox(height: 8),
               Text(
                 'Location: ${item['location'] ?? '—'}',
-                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
               ),
               const SizedBox(height: 8),
               Text(
                 'Status: ${(item['status'] ?? 'pending').toString().replaceAll('_', ' ')}',
-                style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ],
           ),

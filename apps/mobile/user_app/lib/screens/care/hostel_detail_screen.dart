@@ -79,7 +79,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
         ),
         title: Text(
           '$serviceType Details',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 18,
             color: primary,
@@ -122,7 +122,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                               ),
                               child: Text(
                                 '${_selectedImageIndex + 1} / ${displayImages.length}',
-                                style: GoogleFonts.poppins(color: Colors.white, fontSize: 12),
+                                style: GoogleFonts.outfit(color: Colors.white, fontSize: 12),
                               ),
                             ),
                           ),
@@ -156,7 +156,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                   // About - different title for grooming/spa
                   Text(
                     isSession ? 'Professional Spa & Hygiene' : 'A Safe Home Away From Home',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: primary,
@@ -165,7 +165,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                   const SizedBox(height: 8),
                   Text(
                     desc,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       color: Colors.grey[700],
                       height: 1.5,
@@ -175,7 +175,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Included Services',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -188,7 +188,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Our Groomers',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -201,7 +201,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Amenities',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -221,7 +221,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                                 ),
                                 child: Text(
                                   a.toString(),
-                                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[800]),
+                                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[800]),
                                 ),
                               ))
                           .toList(),
@@ -231,7 +231,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Hostel Schedule',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -258,7 +258,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                                       width: 70,
                                       child: Text(
                                         m['time']?.toString() ?? '',
-                                        style: GoogleFonts.poppins(
+                                        style: GoogleFonts.outfit(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.grey[800],
@@ -267,7 +267,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                                     ),
                                     Text(
                                       m['activity']?.toString() ?? '',
-                                      style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
+                                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
                                     ),
                                   ],
                                 ),
@@ -281,7 +281,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Location',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -295,7 +295,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                         Expanded(
                           child: Text(
                             address,
-                            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+                            style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
                           ),
                         ),
                       ],
@@ -305,7 +305,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                     const SizedBox(height: 20),
                     Text(
                       'Reviews',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -318,7 +318,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                         const SizedBox(width: 4),
                         Text(
                           '${rating.toStringAsFixed(1)} ($reviewCount+ reviews)',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey[800],
@@ -354,7 +354,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                 children: [
                   Text(
                     'Rs. ${price.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: primary,
@@ -362,7 +362,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                   ),
                   Text(
                     isSession ? 'per session' : 'per night',
-                    style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -452,7 +452,7 @@ class _IncludedServicesGrid extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 label.toUpperCase(),
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: Colors.grey[800],
@@ -501,21 +501,21 @@ class _GroomersRow extends StatelessWidget {
                   child: s['photoUrl'] == null || s['photoUrl'].toString().isEmpty
                       ? Text(
                           name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: primary),
+                          style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: primary),
                         )
                       : null,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   name,
-                  style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '$exp+ Years Exp',
-                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+                  style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),

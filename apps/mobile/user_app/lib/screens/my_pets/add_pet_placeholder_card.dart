@@ -45,7 +45,7 @@ class AddPetPlaceholderCard extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       'Have another pet?',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
@@ -53,7 +53,7 @@ class AddPetPlaceholderCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Register them now.',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: _primary,

@@ -19,23 +19,23 @@ export function ShopFloatingCart() {
       >
         <div className="mb-4 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#4A2E1B]/10 text-[#4A2E1B]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#4A2E1B]/10 text-paw-foreground">
               <ShoppingBag className="h-5 w-5" />
             </span>
-            <span className="font-semibold text-[#4A2E1B]">Cart Summary</span>
+            <span className="font-semibold text-paw-foreground">Cart Summary</span>
           </div>
           <span className="rounded-full bg-[#4A2E1B] px-2.5 py-0.5 text-xs font-bold text-[#F8F6F0]">
             {totalItems} {totalItems === 1 ? 'Item' : 'Items'}
           </span>
         </div>
-        <div className="space-y-2 border-b border-[#4A2E1B]/10 pb-4 text-sm">
-          <div className="flex justify-between text-[#4A2E1B]/80">
+        <div className="space-y-2 border-b border-paw-foreground/10 pb-4 text-sm">
+          <div className="flex justify-between text-paw-foreground/80">
             <span>Subtotal</span>
-            <span className="font-semibold text-[#4A2E1B]">
+            <span className="font-semibold text-paw-foreground">
               Rs. {Math.round(subtotal).toLocaleString('en-NP')}
             </span>
           </div>
-          <div className="flex justify-between text-[#4A2E1B]/80">
+          <div className="flex justify-between text-paw-foreground/80">
             <span>Delivery</span>
             <span className="font-semibold text-emerald-700">{deliveryLabel}</span>
           </div>

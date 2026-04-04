@@ -201,7 +201,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
             ),
             content: Text(
               'Your service request has been submitted and is now in Pending Review. You will be notified once a partner is assigned.',
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
             ),
             actions: [
               TextButton(
@@ -211,7 +211,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 },
                 child: Text(
                   'OK',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     color: const Color(AppConstants.primaryColor),
                     fontWeight: FontWeight.w600,
                   ),
@@ -245,7 +245,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: GoogleFonts.poppins()),
+        content: Text(message, style: GoogleFonts.outfit()),
         backgroundColor: Colors.red,
       ),
     );
@@ -347,7 +347,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                       child: Center(
                         child: Text(
                           '${i + 1}',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -368,7 +368,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 const SizedBox(height: 6),
                 Text(
                   labels[i],
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                     color: isActive
@@ -390,7 +390,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
         child: Text(
           'No pets found. Please add a pet first.',
           textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+          style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
         ),
       );
     }
@@ -447,7 +447,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     children: [
                       Text(
                         name,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey[900],
@@ -456,7 +456,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                       if (breed.isNotEmpty)
                         Text(
                           breed,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: Colors.grey[700],
                           ),
@@ -529,7 +529,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     children: [
                       Text(
                         type,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey[900],
@@ -538,7 +538,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                       const SizedBox(height: 2),
                       Text(
                         description,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: Colors.grey[700],
                         ),
@@ -574,7 +574,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
         children: [
           Text(
             'Preferred date',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           InkWell(
@@ -620,7 +620,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   Expanded(
                     child: Text(
                       dateLabel,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[900],
                       ),
@@ -634,7 +634,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           const SizedBox(height: 16),
           Text(
             'Time window',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           LayoutBuilder(
@@ -663,7 +663,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           const SizedBox(height: 16),
           Text(
             'Payment',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Row(
@@ -687,7 +687,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ),
                     child: Text(
                       'Pay online (Khalti)',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: _paymentMethod == 'online'
@@ -718,7 +718,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ),
                     child: Text(
                       'Cash on delivery',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: _paymentMethod == 'cash_on_delivery'
@@ -737,7 +737,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
             children: [
               Text(
                 'Service location (Kathmandu Valley)',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               ),
               if (!_isInsideKathmandu)
                 Row(
@@ -746,7 +746,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     const SizedBox(width: 4),
                     Text(
                       'Kathmandu only',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 11,
                         color: Colors.red,
                       ),
@@ -825,7 +825,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   children: [
                     Text(
                       'Pan the map to move the pin, then confirm to lock the address.',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 11,
                         color: Colors.grey[800],
                       ),
@@ -836,7 +836,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           'Selected: $_confirmedAddress',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 11,
                             color: Colors.grey[900],
                           ),
@@ -847,7 +847,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           _geoWarning!,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 11,
                             color: Colors.red[700],
                           ),
@@ -882,7 +882,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     : const Icon(Icons.check),
                 label: Text(
                   'Confirm location',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -893,7 +893,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           const SizedBox(height: 16),
           Text(
             'Extra location details (optional)',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -919,7 +919,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           const SizedBox(height: 16),
           Text(
             'Notes (optional)',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -994,7 +994,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                 ),
                 child: Text(
                   'Back',
-                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -1029,7 +1029,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                       )
                     : Text(
                         isLast ? 'Submit' : 'Next',
-                        style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
                       ),
               ),
             ),
@@ -1046,7 +1046,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       appBar: AppBar(
         title: Text(
           'Book Service',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),

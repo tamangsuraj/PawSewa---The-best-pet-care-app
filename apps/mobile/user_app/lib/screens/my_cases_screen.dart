@@ -61,7 +61,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
       appBar: AppBar(
         title: Text(
           'My Cases',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -91,7 +91,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                       const SizedBox(height: 16),
                       Text(
                         _error!,
-                        style: GoogleFonts.poppins(color: Colors.red),
+                        style: GoogleFonts.outfit(color: Colors.red),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
@@ -102,7 +102,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                         ),
                         child: Text(
                           'Retry',
-                          style: GoogleFonts.poppins(color: Colors.white),
+                          style: GoogleFonts.outfit(color: Colors.white),
                         ),
                       ),
                     ],
@@ -182,7 +182,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                                     _filterStatus == 'all'
                                         ? 'No Cases Yet'
                                         : 'No ${_filterStatus.replaceAll('_', ' ')} Cases',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.grey[700],
@@ -193,7 +193,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                                     _filterStatus == 'all'
                                         ? 'Submit an assistance request to get started'
                                         : 'No cases with this status',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 14,
                                       color: Colors.grey[500],
                                     ),
@@ -239,7 +239,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
           const SizedBox(height: 8),
           Text(
             count.toString(),
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color,
@@ -247,7 +247,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
           ),
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 12,
               color: Colors.grey[600],
             ),
@@ -264,7 +264,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
       child: FilterChip(
         label: Text(
           label,
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             color: isSelected ? Colors.white : Colors.grey[700],
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
@@ -345,7 +345,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                   const SizedBox(width: 6),
                   Text(
                     statusText,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: statusColor,
@@ -387,7 +387,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                     children: [
                       Text(
                         pet?['name'] ?? 'Unknown Pet',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: const Color(AppConstants.accentColor),
@@ -395,7 +395,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                       ),
                       Text(
                         '${pet?['breed'] ?? 'Unknown'} • ${pet?['age'] ?? '?'} years',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 13,
                           color: Colors.grey[600],
                         ),
@@ -410,7 +410,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
             // Issue Description
             Text(
               'Issue:',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[700],
@@ -419,7 +419,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
             const SizedBox(height: 4),
             Text(
               caseData['issueDescription'] ?? 'No description',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 14,
                 color: Colors.grey[800],
               ),
@@ -434,7 +434,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                 Expanded(
                   child: Text(
                     caseData['location'] ?? 'No location',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 13,
                       color: Colors.grey[600],
                     ),
@@ -458,7 +458,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                   children: [
                     Text(
                       'Assigned Veterinarian:',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: const Color(AppConstants.primaryColor),
@@ -486,7 +486,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                             children: [
                               Text(
                                 'Dr. ${assignedVet['name']}',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: const Color(AppConstants.primaryColor),
@@ -496,7 +496,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                                   assignedVet['specialization'] != null)
                                 Text(
                                   assignedVet['specialty'] ?? assignedVet['specialization'],
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 12,
                                     color: Colors.grey[700],
                                   ),
@@ -512,7 +512,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                                     const SizedBox(width: 4),
                                     Text(
                                       assignedVet['phone'],
-                                      style: GoogleFonts.poppins(
+                                      style: GoogleFonts.outfit(
                                         fontSize: 12,
                                         color: Colors.grey[800],
                                       ),
@@ -545,7 +545,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                     const SizedBox(width: 8),
                     Text(
                       'Case Completed',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Colors.green.shade900,

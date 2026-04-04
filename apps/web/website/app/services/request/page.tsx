@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import nextDynamic from 'next/dynamic';
 import api from '@/lib/api';
-import { AlertCircle, MapPin, Stethoscope } from 'lucide-react';
+import { AlertCircle, MapPin, Stethoscope, PawPrint } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
 
 const KathmanduBounds = {
   minLat: 27.55,
@@ -167,52 +169,50 @@ export default function ServiceRequestPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5E6CA] flex items-center justify-center">
-        <div className="text-[#703418] text-xl">Loading...</div>
-      </div>
+      <PageShell className="flex min-h-screen items-center justify-center">
+        <p className="text-paw-bark text-xl">Loading...</p>
+      </PageShell>
     );
   }
 
   if (pets.length === 0) {
     return (
-      <div className="min-h-screen bg-[#F5E6CA] flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-xl text-center">
-          <div className="text-6xl mb-4">🐾</div>
-          <h1 className="text-3xl font-bold text-[#703418] mb-2">No Pets Registered</h1>
-          <p className="text-gray-700 mb-6">
-            You need to add a pet before creating a service request.
-          </p>
+      <PageShell className="flex min-h-screen items-center justify-center p-6">
+        <div className="paw-card-glass w-full max-w-xl rounded-[1.75rem] border border-paw-bark/10 p-10 text-center shadow-paw-lg">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-paw-sand text-paw-bark">
+            <PawPrint className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+          </div>
+          <h1 className="font-display text-3xl font-semibold text-paw-ink mb-2">No pets registered</h1>
+          <p className="text-paw-bark/75 mb-6">Add a pet before booking a service.</p>
           <button
+            type="button"
             onClick={() => (window.location.href = '/my-pets/add')}
-            className="px-6 py-3 bg-[#703418] text-white rounded-xl font-semibold hover:bg-[#8B4513] transition-colors"
+            className="px-6 py-3 rounded-full bg-paw-bark text-paw-cream font-semibold hover:bg-paw-ink transition-colors shadow-paw"
           >
-            + Add Your First Pet
+            Add your first pet
           </button>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5E6CA]">
-      <div className="bg-[#703418] text-white py-16">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-2">Book a Service</h1>
-          <p className="text-[#F5E6CA]">Appointment, health checkup, or vaccination</p>
-        </div>
-      </div>
+    <PageShell>
+      <PageHero
+        eyebrow="Scheduling"
+        title="Book a service"
+        subtitle="Appointment, health checkup, or vaccination — with map-based location in Kathmandu Valley."
+      />
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Info card */}
-          <div className="bg-white border-2 border-[#703418] rounded-2xl p-6 flex gap-4 items-start">
-            <div className="bg-[#703418]/10 p-3 rounded-full">
-              <Stethoscope className="w-6 h-6 text-[#703418]" />
+          <div className="paw-card-glass border-2 border-paw-bark/15 rounded-2xl p-6 flex gap-4 items-start shadow-paw">
+            <div className="bg-paw-bark/10 p-3 rounded-full">
+              <Stethoscope className="w-6 h-6 text-paw-bark" />
             </div>
             <div>
-              <h2 className="font-bold text-[#703418] text-lg mb-1">
-                Open-Source Location with OSM
-              </h2>
+              <h2 className="font-bold text-paw-ink text-lg mb-1">Open-source location (OSM)</h2>
               <p className="text-gray-800 text-sm">
                 We use OpenStreetMap for location selection. Services are currently limited to the Kathmandu
                 Valley boundary.
@@ -220,7 +220,7 @@ export default function ServiceRequestPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-8 space-y-6 shadow-paw">
             {error && (
               <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
                 <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -230,13 +230,13 @@ export default function ServiceRequestPage() {
 
             {/* Pet selection */}
             <div>
-              <label className="block text-sm font-semibold text-[#703418] mb-2">
+              <label className="block text-sm font-semibold text-paw-ink mb-2">
                 Select Pet *
               </label>
               <select
                 value={selectedPetId}
                 onChange={(e) => setSelectedPetId(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-[#703418] focus:outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-paw-teal-mid focus:outline-none"
               >
                 <option value="">Choose your pet...</option>
                 {pets.map((pet) => (
@@ -249,7 +249,7 @@ export default function ServiceRequestPage() {
 
             {/* Service type */}
             <div>
-              <label className="block text-sm font-semibold text-[#703418] mb-2">
+              <label className="block text-sm font-semibold text-paw-ink mb-2">
                 Service Type *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -260,8 +260,8 @@ export default function ServiceRequestPage() {
                     onClick={() => setServiceType(type as any)}
                     className={`rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-colors ${
                       serviceType === type
-                        ? 'border-[#703418] bg-[#703418] text-white'
-                        : 'border-gray-200 bg-white text-gray-800 hover:border-[#703418]/60'
+                        ? 'border-paw-bark bg-paw-bark text-white'
+                        : 'border-gray-200 bg-white text-gray-800 hover:border-paw-bark/60'
                     }`}
                   >
                     {type}
@@ -272,7 +272,7 @@ export default function ServiceRequestPage() {
 
             {/* Payment method */}
             <div>
-              <label className="block text-sm font-semibold text-[#703418] mb-2">
+              <label className="block text-sm font-semibold text-paw-ink mb-2">
                 Payment *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -281,8 +281,8 @@ export default function ServiceRequestPage() {
                   onClick={() => setPaymentMethod('online')}
                   className={`rounded-2xl border-2 px-4 py-3 text-left text-sm font-medium transition-colors ${
                     paymentMethod === 'online'
-                      ? 'border-[#703418] bg-[#703418] text-white'
-                      : 'border-gray-200 bg-white text-gray-800 hover:border-[#703418]/60'
+                      ? 'border-paw-bark bg-paw-bark text-white'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-paw-bark/60'
                   }`}
                 >
                   Pay online (Khalti) — pay now before vet is assigned
@@ -292,8 +292,8 @@ export default function ServiceRequestPage() {
                   onClick={() => setPaymentMethod('cash_on_delivery')}
                   className={`rounded-2xl border-2 px-4 py-3 text-left text-sm font-medium transition-colors ${
                     paymentMethod === 'cash_on_delivery'
-                      ? 'border-[#703418] bg-[#703418] text-white'
-                      : 'border-gray-200 bg-white text-gray-800 hover:border-[#703418]/60'
+                      ? 'border-paw-bark bg-paw-bark text-white'
+                      : 'border-gray-200 bg-white text-gray-800 hover:border-paw-bark/60'
                   }`}
                 >
                   Cash on delivery — pay the vet when they arrive
@@ -304,24 +304,24 @@ export default function ServiceRequestPage() {
             {/* Date & Time window */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-[#703418] mb-2">
+                <label className="block text-sm font-semibold text-paw-ink mb-2">
                   Preferred Date *
                 </label>
                 <input
                   type="date"
                   value={preferredDate}
                   onChange={(e) => setPreferredDate(e.target.value)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-[#703418] focus:outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-paw-teal-mid focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-[#703418] mb-2">
+                <label className="block text-sm font-semibold text-paw-ink mb-2">
                   Time Window *
                 </label>
                 <select
                   value={timeWindow}
                   onChange={(e) => setTimeWindow(e.target.value as any)}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-[#703418] focus:outline-none"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-paw-teal-mid focus:outline-none"
                 >
                   <option value="">Choose a time window...</option>
                   <option value="Morning (9am-12pm)">Morning (9am-12pm)</option>
@@ -333,7 +333,7 @@ export default function ServiceRequestPage() {
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-semibold text-[#703418] mb-2">
+              <label className="block text-sm font-semibold text-paw-ink mb-2">
                 Notes (optional)
               </label>
               <textarea
@@ -341,14 +341,14 @@ export default function ServiceRequestPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder="Describe any symptoms, previous history, or preferences."
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-[#703418] focus:outline-none"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-paw-teal-mid focus:outline-none"
               />
             </div>
 
             {/* Map */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-sm font-semibold text-[#703418]">
+                <label className="block text-sm font-semibold text-paw-ink">
                   Service Location (Kathmandu Valley) *
                 </label>
                 {!isInsideKathmandu && (
@@ -358,7 +358,7 @@ export default function ServiceRequestPage() {
                   </span>
                 )}
               </div>
-              <div className="relative rounded-[16px] overflow-hidden border-2 border-[#703418] bg-gray-100 h-[320px]">
+              <div className="relative rounded-[16px] overflow-hidden border-2 border-paw-bark bg-paw-sand/40 h-[320px]">
                 <DynamicServiceRequestMap
                   center={center}
                   onCenterChange={(lat, lng) => setCenter([lat, lng])}
@@ -367,7 +367,7 @@ export default function ServiceRequestPage() {
 
                 {/* Fixed center pin */}
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="transform -translate-y-4 text-[#703418] drop-shadow">
+                  <div className="transform -translate-y-4 text-paw-bark drop-shadow">
                     <MapPin className="w-8 h-8" />
                   </div>
                 </div>
@@ -384,7 +384,7 @@ export default function ServiceRequestPage() {
                 <button
                   type="button"
                   onClick={handleConfirmLocation}
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-[#703418] text-white text-sm font-semibold hover:bg-[#8B4513] transition-colors"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-paw-bark text-paw-cream text-sm font-semibold hover:bg-paw-ink transition-colors"
                 >
                   Confirm Location
                 </button>
@@ -413,7 +413,7 @@ export default function ServiceRequestPage() {
                 className={`px-6 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 ${
                   submitting || !isInsideKathmandu
                     ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-[#703418] text-white hover:bg-[#8B4513]'
+                    : 'bg-paw-bark text-paw-cream hover:bg-paw-ink'
                 }`}
               >
                 {submitting ? 'Submitting...' : 'Submit Request'}
@@ -422,7 +422,7 @@ export default function ServiceRequestPage() {
           </form>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

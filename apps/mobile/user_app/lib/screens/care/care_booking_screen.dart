@@ -222,7 +222,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
         ),
         title: Text(
           'HOSTEL BOOKING',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 16,
             color: primary,
@@ -249,7 +249,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           // Guest / Pet selection
           Text(
             'Guest Information',
-            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
           ),
           const SizedBox(height: 8),
           if (_loadingPets)
@@ -267,7 +267,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
               ),
               child: Text(
                 'Add a pet first from My Pets to make a booking.',
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.amber.shade900),
+                style: GoogleFonts.outfit(fontSize: 14, color: Colors.amber.shade900),
               ),
             )
           else
@@ -311,7 +311,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                             child: pet.photoUrl == null || pet.photoUrl!.isEmpty
                                 ? Text(
                                     pet.name.isNotEmpty ? pet.name[0].toUpperCase() : '?',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontWeight: FontWeight.bold,
                                       color: primary,
                                     ),
@@ -326,7 +326,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                               children: [
                                 Text(
                                   pet.name,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
@@ -334,7 +334,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                                 if (pet.pawId != null)
                                   Text(
                                     pet.pawId!,
-                                    style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+                                    style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[600]),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -355,7 +355,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           // Booking duration
           Text(
             'Booking Duration',
-            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
           ),
           const SizedBox(height: 12),
           Row(
@@ -382,7 +382,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
               padding: const EdgeInsets.only(top: 8),
               child: Text(
                 '$nights night${nights > 1 ? 's' : ''}',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: primary,
@@ -395,7 +395,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           if (roomTypes.isNotEmpty) ...[
             Text(
               'Select Room Type',
-              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -467,14 +467,14 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                               children: [
                                 Text(
                                   name,
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
                                 ),
                                 Text(
                                   'Rs. ${price.toStringAsFixed(0)} /night',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 13,
                                     fontWeight: FontWeight.bold,
                                     color: primary,
@@ -505,7 +505,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                 ),
                 child: Text(
                   _error!,
-                  style: GoogleFonts.poppins(fontSize: 13, color: Colors.red.shade800),
+                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.red.shade800),
                 ),
               ),
             ),
@@ -547,7 +547,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                     )
                   : Text(
                       'Proceed to Payment',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 16),
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
             ),
             const SizedBox(height: 10),
@@ -559,7 +559,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                     },
               child: Text(
                 'Book & Pay at Check-in (COD)',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Colors.grey[700],
@@ -588,7 +588,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
         children: [
           Text(
             'Payment Summary',
-            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
           ),
           const SizedBox(height: 12),
           Container(
@@ -610,7 +610,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                   children: [
                     Text(
                       'Total Amount',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: const Color(0xFF2D2D2D),
@@ -618,7 +618,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                     ),
                     Text(
                       'Rs. ${total.toStringAsFixed(2)}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: primary,
@@ -632,7 +632,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           const SizedBox(height: 24),
           Text(
             'QUICK PAYMENT',
-            style: GoogleFonts.poppins(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+            style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
           ),
           const SizedBox(height: 12),
           // Khalti button
@@ -647,7 +647,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                 : Image.asset('assets/khalti.png', height: 24, width: 24, errorBuilder: (_, _, _) => const Icon(Icons.payment)),
             label: Text(
               'Pay with Khalti',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -662,7 +662,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           const SizedBox(height: 24),
           Text(
             'Hostel Policies',
-            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
           ),
           const SizedBox(height: 8),
           Container(
@@ -680,7 +680,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                 Expanded(
                   child: Text(
                     'Vaccination card and health certificate are mandatory upon check-in for the safety of all pets.',
-                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
+                    style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[700]),
                   ),
                 ),
               ],
@@ -719,7 +719,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
               : const Icon(Icons.calendar_today, size: 18),
           label: Text(
             'Confirm Hostel Booking  Rs. ${total.toStringAsFixed(0)}',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 15),
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: primary,
@@ -758,7 +758,7 @@ class _DateField extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey[600]),
+              style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[600]),
             ),
             const SizedBox(height: 6),
             Row(
@@ -769,7 +769,7 @@ class _DateField extends StatelessWidget {
                   date != null
                       ? '${date!.day}/${date!.month}/${date!.year}'
                       : 'Select date',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: date != null ? Colors.black87 : Colors.grey[500],
@@ -797,8 +797,8 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700])),
-          Text(value, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(label, style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700])),
+          Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500)),
         ],
       ),
     );

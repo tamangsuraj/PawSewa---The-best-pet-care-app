@@ -153,7 +153,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
               children: [
                 Text(
                   'Case submitted! Our team is assigning the best available Veterinarian to you. You\'ll be notified once a vet is assigned and they will contact you shortly.',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 14,
                     color: Colors.grey[700],
                   ),
@@ -180,7 +180,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                       Expanded(
                         child: Text(
                           'You will be notified once a veterinarian is assigned. This case will appear in My Requests and in the admin Live Cases.',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: Colors.grey[800],
                           ),
@@ -199,7 +199,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                 },
                 child: Text(
                   'OK',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     color: const Color(AppConstants.primaryColor),
                     fontWeight: FontWeight.w600,
                   ),
@@ -227,7 +227,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message, style: GoogleFonts.poppins()),
+          content: Text(message, style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -244,7 +244,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
       appBar: AppBar(
         title: Text(
           'Request Assistance',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -279,7 +279,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
             const SizedBox(height: 16),
             Text(
               'Couldn\'t load pets',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[800],
@@ -289,7 +289,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
             Text(
               _loadError!,
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -297,7 +297,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
               icon: const Icon(Icons.refresh),
               label: Text(
                 'Retry',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(AppConstants.primaryColor),
@@ -322,7 +322,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
             const SizedBox(height: 16),
             Text(
               'No pets registered',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[800],
@@ -332,7 +332,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
             Text(
               'Add a pet first to request assistance.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[600]),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -346,7 +346,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
               icon: const Icon(Icons.add),
               label: Text(
                 'Add your first pet',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(AppConstants.primaryColor),
@@ -401,7 +401,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                       children: [
                         Text(
                           'How It Works',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: const Color(AppConstants.primaryColor),
@@ -410,7 +410,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                         const SizedBox(height: 6),
                         Text(
                           'Our team will assign the best available veterinarian to your case. You\'ll be notified once a vet is assigned and they will contact you shortly.',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 13,
                             color: Colors.grey[800],
                             height: 1.35,
@@ -444,7 +444,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                   // Select Pet *
                   Text(
                     'Select Pet *',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
@@ -455,7 +455,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                     initialValue: _selectedPetId,
                     decoration: InputDecoration(
                       hintText: 'Choose your pet...',
-                      hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                      hintStyle: GoogleFonts.outfit(color: Colors.grey[500]),
                       prefixIcon: const Icon(
                         Icons.pets,
                         color: Color(AppConstants.primaryColor),
@@ -485,7 +485,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                         value: id,
                         child: Text(
                           '$name • $breed${age != null ? ' • $age yrs' : ''}',
-                          style: GoogleFonts.poppins(fontSize: 14),
+                          style: GoogleFonts.outfit(fontSize: 14),
                           overflow: TextOverflow.ellipsis,
                         ),
                       );
@@ -503,7 +503,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                   // Describe the Issue *
                   Text(
                     'Describe the Issue *',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
@@ -514,11 +514,11 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                     controller: _issueController,
                     maxLines: 5,
                     maxLength: _issueMaxLength,
-                    style: GoogleFonts.poppins(fontSize: 14),
+                    style: GoogleFonts.outfit(fontSize: 14),
                     decoration: InputDecoration(
                       hintText:
                           'Please describe what\'s wrong with your pet in detail...',
-                      hintStyle: GoogleFonts.poppins(
+                      hintStyle: GoogleFonts.outfit(
                         fontSize: 14,
                         color: Colors.grey[500],
                       ),
@@ -548,7 +548,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                   const SizedBox(height: 4),
                   Text(
                     '${_issueController.text.length}/$_issueMaxLength characters',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 12,
                       color: Colors.grey[500],
                     ),
@@ -558,7 +558,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                   // Your Location * (Saved Addresses + Map picker)
                   Text(
                     'Your Location *',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: Colors.grey[800],
@@ -574,7 +574,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                           children: [
                             Text(
                               'Saved Addresses',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                                 color: Colors.grey[700],
@@ -602,8 +602,8 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(addr.label, style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
-                                            Text(addr.address, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[700]), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                            Text(addr.label, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+                                            Text(addr.address, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]), maxLines: 2, overflow: TextOverflow.ellipsis),
                                           ],
                                         ),
                                       ),
@@ -631,7 +631,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                       }
                     },
                     icon: const Icon(Icons.map_outlined, size: 20),
-                    label: Text('Search & pick on map', style: GoogleFonts.poppins(fontSize: 14)),
+                    label: Text('Search & pick on map', style: GoogleFonts.outfit(fontSize: 14)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(AppConstants.primaryColor),
                       side: const BorderSide(color: Color(AppConstants.primaryColor)),
@@ -641,10 +641,10 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _locationController,
-                    style: GoogleFonts.poppins(fontSize: 14),
+                    style: GoogleFonts.outfit(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Or enter address manually',
-                      hintStyle: GoogleFonts.poppins(color: Colors.grey[500]),
+                      hintStyle: GoogleFonts.outfit(color: Colors.grey[500]),
                       prefixIcon: const Icon(
                         Icons.location_on,
                         color: Color(AppConstants.primaryColor),
@@ -692,7 +692,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                           ),
                           child: Text(
                             'Cancel',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
                             ),
@@ -722,7 +722,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                             _isLoading
                                 ? 'Submitting...'
                                 : 'Request Assistance',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 15,
                               color: Colors.white,

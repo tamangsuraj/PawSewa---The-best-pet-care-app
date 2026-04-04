@@ -73,7 +73,7 @@ class _KhaltiPaymentScreenState extends State<KhaltiPaymentScreen> {
         foregroundColor: Colors.white,
         title: Text(
           'Pay with Khalti',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.white),

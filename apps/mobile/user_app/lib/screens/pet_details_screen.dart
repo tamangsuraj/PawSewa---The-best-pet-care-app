@@ -70,7 +70,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
         ),
         title: Text(
           _summary != null ? "${_summary!['name'] ?? widget.pet.name}'s Profile" : '${widget.pet.name}\'s Profile',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: _primary,
@@ -148,7 +148,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             Text(
               _error ?? 'Something went wrong',
               textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(color: Colors.grey[700]),
+              style: GoogleFonts.outfit(color: Colors.grey[700]),
             ),
             const SizedBox(height: 16),
             TextButton(
@@ -260,7 +260,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
           const SizedBox(height: 16),
           Text(
             name,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: _primary,
@@ -270,7 +270,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
           Text(
             [if (breed.isNotEmpty) breed, if (ageDisplay != null && ageDisplay.isNotEmpty) ageDisplay]
                 .join(' • '),
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 14,
               color: Colors.grey[600],
             ),
@@ -279,7 +279,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             const SizedBox(height: 4),
             Text(
               'Pet ID: #$pawId',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 12,
                 color: Colors.grey[500],
               ),
@@ -315,7 +315,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             children: [
               Text(
                 'Health Dashboard',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF2D2D2D),
@@ -325,7 +325,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
                 onTap: () {},
                 child: Text(
                   'See All',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: _primary,
@@ -352,7 +352,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             children: [
               Text(
                 'Upcoming Tasks',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF2D2D2D),
@@ -362,7 +362,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
                 onTap: () {},
                 child: Text(
                   'See All',
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: _primary,
@@ -396,7 +396,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
             icon: const Icon(Icons.calendar_today, color: Colors.white, size: 20),
             label: Text(
               'Book Vet Visit',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
@@ -477,7 +477,7 @@ class _HealthTimeline extends StatelessWidget {
         ),
         child: Text(
           'No health reminders available for this pet yet.',
-          style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 13),
+          style: GoogleFonts.outfit(color: Colors.grey[700], fontSize: 13),
         ),
       );
     }
@@ -542,7 +542,7 @@ class _HealthTimeline extends StatelessWidget {
                 children: [
                   Text(
                     title.isNotEmpty ? title : category,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -550,7 +550,7 @@ class _HealthTimeline extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     due != null ? fmt(due) : '—',
-                    style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 12),
+                    style: GoogleFonts.outfit(color: Colors.grey[700], fontSize: 12),
                   ),
                 ],
               ),
@@ -567,7 +567,7 @@ class _HealthTimeline extends StatelessWidget {
                   ),
                   child: Text(
                     isDone ? 'Completed' : (called ? 'Called' : 'Upcoming'),
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       color: _chipColor(status),
                       fontWeight: FontWeight.w700,
                       fontSize: 11,
@@ -578,7 +578,7 @@ class _HealthTimeline extends StatelessWidget {
                 if (priority == 'high')
                   Text(
                     'High priority',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       color: Colors.red[700],
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
@@ -610,7 +610,7 @@ class _HealthTimeline extends StatelessWidget {
         children: [
           Text(
             'Health Timeline',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF2D2D2D),
@@ -621,13 +621,13 @@ class _HealthTimeline extends StatelessWidget {
           if (showUpcoming.isEmpty)
             Text(
               'No upcoming reminders.',
-              style: GoogleFonts.poppins(color: Colors.grey[700], fontSize: 13),
+              style: GoogleFonts.outfit(color: Colors.grey[700], fontSize: 13),
             ),
           if (showCompleted.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               'Recently Completed',
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF2D2D2D),
@@ -678,7 +678,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               label,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey[600],
@@ -687,7 +687,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               value,
-              style: GoogleFonts.poppins(
+              style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: _primary,
@@ -739,7 +739,7 @@ class _VaccinationCard extends StatelessWidget {
           ),
           Text(
             'Vaccination',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               color: Colors.black87,
             ),
@@ -751,7 +751,7 @@ class _VaccinationCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   statusText,
-                  style: GoogleFonts.poppins(
+                  style: GoogleFonts.outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: fg,
@@ -806,14 +806,14 @@ class _LastVetVisitCard extends StatelessWidget {
           ),
           Text(
             'Last Vet Visit',
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               color: Colors.black87,
             ),
           ),
           Text(
             text,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: _primary,

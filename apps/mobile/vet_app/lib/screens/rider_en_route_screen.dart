@@ -152,7 +152,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Address copied', style: GoogleFonts.poppins()),
+          content: Text('Address copied', style: GoogleFonts.outfit()),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -202,20 +202,20 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Mark as delivered?', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        title: Text('Mark as delivered?', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
         content: Text(
           'Confirm that this order has been delivered to the customer.',
-          style: GoogleFonts.poppins(fontSize: 14),
+          style: GoogleFonts.outfit(fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: GoogleFonts.poppins()),
+            child: Text('Cancel', style: GoogleFonts.outfit()),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: FilledButton.styleFrom(backgroundColor: Colors.green),
-            child: Text('Yes, delivered', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            child: Text('Yes, delivered', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -263,7 +263,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    const yangoBlue = Color(0xFF0054FF);
+    const accent = Color(AppConstants.accentColor);
     const successGreen = Color(0xFF00C853);
     final order = widget.order;
     final id = order['_id']?.toString() ?? '';
@@ -319,7 +319,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                         height: 40,
                         child: const Icon(
                           Icons.delivery_dining,
-                          color: Colors.blue,
+                          color: Color(AppConstants.accentColor),
                           size: 36,
                         ),
                       ),
@@ -352,7 +352,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                   Expanded(
                     child: Text(
                       'En route · #$shortId',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 18,
                         color: Colors.black87,
@@ -398,7 +398,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
               child: SafeArea(
                 child: FloatingActionButton(
                   heroTag: 'rider_google_maps',
-                  backgroundColor: yangoBlue,
+                  backgroundColor: accent,
                   foregroundColor: Colors.white,
                   elevation: 2,
                   onPressed: _openDirections,
@@ -436,7 +436,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                     children: [
                       Text(
                         customerName,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           color: isDark ? Colors.white : Colors.black87,
@@ -452,7 +452,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                             Expanded(
                               child: Text(
                                 address,
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   color: isDark ? Colors.white70 : Colors.grey[700],
                                 ),
@@ -505,7 +505,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               Expanded(
                                 child: Text(
                                   widget.order['deliveryNotes'].toString().trim(),
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 13,
                                     color: isDark ? Colors.white : Colors.black87,
                                   ),
@@ -529,7 +529,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                           const SizedBox(width: 8),
                           Text(
                             'Total NPR ${total.toStringAsFixed(0)}',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
                               color: isDark ? Colors.white : Colors.black87,
@@ -549,7 +549,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               widget.order['paymentStatus'] == 'paid'
                                   ? 'Paid'
                                   : 'COD',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: primary,
@@ -561,7 +561,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                       const SizedBox(height: 4),
                       Text(
                         _paymentSummary(),
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 12,
                           color: isDark ? Colors.white70 : Colors.grey[600],
                         ),
@@ -580,7 +580,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               _distanceKm! < 1
                                   ? '${(_distanceKm! * 1000).toStringAsFixed(0)} m away'
                                   : '${_distanceKm!.toStringAsFixed(1)} km away',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: isDark ? Colors.white : Colors.black87,
@@ -596,7 +596,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               const SizedBox(width: 6),
                               Text(
                                 '~$_etaMinutes min',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: primary,
@@ -621,7 +621,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               const SizedBox(width: 8),
                               Text(
                                 'Getting distance…',
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.outfit(
                                   fontSize: 12,
                                   color: isDark ? Colors.white70 : Colors.grey[600],
                                 ),
@@ -653,7 +653,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                   _itemsExpanded
                                       ? 'Hide items'
                                       : 'View items (${(widget.order['items'] is List ? (widget.order['items'] as List).length : 0)})',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: primary,
@@ -679,7 +679,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                 Expanded(
                                   child: Text(
                                     '$name × $qty',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 13,
                                       color: Colors.grey[800],
                                     ),
@@ -688,7 +688,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                 if (price != null)
                                   Text(
                                     'NPR ${(price * qty).toStringAsFixed(0)}',
-                                    style: GoogleFonts.poppins(
+                                    style: GoogleFonts.outfit(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.grey[700],

@@ -10,11 +10,11 @@ const {
   getProductById,
   getCategories,
 } = require('../controllers/productController');
-const { protect, adminOrShopOwner } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, adminOrShopOwner } = require('../middleware/authMiddleware');
 const { uploadProductImages, uploadCategoryImage } = require('../middleware/upload');
 
-// Public catalogue endpoints (used by customer app)
-router.get('/products', getProducts);
+// Public catalogue endpoints (used by customer app); optional JWT for personalization
+router.get('/products', optionalAuth, getProducts);
 router.get('/products/:id', getProductById);
 router.get('/categories', getCategories);
 

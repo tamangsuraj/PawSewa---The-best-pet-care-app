@@ -28,26 +28,33 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
 
+  const linkBase =
+    'text-sm font-semibold tracking-tight px-3.5 py-2 rounded-full transition-all duration-200';
+  const linkIdle =
+    'text-paw-bark/90 hover:text-paw-ink hover:bg-paw-bark/[0.07]';
+  const linkActive =
+    'text-paw-cream bg-gradient-to-br from-paw-bark to-paw-ink shadow-[0_4px_18px_rgba(61,46,36,0.22)] ring-1 ring-paw-ink/15';
+
   return (
-    <nav className="sticky top-0 z-50 border-b border-[#4B3621]/10 bg-[#FAF7F2]/95 backdrop-blur-md shadow-[0_8px_30px_rgba(75,54,33,0.06)]">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-[4.25rem]">
-          <Link href="/" className="flex items-center gap-2 min-w-0 shrink-0" onClick={closeMobile}>
-            <PawSewaLogo variant="nav" height={36} priority />
+    <nav className="sticky top-0 z-50 border-b border-paw-bark/10 bg-white/78 backdrop-blur-2xl shadow-[0_1px_0_rgba(255,255,255,0.72)_inset,0_20px_56px_rgba(61,46,36,0.07)]">
+      <div className="container mx-auto px-4 sm:px-5">
+        <div className="flex items-center justify-between min-h-[4.75rem] py-2 sm:min-h-[5.125rem] sm:py-2.5">
+          <Link
+            href="/"
+            className="flex items-center min-w-0 shrink-0 pr-2 -ml-0.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-paw-teal-mid/45 focus-visible:ring-offset-2"
+            onClick={closeMobile}
+          >
+            <PawSewaLogo variant="nav" height={60} blendWhiteMatte priority />
           </Link>
 
-          <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+          <div className="hidden lg:flex items-center gap-1 xl:gap-1.5">
             {mainNav.map(({ href, label }) => {
               const active = href === '/shop' ? shopActive : pathname === href;
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={
-                    active
-                      ? 'text-[#4B3621] text-sm font-medium px-3 py-2 rounded-xl bg-[#4B3621]/10 underline underline-offset-4 decoration-[#4B3621]'
-                      : 'text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors'
-                  }
+                  className={`${linkBase} ${active ? linkActive : linkIdle}`}
                 >
                   {label}
                 </Link>
@@ -56,11 +63,7 @@ export function Navbar() {
             {user ? (
               <Link
                 href="/my-pets"
-                className={
-                  myPetsActive
-                    ? 'text-[#4B3621] text-sm font-medium px-3 py-2 rounded-xl bg-[#4B3621]/10 underline underline-offset-4 decoration-[#4B3621]'
-                    : 'text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors'
-                }
+                className={`${linkBase} ${myPetsActive ? linkActive : linkIdle}`}
               >
                 My Pets
               </Link>
@@ -71,54 +74,60 @@ export function Navbar() {
           <ShopNavbarSearch />
 
           {!isLoading && (
-            <div className="hidden lg:flex items-center gap-1 shrink-0">
+            <div className="hidden lg:flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                className="p-2.5 rounded-xl text-[#4B3621] hover:bg-[#4B3621]/8 transition-colors relative"
+                className="p-2.5 rounded-full text-paw-ink hover:bg-paw-bark/[0.08] transition-colors relative border border-transparent hover:border-paw-bark/12"
                 aria-label="Notifications"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-[1.15rem] h-[1.15rem]" strokeWidth={2} />
               </button>
               <Link
                 href="/checkout"
-                className="p-2.5 rounded-xl text-[#4B3621] hover:bg-[#4B3621]/8 transition-colors relative"
+                className="p-2.5 rounded-full text-paw-ink hover:bg-paw-bark/[0.08] transition-colors relative border border-transparent hover:border-paw-bark/12"
                 aria-label="Shopping cart"
               >
-                <ShoppingCart className="w-5 h-5" />
+                <ShoppingCart className="w-[1.15rem] h-[1.15rem]" strokeWidth={2} />
                 {totalItems > 0 ? (
-                  <span className="absolute top-1 right-1 min-w-[1.125rem] h-[1.125rem] flex items-center justify-center text-[10px] font-bold bg-[#0d9488] text-white rounded-full">
+                  <span className="absolute top-0.5 right-0.5 min-w-[1.125rem] h-[1.125rem] flex items-center justify-center text-[10px] font-bold bg-paw-teal-mid text-white rounded-full shadow-sm ring-2 ring-white">
                     {totalItems > 9 ? '9+' : totalItems}
                   </span>
                 ) : null}
               </Link>
               {user ? (
                 <>
-                  <div className="flex items-center gap-2 pl-2 ml-1 border-l border-[#4B3621]/15">
-                    <div className="w-9 h-9 rounded-full bg-[#4B3621] text-[#FAF7F2] flex items-center justify-center text-sm font-bold">
+                  <div className="flex items-center gap-2.5 pl-3 ml-1 border-l border-paw-bark/12">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-paw-bark to-paw-ink text-paw-cream flex items-center justify-center text-sm font-bold shadow-md ring-2 ring-white/80">
                       {user.name?.charAt(0)?.toUpperCase() || <User className="w-4 h-4" />}
                     </div>
-                    <span className="text-sm font-medium text-[#4B3621] max-w-[7rem] truncate hidden xl:inline">
+                    <span className="text-sm font-semibold text-paw-ink max-w-[7rem] truncate hidden xl:inline">
                       {user.name}
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     onClick={logout}
-                    className="flex items-center gap-1.5 text-[#4B3621] ml-1"
+                    className="flex items-center gap-1.5 text-paw-ink ml-0.5 rounded-full hover:bg-paw-bark/[0.06]"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span className="hidden xl:inline">Logout</span>
+                    <span className="hidden xl:inline font-medium">Logout</span>
                   </Button>
                 </>
               ) : (
                 <div className="flex items-center gap-2 pl-2">
                   <Link href="/login">
-                    <Button variant="ghost" className="text-[#4B3621]">
+                    <Button
+                      variant="ghost"
+                      className="text-paw-ink rounded-full font-semibold hover:bg-paw-bark/[0.07]"
+                    >
                       Sign In
                     </Button>
                   </Link>
                   <Link href="/register">
-                    <Button variant="primary" className="bg-[#4B3621] hover:bg-[#3d2a1a] text-[#FAF7F2] rounded-xl">
+                    <Button
+                      variant="primary"
+                      className="rounded-full px-5 font-semibold shadow-[0_6px_22px_rgba(61,46,36,0.2)] bg-gradient-to-br from-paw-bark to-paw-ink hover:from-[#4d3828] hover:to-[#322318] text-paw-cream border border-paw-ink/12"
+                    >
                       Get Started
                     </Button>
                   </Link>
@@ -129,7 +138,7 @@ export function Navbar() {
 
           <button
             type="button"
-            className="lg:hidden p-2 text-[#4B3621]"
+            className="lg:hidden p-2 text-paw-ink"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
@@ -139,14 +148,14 @@ export function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="lg:hidden border-t border-[#4B3621]/10 bg-[#FAF7F2]">
-          <div className="container mx-auto px-4 py-4 flex flex-col gap-1">
+        <div className="lg:hidden border-t border-paw-bark/10 bg-white/92 backdrop-blur-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+          <div className="container mx-auto px-4 py-4 flex flex-col gap-0.5">
             {mainNav.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={closeMobile}
-                className="py-2.5 text-[#4B3621] font-medium"
+                className="py-3 px-3 rounded-xl text-paw-ink font-semibold hover:bg-paw-bark/[0.06]"
               >
                 {label}
               </Link>
@@ -159,7 +168,7 @@ export function Navbar() {
                     closeMobile();
                     openHub();
                   }}
-                  className="py-2.5 text-left text-[#4B3621] font-medium w-full"
+                  className="py-2.5 text-left text-paw-ink font-medium w-full"
                 >
                   Inbox / Messages
                 </button>
@@ -168,26 +177,38 @@ export function Navbar() {
                   onClick={closeMobile}
                   className={
                     myPetsActive
-                      ? 'py-2.5 text-[#4B3621] font-medium underline underline-offset-4'
-                      : 'py-2.5 text-[#4B3621] font-medium'
+                      ? 'py-3 px-3 rounded-xl font-semibold text-paw-cream bg-gradient-to-br from-paw-bark to-paw-ink shadow-md'
+                      : 'py-3 px-3 rounded-xl text-paw-ink font-semibold hover:bg-paw-bark/[0.06]'
                   }
                 >
                   My Pets
                 </Link>
               </>
             ) : null}
-            <div className="py-2 border-t border-[#4B3621]/10 mt-2 flex items-center gap-4">
-              <Link href="/checkout" onClick={closeMobile} className="flex items-center gap-2 text-[#4B3621]">
+            <div className="py-3 border-t border-paw-bark/10 mt-2 flex items-center gap-4">
+              <Link
+                href="/checkout"
+                onClick={closeMobile}
+                className="flex items-center gap-2 text-paw-ink font-semibold"
+              >
                 <ShoppingCart className="w-5 h-5" />
                 Cart {totalItems > 0 ? `(${totalItems})` : ''}
               </Link>
             </div>
             {!isLoading && !user && (
               <div className="flex gap-2 pt-2">
-                <Link href="/login" onClick={closeMobile} className="flex-1 text-center py-2 rounded-xl border border-[#4B3621]/20">
+                <Link
+                  href="/login"
+                  onClick={closeMobile}
+                  className="flex-1 text-center py-3 rounded-full border border-paw-bark/18 font-semibold text-paw-ink hover:bg-paw-bark/[0.05]"
+                >
                   Sign In
                 </Link>
-                <Link href="/register" onClick={closeMobile} className="flex-1 text-center py-2 rounded-xl bg-[#4B3621] text-[#FAF7F2]">
+                <Link
+                  href="/register"
+                  onClick={closeMobile}
+                  className="flex-1 text-center py-3 rounded-full font-semibold bg-gradient-to-br from-paw-bark to-paw-ink text-paw-cream shadow-md"
+                >
                   Register
                 </Link>
               </div>

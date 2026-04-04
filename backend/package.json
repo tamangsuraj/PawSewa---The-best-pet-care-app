@@ -13,6 +13,7 @@
     "seed:services": "node src/seeders/serviceSeeder.js",
     "seed:master-user": "node src/seeders/masterUserSeeder.js",
     "seed:resync": "node src/seeders/masterUserSeeder.js && node src/seeders/serviceSeeder.js",
+    "seed:products": "node src/seeders/productSeeder.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -40,7 +40,7 @@ function ShopNavbarSearchInner() {
 
   return (
     <div className="relative mx-2 min-w-0 max-w-[min(100%,280px)] flex-1">
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4A2E1B]/35" />
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-paw-foreground/35" />
       <input
         type="search"
         placeholder="Search essentials..."
@@ -56,7 +56,7 @@ function ShopNavbarSearchInner() {
             pushQuery(val);
           }
         }}
-        className="w-full rounded-full border border-[#4A2E1B]/12 bg-white py-2 pl-9 pr-3 text-sm text-[#4A2E1B] shadow-sm placeholder:text-[#4A2E1B]/40 focus:border-[#4A2E1B]/30 focus:outline-none focus:ring-2 focus:ring-[#4A2E1B]/12"
+        className="w-full rounded-full border border-paw-foreground/12 bg-white py-2 pl-9 pr-3 text-sm text-paw-foreground shadow-sm placeholder:text-paw-foreground/40 focus:border-paw-foreground/30 focus:outline-none focus:ring-2 focus:ring-[#4A2E1B]/12"
         aria-label="Search shop products"
       />
     </div>

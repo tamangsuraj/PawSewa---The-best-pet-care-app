@@ -5,6 +5,8 @@ import '../core/api_client.dart';
 import '../core/api_config.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
+import '../widgets/pawsewa_brand_logo.dart';
 import '../services/push_notification_service.dart';
 import 'vet_dashboard_screen.dart';
 
@@ -199,52 +201,68 @@ class _LoginScreenState extends State<LoginScreen> {
     final shortest = size.width < size.height ? size.width : size.height;
     final padding = (size.width * 0.06).clamp(16.0, 28.0);
     final logoSize = (shortest * 0.22).clamp(72.0, 120.0);
+    final primary = const Color(AppConstants.primaryColor);
+    final ink = const Color(AppConstants.inkColor);
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding * 1.2),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Logo/Icon with Medical Theme
-                  Container(
-                    width: logoSize,
-                    height: logoSize,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(AppConstants.primaryColor),
-                          const Color(AppConstants.accentColor),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+      body: EditorialCanvas(
+        variant: EditorialSurfaceVariant.partner,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: padding,
+                vertical: padding * 1.2,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: primary.withValues(alpha: 0.1)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ink.withValues(alpha: 0.08),
+                        blurRadius: 36,
+                        offset: const Offset(0, 20),
                       ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.medical_services,
-                      size: logoSize * 0.5,
-                      color: Colors.white,
-                    ),
+                    ],
                   ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: logoSize,
+                            height: logoSize,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: primary.withValues(alpha: 0.12),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: primary.withValues(alpha: 0.06),
+                                  blurRadius: 24,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            padding: EdgeInsets.all(logoSize * 0.14),
+                            child: PawSewaBrandLogo(height: logoSize * 0.72),
+                          ),
                   SizedBox(height: size.height * 0.025),
                   FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
                     AppConstants.appName,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: const Color(AppConstants.primaryColor),
@@ -254,10 +272,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(height: size.height * 0.01),
                   Text(
                     'Partner Portal',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: const Color(AppConstants.accentColor),
+                    style: GoogleFonts.fraunces(
+                      fontSize: 17,
                       fontWeight: FontWeight.w500,
+                      color: const Color(AppConstants.accentColor),
                     ),
                   ),
                   SizedBox(height: size.height * 0.04),
@@ -369,7 +387,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
                               'Login',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -382,9 +400,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _showSetServerUrlDialog,
                     child: Text(
                       "Can't connect? Set server URL",
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
-                        color: Colors.grey,
+                        color: primary.withValues(alpha: 0.75),
                         decoration: TextDecoration.underline,
                       ),
                     ),
@@ -412,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Expanded(
                           child: Text(
                             'Welcome, Partner! Join our team of veterinarians, shop owners, care providers & delivery partners.',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: const Color(AppConstants.accentColor),
                             ),
@@ -422,6 +440,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),

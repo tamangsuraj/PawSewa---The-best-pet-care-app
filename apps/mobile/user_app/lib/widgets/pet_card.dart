@@ -113,7 +113,7 @@ class PetCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           pet.name,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: const Color(AppConstants.accentColor),
@@ -156,7 +156,7 @@ class PetCard extends StatelessWidget {
                       ),
                       child: Text(
                         'ID: ${pet.pawId}',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: const Color(AppConstants.primaryColor),
@@ -170,7 +170,7 @@ class PetCard extends StatelessWidget {
                   if (pet.breed != null && pet.breed!.isNotEmpty)
                     Text(
                       pet.breed!,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
                         color: Colors.grey[600],
                       ),
@@ -194,7 +194,7 @@ class PetCard extends StatelessWidget {
                         ),
                         child: Text(
                           pet.species,
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 12,
                             color: const Color(AppConstants.primaryColor),
                             fontWeight: FontWeight.w500,
@@ -216,7 +216,7 @@ class PetCard extends StatelessWidget {
                           ),
                           child: Text(
                             '${pet.age} ${pet.age == 1 ? 'year' : 'years'}',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: Colors.grey[700],
                               fontWeight: FontWeight.w500,

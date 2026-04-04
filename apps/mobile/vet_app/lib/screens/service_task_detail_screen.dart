@@ -143,7 +143,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
       appBar: AppBar(
         title: Text(
           'Task Details',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600, color: Colors.white),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         backgroundColor: themeColor,
         elevation: 0,
@@ -174,7 +174,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                       children: [
                         Text(
                           pet?['name'] ?? 'Unknown Pet',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: const Color(AppConstants.accentColor),
@@ -201,7 +201,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                                 ),
                                 child: Text(
                                   'ID: ${pet?['pawId']}',
-                                  style: GoogleFonts.poppins(
+                                  style: GoogleFonts.outfit(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                     color: themeColor,
@@ -239,7 +239,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                             pet?['breed'] ?? 'Unknown breed',
                             '${pet?['age'] ?? '?'} yrs',
                           ].join(' • '),
-                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
+                          style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[700]),
                         ),
                       ],
                     ),
@@ -253,7 +253,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
               child: medicalHistory.isEmpty
                   ? Text(
                       'No past visit notes yet. This visit will create the first record.',
-                      style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
+                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[700]),
                     )
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +264,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                             child: Text(
                               '• $entry',
                               style:
-                                  GoogleFonts.poppins(fontSize: 13, color: Colors.grey[800]),
+                                  GoogleFonts.outfit(fontSize: 13, color: Colors.grey[800]),
                             ),
                           ),
                       ],
@@ -282,7 +282,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                       const SizedBox(width: 8),
                       Text(
                         owner?['name'] ?? 'Unknown Owner',
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w500,
                         ),
@@ -301,7 +301,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                           icon: const Icon(Icons.phone, color: Colors.white, size: 18),
                           label: Text(
                             'Call Owner',
-                            style: GoogleFonts.poppins(color: Colors.white),
+                            style: GoogleFonts.outfit(color: Colors.white),
                           ),
                         ),
                       ],
@@ -325,7 +325,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                   icon: const Icon(Icons.directions, color: Colors.white, size: 22),
                   label: Text(
                     'Navigate to Address',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -343,7 +343,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                     ? Center(
                         child: Text(
                           'No valid customer coordinates for this task.',
-                          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
+                          style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[700]),
                         ),
                       )
                     : ClipRRect(
@@ -417,7 +417,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
         children: [
           Text(
             title,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: const Color(AppConstants.accentColor),

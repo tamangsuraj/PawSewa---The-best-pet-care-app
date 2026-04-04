@@ -147,7 +147,7 @@ class _ServiceRequestTrackingScreenState
       appBar: AppBar(
         title: Text(
           'Track Service',
-          style: GoogleFonts.poppins(
+          style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             color: Colors.white,
           ),
@@ -168,7 +168,7 @@ class _ServiceRequestTrackingScreenState
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   _error!,
-                  style: GoogleFonts.poppins(color: Colors.red),
+                  style: GoogleFonts.outfit(color: Colors.red),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -179,7 +179,7 @@ class _ServiceRequestTrackingScreenState
                 padding: const EdgeInsets.all(24),
                 child: Text(
                   'This request does not have a valid location.',
-                  style: GoogleFonts.poppins(color: Colors.grey[700]),
+                  style: GoogleFonts.outfit(color: Colors.grey[700]),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -259,7 +259,7 @@ class _ServiceRequestTrackingScreenState
                         Expanded(
                           child: Text(
                             'I\'m here',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.green.shade800,
@@ -277,7 +277,7 @@ class _ServiceRequestTrackingScreenState
                       if (_status != null)
                         Text(
                           'Status: ${_status!.replaceAll('_', ' ').toUpperCase()}',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: themeColor,
@@ -289,7 +289,7 @@ class _ServiceRequestTrackingScreenState
                           _staffRole == 'rider'
                               ? 'Rider: $_assignedStaffName'
                               : 'Veterinarian: $_assignedStaffName',
-                          style: GoogleFonts.poppins(
+                          style: GoogleFonts.outfit(
                             fontSize: 13,
                             color: Colors.grey[800],
                           ),
@@ -299,7 +299,7 @@ class _ServiceRequestTrackingScreenState
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
                             'Estimated arrival: ~$_etaMinutes min',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: themeColor,
@@ -313,7 +313,7 @@ class _ServiceRequestTrackingScreenState
                             _staffRole == 'rider'
                                 ? 'Waiting for rider location...'
                                 : 'Vet is arriving soon. For privacy, we only show status, not live location.',
-                            style: GoogleFonts.poppins(
+                            style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: Colors.grey[700],
                             ),

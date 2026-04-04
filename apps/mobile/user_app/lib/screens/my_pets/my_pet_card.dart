@@ -78,7 +78,7 @@ class MyPetCard extends StatelessWidget {
                 children: [
                   Text(
                     pet.name,
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFF1A3C34),
@@ -90,7 +90,7 @@ class MyPetCard extends StatelessWidget {
                   if (pet.breed != null && pet.breed!.isNotEmpty)
                     Text(
                       pet.breed!,
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 13,
                         color: Colors.grey[600],
                       ),
@@ -101,7 +101,7 @@ class MyPetCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'ID: #${pet.pawId}',
-                      style: GoogleFonts.poppins(
+                      style: GoogleFonts.outfit(
                         fontSize: 11,
                         color: Colors.grey[500],
                       ),
@@ -125,7 +125,7 @@ class MyPetCard extends StatelessWidget {
                   alignment: Alignment.center,
                   child: Text(
                     'View Profile',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
@@ -195,7 +195,7 @@ class _StatusBadge extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w500,
               color: fg,

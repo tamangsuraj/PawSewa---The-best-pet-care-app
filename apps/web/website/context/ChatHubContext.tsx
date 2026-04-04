@@ -496,8 +496,7 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
       <div className="fixed bottom-5 right-5 z-[100] flex flex-col items-end gap-2">
         {hubOpen && (
           <div
-            className="w-[min(100vw-1.5rem,22rem)] max-h-[min(70vh,32rem)] flex flex-col rounded-2xl border border-[#703418]/20 bg-[#fdf8f5] shadow-2xl overflow-hidden"
-            style={{ fontFamily: 'Poppins, sans-serif' }}
+            className="w-[min(100vw-1.5rem,22rem)] max-h-[min(70vh,32rem)] flex flex-col rounded-2xl border border-[#703418]/20 bg-[#fdf8f5] shadow-2xl overflow-hidden font-sans"
           >
             <div className="flex items-center justify-between px-3 py-2.5 bg-[#703418] text-white">
               {view === 'thread' && active ? (

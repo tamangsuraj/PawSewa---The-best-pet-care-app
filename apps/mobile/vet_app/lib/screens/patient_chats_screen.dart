@@ -63,7 +63,7 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
       appBar: AppBar(
         title: Text(
           'Patient Chats',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
         foregroundColor: Colors.white,
@@ -94,7 +94,7 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
                         child: Text(
                           'No patient chats yet. Chats unlock after you complete a visit or add visit notes for an owner\'s pet.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.poppins(color: Colors.grey[700]),
+                          style: GoogleFonts.outfit(color: Colors.grey[700]),
                         ),
                       ),
                     )
@@ -131,13 +131,13 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
                             ),
                             title: Text(
                               name,
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             subtitle: Text(
                               'Tap to open chat',
-                              style: GoogleFonts.poppins(
+                              style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 color: Colors.grey[600],
                               ),

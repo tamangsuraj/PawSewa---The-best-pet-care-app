@@ -64,7 +64,7 @@ interface ServiceRequestRow {
 }
 
 const cardLift =
-  'rounded-2xl transition-all duration-300 hover:shadow-[0_24px_55px_rgba(75,54,33,0.14)] hover:-translate-y-1';
+  'rounded-[1.35rem] border border-paw-bark/10 bg-white/88 backdrop-blur-sm shadow-paw transition-all duration-500 ease-out hover:shadow-paw-lg hover:-translate-y-1';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -161,65 +161,74 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-secondary text-[#2a2118] relative">
+    <div className="min-h-screen bg-transparent text-paw-ink relative">
       <HomeActiveOrdersRail />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b border-[#4B3621]/10">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FAF7F2] via-[#f5efe6] to-[#ebe3d7]" />
-        <div className="container mx-auto px-4 py-16 md:py-24 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center max-w-6xl mx-auto">
-            <div>
-              <p className="text-[11px] font-semibold tracking-[0.25em] text-[#4B3621]/55 uppercase mb-4">
-                The Compassionate Guardian
-              </p>
-              <h1 className="font-display text-4xl sm:text-5xl md:text-[3.25rem] leading-[1.08] font-semibold text-[#4B3621] text-balance">
-                For Your Nepal&apos;s Pets.
+      {/* Hero — asymmetric editorial + motion */}
+      <section className="relative overflow-hidden border-b border-paw-bark/10">
+        <div
+          className="pointer-events-none absolute -left-32 top-1/4 h-80 w-80 rounded-full blur-3xl paw-hero-orb"
+          style={{ background: 'var(--paw-teal-glow)' }}
+        />
+        <div className="pointer-events-none absolute -right-20 top-0 h-[28rem] w-[28rem] rounded-full bg-paw-bark/[0.07] blur-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-paw-haze/90 via-paw-cream to-paw-sand/60" />
+        <div className="container relative z-10 mx-auto px-4 py-16 md:py-28">
+          <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.08fr_0.92fr] lg:gap-20">
+            <div className="paw-hero-stagger flex flex-col space-y-6">
+              <p className="paw-eyebrow">The compassionate guardian</p>
+              <h1 className="font-display text-balance text-[2.5rem] font-semibold leading-[1.02] tracking-tight text-paw-ink sm:text-5xl md:text-[3.45rem]">
+                For your Nepal&apos;s{' '}
+                <span className="font-normal italic text-paw-bark">pets</span>.
               </h1>
-              <p className="mt-6 text-lg text-[#4B3621]/75 max-w-xl leading-relaxed">
-                A premium ecosystem for Himalayan pet care. We blend clinical precision with grounded
-                warmth to ensure your companion&apos;s lifelong wellbeing.
+              <p className="max-w-xl text-lg leading-relaxed text-paw-bark/85">
+                A premium ecosystem for Himalayan pet care — clinical precision, grounded warmth, and
+                lifelong wellbeing in one deliberate experience.
               </p>
-              <div className="mt-10 flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-3 pt-2">
                 <Link
                   href="/vets"
-                  className={`inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#4B3621] text-[#FAF7F2] font-semibold shadow-lg ${cardLift}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-paw-bark to-paw-ink px-8 py-3.5 text-sm font-semibold text-paw-cream shadow-[0_12px_36px_rgba(61,46,36,0.25)] transition-transform hover:-translate-y-0.5"
                 >
-                  Book a Vet
+                  Book a vet
                 </Link>
                 <Link
                   href="/services"
-                  className={`inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl border-2 border-[#4B3621] text-[#4B3621] font-semibold bg-white/60 ${cardLift}`}
+                  className={`inline-flex items-center justify-center gap-2 rounded-full border-2 border-paw-ink/20 bg-white/70 px-8 py-3.5 text-sm font-semibold text-paw-ink backdrop-blur-sm transition-transform hover:-translate-y-0.5 ${cardLift}`}
                 >
-                  Explore Services
-                  <ArrowRight className="w-4 h-4" />
+                  Explore services
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
                 </Link>
               </div>
             </div>
-            <div className="relative">
+            <div className="relative lg:pl-4">
               <div
-                className={`relative aspect-[4/5] max-h-[480px] rounded-3xl overflow-hidden shadow-[0_32px_80px_rgba(75,54,33,0.2)] border border-[#4B3621]/10 ${cardLift}`}
+                className="pointer-events-none absolute -right-6 top-12 hidden h-40 w-[1px] rotate-12 bg-gradient-to-b from-transparent via-paw-teal-mid/35 to-transparent lg:block"
+                aria-hidden
+              />
+              <div
+                className={`relative mx-auto aspect-[4/5] max-h-[min(520px,70vh)] rotate-0 overflow-hidden rounded-[2rem] border border-paw-bark/10 shadow-paw-lg transition-transform duration-700 lg:-rotate-[1.5deg] lg:hover:rotate-0 ${cardLift}`}
               >
                 <Image
                   src={CAT_HERO}
                   alt="Portrait of a tabby cat — premium PawSewa companion"
                   fill
                   className="object-cover"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  sizes="(max-width: 1024px) 100vw, 46vw"
                   priority
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-paw-ink/25 via-transparent to-transparent" />
               </div>
               <div
-                className={`absolute -bottom-4 -left-2 md:left-4 max-w-[240px] bg-white rounded-2xl p-4 shadow-[0_20px_50px_rgba(75,54,33,0.15)] border border-[#4B3621]/10 ${cardLift}`}
+                className={`absolute -bottom-5 left-2 max-w-[260px] rounded-2xl border border-paw-bark/10 bg-white/92 p-4 shadow-paw-lg backdrop-blur-md md:left-6 ${cardLift}`}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#0d9488] animate-pulse" />
-                  <span className="text-[10px] font-bold tracking-wide text-[#4B3621]/60 uppercase">
-                    Status: Onsite &amp; Healthy
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-paw-teal-mid shadow-[0_0_12px_rgba(13,148,136,0.5)]" />
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-paw-bark/55">
+                    Status: onsite &amp; healthy
                   </span>
                 </div>
-                <p className="text-sm text-[#4B3621]/80 leading-snug">
-                  Last checkup completed successfully. Vitals stable and vaccination schedule on track.
+                <p className="text-sm leading-snug text-paw-bark/85">
+                  Last checkup completed. Vitals stable; vaccination schedule on track.
                 </p>
               </div>
             </div>
@@ -228,55 +237,70 @@ export default function HomePage() {
       </section>
 
       {/* Our Services */}
-      <section className="py-16 md:py-20 px-4">
+      <section className="px-4 py-20 md:py-24">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="font-display text-3xl md:text-4xl font-semibold text-[#4B3621] text-center mb-12">
-            Our Services
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="mb-14 text-center">
+            <p className="paw-eyebrow-center">What we offer</p>
+            <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-paw-ink md:text-4xl">
+              Our services
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-paw-bark/75">
+              One flow from vaccines to boarding — designed like a magazine spread, built for real pets.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             <Link
               href="/services/request"
-              className={`bg-white border border-[#4B3621]/10 p-6 flex flex-col items-center text-center ${cardLift}`}
+              className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
             >
-              <div className="w-14 h-14 rounded-2xl bg-[#4B3621]/8 flex items-center justify-center mb-4">
-                <Syringe className="w-7 h-7 text-[#4B3621]" />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-paw-sand to-paw-haze ring-1 ring-paw-bark/10 transition-transform duration-300 group-hover:scale-105">
+                <Syringe className="h-7 w-7 text-paw-ink" strokeWidth={1.75} />
               </div>
-              <h3 className="font-semibold text-[#4B3621]">Vaccination</h3>
-              <p className="text-sm text-gray-600 mt-2">Schedule jabs and health records in one flow.</p>
+              <h3 className="font-display text-lg text-paw-ink">Vaccination</h3>
+              <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
+                Jabs and health records in one calm flow.
+              </p>
             </Link>
             <Link
               href="/my-pets"
-              className={`bg-white border border-[#4B3621]/10 p-6 flex flex-col items-center text-center ${cardLift}`}
+              className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
             >
-              <div className="w-14 h-14 rounded-2xl bg-[#4B3621]/8 flex items-center justify-center mb-4">
-                <Bone className="w-7 h-7 text-[#4B3621]" />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-paw-sand to-paw-haze ring-1 ring-paw-bark/10 transition-transform duration-300 group-hover:scale-105">
+                <Bone className="h-7 w-7 text-paw-ink" strokeWidth={1.75} />
               </div>
-              <h3 className="font-semibold text-[#4B3621]">Pet Profiles</h3>
-              <p className="text-sm text-gray-600 mt-2">Paw IDs, photos, and medical notes synced.</p>
+              <h3 className="font-display text-lg text-paw-ink">Pet profiles</h3>
+              <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
+                Paw IDs, photos, and notes synced everywhere.
+              </p>
             </Link>
             <Link
               href="/vets"
-              className={`bg-white border border-[#4B3621]/10 p-6 flex flex-col items-center text-center ${cardLift}`}
+              className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
             >
-              <div className="w-14 h-14 rounded-2xl bg-[#4B3621]/8 flex items-center justify-center mb-4">
-                <Home className="w-7 h-7 text-[#4B3621]" />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-paw-sand to-paw-haze ring-1 ring-paw-bark/10 transition-transform duration-300 group-hover:scale-105">
+                <Home className="h-7 w-7 text-paw-ink" strokeWidth={1.75} />
               </div>
-              <h3 className="font-semibold text-[#4B3621]">Clinics</h3>
-              <p className="text-sm text-gray-600 mt-2">Verified veterinarians across the valley.</p>
+              <h3 className="font-display text-lg text-paw-ink">Clinics</h3>
+              <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
+                Verified veterinarians across the valley.
+              </p>
             </Link>
             <div
-              className={`relative bg-[#4B3621] text-[#FAF7F2] p-6 flex flex-col items-center text-center ${cardLift} border border-[#4B3621]`}
+              className={`relative flex flex-col items-center border border-paw-ink/20 bg-gradient-to-br from-paw-ink to-paw-bark p-7 text-center text-paw-cream shadow-paw-lg ${cardLift}`}
             >
-              <span className="absolute top-3 right-3 text-[10px] font-bold bg-[#0d9488] px-2 py-0.5 rounded-full">
+              <span className="absolute right-3 top-3 rounded-full bg-paw-teal-mid px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-white shadow-sm">
                 NEW
               </span>
-              <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center mb-4">
-                <Truck className="w-7 h-7 text-[#FAF7F2]" />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20">
+                <Truck className="h-7 w-7 text-paw-cream" strokeWidth={1.75} />
               </div>
-              <h3 className="font-semibold">Pet Care+</h3>
-              <p className="text-sm text-[#FAF7F2]/80 mt-2 mb-4">Hostel, grooming, training &amp; more.</p>
-              <Link href="/care/hostel" className="text-sm font-semibold underline underline-offset-2 mb-3">
-                Explore More
+              <h3 className="font-display text-lg">Pet Care+</h3>
+              <p className="mb-4 mt-2 text-sm text-paw-cream/80">Hostel, grooming, training &amp; more.</p>
+              <Link
+                href="/care/hostel"
+                className="mb-3 text-sm font-semibold underline decoration-paw-teal-mid/60 underline-offset-4"
+              >
+                Explore more
               </Link>
               <button
                 type="button"
@@ -287,10 +311,10 @@ export default function HomePage() {
                   }
                   void openCareProviderChat();
                 }}
-                className="mt-auto inline-flex items-center gap-2 text-xs font-semibold bg-[#0d9488] hover:bg-[#0f766e] px-4 py-2 rounded-xl transition-colors"
+                className="mt-auto inline-flex items-center gap-2 rounded-full bg-paw-teal-mid px-4 py-2.5 text-xs font-semibold text-white shadow-md transition-colors hover:bg-paw-teal"
               >
-                <MessageCircle className="w-3.5 h-3.5" />
-                Chat with Service Provider
+                <MessageCircle className="h-3.5 w-3.5" />
+                Chat with provider
               </button>
             </div>
           </div>
