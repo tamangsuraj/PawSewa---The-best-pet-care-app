@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { normalizeRole } = require('../middleware/authMiddleware');
 
 /**
  * Socket.io authentication middleware.
@@ -30,6 +31,9 @@ async function socketAuthMiddleware(socket, next) {
       return next(new Error('User not found'));
     }
     socket.user = user;
+    if (socket.user.role) {
+      socket.user.role = normalizeRole(socket.user.role);
+    }
     return next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

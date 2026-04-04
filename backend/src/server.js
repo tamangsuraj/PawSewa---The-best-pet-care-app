@@ -10,6 +10,7 @@ const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
 const { Server: SocketServer } = require('socket.io');
+const { isSocketCorsOriginAllowed } = require('./utils/socketCorsOrigin');
 
 // Security & Utility Middleware
 const helmet = require('helmet');
@@ -63,19 +64,11 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// Socket.io (CORS: allow localhost, LAN, emulator, ngrok)
+// Socket.io — CORS must allow the same browser origins as the REST API (ALLOWED_ORIGINS) plus local/tunnel dev.
 const io = new SocketServer(server, {
   cors: {
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      const allowed =
-        origin.startsWith('http://localhost:') ||
-        origin.startsWith('https://localhost:') ||
-        /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
-        /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
-        /^https?:\/\/[a-z0-9-]+\.ngrok(-free)?\.app(:\d+)?$/.test(origin) ||
-        /^https?:\/\/[a-z0-9-]+\.ngrok\.io(:\d+)?$/.test(origin);
-      callback(null, allowed);
+      callback(null, isSocketCorsOriginAllowed(origin));
     },
     credentials: true,
     methods: ['GET', 'POST'],
@@ -87,7 +80,9 @@ const io = new SocketServer(server, {
 
 const { socketAuthMiddleware } = require('./sockets/socketAuth');
 const { registerChatHandler } = require('./sockets/chatHandler');
+const { registerCustomerCareSocket } = require('./sockets/customerCareSocket');
 const { setIO } = require('./sockets/socketStore');
+const customerCareRoutes = require('./routes/customerCareRoutes');
 
 io.use(socketAuthMiddleware);
 
@@ -99,6 +94,7 @@ io.on('connection', (socket) => {
 });
 
 registerChatHandler(io);
+registerCustomerCareSocket(io);
 setIO(io);
 
 // ============================================
@@ -172,6 +168,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/pets', petRoutes);
 app.use('/api/v1/vets', vetRoutes);
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/customer-care', customerCareRoutes);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/service-requests', serviceRequestRoutes);
 app.use('/api/v1/admin', adminRoutes);

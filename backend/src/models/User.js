@@ -52,7 +52,6 @@ const userSchema = new mongoose.Schema(
         'facility_owner',
         'customer',
         'vet',
-        'rider',
       ],
       default: 'pet_owner',
     },
@@ -211,6 +210,14 @@ userSchema.pre('validate', function normalizeRoleField() {
   if (this.role) this.role = normalizeRole(this.role);
 });
 
+// Track brand-new documents for post-save hooks (isNew is false after save).
+userSchema.pre('save', function (next) {
+  if (this.isNew) {
+    this.$locals._pawsewaJustInserted = true;
+  }
+  next();
+});
+
 // Hash password before saving
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) {
@@ -219,6 +226,19 @@ userSchema.pre('save', async function () {
   
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+});
+
+userSchema.post('save', async function (doc) {
+  if (!doc.$locals._pawsewaJustInserted) return;
+  delete doc.$locals._pawsewaJustInserted;
+  const { ensureDefaultCustomerCareConversation, isPetOwnerRole } = require('../services/customerCareService');
+  const logger = require('../utils/logger');
+  if (!isPetOwnerRole(doc.role)) return;
+  try {
+    await ensureDefaultCustomerCareConversation(doc._id);
+  } catch (e) {
+    logger.error('Chat Engine: Default conversation setup failed for User', String(doc._id), e?.message || String(e));
+  }
 });
 
 // Method to compare passwords

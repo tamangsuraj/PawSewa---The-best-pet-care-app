@@ -82,6 +82,17 @@ function registerChatHandler(io) {
       }
     });
 
+    // Client cannot call socket.leave() — leave server-side when UI closes chat.
+    socket.on('leave_request_room', (requestId, callback) => {
+      if (!requestId || typeof requestId !== 'string') {
+        callback?.({ success: false, message: 'Invalid requestId' });
+        return;
+      }
+      const room = ROOM_PREFIX + requestId;
+      socket.leave(room);
+      callback?.({ success: true, room });
+    });
+
     // Send message: save to DB and emit to room
     socket.on('send_message', async (payload, callback) => {
       const { requestId, text, timestamp } = payload || {};

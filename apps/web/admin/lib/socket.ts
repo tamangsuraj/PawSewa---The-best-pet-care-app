@@ -11,13 +11,21 @@ export function getAdminSocket(): Socket | null {
 
   if (socket?.connected) return socket;
 
+  if (socket && !socket.connected) {
+    socket.removeAllListeners();
+    socket.disconnect();
+    socket = null;
+  }
+
   socket = io(SOCKET_URL, {
     auth: { token },
-    transports: ['websocket'],
+    // Polling first matches mobile app — works through more proxies than WS-only.
+    transports: ['polling', 'websocket'],
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
+    timeout: 20000,
   });
 
   socket.on('connect', () => {
@@ -58,8 +66,6 @@ export function joinRequestRoom(
   }
 
   return new Promise((resolve) => {
-    const room = 'request:' + requestId;
-
     const msgHandler = (data: { requestId?: string; text?: string; sender?: string; timestamp?: string }) => {
       if (data?.requestId === requestId && data?.text != null) {
         onMessage({
@@ -90,7 +96,7 @@ export function joinRequestRoom(
     const cleanup = () => {
       s.off('new_message', msgHandler);
       if (typingHandler) s.off('is_typing', typingHandler);
-      s.leave(room);
+      s.emit('leave_request_room', requestId);
     };
 
     s.emit('join_request_room', requestId, (ack: { success?: boolean; message?: string }) => {
