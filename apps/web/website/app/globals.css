@@ -22,13 +22,16 @@ html {
 
 body {
   color: var(--foreground);
-  /* Warm, soft background for pet-care theme */
-  background: radial-gradient(circle at top left, #ffffff 0, #F7F4FC 42%, #e6ddff 100%);
+  background: linear-gradient(165deg, #FAF7F2 0%, #f3ece4 45%, #FAF7F2 100%);
   font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Poppins', sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), 'Playfair Display', Georgia, serif;
 }
 
 @keyframes paw-float {

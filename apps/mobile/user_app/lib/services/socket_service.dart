@@ -130,38 +130,53 @@ class SocketService {
         }
       });
 
-      _socket!.on('customer_care_new_message', (data) {
+      // Unified events (web + mobile parity); same payloads as legacy care / marketplace.
+      _socket!.on('receive_message', (data) {
         final map = _toMap(data);
-        if (map != null) {
+        if (map == null) return;
+        final tt = map['threadType']?.toString();
+        final normalized = {
+          'conversationId': map['conversationId'],
+          'messageId': map['messageId'],
+          'senderId': map['senderId'],
+          'receiverId': map['receiverId'],
+          'text': map['text'] ?? map['content'],
+          'timestamp': map['timestamp'],
+        };
+        if (tt == 'support') {
           for (final cb in _customerCareMsgListeners) {
-            cb?.call(map);
+            cb?.call(Map<String, dynamic>.from(normalized));
           }
-        }
-      });
-
-      _socket!.on('customer_care_is_typing', (data) {
-        final map = _toMap(data);
-        if (map != null) {
-          for (final cb in _customerCareTypingListeners) {
-            cb?.call(map);
-          }
-        }
-      });
-
-      _socket!.on('marketplace_new_message', (data) {
-        final map = _toMap(data);
-        if (map != null) {
+        } else if (tt == 'seller' || tt == 'delivery') {
           for (final cb in _marketplaceMsgListeners) {
-            cb?.call(map);
+            cb?.call({
+              'conversationId': normalized['conversationId'],
+              'messageId': normalized['messageId'],
+              'senderId': normalized['senderId'],
+              'text': normalized['text'],
+              'timestamp': normalized['timestamp'],
+            });
           }
         }
       });
 
-      _socket!.on('marketplace_is_typing', (data) {
+      _socket!.on('typing_status', (data) {
         final map = _toMap(data);
-        if (map != null) {
+        if (map == null) return;
+        final tt = map['threadType']?.toString();
+        final typingPayload = {
+          'conversationId': map['conversationId'],
+          'userId': map['userId'],
+          'userName': map['userName'],
+          'isTyping': map['isTyping'],
+        };
+        if (tt == 'support') {
+          for (final cb in _customerCareTypingListeners) {
+            cb?.call(Map<String, dynamic>.from(typingPayload));
+          }
+        } else if (tt == 'seller' || tt == 'delivery') {
           for (final cb in _marketplaceTypingListeners) {
-            cb?.call(map);
+            cb?.call(Map<String, dynamic>.from(typingPayload));
           }
         }
       });
@@ -258,8 +273,8 @@ class SocketService {
       return;
     }
     _socket!.emitWithAck(
-      'join_customer_care_room',
-      conversationId,
+      'join_room',
+      {'conversationId': conversationId},
       ack: (response) {
         callback(response is Map ? response : {'success': false});
       },
@@ -276,7 +291,7 @@ class SocketService {
       return;
     }
     _socket!.emitWithAck(
-      'send_customer_care_message',
+      'send_message',
       {'conversationId': conversationId, 'text': text},
       ack: (response) {
         callback(response is Map ? response : {'success': false});
@@ -285,7 +300,7 @@ class SocketService {
   }
 
   void setCustomerCareTyping(String conversationId, bool isTyping) {
-    _socket?.emit('customer_care_typing', {
+    _socket?.emit('typing_status', {
       'conversationId': conversationId,
       'isTyping': isTyping,
     });
@@ -324,8 +339,8 @@ class SocketService {
       return;
     }
     _socket!.emitWithAck(
-      'join_marketplace_room',
-      conversationId,
+      'join_room',
+      {'conversationId': conversationId},
       ack: (response) {
         callback(response is Map ? response : {'success': false});
       },
@@ -343,7 +358,7 @@ class SocketService {
       return;
     }
     _socket!.emitWithAck(
-      'send_marketplace_message',
+      'send_message',
       {
         'conversationId': conversationId,
         'text': text,
@@ -356,7 +371,7 @@ class SocketService {
   }
 
   void setMarketplaceTyping(String conversationId, bool isTyping) {
-    _socket?.emit('marketplace_typing', {
+    _socket?.emit('typing_status', {
       'conversationId': conversationId,
       'isTyping': isTyping,
     });

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+const MarketplaceConversation = require('../models/MarketplaceConversation');
 const {
   conversationRoom,
   loadConversationForUser,
@@ -77,16 +78,26 @@ function registerMarketplaceChatSocket(io) {
       }
     });
 
-    socket.on('marketplace_typing', (payload) => {
+    socket.on('marketplace_typing', async (payload) => {
       const { conversationId, isTyping } = payload || {};
       if (!conversationId) return;
       const room = conversationRoom(conversationId);
-      socket.to(room).emit('marketplace_is_typing', {
+      const uid = socket.user?._id?.toString();
+      const base = {
         conversationId,
-        userId: socket.user?._id?.toString(),
+        userId: uid,
         userName: socket.user?.name,
         isTyping: Boolean(isTyping),
-      });
+      };
+      socket.to(room).emit('marketplace_is_typing', base);
+      let threadType = 'seller';
+      try {
+        const c = await MarketplaceConversation.findById(conversationId).select('type').lean();
+        if (c?.type === 'DELIVERY') threadType = 'delivery';
+      } catch (_) {
+        /* ignore */
+      }
+      socket.to(room).emit('typing_status', { ...base, threadType });
     });
   });
 }

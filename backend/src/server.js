@@ -83,6 +83,7 @@ const { registerChatHandler } = require('./sockets/chatHandler');
 const { registerCustomerCareSocket } = require('./sockets/customerCareSocket');
 const { registerMarketplaceChatSocket } = require('./sockets/marketplaceChatSocket');
 const { registerVetDirectSocket } = require('./sockets/vetDirectSocket');
+const { registerUnifiedChatSocket } = require('./sockets/unifiedChatSocket');
 const { presenceConnect, presenceDisconnect } = require('./sockets/presenceStore');
 const { setIO } = require('./sockets/socketStore');
 const customerCareRoutes = require('./routes/customerCareRoutes');
@@ -109,6 +110,7 @@ io.on('connection', (socket) => {
 registerChatHandler(io);
 registerCustomerCareSocket(io);
 registerMarketplaceChatSocket(io);
+registerUnifiedChatSocket(io);
 registerVetDirectSocket(io);
 setIO(io);
 

@@ -3,98 +3,115 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 import { Button } from './ui/Button';
-import { LogOut, User, PawPrint, Menu, X } from 'lucide-react';
+import { LogOut, User, Menu, X, ShoppingCart, Bell } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
+import { InboxDropdown } from '@/components/nav/InboxDropdown';
+import { useChatHub } from '@/context/ChatHubContext';
 
-const navLinks = [
+const mainNav = [
   { href: '/', label: 'Home' },
-  { href: '/vets', label: 'Vet Directory' },
   { href: '/services', label: 'Services' },
-  { href: '/blog', label: 'Blog' },
   { href: '/shop', label: 'Shop' },
-  { href: '/about', label: 'About' },
 ];
 
 export function Navbar() {
   const { user, logout, isLoading } = useAuth();
+  const { totalItems } = useCart();
+  const { openHub } = useChatHub();
   const [mobileOpen, setMobileOpen] = useState(false);
-
   const closeMobile = () => setMobileOpen(false);
 
   return (
-    <nav className="sticky top-0 z-50 bg-white shadow-md">
+    <nav className="sticky top-0 z-50 border-b border-[#4B3621]/10 bg-[#FAF7F2]/95 backdrop-blur-md shadow-[0_8px_30px_rgba(75,54,33,0.06)]">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 min-w-0" onClick={closeMobile}>
-            <PawSewaLogo variant="nav" height={40} priority />
+        <div className="flex items-center justify-between h-[4.25rem]">
+          <Link href="/" className="flex items-center gap-2 min-w-0 shrink-0" onClick={closeMobile}>
+            <PawSewaLogo variant="nav" height={36} priority />
           </Link>
 
-          <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map(({ href, label }) => (
+          <div className="hidden lg:flex items-center gap-1 xl:gap-2">
+            {mainNav.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
-                className="text-gray-700 hover:text-primary transition-colors"
+                className="text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors"
               >
                 {label}
               </Link>
             ))}
+            {user ? (
+              <Link
+                href="/my-pets"
+                className="text-[#4B3621] hover:text-[#2a1d14] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[#4B3621]/6 transition-colors"
+              >
+                My Pets
+              </Link>
+            ) : null}
+            <InboxDropdown />
           </div>
 
           {!isLoading && (
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden lg:flex items-center gap-1">
+              <button
+                type="button"
+                className="p-2.5 rounded-xl text-[#4B3621] hover:bg-[#4B3621]/8 transition-colors relative"
+                aria-label="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+              </button>
+              <Link
+                href="/checkout"
+                className="p-2.5 rounded-xl text-[#4B3621] hover:bg-[#4B3621]/8 transition-colors relative"
+                aria-label="Shopping cart"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {totalItems > 0 ? (
+                  <span className="absolute top-1 right-1 min-w-[1.125rem] h-[1.125rem] flex items-center justify-center text-[10px] font-bold bg-[#0d9488] text-white rounded-full">
+                    {totalItems > 9 ? '9+' : totalItems}
+                  </span>
+                ) : null}
+              </Link>
               {user ? (
                 <>
-                  <Link href="/my-pets">
-                    <Button variant="ghost" className="flex items-center space-x-2">
-                      <PawPrint className="w-4 h-4" />
-                      <span>My Pets</span>
-                    </Button>
-                  </Link>
-                  <Link href="/my-cases">
-                    <Button variant="ghost" className="flex items-center space-x-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      <span>My Cases</span>
-                    </Button>
-                  </Link>
-                  <Link href="/my-service-requests">
-                    <Button variant="ghost" className="flex items-center space-x-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>My Appointments</span>
-                    </Button>
-                  </Link>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2 px-3 py-2 bg-secondary rounded-lg">
-                      <User className="w-5 h-5 text-primary" />
-                      <span className="text-sm font-medium text-primary">{user.name}</span>
+                  <div className="flex items-center gap-2 pl-2 ml-1 border-l border-[#4B3621]/15">
+                    <div className="w-9 h-9 rounded-full bg-[#4B3621] text-[#FAF7F2] flex items-center justify-center text-sm font-bold">
+                      {user.name?.charAt(0)?.toUpperCase() || <User className="w-4 h-4" />}
                     </div>
-                    <Button variant="ghost" onClick={logout} className="flex items-center space-x-2">
-                      <LogOut className="w-4 h-4" />
-                      <span>Logout</span>
-                    </Button>
+                    <span className="text-sm font-medium text-[#4B3621] max-w-[7rem] truncate hidden xl:inline">
+                      {user.name}
+                    </span>
                   </div>
+                  <Button
+                    variant="ghost"
+                    onClick={logout}
+                    className="flex items-center gap-1.5 text-[#4B3621] ml-1"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden xl:inline">Logout</span>
+                  </Button>
                 </>
               ) : (
-                <>
+                <div className="flex items-center gap-2 pl-2">
                   <Link href="/login">
-                    <Button variant="ghost">Sign In</Button>
+                    <Button variant="ghost" className="text-[#4B3621]">
+                      Sign In
+                    </Button>
                   </Link>
                   <Link href="/register">
-                    <Button variant="primary">Get Started</Button>
+                    <Button variant="primary" className="bg-[#4B3621] hover:bg-[#3d2a1a] text-[#FAF7F2] rounded-xl">
+                      Get Started
+                    </Button>
                   </Link>
-                </>
+                </div>
               )}
             </div>
           )}
 
           <button
             type="button"
-            className="md:hidden p-2 text-gray-600 hover:text-primary"
+            className="lg:hidden p-2 text-[#4B3621]"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
@@ -104,50 +121,49 @@ export function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
-          <div className="container mx-auto px-4 py-4 flex flex-col gap-2">
-            {navLinks.map(({ href, label }) => (
+        <div className="lg:hidden border-t border-[#4B3621]/10 bg-[#FAF7F2]">
+          <div className="container mx-auto px-4 py-4 flex flex-col gap-1">
+            {mainNav.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={closeMobile}
-                className="py-2 text-gray-700 hover:text-primary transition-colors font-medium"
+                className="py-2.5 text-[#4B3621] font-medium"
               >
                 {label}
               </Link>
             ))}
-            {!isLoading && (
-              <div className="border-t border-gray-200 pt-4 mt-2 flex flex-col gap-2">
-                {user ? (
-                  <>
-                    <Link href="/my-pets" onClick={closeMobile} className="py-2 text-gray-700 hover:text-primary">
-                      My Pets
-                    </Link>
-                    <Link href="/my-cases" onClick={closeMobile} className="py-2 text-gray-700 hover:text-primary">
-                      My Cases
-                    </Link>
-                    <Link href="/my-service-requests" onClick={closeMobile} className="py-2 text-gray-700 hover:text-primary">
-                      My Appointments
-                    </Link>
-                    <span className="py-2 text-sm text-gray-500">{user.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => { closeMobile(); logout(); }}
-                      className="py-2 text-left text-gray-700 hover:text-primary"
-                    >
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/login" onClick={closeMobile} className="py-2 text-gray-700 hover:text-primary font-medium">
-                      Sign In
-                    </Link>
-                    <Link href="/register" onClick={closeMobile} className="py-2 text-primary font-medium">
-                      Get Started
-                    </Link>
-                  </>
-                )}
+            {user ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeMobile();
+                    openHub();
+                  }}
+                  className="py-2.5 text-left text-[#4B3621] font-medium w-full"
+                >
+                  Inbox / Messages
+                </button>
+                <Link href="/my-pets" onClick={closeMobile} className="py-2.5 text-[#4B3621] font-medium">
+                  My Pets
+                </Link>
+              </>
+            ) : null}
+            <div className="py-2 border-t border-[#4B3621]/10 mt-2 flex items-center gap-4">
+              <Link href="/checkout" onClick={closeMobile} className="flex items-center gap-2 text-[#4B3621]">
+                <ShoppingCart className="w-5 h-5" />
+                Cart {totalItems > 0 ? `(${totalItems})` : ''}
+              </Link>
+            </div>
+            {!isLoading && !user && (
+              <div className="flex gap-2 pt-2">
+                <Link href="/login" onClick={closeMobile} className="flex-1 text-center py-2 rounded-xl border border-[#4B3621]/20">
+                  Sign In
+                </Link>
+                <Link href="/register" onClick={closeMobile} className="flex-1 text-center py-2 rounded-xl bg-[#4B3621] text-[#FAF7F2]">
+                  Register
+                </Link>
               </div>
             )}
           </div>

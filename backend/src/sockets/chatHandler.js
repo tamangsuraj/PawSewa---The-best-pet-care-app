@@ -5,6 +5,7 @@ const User = require('../models/User');
 const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../config/fcm');
 const { isAdminRole } = require('../services/customerCareService');
+const { handleUnifiedSendMessage } = require('./unifiedChatSocket');
 
 const ROOM_PREFIX = 'request:';
 const SUPPORT_ROOM = 'support:global';
@@ -102,8 +103,12 @@ function registerChatHandler(io) {
       callback?.({ success: true, room });
     });
 
-    // Send message: save to DB and emit to room
+    // Send message: service-request chat (requestId) OR unified marketplace/support (conversationId)
     socket.on('send_message', async (payload, callback) => {
+      if (payload && typeof payload.conversationId === 'string') {
+        return handleUnifiedSendMessage(socket, io, payload, callback);
+      }
+
       const { requestId, text, timestamp } = payload || {};
       if (!requestId || typeof text !== 'string' || !text.trim()) {
         callback?.({ success: false, message: 'Missing requestId or text' });

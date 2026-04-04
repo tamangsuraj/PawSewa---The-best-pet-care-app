@@ -237,7 +237,18 @@ async function appendMessageAndNotify({
   };
 
   if (io) {
-    io.to(conversationRoom(conversation._id)).emit('customer_care_new_message', payload);
+    const room = conversationRoom(conversation._id);
+    io.to(room).emit('customer_care_new_message', payload);
+    io.to(room).emit('receive_message', {
+      conversationId: payload.conversationId,
+      messageId: payload.messageId,
+      senderId: payload.senderId,
+      receiverId: payload.receiverId,
+      content: payload.text,
+      text: payload.text,
+      timestamp: payload.timestamp,
+      threadType: 'support',
+    });
   }
 
   const fromAdmin = senderIsAdmin;

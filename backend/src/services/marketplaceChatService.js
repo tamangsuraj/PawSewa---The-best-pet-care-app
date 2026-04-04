@@ -248,18 +248,31 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
     timestamp: (msg.createdAt || new Date()).toISOString(),
   };
 
+  const custId = String(convDoc.customer);
+  const partId = String(convDoc.partner);
+  const receiverId = String(senderId) === custId ? partId : custId;
+
   const room = conversationRoom(conversationId);
   if (io) {
     io.to(room).emit('marketplace_new_message', payload);
+    io.to(room).emit('receive_message', {
+      conversationId: payload.conversationId,
+      messageId: payload.messageId,
+      senderId: payload.senderId,
+      receiverId,
+      content: payload.text,
+      text: payload.text,
+      productId: payload.productId,
+      productName: payload.productName,
+      timestamp: payload.timestamp,
+      threadType: convDoc.type === 'DELIVERY' ? 'delivery' : 'seller',
+    });
   }
 
   logSellerRouting({ convDoc, senderId, prodRef });
 
   const sender = await User.findById(senderId).select('name role').lean();
   const senderName = (sender?.name || 'Someone').trim();
-  const custId = String(convDoc.customer);
-  const partId = String(convDoc.partner);
-  const receiverId = String(senderId) === custId ? partId : custId;
 
   const preview = trimmed.length > 120 ? `${trimmed.slice(0, 117)}...` : trimmed;
 

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { useChatHub } from '@/context/ChatHubContext';
 import { ChevronLeft, Plus, Star, Package, MessageCircle } from 'lucide-react';
 import { Reviews } from '@/components/Reviews';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
@@ -26,6 +27,7 @@ interface Product {
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
   const { addItem } = useCart();
   const { isAuthenticated } = useAuth();
+  const { openSellerChat } = useChatHub();
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,9 +142,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                   }
                   setChatBusy(true);
                   try {
-                    const res = await api.post('/marketplace-chat/seller/open', { productId: product._id });
-                    const convId = res.data?.data?._id;
-                    if (convId) router.push(`/marketplace-chat/${convId}`);
+                    await openSellerChat(product._id);
                   } catch (e) {
                     console.error(e);
                     alert('Could not start seller chat. Try the PawSewa app.');

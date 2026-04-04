@@ -9,8 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@react-oauth/google": "^0.13.4",
     "@hookform/resolvers": "^3.9.0",
+    "@react-oauth/google": "^0.13.4",
     "axios": "^1.13.5",
     "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
@@ -21,6 +21,8 @@
     "react-hook-form": "^7.53.0",
     "react-leaflet": "^4.2.1",
     "react-qr-code": "^2.0.15",
+    "recharts": "^3.8.1",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
     "zod": "^3.24.1"
   },

@@ -2,15 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, MessageCircle } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
+import { useChatHub } from '@/context/ChatHubContext';
+import api from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 
 export default function CheckoutSuccessPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  const [hasRider, setHasRider] = useState(false);
   const { clearCart } = useCart();
+  const { isAuthenticated } = useAuth();
+  const { openDeliveryForOrder } = useChatHub();
 
   useEffect(() => {
     setMounted(true);
@@ -28,6 +35,29 @@ export default function CheckoutSuccessPage() {
       clearCart(); // Clear cart after successful payment
     }
   }, [mounted, orderId, clearCart]);
+
+  useEffect(() => {
+    if (!mounted || !orderId || !isAuthenticated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get('/orders/my');
+        const list = res.data?.data ?? [];
+        const o = Array.isArray(list)
+          ? list.find((x: { _id?: string }) => String(x._id) === orderId)
+          : null;
+        if (!cancelled && o) {
+          setOrderStatus(typeof o.status === 'string' ? o.status : null);
+          setHasRider(Boolean(o.assignedRider));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mounted, orderId, isAuthenticated]);
 
   if (!mounted) {
     return (
@@ -48,7 +78,33 @@ export default function CheckoutSuccessPage() {
           Thank you for your order. Your payment has been completed successfully.
         </p>
         {orderId && (
-          <p className="text-sm text-gray-500 font-mono mb-6">Order ID: {orderId}</p>
+          <p className="text-sm text-gray-500 font-mono mb-4">Order ID: {orderId}</p>
+        )}
+        {orderId && isAuthenticated && (
+          <div className="w-full text-left mb-6 rounded-xl border border-[#703418]/20 bg-[#fdf8f5] p-4">
+            <p className="text-xs font-semibold text-[#703418] uppercase tracking-wide mb-2">
+              Order tracking
+            </p>
+            {orderStatus && (
+              <p className="text-sm text-gray-700 mb-3">
+                Status: <span className="font-medium capitalize">{orderStatus.replace(/_/g, ' ')}</span>
+              </p>
+            )}
+            {hasRider ? (
+              <button
+                type="button"
+                onClick={() => void openDeliveryForOrder(orderId)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0d9488] text-white text-sm font-semibold hover:bg-[#0f766e] w-full justify-center"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Chat with Rider
+              </button>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Rider chat appears when a rider is assigned and the order is being fulfilled.
+              </p>
+            )}
+          </div>
         )}
         <Link
           href="/shop"

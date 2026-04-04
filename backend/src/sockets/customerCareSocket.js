@@ -98,11 +98,17 @@ function registerCustomerCareSocket(io) {
       const { conversationId, isTyping } = payload || {};
       if (!conversationId) return;
       const room = conversationRoom(conversationId);
-      socket.to(room).emit('customer_care_is_typing', {
+      const uid = socket.user?._id?.toString();
+      const typingPayload = {
         conversationId,
-        userId: socket.user?._id?.toString(),
+        userId: uid,
         userName: socket.user?.name,
         isTyping: Boolean(isTyping),
+      };
+      socket.to(room).emit('customer_care_is_typing', typingPayload);
+      socket.to(room).emit('typing_status', {
+        ...typingPayload,
+        threadType: 'support',
       });
     });
   });
