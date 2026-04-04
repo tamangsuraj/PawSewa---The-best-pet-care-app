@@ -19,6 +19,8 @@ class SocketService {
   final List<void Function(Map<String, dynamic>)?> _statusChangeListeners = [];
   final List<void Function(Map<String, dynamic>)?> _staffMovedListeners = [];
   final List<void Function(Map<String, dynamic>)?> _isTypingListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _customerCareMsgListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _customerCareTypingListeners = [];
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
 
@@ -114,6 +116,24 @@ class SocketService {
         }
       });
 
+      _socket!.on('customer_care_new_message', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _customerCareMsgListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('customer_care_is_typing', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _customerCareTypingListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
       _socket!.connect();
     } catch (e) {
       if (kDebugMode) debugPrint('[SocketService] connect error: $e');
@@ -177,6 +197,72 @@ class SocketService {
   /// Emit typing indicator.
   void setTyping(String requestId, bool isTyping) {
     _socket?.emit('is_typing', {'requestId': requestId, 'isTyping': isTyping});
+  }
+
+  void joinCustomerCareRoom(
+    String conversationId,
+    void Function(dynamic) callback,
+  ) {
+    if (_socket == null || !_socket!.connected) {
+      callback({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'join_customer_care_room',
+      conversationId,
+      ack: (response) {
+        callback(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void sendCustomerCareMessage(
+    String conversationId,
+    String text,
+    void Function(dynamic) callback,
+  ) {
+    if (_socket == null || !_socket!.connected) {
+      callback({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'send_customer_care_message',
+      {'conversationId': conversationId, 'text': text},
+      ack: (response) {
+        callback(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void setCustomerCareTyping(String conversationId, bool isTyping) {
+    _socket?.emit('customer_care_typing', {
+      'conversationId': conversationId,
+      'isTyping': isTyping,
+    });
+  }
+
+  void addCustomerCareMessageListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareMsgListeners.add(listener);
+  }
+
+  void removeCustomerCareMessageListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareMsgListeners.remove(listener);
+  }
+
+  void addCustomerCareTypingListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareTypingListeners.add(listener);
+  }
+
+  void removeCustomerCareTypingListener(
+    void Function(Map<String, dynamic>) listener,
+  ) {
+    _customerCareTypingListeners.remove(listener);
   }
 
   void addNewMessageListener(void Function(Map<String, dynamic>) listener) {

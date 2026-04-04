@@ -213,7 +213,7 @@ function OrderDetailModal({
                 className="inline-flex items-center gap-2 text-primary hover:underline text-sm font-medium"
               >
                 <MapIcon className="w-4 h-4" aria-hidden />
-                View Exact Location
+                View on Map
               </a>
             </div>
           </div>
@@ -732,11 +732,12 @@ export default function LiveSuppliesPage() {
                               href={`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              title={`Exact: ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`}
-                              className="flex-shrink-0 p-1 rounded-md text-primary hover:bg-primary/10"
-                              aria-label="Open exact coordinates on map"
+                              title={`House-level pin: ${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`}
+                              className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-primary border border-primary/30 hover:bg-primary/10"
+                              aria-label="View on Map — opens Google Maps at exact coordinates"
                             >
-                              <MapPin className="w-4 h-4" />
+                              <MapPin className="w-3.5 h-3.5" />
+                              View on Map
                             </a>
                           );
                         })()}

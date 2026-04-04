@@ -124,6 +124,7 @@ const createOrder = asyncHandler(async (req, res) => {
   });
 
   logger.info(`Order ${order._id}: GPS Coordinates captured (Lat: ${lat}, Lng: ${lng}).`);
+  logger.success('[SUCCESS] GPS Order Logged', String(order._id), `lat=${lat}`, `lng=${lng}`);
   logger.info('New Order Received: ID', order._id.toString());
 
   // Notify admin panel and any connected dashboards in real time

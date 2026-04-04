@@ -97,6 +97,10 @@ const registerUser = asyncHandler(async (req, res) => {
     // Send OTP email
     try {
       await sendOTPEmail(email, name, otp);
+      logger.success(
+        '[SUCCESS] Gmail SMTP: 6-digit verification dispatched to',
+        email.toString().toLowerCase().trim()
+      );
       logger.info(`Verification code ${otp} sent to ${email.toString().toLowerCase().trim()}.`);
       res.status(201).json({
         success: true,
@@ -563,11 +567,12 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     throw new Error('Please provide name, email, password, and role');
   }
 
-  // Validate role
-  const validRoles = ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider'];
-  if (!validRoles.includes(role)) {
+  // Validate role (accept legacy "customer" as pet_owner)
+  const validRoles = ['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider', 'customer'];
+  const resolvedRole = role === 'customer' ? 'pet_owner' : role;
+  if (!validRoles.includes(role) || !['pet_owner', 'veterinarian', 'admin', 'shop_owner', 'care_service', 'rider'].includes(resolvedRole)) {
     res.status(400);
-    throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+    throw new Error(`Invalid role. Must be one of: pet_owner, customer, veterinarian, admin, shop_owner, care_service, rider`);
   }
 
   // Check if user already exists
@@ -583,24 +588,24 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     name,
     email,
     password,
-    role,
+    role: resolvedRole,
     phone,
     location,
     isVerified: true, // Admin-created users are auto-verified
   };
 
   // Add role-specific fields
-  if (role === 'veterinarian') {
+  if (resolvedRole === 'veterinarian') {
     if (clinicLocation) userData.clinicLocation = clinicLocation;
     if (specialization) userData.specialization = specialization;
     if (clinicName) userData.clinicName = clinicName;
-  } else if (role === 'shop_owner') {
+  } else if (resolvedRole === 'shop_owner') {
     if (shopName) userData.shopName = shopName;
     if (businessLicense) userData.businessLicense = businessLicense;
-  } else if (role === 'care_service') {
+  } else if (resolvedRole === 'care_service') {
     if (serviceType) userData.serviceType = serviceType;
     if (facilityName) userData.facilityName = facilityName;
-  } else if (role === 'rider') {
+  } else if (resolvedRole === 'rider') {
     if (vehicleType) userData.vehicleType = vehicleType;
     if (licenseNumber) userData.licenseNumber = licenseNumber;
   }
@@ -610,7 +615,7 @@ const adminCreateUser = asyncHandler(async (req, res) => {
   if (user) {
     // Send welcome email with credentials (optional - doesn't block response)
     try {
-      await sendWelcomeEmail(email, name, role, password);
+      await sendWelcomeEmail(email, name, resolvedRole, password);
     } catch (error) {
       console.error('Failed to send welcome email:', error);
       // Continue anyway - email is optional
@@ -629,17 +634,17 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     };
 
     // Add role-specific fields to response
-    if (role === 'veterinarian') {
+    if (resolvedRole === 'veterinarian') {
       responseData.clinicLocation = user.clinicLocation;
       responseData.specialization = user.specialization;
       responseData.clinicName = user.clinicName;
-    } else if (role === 'shop_owner') {
+    } else if (resolvedRole === 'shop_owner') {
       responseData.shopName = user.shopName;
       responseData.businessLicense = user.businessLicense;
-    } else if (role === 'care_service') {
+    } else if (resolvedRole === 'care_service') {
       responseData.serviceType = user.serviceType;
       responseData.facilityName = user.facilityName;
-    } else if (role === 'rider') {
+    } else if (resolvedRole === 'rider') {
       responseData.vehicleType = user.vehicleType;
       responseData.licenseNumber = user.licenseNumber;
     }
@@ -647,7 +652,7 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     res.status(201).json({
       success: true,
       data: responseData,
-      message: `${role} account created successfully`,
+      message: `${resolvedRole} account created successfully`,
     });
   } else {
     res.status(400);
@@ -823,6 +828,36 @@ const patchCurrentUser = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'FCM token registered' });
 });
 
+/**
+ * Vets linked via Pet.linkedVetVisits (medical history) only — Messenger-style Vet Circles when this list is non-empty.
+ * @route GET /api/v1/users/me/linked-vets
+ */
+const getLinkedVets = asyncHandler(async (req, res) => {
+  const uid = req.user._id;
+  const Pet = require('../models/Pet');
+
+  const pets = await Pet.find({ owner: uid }).select('linkedVetVisits').lean();
+  const fromPets = [];
+  for (const p of pets) {
+    const visits = p.linkedVetVisits;
+    if (!Array.isArray(visits)) continue;
+    for (const v of visits) {
+      if (v.veterinarian) fromPets.push(String(v.veterinarian));
+    }
+  }
+
+  const merged = [...new Set(fromPets)].filter(Boolean);
+
+  const vets = await User.find({
+    _id: { $in: merged },
+    role: 'veterinarian',
+  })
+    .select('name profilePicture clinicName specialization email')
+    .lean();
+
+  res.json({ success: true, data: vets });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -832,6 +867,7 @@ module.exports = {
   updateUserProfile,
   registerDeviceToken,
   patchCurrentUser,
+  getLinkedVets,
   getAllUsers,
   deleteUser,
   updateUserRole,

@@ -22,8 +22,8 @@ export const metadata: Metadata = {
   title: "PawSewa - Best Pet Care App",
   description: "Complete pet care solution for pet owners and veterinarians",
   icons: {
-    icon: "/brand/favicon.ico",
-    apple: "/brand/apple-touch-icon.png",
+    icon: "/brand/image_607767.png",
+    apple: "/brand/image_607767.png",
   },
 };
 

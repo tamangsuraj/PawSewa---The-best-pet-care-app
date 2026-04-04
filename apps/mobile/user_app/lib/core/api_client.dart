@@ -145,9 +145,9 @@ class ApiClient {
     return await _dio.put('/users/profile', data: data);
   }
 
-  /// Register FCM token for push notifications (pet reminders, etc.).
+  /// Sync FCM token to [PATCH /api/v1/users/me] (`fcmToken`).
   Future<Response> registerFcmToken(String token) async {
-    return await _dio.post('/users/me/fcm-token', data: {'token': token});
+    return await _dio.patch('/users/me', data: {'fcmToken': token});
   }
 
   // Generic POST method
@@ -417,5 +417,22 @@ class ApiClient {
 
   Future<Response> initiateCareBookingPayment(String bookingId) async {
     return await _dio.post('/care-bookings/$bookingId/pay');
+  }
+
+  /// Customer Care — default support conversation for pet owners.
+  Future<Response> getCustomerCareMine() async {
+    return await _dio.get('/customer-care/mine');
+  }
+
+  Future<Response> postCustomerCareMessage(String conversationId, String text) async {
+    return await _dio.post(
+      '/customer-care/conversations/$conversationId/messages',
+      data: {'text': text},
+    );
+  }
+
+  /// Vets linked via appointments, service requests, or pet medical visit records (Vet Chat shortcuts).
+  Future<Response> getLinkedVets() async {
+    return await _dio.get('/users/me/linked-vets');
   }
 }

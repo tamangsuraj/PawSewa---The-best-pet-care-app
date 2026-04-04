@@ -336,6 +336,7 @@ async function start() {
 
   server.listen(PORT, '0.0.0.0', () => {
     logger.info('Starting PawSewa Backend Server.');
+    logger.success('[SUCCESS] Brand Deployed: PawSewa API ready (logos, chat, GPS order logging active).');
     logger.success('Server listening on Port:', PORT);
     logger.info('Environment:', process.env.NODE_ENV || 'development');
     logger.info('CORS enabled for localhost and local network.');

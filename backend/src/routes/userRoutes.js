@@ -17,8 +17,10 @@ const {
   getUserById,
   getUserFullProfile,
   updateStaffProfile,
+  getLinkedVets,
+  updateMyLiveLocation,
 } = require('../controllers/userController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, admin, authorize } = require('../middleware/authMiddleware');
 const { authLimiter } = require('../middleware/rateLimiters');
 
 // Public routes (rate-limited for brute-force protection)
@@ -39,8 +41,8 @@ router.post('/me/fcm-token', protect, registerDeviceToken);
 router.put('/staff/profile', protect, updateStaffProfile);
 
 // Live location updates (staff / riders)
-const { updateMyLiveLocation } = require('../controllers/userController');
 router.patch('/me/location', protect, updateMyLiveLocation);
+router.get('/me/linked-vets', protect, authorize('pet_owner', 'customer'), getLinkedVets);
 
 // Admin routes
 router.get('/admin/stats', protect, admin, getDashboardStats);

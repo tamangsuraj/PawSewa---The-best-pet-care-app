@@ -464,7 +464,11 @@ const khaltiCallback = asyncHandler(async (req, res) => {
 
   if (lookupStatus === 'Completed') {
     const orderId = purchaseOrderId || '';
-    return res.redirect(`${successRedirect}?orderId=${orderId}`);
+    const q = new URLSearchParams();
+    if (orderId) q.set('orderId', String(orderId));
+    if (pidx) q.set('pidx', String(pidx));
+    const sep = successRedirect.includes('?') ? '&' : '?';
+    return res.redirect(`${successRedirect}${sep}${q.toString()}`);
   }
 
   const friendlyReason = getPaymentFailureMessage(lookupStatus || 'unknown');
@@ -477,10 +481,15 @@ const khaltiCallback = asyncHandler(async (req, res) => {
  */
 const paymentSuccessPage = (req, res) => {
   const orderId = req.query?.orderId || '';
+  const pidx = req.query?.pidx || '';
   const webUrl = process.env.PAYMENT_SUCCESS_WEB_URL || '';
   if (webUrl && webUrl.trim()) {
     const sep = webUrl.includes('?') ? '&' : '?';
-    return res.redirect(`${webUrl.replace(/\/$/, '')}${sep}orderId=${orderId}`);
+    const q = new URLSearchParams();
+    if (orderId) q.set('orderId', String(orderId));
+    if (pidx) q.set('pidx', String(pidx));
+    const qs = q.toString();
+    return res.redirect(`${webUrl.replace(/\/$/, '')}${sep}${qs}`);
   }
   res.set('Content-Type', 'text/html');
   res.send(
@@ -946,35 +955,47 @@ const verifyPayment = asyncHandler(async (req, res) => {
     return res.status(503).json({ success: false, message: 'Khalti is not configured' });
   }
 
-  let lookupResp;
-  try {
-    lookupResp = await axios.post(
-      `${KHALTI_BASE_URL}/epayment/lookup/`,
-      { pidx },
-      {
-        headers: {
-          Authorization: `Key ${KHALTI_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-  } catch (err) {
-    logger.error(
-      'Khalti Lookup failed during verify-payment:',
-      err?.response?.data || err.message || String(err)
-    );
-    return res.status(502).json({
-      success: false,
-      message: 'Failed to verify payment with Khalti. Please try again.',
-    });
+  const maxAttempts = 8;
+  const delayMs = 2000;
+  let lookupData = null;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+    try {
+      const lookupResp = await axios.post(
+        `${KHALTI_BASE_URL}/epayment/lookup/`,
+        { pidx },
+        {
+          headers: {
+            Authorization: `Key ${KHALTI_SECRET_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      lookupData = lookupResp.data || {};
+    } catch (err) {
+      logger.error(
+        'Khalti Lookup failed during verify-payment:',
+        err?.response?.data || err.message || String(err)
+      );
+      return res.status(502).json({
+        success: false,
+        message: 'Failed to verify payment with Khalti. Please try again.',
+      });
+    }
+
+    const st = lookupData.status;
+    if (st === 'Completed') break;
+    if (st !== 'Pending' && st !== 'Initiated') break;
   }
 
-  const status = lookupResp.data?.status;
-  const purchaseOrderId = lookupResp.data?.purchase_order_id;
+  const status = lookupData?.status;
+  const purchaseOrderId = lookupData?.purchase_order_id;
   const transactionId =
-    lookupResp.data?.transaction_id ||
-    lookupResp.data?.idx ||
-    lookupResp.data?.pidx ||
+    lookupData?.transaction_id ||
+    lookupData?.idx ||
+    lookupData?.pidx ||
     null;
 
   if (status === 'Completed' && purchaseOrderId) {

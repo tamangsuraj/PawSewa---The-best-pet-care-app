@@ -99,6 +99,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_native_splash: ^2.4.4
+  flutter_launcher_icons: ^0.14.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -113,6 +114,7 @@ flutter:
 
   assets:
     - assets/brand/pawsewa_logo.png
+    - assets/brand/image_607767.png
     - assets/cash.png
     - assets/connectIPS.png
     - assets/credit.png
@@ -151,7 +153,13 @@ flutter:
 
 flutter_native_splash:
   color: '#FFFFFF'
-  image: assets/brand/pawsewa_logo.png
+  image: assets/brand/image_607767.png
   android_12:
     color: '#FFFFFF'
-    image: assets/brand/pawsewa_logo.png
+    image: assets/brand/image_607767.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/image_607767.png
+  min_sdk_android: 21

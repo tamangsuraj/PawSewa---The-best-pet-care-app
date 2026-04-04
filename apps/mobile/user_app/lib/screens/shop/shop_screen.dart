@@ -16,6 +16,7 @@ import '../../cart/saved_addresses_service.dart';
 import '../../core/api_client.dart';
 import '../../core/api_config.dart';
 import '../../core/constants.dart';
+import '../../core/khalti_verify_helper.dart';
 import '../cart/delivery_pin_screen.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
@@ -792,16 +793,23 @@ class _ShopScreenState extends State<ShopScreen> {
       final initData = initResp.data;
       String? paymentUrl;
       String? successUrl;
+      String? pidx;
       if (initData is Map) {
         final data = initData['data'];
         if (data is Map) {
           paymentUrl = data['paymentUrl']?.toString();
           successUrl = data['successUrl']?.toString();
+          pidx = data['pidx']?.toString();
         }
       }
       if (paymentUrl == null || paymentUrl.isEmpty) return null;
       if (successUrl == null || successUrl.isEmpty) successUrl = 'payment-success';
-      return {'orderId': orderId, 'paymentUrl': paymentUrl, 'successUrl': successUrl};
+      return {
+        'orderId': orderId,
+        'paymentUrl': paymentUrl,
+        'successUrl': successUrl,
+        if (pidx != null && pidx.isNotEmpty) 'pidx': pidx,
+      };
     } on DioException catch (e) {
       // Bubble a useful backend message up to the sheet UI.
       String message = 'Could not start Khalti payment. Please try again.';
@@ -3836,8 +3844,9 @@ class _PaymentSheet extends StatefulWidget {
 
 class _PaymentSheetState extends State<_PaymentSheet> {
   String _selected = 'Cash on Delivery';
-  String _phase = 'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'confirm_order'
+  String _phase = 'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'khalti_verifying' | 'confirm_order'
   String? _khaltiOrderId;
+  String? _khaltiPidx;
   String? _khaltiPaymentUrl;
   String? _khaltiSuccessUrl;
   WebViewController? _khaltiWebController;
@@ -3965,8 +3974,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
           NavigationDelegate(
             onNavigationRequest: (request) {
               final url = request.url;
+              final uri = Uri.tryParse(url);
+              final qp = uri?.queryParameters['pidx'];
+              if (qp != null && qp.isNotEmpty) {
+                _khaltiPidx = qp;
+              }
               if (url.contains('payment-success') || url.contains(successUrl)) {
-                if (mounted) unawaited(_onKhaltiPaymentSuccess());
+                if (mounted) unawaited(_onKhaltiPaymentSuccess(qp));
                 return NavigationDecision.prevent;
               }
               if (url.contains('payment-failed')) {
@@ -3982,6 +3996,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       setState(() {
         _phase = 'khalti_pay';
         _khaltiOrderId = result['orderId'];
+        _khaltiPidx = result['pidx'];
         _khaltiPaymentUrl = paymentUrl;
         _khaltiSuccessUrl = successUrl;
         _khaltiWebController = controller;
@@ -4009,20 +4024,38 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     }
   }
 
-  Future<void> _onKhaltiPaymentSuccess() async {
+  Future<void> _onKhaltiPaymentSuccess(String? pidxFromUrl) async {
+    if (!mounted) return;
+    final pidx = (pidxFromUrl != null && pidxFromUrl.isNotEmpty) ? pidxFromUrl : _khaltiPidx;
+    setState(() => _phase = 'khalti_verifying');
+    final ok = await verifyKhaltiPaymentWithRetries(
+      context,
+      ApiClient(),
+      pidx,
+      maxAttempts: 5,
+    );
     await widget.refreshDeliveryGps();
     final id = _khaltiOrderId;
     if (id != null) {
       await widget.syncPendingOrderGps(id);
     }
     if (!mounted) return;
-    setState(() => _phase = 'confirm_order');
+    setState(() {
+      _phase = 'confirm_order';
+      if (!ok) {
+        _error =
+            'Could not confirm payment automatically. If Khalti charged you, tap confirm below — or contact support.';
+      } else {
+        _error = null;
+      }
+    });
   }
 
   void _onKhaltiPaymentCancel() {
     setState(() {
       _phase = 'select';
       _khaltiOrderId = null;
+      _khaltiPidx = null;
       _khaltiPaymentUrl = null;
       _khaltiSuccessUrl = null;
       _khaltiWebController = null;
@@ -4039,6 +4072,25 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
 
+    if (_phase == 'khalti_verifying') {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
+              Text(
+                'Confirming payment with Khalti…',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (_phase == 'khalti_pay' && _khaltiPaymentUrl != null && _khaltiSuccessUrl != null) {
       return _buildKhaltiWebViewPhase(primary);
     }

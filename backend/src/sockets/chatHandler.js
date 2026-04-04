@@ -1,9 +1,18 @@
 const ServiceRequest = require('../models/ServiceRequest');
 const ServiceRequestMessage = require('../models/ServiceRequestMessage');
 const Chat = require('../models/Chat');
+const User = require('../models/User');
+const logger = require('../utils/logger');
+const { sendMulticastToUser } = require('../config/fcm');
+const { isAdminRole } = require('../services/customerCareService');
 
 const ROOM_PREFIX = 'request:';
 const SUPPORT_ROOM = 'support:global';
+
+function isVeterinarianRole(role) {
+  if (!role) return false;
+  return String(role).toLowerCase() === 'veterinarian';
+}
 
 /**
  * Register chat-related socket events.
@@ -47,7 +56,7 @@ function registerChatHandler(io) {
 
         const isRequester = request.user?.toString() === userId;
         const isAssignedStaff = request.assignedStaff?.toString() === userId;
-        const isAdmin = socket.user?.role === 'admin';
+        const isAdmin = isAdminRole(socket.user?.role);
 
         if (!isRequester && !isAssignedStaff && !isAdmin) {
           callback?.({ success: false, message: 'Not allowed to join this room' });
@@ -120,7 +129,7 @@ function registerChatHandler(io) {
         const uid = userId.toString();
         const isRequester = request.user?.toString() === uid;
         const isAssignedStaff = request.assignedStaff?.toString() === uid;
-        const isAdmin = socket.user?.role === 'admin';
+        const isAdmin = isAdminRole(socket.user?.role);
 
         if (!isRequester && !isAssignedStaff && !isAdmin) {
           callback?.({ success: false, message: 'Not allowed to send in this room' });
@@ -157,6 +166,54 @@ function registerChatHandler(io) {
         };
         io.to(room).emit('new_message', emitPayload);
         callback?.({ success: true, messageId: msg._id });
+
+        setImmediate(async () => {
+          try {
+            const requesterId = request.user?.toString();
+            const staffId = request.assignedStaff?.toString();
+            const senderStr = userId.toString();
+            const senderUser = await User.findById(userId).select('name role').lean();
+            const isVet = isVeterinarianRole(senderUser?.role);
+            const adminSender = isAdminRole(senderUser?.role);
+
+            if (senderStr === requesterId && staffId) {
+              const body =
+                (text || '').trim().slice(0, 200) ||
+                'A customer sent a new message.';
+              await sendMulticastToUser(staffId, {
+                title: 'Customer message',
+                body,
+                data: {
+                  type: 'vet_request_chat',
+                  requestId: String(requestId),
+                },
+              });
+              return;
+            }
+
+            if (senderStr !== requesterId && requesterId) {
+              if (!adminSender && !isVet) return;
+              const body = (text || '').trim().slice(0, 200) || 'New message.';
+              let title = 'Customer Care';
+              if (isVet) {
+                title =
+                  (senderUser?.name && String(senderUser.name).trim()) ||
+                  'Your veterinarian';
+              }
+              await sendMulticastToUser(requesterId, {
+                title,
+                body,
+                data: {
+                  type: 'vet_request_chat',
+                  requestId: String(requestId),
+                },
+                senderId: userId,
+              });
+            }
+          } catch (e) {
+            logger.warn('FCM: vet/service chat push skipped', e?.message || String(e));
+          }
+        });
       } catch (err) {
         console.error('[chatHandler] send_message error:', err?.message);
         callback?.({ success: false, message: err?.message || 'Server error' });

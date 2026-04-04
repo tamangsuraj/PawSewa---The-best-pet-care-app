@@ -35,7 +35,7 @@ class PushNotificationService {
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@drawable/ic_stat_pawsewa');
     const iosInit = DarwinInitializationSettings();
     await _local.initialize(const InitializationSettings(android: androidInit, iOS: iosInit));
 
@@ -102,6 +102,7 @@ class PushNotificationService {
         channelDescription: 'Operational and broadcast messages',
         importance: Importance.high,
         priority: Priority.high,
+        icon: '@drawable/ic_stat_pawsewa',
       ),
       iOS: DarwinNotificationDetails(),
     );

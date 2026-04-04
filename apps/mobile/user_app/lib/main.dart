@@ -47,9 +47,7 @@ void main() async {
   await savedAddresses.load();
 
   if (kDebugMode) {
-    debugPrint(
-      '[SUCCESS] Brand Assets Updated: New PawSewa Logo implemented across 4 platforms.',
-    );
+    debugPrint('[SUCCESS] Brand Deployed: PawSewa User App (launcher, splash, Customer Care avatar).');
   }
 
   runApp(

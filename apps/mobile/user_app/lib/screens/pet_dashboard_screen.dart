@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../models/pet.dart';
@@ -19,7 +22,9 @@ import 'messages/messages_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
+import 'my_service_requests_screen.dart';
 import '../services/socket_service.dart';
+import '../services/push_notification_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import 'package:flutter/foundation.dart';
 
@@ -30,7 +35,8 @@ class PetDashboardScreen extends StatefulWidget {
   State<PetDashboardScreen> createState() => _PetDashboardScreenState();
 }
 
-class _PetDashboardScreenState extends State<PetDashboardScreen> {
+class _PetDashboardScreenState extends State<PetDashboardScreen>
+    with WidgetsBindingObserver {
   final _petService = PetService();
   final _storage = StorageService();
 
@@ -39,12 +45,119 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
   String _userName = 'Pet Owner';
   int _currentIndex = 0;
   int _lastBottomBarIndex = 0; // when on Messages, bottom bar shows this
+  List<Map<String, dynamic>> _linkedVets = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserData();
     _loadPets();
+    _loadLinkedVets();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(PushNotificationService.instance.syncTokenIfLoggedIn());
+    }
+  }
+
+  Future<void> _loadLinkedVets() async {
+    try {
+      final r = await ApiClient().getLinkedVets();
+      final body = r.data;
+      if (!mounted) return;
+      if (body is Map && body['success'] == true && body['data'] is List) {
+        setState(() {
+          _linkedVets = (body['data'] as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        });
+      }
+    } catch (_) {}
+  }
+
+  Widget _vetMessengerBubbles() {
+    if (_linkedVets.isEmpty) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: _linkedVets.take(4).map((v) {
+        final name = (v['name'] ?? 'Vet').toString();
+        final initials = name.isNotEmpty ? name[0].toUpperCase() : 'V';
+        final pic = v['profilePicture']?.toString();
+        final hasPic = pic != null && pic.isNotEmpty;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Material(
+            elevation: 4,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () {
+                showModalBottomSheet<void>(
+                  context: context,
+                  builder: (ctx) => Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          name,
+                          style: GoogleFonts.poppins(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Vet Chat is available on your service requests with this veterinarian. Open My Requests to send or read messages.',
+                          style: GoogleFonts.poppins(fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const MyServiceRequestsScreen(),
+                              ),
+                            );
+                          },
+                          child: const Text('Open My Requests'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: CircleAvatar(
+                radius: 22,
+                backgroundColor: const Color(AppConstants.primaryColor),
+                backgroundImage: hasPic ? NetworkImage(pic) : null,
+                child: hasPic
+                    ? null
+                    : Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
   }
 
   Future<void> _loadUserData() async {
@@ -1014,7 +1127,13 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
                 color: const Color(AppConstants.secondaryColor),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const PawSewaBrandLogo(height: 26),
+              child: Image.asset(
+                'assets/brand/image_607767.png',
+                height: 26,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) =>
+                    const PawSewaBrandLogo(height: 26),
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1064,20 +1183,34 @@ class _PetDashboardScreenState extends State<PetDashboardScreen> {
           ),
         ],
       ),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 220),
-        switchInCurve: Curves.easeInOut,
-        switchOutCurve: Curves.easeInOut,
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        child: KeyedSubtree(
-          key: ValueKey<int>(_currentIndex),
-          child: _buildCurrentTab(),
-        ),
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<int>(_currentIndex),
+                child: _buildCurrentTab(),
+              ),
+            ),
+          ),
+          if (_linkedVets.isNotEmpty && _currentIndex != 3)
+            Positioned(
+              right: 10,
+              bottom: (_currentIndex == 0 ? 108.0 : 32.0) +
+                  MediaQuery.of(context).padding.bottom,
+              child: _vetMessengerBubbles(),
+            ),
+        ],
       ),
       floatingActionButton: _currentIndex == 0
           ? FloatingActionButton.extended(

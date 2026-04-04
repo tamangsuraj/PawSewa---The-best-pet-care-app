@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../core/api_client.dart';
 import '../core/storage_service.dart';
@@ -34,7 +35,7 @@ class PushNotificationService {
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@drawable/ic_stat_pawsewa');
     const iosInit = DarwinInitializationSettings();
     await _local.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
@@ -45,9 +46,13 @@ class PushNotificationService {
 
     final messaging = FirebaseMessaging.instance;
     await messaging.setAutoInitEnabled(true);
+    // iOS: system dialog; Android 13+: POST_NOTIFICATIONS via permission_handler.
     final settings = await messaging.requestPermission(alert: true, badge: true, sound: true);
     if (kDebugMode) {
       debugPrint('[FCM] permission: ${settings.authorizationStatus}');
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await Permission.notification.request();
     }
 
     FirebaseMessaging.onMessage.listen(_onForegroundMessage);
@@ -107,6 +112,7 @@ class PushNotificationService {
         channelDescription: 'Pet vaccination and care reminders',
         importance: Importance.high,
         priority: Priority.high,
+        icon: '@drawable/ic_stat_pawsewa',
       ),
       iOS: DarwinNotificationDetails(),
     );

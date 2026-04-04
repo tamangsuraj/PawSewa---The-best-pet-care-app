@@ -14,11 +14,18 @@ class PawSewaBrandLogo extends StatelessWidget {
       label: kPawSewaLogoSemanticLabel,
       image: true,
       child: Image.asset(
-        'assets/brand/pawsewa_logo.png',
+        'assets/brand/image_607767.png',
         height: height,
         fit: BoxFit.contain,
         filterQuality: FilterQuality.high,
         gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => Image.asset(
+          'assets/brand/pawsewa_logo.png',
+          height: height,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          gaplessPlayback: true,
+        ),
       ),
     );
   }

@@ -13,7 +13,7 @@ type Props = {
 
 /** Corporate PawSewa mark for headers and marketing surfaces. */
 export function PawSewaLogo({ variant = 'nav', height = 40, className = '', priority = false }: Props) {
-  const src = variant === 'nav' ? '/brand/pawsewa-logo-nav.png' : '/brand/pawsewa-logo.png';
+  const src = '/brand/image_607767.png';
   const w =
     variant === 'nav' ? Math.round(height * 4) : Math.round(height * 3.2);
 

@@ -117,6 +117,17 @@ const petSchema = new mongoose.Schema(
         type: String,
       },
     ],
+    /** Structured vet links for in-app "Vet chat" eligibility (optional). */
+    linkedVetVisits: [
+      {
+        veterinarian: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        summary: { type: String, trim: true },
+        recordedAt: { type: Date, default: Date.now },
+      },
+    ],
     lastVetVisit: { type: Date },
     vaccinationStatus: {
       type: String,

@@ -12,6 +12,23 @@ function normalizeRole(role) {
   return r.toLowerCase();
 }
 
+/** Stored role values after normalization (no enum mismatch on legacy CUSTOMER / VET / etc.). */
+const ALLOWED_ROLES = [
+  'pet_owner',
+  'veterinarian',
+  'admin',
+  'shop_owner',
+  'care_service',
+  'rider',
+  'hostel_owner',
+  'service_provider',
+  'groomer',
+  'trainer',
+  'facility_owner',
+  'customer',
+  'vet',
+];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -33,27 +50,14 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      // Accept both legacy production roles (CUSTOMER/ADMIN/VET) and normalized lowercase roles.
-      enum: [
-        'ADMIN',
-        'VET',
-        'CUSTOMER',
-        'RIDER',
-        'pet_owner',
-        'veterinarian',
-        'admin',
-        'shop_owner',
-        'care_service',
-        'rider',
-        'hostel_owner',
-        'service_provider',
-        'groomer',
-        'trainer',
-        'facility_owner',
-        'customer',
-        'vet',
-      ],
       default: 'pet_owner',
+      validate: {
+        validator(v) {
+          const n = normalizeRole(v);
+          return ALLOWED_ROLES.includes(n);
+        },
+        message: 'Invalid role for this user',
+      },
     },
     phone: {
       type: String,
@@ -205,9 +209,30 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Normalize role before validation/save so enums don't reject legacy inputs.
+// Normalize role before validation/save so legacy CUSTOMER / VET / ADMIN always map correctly.
 userSchema.pre('validate', function normalizeRoleField() {
   if (this.role) this.role = normalizeRole(this.role);
+});
+
+function normalizeRoleInUpdate(update) {
+  if (!update || typeof update !== 'object') return;
+  if (update.$set && update.$set.role != null) {
+    update.$set.role = normalizeRole(update.$set.role);
+  }
+  if (update.role != null) {
+    update.role = normalizeRole(update.role);
+  }
+}
+
+['findOneAndUpdate', 'updateOne', 'updateMany'].forEach((hook) => {
+  userSchema.pre(hook, function (next) {
+    try {
+      normalizeRoleInUpdate(this.getUpdate());
+    } catch (_) {
+      /* ignore */
+    }
+    next();
+  });
 });
 
 // Track brand-new documents for post-save hooks (isNew is false after save).

@@ -26,6 +26,7 @@ import {
   BellRing,
   Megaphone,
   Calendar,
+  MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -79,10 +80,17 @@ const careManagementGroup: NavGroup = {
   ],
 };
 
+const collapsibleNavGroups: NavGroup[] = [
+  ...navGroups,
+  appointmentsGroup,
+  careManagementGroup,
+];
+
 const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Reminders', href: '/reminders', icon: BellRing },
   { name: 'Communication Center', href: '/communication-center', icon: Megaphone },
+  { name: 'Customer Chats', href: '/customer-chats', icon: MessageCircle },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Veterinarians', href: '/veterinarians', icon: UserCheck },
   { name: 'Shop Owners', href: '/shops', icon: Store },

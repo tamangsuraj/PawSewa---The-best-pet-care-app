@@ -3,7 +3,7 @@ const CustomerCareConversation = require('../models/CustomerCareConversation');
 const CustomerCareMessage = require('../models/CustomerCareMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
-const { sendMulticastNotification } = require('../config/fcm');
+const { sendMulticastToUser } = require('../config/fcm');
 
 const WELCOME_TEXT =
   'Namaste! Welcome to PawSewa. How can we help you and your pet today?';
@@ -67,6 +67,7 @@ async function ensureDefaultCustomerCareConversation(customerUserId) {
   });
 
   logger.info('Chat Engine: Default conversation created for User', String(customerUserId));
+  logger.info('[INFO] Chat Room Created for user', String(customerUserId));
   return conv;
 }
 
@@ -140,18 +141,17 @@ async function appendMessageAndNotify({
 
   const fromAdmin = senderIsAdmin;
   if (fromAdmin && !skipPush) {
-    const customer = await User.findById(conversation.customer).select('+fcmTokens').lean();
-    const tokens = Array.isArray(customer?.fcmTokens) ? customer.fcmTokens : [];
-    if (tokens.length > 0) {
-      await sendMulticastNotification(tokens, {
-        title: 'Customer Care',
-        body: 'Customer Care replied to your message.',
-        data: {
-          type: 'customer_care_reply',
-          conversationId: conversation._id.toString(),
-        },
-      });
-    }
+    const preview =
+      trimmed.length > 200 ? `${trimmed.slice(0, 197)}...` : trimmed;
+    await sendMulticastToUser(conversation.customer, {
+      title: 'Customer Care',
+      body: preview,
+      data: {
+        type: 'customer_care_reply',
+        conversationId: conversation._id.toString(),
+      },
+      senderId,
+    });
   }
 
   return msg;

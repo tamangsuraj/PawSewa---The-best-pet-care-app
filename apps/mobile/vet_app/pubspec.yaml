@@ -82,6 +82,7 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_native_splash: ^2.4.4
+  flutter_launcher_icons: ^0.14.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -96,6 +97,7 @@ flutter:
 
   assets:
     - assets/brand/pawsewa_logo.png
+    - assets/brand/image_607767.png
 
   # Map / staff icons
   # When you add custom PNG/SVG markers, list them here, for example:
@@ -131,8 +133,14 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 flutter_native_splash:
-  color: '#703418'
-  image: assets/brand/pawsewa_logo.png
+  color: '#FFFFFF'
+  image: assets/brand/image_607767.png
   android_12:
-    color: '#703418'
-    image: assets/brand/pawsewa_logo.png
+    color: '#FFFFFF'
+    image: assets/brand/image_607767.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/brand/image_607767.png
+  min_sdk_android: 21

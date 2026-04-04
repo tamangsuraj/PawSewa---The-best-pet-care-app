@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   title: "PawSewa Admin - Management Dashboard",
   description: "Professional admin panel for PawSewa pet care platform",
   icons: {
-    icon: "/brand/favicon.ico",
-    apple: "/brand/apple-touch-icon.png",
+    icon: "/brand/image_607767.png",
+    apple: "/brand/image_607767.png",
   },
 };
 

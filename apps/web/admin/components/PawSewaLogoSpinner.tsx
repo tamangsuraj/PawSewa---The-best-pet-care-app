@@ -13,7 +13,7 @@ export function PawSewaLogoSpinner({ size = 56, className = '', imageClassName =
       aria-label={`Loading — ${PAWSEWA_LOGO_ALT}`}
     >
       <Image
-        src="/brand/pawsewa-logo.png"
+        src="/brand/image_607767.png"
         alt=""
         width={size}
         height={size}

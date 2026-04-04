@@ -10,6 +10,7 @@ const Product = require('../src/models/Product');
 const Category = require('../src/models/Category');
 const Appointment = require('../src/models/Appointment');
 const Order = require('../src/models/Order');
+const ServiceRequest = require('../src/models/ServiceRequest');
 
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -56,7 +57,6 @@ async function run() {
       licenseNumber: riderId,
     });
     riders.push(rider);
-    riders.push(rider);
   }
 
   // Demo vets
@@ -85,7 +85,7 @@ async function run() {
     const c = await upsertUserByEmail(email, {
       name: `Demo Customer ${i}`,
       password: `PawSewaCustomer${i}!`,
-      role: 'CUSTOMER',
+      role: 'pet_owner',
       phone: `96${String(30000000 + i).slice(0, 8)}`,
       isVerified: true,
     });
@@ -117,6 +117,56 @@ async function run() {
       isOutdoor: i % 2 === 0,
     });
     pets.push(pet);
+  }
+
+  // Link demo pets to vets (structured history + appointments) for Vet Chat UI.
+  if (pets[0] && vets[0]) {
+    pets[0].linkedVetVisits = [{ veterinarian: vets[0]._id, summary: 'Demo wellness check', recordedAt: new Date() }];
+    await pets[0].save();
+  }
+  if (pets[1] && vets[1]) {
+    pets[1].linkedVetVisits = [{ veterinarian: vets[1]._id, summary: 'Demo vaccination note', recordedAt: new Date() }];
+    await pets[1].save();
+  }
+
+  for (let ci = 0; ci < customers.length; ci += 1) {
+    const pet = pets[ci % pets.length];
+    const vet = vets[ci % vets.length];
+    const exists = await Appointment.countDocuments({ owner: customers[ci]._id });
+    if (exists === 0) {
+      await Appointment.create({
+        pet: pet._id,
+        owner: customers[ci]._id,
+        veterinarian: vet._id,
+        date: new Date(Date.now() + 86400000),
+        timeSlot: '10:00-11:00',
+        status: 'confirmed',
+      });
+    }
+  }
+
+  const srPet = pets[0];
+  const srUser = customers[0];
+  const srVet = vets[0];
+  if (srPet && srUser && srVet) {
+    const srCount = await ServiceRequest.countDocuments({ user: srUser._id });
+    if (srCount === 0) {
+      await ServiceRequest.create({
+        user: srUser._id,
+        pet: srPet._id,
+        petPawId: srPet.pawId || 'PAW-DEMO',
+        serviceType: 'Appointment',
+        preferredDate: new Date(),
+        timeWindow: 'Morning (9am-12pm)',
+        location: {
+          address: 'Demo clinic visit, Kathmandu',
+          coordinates: { lat: 27.7172, lng: 85.324 },
+        },
+        notes: 'Demo seeded request for vet chat.',
+        status: 'assigned',
+        assignedStaff: srVet._id,
+      });
+    }
   }
 
   // Categories + products
@@ -249,8 +299,8 @@ async function run() {
     );
   }
 
-  logger.success('Database populated: 3 Riders, 3 Vets, 5 Pets, 10 Products created.');
-  logger.info("Auth Exception Resolved: 'CUSTOMER' role is now a valid enum.");
+  logger.success('Database populated: Riders, Vets, Pets, Products, GPS orders, appointments, and vet links.');
+  logger.info('[INFO] Demo Vet Chat links: appointments, service requests, and pet.linkedVetVisits.');
 
   await mongoose.connection.close();
 }

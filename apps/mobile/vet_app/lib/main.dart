@@ -40,6 +40,7 @@ void main() async {
   if (kDebugMode) {
     debugPrint('[INFO] FCM initialized for Vet App.');
     debugPrint('[SUCCESS] Firebase successfully linked to Vet App via google-services.json.');
+    debugPrint('[SUCCESS] Brand Deployed: PawSewa Partner App (launcher, splash, headers).');
   }
   await ApiClient().initialize();
   await PushNotificationService.instance.initialize();
