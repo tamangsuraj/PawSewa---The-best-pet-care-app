@@ -473,6 +473,14 @@ class ApiClient {
     return await _dio.get('/service-requests/my/requests');
   }
 
+  /// Owner cancels a non-completed service request (appointment).
+  Future<Response> cancelMyServiceRequest(String requestId, {String? reason}) async {
+    return await _dio.patch(
+      '/service-requests/$requestId/cancel',
+      data: reason != null && reason.isNotEmpty ? {'reason': reason} : {},
+    );
+  }
+
   // Live tracking for a specific service request
   Future<Response> getServiceRequestLive(String requestId) async {
     return await _dio.get('/service-requests/$requestId/live');

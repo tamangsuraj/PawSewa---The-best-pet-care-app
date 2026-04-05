@@ -1,14 +1,14 @@
 /**
- * Seed dummy data for Hostels, Trainings, and Centers in pawsewa_production.
+ * Seed dummy data for Hostels, Trainings, and Centers in the configured DB (DB_NAME or default PawSewaDB).
  * Only inserts when the collection is empty (countDocuments() === 0).
- * Requires: backend/.env with MONGO_URI and DB_NAME=pawsewa_production.
+ * Requires: backend/.env with MONGO_URI (and optional DB_NAME).
  * Usage: node scripts/seed-hostels-trainings-centers.js
  */
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const mongoose = require('mongoose');
-const { getConnectionUri } = require('../src/config/db');
+const { getConnectionUri, getMongooseConnectionOptions } = require('../src/config/db');
 
 const Hostel = require('../src/models/Hostel');
 const User = require('../src/models/User');
@@ -74,10 +74,7 @@ async function ensureSubscription(ownerId) {
 async function run() {
   const uri = getConnectionUri();
   log('INFO', 'Connecting to database...');
-  await mongoose.connect(uri, {
-    tls: uri.startsWith('mongodb+srv'),
-    tlsAllowInvalidCertificates: true,
-  });
+  await mongoose.connect(uri, getMongooseConnectionOptions(uri));
   const dbName = mongoose.connection.db?.databaseName || 'unknown';
   log('INFO', 'Connected to', dbName);
 

@@ -74,6 +74,9 @@ dependencies:
   # Socket.io (real-time chat & status)
   socket_io_client: ^2.0.3+1
 
+  # Chat notification chime (foreground)
+  audioplayers: ^6.1.0
+
   # Open URLs (prescription download, etc.)
   url_launcher: ^6.2.6
   webview_flutter: ^4.10.0
@@ -123,6 +126,7 @@ flutter:
     - assets/khalti.png
     - assets/nepalpay.png
     - assets/paypal.png
+    - assets/sounds/notification.mp3
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

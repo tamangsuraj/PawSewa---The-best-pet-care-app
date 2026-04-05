@@ -5,6 +5,7 @@ const {
   getMyPets,
   getPetById,
   getPetHealthSummary,
+  getPetMedicalHistory,
   updatePet,
   deletePet,
   adminCreatePetForCustomer,
@@ -19,6 +20,7 @@ router.post('/admin/:userId', protect, admin, upload.single('photo'), adminCreat
 router.get('/my-pets', protect, getMyPets);
 router.get('/admin', protect, admin, getAllPets);
 router.get('/:id/health-summary', protect, getPetHealthSummary);
+router.get('/:id/medical-history', protect, getPetMedicalHistory);
 router.get('/:id', protect, getPetById);
 router.put('/:id', protect, upload.single('photo'), updatePet);
 router.delete('/:id', protect, deletePet);

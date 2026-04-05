@@ -1,11 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../models/pet.dart';
@@ -18,12 +20,13 @@ import 'my_requests_screen.dart';
 import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
 import 'shop/my_orders_screen.dart';
+import 'care/my_care_bookings_screen.dart';
 import 'messages/messages_hub_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
-import 'my_service_requests_screen.dart';
 import '../services/socket_service.dart';
+import '../services/chat_unread_notify_service.dart';
 import '../services/push_notification_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
@@ -40,13 +43,14 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     with WidgetsBindingObserver {
   final _petService = PetService();
   final _storage = StorageService();
+  final GlobalKey<ScaffoldState> _shellScaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Pet> _pets = [];
   bool _isLoading = true;
   String _userName = 'Pet Owner';
+  String? _userAvatarUrl;
   int _currentIndex = 0;
   int _lastBottomBarIndex = 0; // when on Messages, bottom bar shows this
-  List<Map<String, dynamic>> _linkedVets = [];
 
   @override
   void initState() {
@@ -54,7 +58,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadUserData();
     _loadPets();
-    _loadLinkedVets();
   }
 
   @override
@@ -70,112 +73,43 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     }
   }
 
-  Future<void> _loadLinkedVets() async {
-    try {
-      final r = await ApiClient().getLinkedVets();
-      final body = r.data;
-      if (!mounted) return;
-      if (body is Map && body['success'] == true && body['data'] is List) {
-        setState(() {
-          _linkedVets = (body['data'] as List)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-        });
-      }
-    } catch (_) {}
-  }
-
-  Widget _vetMessengerBubbles() {
-    if (_linkedVets.isEmpty) return const SizedBox.shrink();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: _linkedVets.take(4).map((v) {
-        final name = (v['name'] ?? 'Vet').toString();
-        final initials = name.isNotEmpty ? name[0].toUpperCase() : 'V';
-        final pic = v['profilePicture']?.toString();
-        final hasPic = pic != null && pic.isNotEmpty;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Material(
-            elevation: 4,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: () {
-                showModalBottomSheet<void>(
-                  context: context,
-                  builder: (ctx) => Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          name,
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 18,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Vet Chat is available on your service requests with this veterinarian. Open My Requests to send or read messages.',
-                          style: GoogleFonts.outfit(fontSize: 14),
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const MyServiceRequestsScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text('Open My Requests'),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-              child: CircleAvatar(
-                radius: 22,
-                backgroundColor: const Color(AppConstants.primaryColor),
-                backgroundImage: hasPic ? NetworkImage(pic) : null,
-                child: hasPic
-                    ? null
-                    : Text(
-                        initials,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
   Future<void> _loadUserData() async {
     final userDataString = await _storage.getUser();
-    if (userDataString != null) {
+    if (userDataString == null) {
+      return;
+    }
+    try {
+      final decoded = jsonDecode(userDataString);
+      if (decoded is! Map) {
+        return;
+      }
+      final m = Map<String, dynamic>.from(decoded);
+      final name = m['name']?.toString();
+      final pic = m['profilePicture']?.toString() ??
+          m['photoUrl']?.toString() ??
+          m['avatar']?.toString();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (name != null && name.isNotEmpty) {
+          _userName = name;
+        }
+        if (pic != null && pic.isNotEmpty) {
+          _userAvatarUrl = pic;
+        }
+      });
+    } catch (_) {
       try {
         final nameMatch = RegExp(
           r'"name"\s*:\s*"([^"]*)"',
         ).firstMatch(userDataString);
-        if (nameMatch != null) {
+        if (nameMatch != null && mounted) {
           setState(() {
             _userName = nameMatch.group(1) ?? 'Pet Owner';
           });
         }
-      } catch (_) {
-        // Ignore parse errors and keep default name
-      }
+      } catch (_) {}
     }
   }
 
@@ -205,6 +139,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   }
 
   Future<void> _handleLogout() async {
+    if (mounted) {
+      context.read<ChatUnreadNotifyService>().reset();
+    }
     SocketService.instance.disconnect();
     await _storage.clearAll();
     if (!mounted) return;
@@ -474,6 +411,15 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   }
 
   static const Color _primaryBrown = Color(AppConstants.primaryColor);
+  static const Color _subInk = Color(0xFF6B7280);
+  static const Color _drawerDivider = Color(0xFFEEEEEE);
+
+  bool _isNetworkImageUrl(String? u) {
+    if (u == null || u.isEmpty) {
+      return false;
+    }
+    return u.startsWith('http://') || u.startsWith('https://');
+  }
 
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
@@ -482,21 +428,30 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header: rounded square chat-bubble on brown, user name, Edit Profile
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-              decoration: BoxDecoration(
-                color: _primaryBrown,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(12),
-                  bottomRight: Radius.circular(12),
-                ),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const PawSewaBrandLogo(height: 36),
-                  const SizedBox(width: 12),
+                  CircleAvatar(
+                    radius: 34,
+                    backgroundColor: const Color(0xFFF3F4F6),
+                    child: CircleAvatar(
+                      radius: 32,
+                      backgroundColor: Colors.grey.shade200,
+                      backgroundImage: _isNetworkImageUrl(_userAvatarUrl)
+                          ? CachedNetworkImageProvider(_userAvatarUrl!)
+                          : null,
+                      child: _isNetworkImageUrl(_userAvatarUrl)
+                          ? null
+                          : Icon(
+                              Icons.person_rounded,
+                              size: 34,
+                              color: Colors.grey.shade500,
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,16 +460,19 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         Text(
                           _userName,
                           style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                            height: 1.2,
                           ),
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
                         Material(
-                          color: Colors.white.withValues(alpha: 0.22),
+                          color: _primaryBrown,
                           borderRadius: BorderRadius.circular(20),
+                          elevation: 0,
                           child: InkWell(
                             onTap: () {
                               _navigateToDrawerScreen(
@@ -527,8 +485,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                             borderRadius: BorderRadius.circular(20),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 6,
+                                horizontal: 16,
+                                vertical: 7,
                               ),
                               child: Text(
                                 'Edit Profile',
@@ -536,6 +494,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ),
@@ -547,162 +506,176 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 ],
               ),
             ),
-            const Divider(height: 1, thickness: 0.5),
+            const Divider(height: 1, thickness: 1, color: _drawerDivider),
             Flexible(
               child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.only(top: 4, bottom: 12),
                 children: [
                   ExpansionTile(
+                    iconColor: _primaryBrown,
+                    collapsedIconColor: _primaryBrown,
                     leading: Icon(
-                      Icons.shopping_bag_outlined,
+                      Icons.local_shipping_outlined,
                       color: _primaryBrown,
-                      size: 24,
+                      size: 22,
                     ),
                     title: Text(
                       'Pet Supply Order',
                       style: GoogleFonts.outfit(
                         fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        color: _primaryBrown,
                       ),
                     ),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                    childrenPadding: EdgeInsets.zero,
                     children: [
                       _drawerSubItem(
-                        context,
                         icon: Icons.home_outlined,
                         label: 'Home',
+                        active: _currentIndex == 2,
                         onTap: () => _goToTab(2),
                       ),
                       _drawerSubItem(
-                        context,
-                        icon: Icons.history,
+                        icon: Icons.history_rounded,
                         label: 'Order History',
-                        onTap: () =>
-                            _closeDrawerAndPush(const MyOrdersScreen()),
+                        active: false,
+                        onTap: () => _closeDrawerAndPush(
+                          const MyOrdersScreen(
+                            listMode: MyOrdersListMode.historyOnly,
+                          ),
+                        ),
                       ),
                     ],
                   ),
+                  const Divider(height: 1, thickness: 1, color: _drawerDivider),
                   ExpansionTile(
+                    iconColor: _primaryBrown,
+                    collapsedIconColor: _primaryBrown,
                     leading: Icon(
-                      Icons.calendar_today_outlined,
+                      Icons.event_available_outlined,
                       color: _primaryBrown,
-                      size: 24,
+                      size: 22,
                     ),
                     title: Text(
                       'Appointments',
                       style: GoogleFonts.outfit(
                         fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        color: _primaryBrown,
                       ),
                     ),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                    childrenPadding: EdgeInsets.zero,
                     children: [
                       _drawerSubItem(
-                        context,
                         icon: Icons.home_outlined,
                         label: 'Home',
+                        active: _currentIndex == 1,
                         onTap: () => _goToTab(1),
                       ),
                       _drawerSubItem(
-                        context,
-                        icon: Icons.history,
+                        icon: Icons.history_rounded,
                         label: 'Appointments History',
-                        onTap: () =>
-                            _closeDrawerAndPush(const MyRequestsScreen()),
+                        active: false,
+                        onTap: () => _closeDrawerAndPush(const MyRequestsScreen()),
                       ),
                     ],
                   ),
+                  const Divider(height: 1, thickness: 1, color: _drawerDivider),
                   ExpansionTile(
+                    iconColor: _primaryBrown,
+                    collapsedIconColor: _primaryBrown,
                     leading: Icon(
-                      Icons.bed_outlined,
+                      Icons.cottage_outlined,
                       color: _primaryBrown,
-                      size: 24,
+                      size: 22,
                     ),
                     title: Text(
                       'Pet Hostel',
                       style: GoogleFonts.outfit(
                         fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        fontWeight: FontWeight.w600,
+                        color: _primaryBrown,
                       ),
                     ),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                    childrenPadding: EdgeInsets.zero,
                     children: [
                       _drawerSubItem(
-                        context,
                         icon: Icons.home_outlined,
                         label: 'Home',
+                        active: _currentIndex == 4,
                         onTap: () => _goToTab(4),
+                      ),
+                      _drawerSubItem(
+                        icon: Icons.history_rounded,
+                        label: 'Booking History',
+                        active: false,
+                        onTap: () => _closeDrawerAndPush(
+                          const MyCareBookingsScreen(),
+                        ),
                       ),
                     ],
                   ),
-                  _drawerItem(
-                    context,
-                    icon: Icons.contact_support_outlined,
+                  _drawerUtilityTile(
+                    icon: Icons.phone_in_talk_outlined,
                     label: 'Contact Us',
-                    iconColor: Colors.green.shade700,
                     onTap: () => _closeDrawerAndPush(
                       const DrawerPlaceholderScreen(title: 'Contact Us'),
                     ),
                   ),
-                  _drawerItem(
-                    context,
-                    icon: Icons.notifications_outlined,
+                  _drawerUtilityTile(
+                    icon: Icons.notifications_none_rounded,
                     label: 'Notifications',
-                    iconColor: Colors.amber.shade700,
                     onTap: () => _closeDrawerAndPush(
                       const DrawerPlaceholderScreen(title: 'Notifications'),
                     ),
                   ),
-                  _drawerItem(
-                    context,
-                    icon: Icons.help_outline,
+                  _drawerUtilityTile(
+                    icon: Icons.help_outline_rounded,
                     label: 'FAQs',
-                    iconColor: Colors.blue.shade700,
                     onTap: () => _closeDrawerAndPush(
                       const DrawerPlaceholderScreen(title: 'FAQs'),
                     ),
                   ),
-                  _drawerItem(
-                    context,
-                    icon: Icons.star_outline,
+                  _drawerUtilityTile(
+                    icon: Icons.star_border_rounded,
                     label: 'Rate our app',
-                    iconColor: Colors.amber.shade700,
                     onTap: () => _closeDrawerAndPush(
                       const DrawerPlaceholderScreen(title: 'Rate our app'),
                     ),
                   ),
-                  const Divider(height: 24, thickness: 0.5),
-                  _drawerItem(
-                    context,
-                    icon: Icons.build_outlined,
-                    label: 'Auth Test (Debug)',
-                    iconColor: Colors.purple.shade700,
-                    onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(title: 'Auth Test (Debug)'),
-                    ),
-                  ),
-                  _drawerItem(
-                    context,
-                    icon: Icons.g_mobiledata,
-                    label: 'Google Sign-In Test',
-                    iconColor: Colors.blue.shade700,
-                    onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(
-                        title: 'Google Sign-In Test',
+                  if (kDebugMode) ...[
+                    const Divider(height: 20, thickness: 1, color: _drawerDivider),
+                    _drawerUtilityTile(
+                      icon: Icons.build_outlined,
+                      label: 'Auth test (debug)',
+                      onTap: () => _closeDrawerAndPush(
+                        const DrawerPlaceholderScreen(title: 'Auth test'),
                       ),
                     ),
-                  ),
+                    _drawerUtilityTile(
+                      icon: Icons.g_mobiledata_rounded,
+                      label: 'Google Sign-In test',
+                      onTap: () => _closeDrawerAndPush(
+                        const DrawerPlaceholderScreen(
+                          title: 'Google Sign-In test',
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
-                  _drawerItem(
-                    context,
-                    icon: Icons.logout,
-                    label: 'Sign Out',
-                    iconColor: Colors.red.shade700,
+                  _drawerUtilityTile(
+                    icon: Icons.logout_rounded,
+                    label: 'Sign out',
                     onTap: () {
                       Navigator.pop(context);
                       _handleLogout();
                     },
+                    iconColor: Colors.red.shade700,
+                    labelColor: Colors.red.shade800,
                   ),
                 ],
               ),
@@ -713,49 +686,81 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     );
   }
 
-  Widget _drawerItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    VoidCallback? onTap,
-    Color? iconColor,
-  }) {
-    final color = iconColor ?? _primaryBrown;
-    return ListTile(
-      leading: Icon(icon, color: color, size: 24),
-      title: Text(
-        label,
-        style: GoogleFonts.outfit(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: Colors.black87,
-        ),
-      ),
-      onTap: onTap,
-    );
-  }
-
-  Widget _drawerSubItem(
-    BuildContext context, {
+  Widget _drawerUtilityTile({
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    Color? iconColor,
+    Color? labelColor,
   }) {
-    return ListTile(
-      dense: true,
-      leading: Padding(
-        padding: const EdgeInsets.only(left: 12),
-        child: Icon(icon, color: _primaryBrown, size: 20),
-      ),
-      title: Text(
-        label,
-        style: GoogleFonts.outfit(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: Colors.black87,
+    final ic = iconColor ?? _primaryBrown;
+    final lc = labelColor ?? _primaryBrown;
+    return Column(
+      children: [
+        const Divider(height: 1, thickness: 1, color: _drawerDivider),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+          leading: Icon(icon, color: ic, size: 22),
+          title: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: lc,
+            ),
+          ),
+          onTap: onTap,
+        ),
+      ],
+    );
+  }
+
+  Widget _drawerSubItem({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required bool active,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 2),
+      child: Material(
+        color: active
+            ? _primaryBrown.withValues(alpha: 0.1)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: active
+                  ? const Border(
+                      left: BorderSide(color: _primaryBrown, width: 3),
+                    )
+                  : null,
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Icon(icon, color: _subInk, size: 20),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: _subInk,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      onTap: onTap,
     );
   }
 
@@ -770,7 +775,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       case 3:
         return const MessagesHubScreen();
       case 4:
-        return const CareScreen();
+        return CareScreen(
+          onOpenMainDrawer: () => _shellScaffoldKey.currentState?.openDrawer(),
+        );
       case 5:
         return const MyPetsScreen();
       default:
@@ -1115,108 +1122,95 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     );
   }
 
-  /// Reference top bar: back to Home, centered serif title, solid chat icon.
-  PreferredSizeWidget _buildPetCarePlusAppBar(BuildContext context) {
-    const brown = Color(AppConstants.primaryColor);
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-        color: Colors.black87,
-        onPressed: () => setState(() => _currentIndex = 0),
-        tooltip: 'Home',
-      ),
-      centerTitle: true,
-      title: Text(
-        'Pet Care+',
-        style: GoogleFonts.fraunces(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: brown,
-        ),
-      ),
-      backgroundColor: Colors.white,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      surfaceTintColor: Colors.transparent,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.chat_bubble, color: Colors.black87, size: 22),
-          tooltip: 'Messages',
-          onPressed: () => setState(() => _currentIndex = 3),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _shellScaffoldKey,
       resizeToAvoidBottomInset: true,
       backgroundColor: _currentIndex == 4
           ? const Color(0xFFF8F9FA)
           : const Color(AppConstants.secondaryColor),
       drawer: _buildDrawer(context),
-      appBar: _currentIndex == 4
-          ? _buildPetCarePlusAppBar(context)
-          : AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.menu, size: 22),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-                color: Colors.black87,
-              ),
-              title: Row(
+      appBar: AppBar(
+        centerTitle: false,
+        leading: Builder(
+          builder: (BuildContext ctx) {
+            return IconButton(
+              icon: const Icon(Icons.menu, size: 22),
+              onPressed: () {
+                Scaffold.of(ctx).openDrawer();
+              },
+              color: Colors.black87,
+            );
+          },
+        ),
+        title: Row(
+          children: [
+            const PawSewaBrandLogo(height: 26),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const PawSewaBrandLogo(height: 26),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          AppConstants.appName,
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        Text(
-                          _titleForIndex(),
-                          style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(AppConstants.primaryColor),
-                          ),
-                        ),
-                      ],
+                  Text(
+                    AppConstants.appName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    _titleForIndex(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(AppConstants.primaryColor),
                     ),
                   ),
                 ],
               ),
-              backgroundColor: Colors.white,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              surfaceTintColor: Colors.transparent,
-              iconTheme: const IconThemeData(color: Colors.black87),
-              actions: [
-                IconButton(
-                  icon: Icon(
-                    _currentIndex == 3
-                        ? Icons.chat_bubble
-                        : Icons.chat_bubble_outline,
-                    color: _currentIndex == 3
-                        ? const Color(AppConstants.primaryColor)
-                        : Colors.grey[700],
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() => _currentIndex = 3);
-                  },
-                  tooltip: 'Messages',
-                ),
-              ],
             ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        iconTheme: const IconThemeData(color: Colors.black87),
+        actions: [
+          Consumer<ChatUnreadNotifyService>(
+            builder: (context, unread, _) {
+              final c = unread.totalUnread;
+              final btn = IconButton(
+                icon: Icon(
+                  _currentIndex == 3
+                      ? Icons.chat_bubble
+                      : Icons.chat_bubble_outline,
+                  color: _currentIndex == 3
+                      ? const Color(AppConstants.primaryColor)
+                      : Colors.grey[700],
+                  size: 20,
+                ),
+                onPressed: () {
+                  setState(() => _currentIndex = 3);
+                },
+                tooltip: 'Messages',
+              );
+              if (c <= 0) return btn;
+              return Badge.count(
+                count: c > 99 ? 99 : c,
+                child: btn,
+              );
+            },
+          ),
+        ],
+      ),
       body: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1244,32 +1238,10 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
               ),
             ),
           ),
-          if (_linkedVets.isNotEmpty && _currentIndex != 3)
-            Positioned(
-              right: 10,
-              bottom:
-                  (_currentIndex == 0 ? 108.0 : 32.0) +
-                  MediaQuery.of(context).padding.bottom,
-              child: _vetMessengerBubbles(),
-            ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'fab_customer_support',
-            backgroundColor: const Color(AppConstants.primaryColor),
-            tooltip: 'Messages',
-            onPressed: () {
-              setState(() => _currentIndex = 3);
-            },
-            child: const Icon(Icons.send_rounded, color: Colors.white),
-          ),
-          if (_currentIndex == 0) ...[
-            const SizedBox(height: 12),
-            FloatingActionButton.extended(
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton.extended(
               heroTag: 'fab_add_pet',
               onPressed: _navigateToAddPet,
               backgroundColor: const Color(AppConstants.primaryColor),
@@ -1281,10 +1253,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-          ],
-        ],
-      ),
+            )
+          : null,
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }

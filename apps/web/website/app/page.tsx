@@ -166,7 +166,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-paw-ink relative">
+    <div className="min-h-dvh bg-transparent text-paw-ink relative">
       <HomeActiveOrdersRail />
 
       {/* Hero — asymmetric editorial + motion */}

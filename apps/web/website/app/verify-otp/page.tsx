@@ -86,7 +86,7 @@ export default function VerifyOTPPage() {
   };
 
   return (
-    <PageShell className="flex min-h-screen items-center justify-center">
+    <PageShell className="flex min-h-dvh items-center justify-center">
       <PageContent compact className="max-w-md py-10">
       <div className="paw-surface-card w-full p-8">
         <div className="text-center mb-8">

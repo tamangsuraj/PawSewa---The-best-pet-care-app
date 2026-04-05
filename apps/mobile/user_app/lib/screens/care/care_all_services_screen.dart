@@ -12,11 +12,13 @@ class CareAllServicesScreen extends StatelessWidget {
     required this.serviceType,
     required this.sectionTitle,
     required this.items,
+    this.onOpenMainDrawer,
   });
 
   final String serviceType;
   final String sectionTitle;
   final List<Map<String, dynamic>> items;
+  final VoidCallback? onOpenMainDrawer;
 
   void _openDetail(BuildContext context, Map<String, dynamic> hostel) {
     Navigator.push(
@@ -44,19 +46,45 @@ class CareAllServicesScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.menu, size: 22),
+          color: Colors.black87,
+          onPressed: () {
+            Navigator.pop(context);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              onOpenMainDrawer?.call();
+            });
+          },
+          tooltip: 'Menu',
         ),
-        title: Text(
-          sectionTitle,
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            fontSize: 17,
-            color: primary,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              sectionTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Colors.black87,
+              ),
+            ),
+            Text(
+              'Pet Care+',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: primary,
+              ),
+            ),
+          ],
         ),
-        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: items.isEmpty
           ? Center(

@@ -42,7 +42,7 @@ export default function RootLayout({
           <AuthProvider>
             <CartProvider>
               <ChatHubProvider>
-                <div className="relative z-[1] flex min-h-screen flex-col">
+                <div className="relative z-[1] flex min-h-dvh flex-col">
                   <Navbar />
                   <div className="flex-1">{children}</div>
                   <SiteFooter />

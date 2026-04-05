@@ -15,6 +15,7 @@ export function InboxDropdown() {
     openHub,
     openKnownThread,
     hubOpen,
+    chatUnreadTotal,
   } = useChatHub();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export function InboxDropdown() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full transition-all border ${
+        className={`relative flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full transition-all border ${
           open || hubOpen
             ? 'text-[#FAF7F2] bg-gradient-to-br from-[#703418] to-[#5c2c14] border-[#703418]/25 shadow-[0_4px_14px_rgba(112,52,24,0.2)]'
             : 'text-[#703418]/90 border-transparent hover:bg-[#703418]/[0.07]'
@@ -65,6 +66,11 @@ export function InboxDropdown() {
       >
         <Inbox className="w-4 h-4" />
         Inbox
+        {chatUnreadTotal > 0 ? (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white leading-none">
+            {chatUnreadTotal > 99 ? '99+' : chatUnreadTotal}
+          </span>
+        ) : null}
         <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 

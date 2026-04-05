@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { AdminChatUnreadProvider } from "@/context/AdminChatUnreadContext";
 import { Toaster } from "react-hot-toast";
 
 const geistSans = localFont({
@@ -35,30 +36,32 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#ffffff',
-                color: '#1f2937',
-                border: '1px solid #e5e7eb',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#fff',
+          <AdminChatUnreadProvider>
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#ffffff',
+                  color: '#1f2937',
+                  border: '1px solid #e5e7eb',
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
+                success: {
+                  iconTheme: {
+                    primary: '#10b981',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }}
-          />
-          {children}
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#fff',
+                  },
+                },
+              }}
+            />
+            {children}
+          </AdminChatUnreadProvider>
         </AuthProvider>
       </body>
     </html>

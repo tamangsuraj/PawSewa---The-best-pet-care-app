@@ -49,9 +49,7 @@ Future<bool> captureHighAccuracyGpsForDelivery(BuildContext context) async {
       return false;
     }
     final position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-      ),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
     cart.setDeliveryLocation(
       lat: position.latitude,
@@ -64,6 +62,8 @@ Future<bool> captureHighAccuracyGpsForDelivery(BuildContext context) async {
   }
 }
 
+/// Shop tab body for [PetDashboardScreen]. Top chrome (drawer, PawSewa title, tab subtitle,
+/// messages action) is provided by the parent scaffold AppBar — same pattern as [CareScreen].
 class ShopScreen extends StatefulWidget {
   const ShopScreen({super.key});
 
@@ -127,10 +127,18 @@ class _ShopScreenState extends State<ShopScreen> {
       if (!mounted) return;
       List<Map<String, dynamic>> prods = _parseListFromResponse(respProds.data);
       final shopMeta = _metaFromProductsResponse(respProds.data);
-      final pagination = respProds.data is Map ? respProds.data['pagination'] as Map? : null;
-      final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
-      final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
-      final pageNum = pagination != null ? (pagination['page'] as num?)?.toInt() ?? 1 : 1;
+      final pagination = respProds.data is Map
+          ? respProds.data['pagination'] as Map?
+          : null;
+      final total = pagination != null
+          ? (pagination['total'] as num?)?.toInt() ?? 0
+          : 0;
+      final limitNum = pagination != null
+          ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize
+          : _productsPageSize;
+      final pageNum = pagination != null
+          ? (pagination['page'] as num?)?.toInt() ?? 1
+          : 1;
       final hasMore = (pageNum * limitNum) < total;
 
       List<Map<String, dynamic>> cats = [];
@@ -332,13 +340,11 @@ class _ShopScreenState extends State<ShopScreen> {
     if (product['recommendationTier']?.toString() != 'match') return;
     final id = product['_id']?.toString();
     if (id == null || id.isEmpty) return;
-    unawaited(
-      () async {
-        try {
-          await _apiClient.postShopRecommendationEvent(productId: id);
-        } catch (_) {}
-      }(),
-    );
+    unawaited(() async {
+      try {
+        await _apiClient.postShopRecommendationEvent(productId: id);
+      } catch (_) {}
+    }());
   }
 
   static String _friendlyShopError(Object e) {
@@ -401,10 +407,18 @@ class _ShopScreenState extends State<ShopScreen> {
         if (!mounted) return;
         prods = _parseListFromResponse(resp.data);
         shopMeta = _metaFromProductsResponse(resp.data);
-        final pagination = resp.data is Map ? resp.data['pagination'] as Map? : null;
-        final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
-        final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
-        final pageNum = pagination != null ? (pagination['page'] as num?)?.toInt() ?? 1 : 1;
+        final pagination = resp.data is Map
+            ? resp.data['pagination'] as Map?
+            : null;
+        final total = pagination != null
+            ? (pagination['total'] as num?)?.toInt() ?? 0
+            : 0;
+        final limitNum = pagination != null
+            ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize
+            : _productsPageSize;
+        final pageNum = pagination != null
+            ? (pagination['page'] as num?)?.toInt() ?? 1
+            : 1;
         hasMore = (pageNum * limitNum) < total;
       }
       String name = slug.isEmpty ? 'All' : slug;
@@ -740,11 +754,12 @@ class _ShopScreenState extends State<ShopScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-        builder: (ctx) => _PaymentSheet(
+      builder: (ctx) => _PaymentSheet(
         amount: amount,
         refreshDeliveryGps: () => captureHighAccuracyGpsForDelivery(context),
         syncPendingOrderGps: _syncPendingOrderGps,
-        placeOrderWithMethod: (methodId) => _placeOrderWithMethod(methodId, amount),
+        placeOrderWithMethod: (methodId) =>
+            _placeOrderWithMethod(methodId, amount),
         initKhaltiFlow: () => _initKhaltiForSheet(amount),
         onOrderPlaced: (orderId) {
           Navigator.of(ctx).pop(); // close payment sheet
@@ -775,11 +790,7 @@ class _ShopScreenState extends State<ShopScreen> {
         'address': address,
         'coordinates': [lng, lat],
       },
-      'location': {
-        'lat': lat,
-        'lng': lng,
-        'address': address,
-      },
+      'location': {'lat': lat, 'lng': lng, 'address': address},
       if (cart.deliveryNotes != null && cart.deliveryNotes!.isNotEmpty)
         'deliveryNotes': cart.deliveryNotes,
       if (paymentMethod != null && paymentMethod.isNotEmpty)
@@ -817,7 +828,10 @@ class _ShopScreenState extends State<ShopScreen> {
         }
         return null;
       }
-      final orderPayload = _buildShopOrderPayload(cart, paymentMethod: payMethod);
+      final orderPayload = _buildShopOrderPayload(
+        cart,
+        paymentMethod: payMethod,
+      );
       final createResp = await _apiClient.createOrder(orderPayload);
       final orderData = createResp.data;
       if (orderData is Map) {
@@ -884,7 +898,9 @@ class _ShopScreenState extends State<ShopScreen> {
         }
       }
       if (paymentUrl == null || paymentUrl.isEmpty) return null;
-      if (successUrl == null || successUrl.isEmpty) successUrl = 'payment-success';
+      if (successUrl == null || successUrl.isEmpty) {
+        successUrl = 'payment-success';
+      }
       return {
         'orderId': orderId,
         'paymentUrl': paymentUrl,
@@ -1033,10 +1049,14 @@ class _ShopScreenState extends State<ShopScreen> {
                         : Builder(
                             builder: (context) {
                               final mqW = MediaQuery.sizeOf(context).width;
-                              final mainSpacing =
-                                  (mqW * 0.04).clamp(10.0, 20.0);
-                              final crossSpacing =
-                                  (mqW * 0.04).clamp(10.0, 20.0);
+                              final mainSpacing = (mqW * 0.04).clamp(
+                                10.0,
+                                20.0,
+                              );
+                              final crossSpacing = (mqW * 0.04).clamp(
+                                10.0,
+                                20.0,
+                              );
                               final hPad = (mqW * 0.04).clamp(12.0, 20.0);
 
                               int crossAxisCount = 2;
@@ -1056,20 +1076,15 @@ class _ShopScreenState extends State<ShopScreen> {
                               }
 
                               return SliverPadding(
-                                padding: EdgeInsets.fromLTRB(
-                                  hPad,
-                                  8,
-                                  hPad,
-                                  24,
-                                ),
+                                padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 24),
                                 sliver: SliverGrid(
                                   gridDelegate:
                                       SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    mainAxisSpacing: mainSpacing,
-                                    crossAxisSpacing: crossSpacing,
-                                    childAspectRatio: childAspectRatio,
-                                  ),
+                                        crossAxisCount: crossAxisCount,
+                                        mainAxisSpacing: mainSpacing,
+                                        crossAxisSpacing: crossSpacing,
+                                        childAspectRatio: childAspectRatio,
+                                      ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, index) {
                                       if (index >= _products.length) {
@@ -1081,9 +1096,8 @@ class _ShopScreenState extends State<ShopScreen> {
                                       final p = _products[index];
                                       final productId =
                                           p['_id']?.toString() ?? '';
-                                      final qty = cart.items[productId]
-                                              ?.quantity ??
-                                          0;
+                                      final qty =
+                                          cart.items[productId]?.quantity ?? 0;
                                       return _ProductCard(
                                         product: p,
                                         quantity: qty,
@@ -1094,10 +1108,11 @@ class _ShopScreenState extends State<ShopScreen> {
                                           if (qty == 0) {
                                             _openProductDetail(p);
                                           } else {
-                                            final name = p['name']
-                                                    ?.toString() ??
+                                            final name =
+                                                p['name']?.toString() ??
                                                 'Product';
-                                            final price = (p['price'] as num?)
+                                            final price =
+                                                (p['price'] as num?)
                                                     ?.toDouble() ??
                                                 0;
                                             cart.addItem(
@@ -1110,13 +1125,14 @@ class _ShopScreenState extends State<ShopScreen> {
                                         },
                                         onTapMinus: qty > 0
                                             ? () => cart.updateQuantity(
-                                                  productId,
-                                                  qty - 1,
-                                                )
+                                                productId,
+                                                qty - 1,
+                                              )
                                             : null,
                                       );
                                     },
-                                    childCount: _products.length +
+                                    childCount:
+                                        _products.length +
                                         (_hasMoreProducts || _loadingMore
                                             ? 1
                                             : 0),
@@ -1148,7 +1164,11 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   Future<void> _loadMoreProducts() async {
-    if (_loadingMore || !_hasMoreProducts || _selectedCategorySlug == kFavouritesSlug) return;
+    if (_loadingMore ||
+        !_hasMoreProducts ||
+        _selectedCategorySlug == kFavouritesSlug) {
+      return;
+    }
     setState(() => _loadingMore = true);
     try {
       final nextPage = _productsPage + 1;
@@ -1163,10 +1183,18 @@ class _ShopScreenState extends State<ShopScreen> {
       );
       if (!mounted) return;
       final more = _parseListFromResponse(resp.data);
-      final pagination = resp.data is Map ? resp.data['pagination'] as Map? : null;
-      final total = pagination != null ? (pagination['total'] as num?)?.toInt() ?? 0 : 0;
-      final limitNum = pagination != null ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize : _productsPageSize;
-      final pageNum = pagination != null ? (pagination['page'] as num?)?.toInt() ?? nextPage : nextPage;
+      final pagination = resp.data is Map
+          ? resp.data['pagination'] as Map?
+          : null;
+      final total = pagination != null
+          ? (pagination['total'] as num?)?.toInt() ?? 0
+          : 0;
+      final limitNum = pagination != null
+          ? (pagination['limit'] as num?)?.toInt() ?? _productsPageSize
+          : _productsPageSize;
+      final pageNum = pagination != null
+          ? (pagination['page'] as num?)?.toInt() ?? nextPage
+          : nextPage;
       final hasMore = (pageNum * limitNum) < total;
       setState(() {
         _products = [..._products, ...more];
@@ -1206,11 +1234,7 @@ class _ShopScreenState extends State<ShopScreen> {
               fontSize: 14,
               color: Colors.grey[600],
             ),
-            prefixIcon: Icon(
-              Icons.search_rounded,
-              color: primary,
-              size: 22,
-            ),
+            prefixIcon: Icon(Icons.search_rounded, color: primary, size: 22),
             suffixIcon: _searchController.text.isNotEmpty
                 ? IconButton(
                     icon: Icon(
@@ -1257,7 +1281,8 @@ class _ShopScreenState extends State<ShopScreen> {
         );
         final filterChip = _SearchFilterChip(
           icon: Icons.tune_rounded,
-          label: (_filterCategory != null ||
+          label:
+              (_filterCategory != null ||
                   _filterMinPrice != null ||
                   _filterMaxPrice != null)
               ? 'Filtered'
@@ -1651,8 +1676,7 @@ class _CategoryCircleStrip extends StatelessWidget {
         final labelFont = (width * 0.028).clamp(9.0, 12.0);
         final labelHeight =
             textScaler.scale(labelFont * 1.35 * 2) + 4; // two lines max
-        final stripHeight =
-            (circle + 6 + labelHeight + 20).clamp(96.0, 168.0);
+        final stripHeight = (circle + 6 + labelHeight + 20).clamp(96.0, 168.0);
         return SizedBox(
           height: stripHeight,
           width: width,
@@ -1726,8 +1750,8 @@ class _CategoryCircleStrip extends StatelessWidget {
                                       slug == kFavouritesSlug
                                           ? Icons.favorite_border
                                           : slug.isEmpty
-                                              ? Icons.grid_view
-                                              : Icons.pets,
+                                          ? Icons.grid_view
+                                          : Icons.pets,
                                       size: circle * 0.45,
                                       color: primary,
                                     ),
@@ -1911,45 +1935,45 @@ class _ProductCard extends StatelessWidget {
                               color: primary.withValues(alpha: 0.5),
                             ),
                     ),
-                  if (personalizedBadge != null &&
-                      personalizedBadge!.isNotEmpty)
-                    Positioned(
-                      left: 4,
-                      bottom: 4,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: primary.withValues(alpha: 0.2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 4,
-                              offset: const Offset(0, 1),
+                    if (personalizedBadge != null &&
+                        personalizedBadge!.isNotEmpty)
+                      Positioned(
+                        left: 4,
+                        bottom: 4,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: primary.withValues(alpha: 0.2),
                             ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 2,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                           ),
-                          child: Text(
-                            personalizedBadge!,
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87.withValues(alpha: 0.85),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            child: Text(
+                              personalizedBadge!,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87.withValues(alpha: 0.85),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -2016,19 +2040,11 @@ class _ProductCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(
-                      Icons.add,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.add, size: 18, color: Colors.white),
                   ),
                 )
               else
-                _QtyPill(
-                  qty: quantity,
-                  onMinus: onTapMinus!,
-                  onPlus: onTapAdd,
-                ),
+                _QtyPill(qty: quantity, onMinus: onTapMinus!, onPlus: onTapAdd),
             ],
           ),
         ],
@@ -2073,10 +2089,7 @@ class _QtyPill extends StatelessWidget {
           ),
           Text(
             '$qty',
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
           ),
           InkWell(
             onTap: onPlus,
@@ -2222,7 +2235,9 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
     if (!loggedIn) {
       if (outerContext.mounted) {
         ScaffoldMessenger.of(outerContext).showSnackBar(
-          const SnackBar(content: Text('Please log in to chat with the seller')),
+          const SnackBar(
+            content: Text('Please log in to chat with the seller'),
+          ),
         );
       }
       return;
@@ -2236,7 +2251,9 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
         final conv = body['data'] as Map<String, dynamic>;
         final id = conv['_id']?.toString();
         final partner = conv['partner'];
-        final name = partner is Map ? (partner['name']?.toString() ?? 'Seller') : 'Seller';
+        final name = partner is Map
+            ? (partner['name']?.toString() ?? 'Seller')
+            : 'Seller';
         if (!outerContext.mounted || id == null) return;
         Navigator.of(outerContext).pop();
         await Navigator.of(outerContext).push(
@@ -2253,9 +2270,9 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
       }
     } catch (e) {
       if (outerContext.mounted) {
-        ScaffoldMessenger.of(outerContext).showSnackBar(
-          SnackBar(content: Text('Could not open chat: $e')),
-        );
+        ScaffoldMessenger.of(
+          outerContext,
+        ).showSnackBar(SnackBar(content: Text('Could not open chat: $e')));
       }
     }
   }
@@ -2440,15 +2457,23 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                                   HapticFeedback.lightImpact();
                                   _chatWithSeller(context);
                                 },
-                                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                                icon: const Icon(
+                                  Icons.chat_bubble_outline_rounded,
+                                ),
                                 label: Text(
                                   'Chat with Seller',
-                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: primary,
-                                  side: BorderSide(color: primary.withValues(alpha: 0.85)),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  side: BorderSide(
+                                    color: primary.withValues(alpha: 0.85),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                 ),
                               ),
                             ),
@@ -2591,8 +2616,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   void initState() {
     super.initState();
     _deliveryNotesController = TextEditingController();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _refreshCheckoutGps());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshCheckoutGps());
   }
 
   Future<void> _refreshCheckoutGps() async {
@@ -2637,359 +2661,367 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       builder: (context, cart, _) {
         final entries = cart.items.values.toList();
         final subtotal = cart.subtotal;
-        final deliveryFee =
-            subtotal >= kFreeDeliveryAbove ? 0.0 : kDeliveryFee;
+        final deliveryFee = subtotal >= kFreeDeliveryAbove ? 0.0 : kDeliveryFee;
         final grandTotal = subtotal + deliveryFee;
         return DraggableScrollableSheet(
-      initialChildSize: 0.9,
-      maxChildSize: 0.96,
-      minChildSize: 0.7,
-      builder: (context, controller) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(999),
-                ),
+          initialChildSize: 0.9,
+          maxChildSize: 0.96,
+          minChildSize: 0.7,
+          builder: (context, controller) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Text(
-                      'Checkout & confirmation',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: controller,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
                   ),
-                  children: [
-                    _buildDeliveryAddressSection(
-                      context,
-                      cart,
-                      primary,
-                      onAddressChanged: _refreshCheckoutGps,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildCheckoutGpsStrip(context, cart, primary),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _deliveryNotesController,
-                      onChanged: (v) =>
-                          context.read<CartService>().setDeliveryNotes(v),
-                      maxLength: 500,
-                      decoration: InputDecoration(
-                        hintText:
-                            'Delivery notes (optional) — e.g. gate code, floor',
-                        hintStyle: GoogleFonts.outfit(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey.shade50,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                      ),
-                      style: GoogleFonts.outfit(fontSize: 13),
-                      maxLines: 2,
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Delivery date & time',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
                       children: [
-                        _dayChip('Today'),
-                        const SizedBox(width: 8),
-                        _dayChip('Tomorrow'),
-                        const SizedBox(width: 8),
-                        _dayChip('Day after'),
+                        Text(
+                          'Checkout & confirmation',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _slotChip('As soon as possible'),
-                        _slotChip('10:00–11:00'),
-                        _slotChip('13:00–14:00'),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Your items (${entries.length})',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                  ),
+                  Expanded(
+                    child: ListView(
+                      controller: controller,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    ...entries.map((item) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _buildDeliveryAddressSection(
+                          context,
+                          cart,
+                          primary,
+                          onAddressChanged: _refreshCheckoutGps,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildCheckoutGpsStrip(context, cart, primary),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _deliveryNotesController,
+                          onChanged: (v) =>
+                              context.read<CartService>().setDeliveryNotes(v),
+                          maxLength: 500,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Delivery notes (optional) — e.g. gate code, floor',
+                            hintStyle: GoogleFonts.outfit(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                          ),
+                          style: GoogleFonts.outfit(fontSize: 13),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Delivery date & time',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
                           children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF6F1EC),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              alignment: Alignment.center,
-                              child: Icon(Icons.pets, color: primary),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    'Rs. ${item.price.toStringAsFixed(0)} × ${item.quantity} = Rs. ${(item.price * item.quantity).toStringAsFixed(0)}',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            _QtyPill(
-                              qty: item.quantity,
-                              onMinus: () {
-                                cart.updateQuantity(
-                                  item.productId,
-                                  item.quantity - 1,
-                                );
-                              },
-                              onPlus: () {
-                                cart.updateQuantity(
-                                  item.productId,
-                                  item.quantity + 1,
-                                );
-                              },
-                            ),
+                            _dayChip('Today'),
+                            const SizedBox(width: 8),
+                            _dayChip('Tomorrow'),
+                            const SizedBox(width: 8),
+                            _dayChip('Day after'),
                           ],
                         ),
-                      );
-                    }),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Promo code',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () {
-                        widget.onApplyPromo(
-                          grandTotal,
-                          (code, discountAmount) {
-                            setState(() {
-                              _appliedPromoCode = code;
-                              _discountAmount = discountAmount;
-                            });
-                          },
-                          (message) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  message,
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.white,
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _slotChip('As soon as possible'),
+                            _slotChip('10:00–11:00'),
+                            _slotChip('13:00–14:00'),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Your items (${entries.length})',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ...entries.map((item) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF6F1EC),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(Icons.pets, color: primary),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.name,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        'Rs. ${item.price.toStringAsFixed(0)} × ${item.quantity} = Rs. ${(item.price * item.quantity).toStringAsFixed(0)}',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          color: Colors.grey[700],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                backgroundColor: Colors.red[700],
-                                behavior: SnackBarBehavior.floating,
-                              ),
+                                _QtyPill(
+                                  qty: item.quantity,
+                                  onMinus: () {
+                                    cart.updateQuantity(
+                                      item.productId,
+                                      item.quantity - 1,
+                                    );
+                                  },
+                                  onPlus: () {
+                                    cart.updateQuantity(
+                                      item.productId,
+                                      item.quantity + 1,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Promo code',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () {
+                            widget.onApplyPromo(
+                              grandTotal,
+                              (code, discountAmount) {
+                                setState(() {
+                                  _appliedPromoCode = code;
+                                  _discountAmount = discountAmount;
+                                });
+                              },
+                              (message) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      message,
+                                      style: GoogleFonts.outfit(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    backgroundColor: Colors.red[700],
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              _appliedPromoCode,
                             );
                           },
-                          _appliedPromoCode,
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.local_offer_outlined, color: primary),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _appliedPromoCode != null
-                                    ? '$_appliedPromoCode • Rs. ${_discountAmount.toStringAsFixed(0)} off'
-                                    : 'Apply promo code',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.local_offer_outlined,
+                                  color: primary,
                                 ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Colors.black45,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Bill details',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _billRow('Items total', subtotal),
-                    const SizedBox(height: 4),
-                    _billRow('Delivery charge', deliveryFee),
-                    if (_discountAmount > 0) ...[
-                      const SizedBox(height: 4),
-                      _billRow('Promo discount', -_discountAmount),
-                    ],
-                    const SizedBox(height: 6),
-                    const Divider(height: 1, color: Color(0xFFE3E0DD)),
-                    const SizedBox(height: 6),
-                    _billRow(
-                      'Grand total',
-                      grandTotal - _discountAmount,
-                      isEmphasis: true,
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Payment method',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    GestureDetector(
-                      onTap: () => widget.onSelectPayment(
-                        grandTotal - _discountAmount,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.credit_card_outlined, color: primary),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Select payment method',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _appliedPromoCode != null
+                                        ? '$_appliedPromoCode • Rs. ${_discountAmount.toStringAsFixed(0)} off'
+                                        : 'Apply promo code',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Colors.black45,
+                                ),
+                              ],
                             ),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Colors.black45,
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Bill details',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _billRow('Items total', subtotal),
+                        const SizedBox(height: 4),
+                        _billRow('Delivery charge', deliveryFee),
+                        if (_discountAmount > 0) ...[
+                          const SizedBox(height: 4),
+                          _billRow('Promo discount', -_discountAmount),
+                        ],
+                        const SizedBox(height: 6),
+                        const Divider(height: 1, color: Color(0xFFE3E0DD)),
+                        const SizedBox(height: 6),
+                        _billRow(
+                          'Grand total',
+                          grandTotal - _discountAmount,
+                          isEmphasis: true,
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'Payment method',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () => widget.onSelectPayment(
+                            grandTotal - _discountAmount,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.credit_card_outlined,
+                                  color: primary,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Select payment method',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Colors.black45,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 80),
+                      ],
                     ),
-                    const SizedBox(height: 80),
-                  ],
-                ),
-              ),
-              SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    onPressed: () {
-                      widget.onSelectPayment(
-                        grandTotal - _discountAmount,
-                      );
-                    },
-                    child: Text(
-                      'Confirm order',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+                  ),
+                  SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        onPressed: () {
+                          widget.onSelectPayment(grandTotal - _discountAmount);
+                        },
+                        child: Text(
+                          'Confirm order',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
-      },
-    );
       },
     );
   }
 
   Widget _buildCheckoutGpsStrip(
-      BuildContext context, CartService cart, Color primary) {
-    final hasCoords = cart.deliveryLat != null &&
+    BuildContext context,
+    CartService cart,
+    Color primary,
+  ) {
+    final hasCoords =
+        cart.deliveryLat != null &&
         cart.deliveryLng != null &&
         cart.deliveryAddress != null &&
         cart.deliveryAddress!.isNotEmpty;
@@ -3030,8 +3062,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   _checkoutGpsLoading
                       ? 'Locking high-accuracy GPS…'
                       : _checkoutGpsRefreshed
-                          ? 'GPS fixed — exact pin for delivery'
-                          : 'Enable location permission for the most precise pin (saved map pin is used otherwise).',
+                      ? 'GPS fixed — exact pin for delivery'
+                      : 'Enable location permission for the most precise pin (saved map pin is used otherwise).',
                   style: GoogleFonts.outfit(fontSize: 12),
                 ),
               ),
@@ -3097,7 +3129,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     VoidCallback? onAddressChanged,
   }) {
     final saved = context.read<SavedAddressesService>().list;
-    final hasAddress = cart.deliveryAddress != null &&
+    final hasAddress =
+        cart.deliveryAddress != null &&
         cart.deliveryLat != null &&
         cart.deliveryLng != null;
 
@@ -3145,7 +3178,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         ),
         const SizedBox(height: 8),
         ...saved.map((addr) {
-          final isSelected = hasAddress &&
+          final isSelected =
+              hasAddress &&
               cart.deliveryLat != null &&
               cart.deliveryLng != null &&
               (cart.deliveryLat! - addr.lat).abs() < 1e-5 &&
@@ -3155,10 +3189,10 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
             child: GestureDetector(
               onTap: () {
                 context.read<CartService>().setDeliveryLocation(
-                      lat: addr.lat,
-                      lng: addr.lng,
-                      address: addr.address,
-                    );
+                  lat: addr.lat,
+                  lng: addr.lng,
+                  address: addr.address,
+                );
                 onAddressChanged?.call();
               },
               child: Container(
@@ -3541,12 +3575,14 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     );
     final label = _addressTitleController.text.trim();
     if (label.isNotEmpty) {
-      context.read<SavedAddressesService>().add(SavedAddress(
-            label: label,
-            address: address,
-            lat: _pin.latitude,
-            lng: _pin.longitude,
-          ));
+      context.read<SavedAddressesService>().add(
+        SavedAddress(
+          label: label,
+          address: address,
+          lat: _pin.latitude,
+          lng: _pin.longitude,
+        ),
+      );
     }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -4128,7 +4164,8 @@ class _PaymentSheet extends StatefulWidget {
 
 class _PaymentSheetState extends State<_PaymentSheet> {
   String _selected = 'Cash on Delivery';
-  String _phase = 'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'khalti_verifying' | 'confirm_order'
+  String _phase =
+      'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'khalti_verifying' | 'confirm_order'
   String? _khaltiOrderId;
   String? _khaltiPidx;
   String? _khaltiPaymentUrl;
@@ -4310,7 +4347,9 @@ class _PaymentSheetState extends State<_PaymentSheet> {
 
   Future<void> _onKhaltiPaymentSuccess(String? pidxFromUrl) async {
     if (!mounted) return;
-    final pidx = (pidxFromUrl != null && pidxFromUrl.isNotEmpty) ? pidxFromUrl : _khaltiPidx;
+    final pidx = (pidxFromUrl != null && pidxFromUrl.isNotEmpty)
+        ? pidxFromUrl
+        : _khaltiPidx;
     setState(() => _phase = 'khalti_verifying');
     final ok = await verifyKhaltiPaymentWithRetries(
       context,
@@ -4368,14 +4407,19 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               Text(
                 'Confirming payment with Khalti…',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w500),
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
         ),
       );
     }
-    if (_phase == 'khalti_pay' && _khaltiPaymentUrl != null && _khaltiSuccessUrl != null) {
+    if (_phase == 'khalti_pay' &&
+        _khaltiPaymentUrl != null &&
+        _khaltiSuccessUrl != null) {
       return _buildKhaltiWebViewPhase(primary);
     }
     if (_phase == 'confirm_order') {
@@ -4450,204 +4494,218 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                         controller: controller,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         children: [
-                    Text(
-                      'Local Users',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            childAspectRatio: 0.85,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                          ),
-                      itemCount: _localMethods.length,
-                      itemBuilder: (context, index) {
-                        final m = _localMethods[index];
-                        final isSelected = _selected == m['id'];
-                        return GestureDetector(
-                          onTap: () => setState(() => _selected = m['id']!),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? primary
-                                    : Colors.grey.shade300,
-                                width: isSelected ? 2 : 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isSelected
-                                      ? primary.withValues(alpha: 0.1)
-                                      : Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: isSelected ? 12 : 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                          Text(
+                            'Local Users',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Colors.black87,
                             ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildPaymentIcon(m['id']!, primary, isSelected),
-                                const SizedBox(height: 8),
-                                Text(
-                                  m['name']!,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? primary
-                                        : Colors.black87,
-                                  ),
+                          ),
+                          const SizedBox(height: 16),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  childAspectRatio: 0.85,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
                                 ),
-                                const SizedBox(height: 4),
-                                if (isSelected)
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      color: primary,
-                                      shape: BoxShape.circle,
+                            itemCount: _localMethods.length,
+                            itemBuilder: (context, index) {
+                              final m = _localMethods[index];
+                              final isSelected = _selected == m['id'];
+                              return GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selected = m['id']!),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? primary
+                                          : Colors.grey.shade300,
+                                      width: isSelected ? 2 : 1,
                                     ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      size: 14,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.grey.shade400,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isSelected
+                                            ? primary.withValues(alpha: 0.1)
+                                            : Colors.black.withValues(
+                                                alpha: 0.04,
+                                              ),
+                                        blurRadius: isSelected ? 12 : 8,
+                                        offset: const Offset(0, 4),
                                       ),
-                                      shape: BoxShape.circle,
-                                    ),
+                                    ],
                                   ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      'International Users',
-                      style: GoogleFonts.outfit(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            childAspectRatio: 0.85,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                          ),
-                      itemCount: _internationalMethods.length,
-                      itemBuilder: (context, index) {
-                        final m = _internationalMethods[index];
-                        final isSelected = _selected == m['id'];
-                        return GestureDetector(
-                          onTap: () => setState(() => _selected = m['id']!),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? primary
-                                    : Colors.grey.shade300,
-                                width: isSelected ? 2 : 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isSelected
-                                      ? primary.withValues(alpha: 0.1)
-                                      : Colors.black.withValues(alpha: 0.04),
-                                  blurRadius: isSelected ? 12 : 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildPaymentIcon(m['id']!, primary, isSelected),
-                                const SizedBox(height: 8),
-                                Text(
-                                  m['name']!,
-                                  textAlign: TextAlign.center,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? primary
-                                        : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                if (isSelected)
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      color: primary,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check,
-                                      size: 14,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                else
-                                  Container(
-                                    width: 20,
-                                    height: 20,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.grey.shade400,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildPaymentIcon(
+                                        m['id']!,
+                                        primary,
+                                        isSelected,
                                       ),
-                                      shape: BoxShape.circle,
-                                    ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        m['name']!,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                          color: isSelected
+                                              ? primary
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      if (isSelected)
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: primary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.check,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      else
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.grey.shade400,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                              ],
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            'International Users',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: Colors.black87,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 100),
-                  ],
-                ),
+                          const SizedBox(height: 16),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  childAspectRatio: 0.85,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                ),
+                            itemCount: _internationalMethods.length,
+                            itemBuilder: (context, index) {
+                              final m = _internationalMethods[index];
+                              final isSelected = _selected == m['id'];
+                              return GestureDetector(
+                                onTap: () =>
+                                    setState(() => _selected = m['id']!),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? primary
+                                          : Colors.grey.shade300,
+                                      width: isSelected ? 2 : 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: isSelected
+                                            ? primary.withValues(alpha: 0.1)
+                                            : Colors.black.withValues(
+                                                alpha: 0.04,
+                                              ),
+                                        blurRadius: isSelected ? 12 : 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _buildPaymentIcon(
+                                        m['id']!,
+                                        primary,
+                                        isSelected,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        m['name']!,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                          color: isSelected
+                                              ? primary
+                                              : Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      if (isSelected)
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            color: primary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.check,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      else
+                                        Container(
+                                          width: 20,
+                                          height: 20,
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                              color: Colors.grey.shade400,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 100),
+                        ],
+                      ),
               ),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -4702,7 +4760,9 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                             ),
                             elevation: 0,
                           ),
-                          onPressed: _phase == 'khalti_loading' ? null : _onConfirmPaymentMethod,
+                          onPressed: _phase == 'khalti_loading'
+                              ? null
+                              : _onConfirmPaymentMethod,
                           child: Text(
                             'Confirm Payment Method',
                             style: GoogleFonts.outfit(
@@ -4767,9 +4827,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             ),
           ),
           const Divider(height: 1),
-          Expanded(
-            child: WebViewWidget(controller: controller),
-          ),
+          Expanded(child: WebViewWidget(controller: controller)),
         ],
       ),
     );
@@ -4789,11 +4847,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Icon(
-                Icons.check_circle,
-                size: 64,
-                color: Colors.green[600],
-              ),
+              Icon(Icons.check_circle, size: 64, color: Colors.green[600]),
               const SizedBox(height: 16),
               Text(
                 'Payment successful!',

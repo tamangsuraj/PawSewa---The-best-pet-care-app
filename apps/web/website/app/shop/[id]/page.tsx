@@ -52,7 +52,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-screen flex-col items-center justify-center gap-4">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
         <PawSewaLogoSpinner size={56} />
         <p className="text-sm text-paw-bark/60">Loading product…</p>
       </PageShell>
@@ -60,7 +60,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
   }
   if (!product) {
     return (
-      <PageShell className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4">
         <p className="text-paw-bark/75">Product not found.</p>
         <Link href="/shop" className="text-paw-teal-mid font-semibold hover:underline">
           Back to shop

@@ -15,7 +15,7 @@ export function PageShell({ children, className, padBottom = false }: Props) {
   return (
     <div
       className={cn(
-        'relative min-h-screen text-paw-ink',
+        'relative min-h-dvh text-paw-ink',
         padBottom && 'pb-24',
         className,
       )}

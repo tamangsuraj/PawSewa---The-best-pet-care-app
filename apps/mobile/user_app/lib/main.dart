@@ -9,6 +9,7 @@ import 'core/storage_service.dart';
 import 'core/constants.dart';
 import 'theme/pawsewa_theme.dart';
 import 'services/socket_service.dart';
+import 'services/chat_unread_notify_service.dart';
 import 'services/push_notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
@@ -56,6 +57,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => CartService()),
         ChangeNotifierProvider(create: (_) => savedAddresses),
+        ChangeNotifierProvider(create: (_) => ChatUnreadNotifyService()),
       ],
       child: const MyApp(),
     ),

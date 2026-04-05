@@ -5,9 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { Eye, X, Users } from 'lucide-react';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
 
 interface Customer {
   _id: string;
@@ -118,12 +115,7 @@ export default function CustomersPage() {
   );
 
   return (
-    <ProtectedRoute>
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-64">
-          <Header />
-          <main className="pt-24 px-6 pb-6">
+    <>
             <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-[#5CB0CC]/10 rounded-xl flex items-center justify-center">
@@ -429,9 +421,6 @@ export default function CustomersPage() {
                 </div>
               </div>
             )}
-          </main>
-        </div>
-      </div>
-    </ProtectedRoute>
+    </>
   );
 }

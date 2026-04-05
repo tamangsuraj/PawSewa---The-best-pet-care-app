@@ -4,6 +4,10 @@ const MarketplaceMessage = require('../models/MarketplaceMessage');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../config/fcm');
+const {
+  bumpSupportInbound,
+  bumpSupportOutbound,
+} = require('./chatUnreadService');
 
 const WELCOME_TEXT =
   'Namaste! Welcome to PawSewa. How can we help you and your pet today?';
@@ -203,7 +207,7 @@ async function appendMessageAndNotify({
   const adminId = conversation.partner.toString();
   const sid = senderId.toString();
 
-  const sender = await User.findById(senderId).select('role').lean();
+  const sender = await User.findById(senderId).select('name role').lean();
   const senderIsCustomer = sid === custId;
   const senderIsAdmin = sender && isAdminRole(sender.role);
 
@@ -266,6 +270,13 @@ async function appendMessageAndNotify({
       customerEmail: custPop?.email || '',
       customerRole: custPop?.role || '',
     });
+
+    const senderLabel = (sender?.name || 'Someone').trim();
+    if (senderIsCustomer) {
+      await bumpSupportInbound(io, conversation, senderLabel, trimmed);
+    } else {
+      await bumpSupportOutbound(io, custId, senderLabel, trimmed, conversation._id);
+    }
   }
 
   const fromAdmin = senderIsAdmin;

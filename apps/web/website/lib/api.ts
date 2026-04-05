@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+/** Same Node API as admin, user_app, and vet_app (one cluster + DB_NAME on the server). */
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
   headers: {

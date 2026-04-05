@@ -28,8 +28,10 @@ import {
   Calendar,
   MessageCircle,
   Map,
+  PawPrint,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAdminChatUnread } from '@/context/AdminChatUnreadContext';
 
 interface NavLink {
   name: string;
@@ -95,6 +97,7 @@ const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ cl
   { name: 'Support Hub', href: '/customer-chats', icon: MessageCircle },
   { name: 'Marketplace Chats', href: '/marketplace-chats', icon: MessageCircle },
   { name: 'Customers', href: '/customers', icon: Users },
+  { name: 'Pets', href: '/pets', icon: PawPrint },
   { name: 'Veterinarians', href: '/veterinarians', icon: UserCheck },
   { name: 'Shop Owners', href: '/shops', icon: Store },
   { name: 'Care Services', href: '/care-services', icon: Home },
@@ -109,16 +112,48 @@ function isGroupActive(group: NavGroup, pathname: string): boolean {
   return group.children.some((c) => pathname === c.href);
 }
 
-export const Sidebar: React.FC = () => {
+const NAV_EXPANDED_STORAGE_KEY = 'pawsewa-admin-sidebar-expanded';
+
+function loadStoredExpanded(): Record<string, boolean> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(NAV_EXPANDED_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object') {
+      return parsed as Record<string, boolean>;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+interface SidebarProps {
+  /** Close mobile drawer after navigation */
+  onNavigate?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const pathname = usePathname();
+  const { totalUnread } = useAdminChatUnread();
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     collapsibleNavGroups.forEach((g) => {
       initial[g.label] = isGroupActive(g, pathname);
     });
-    return initial;
+    const stored = loadStoredExpanded();
+    return stored ? { ...initial, ...stored } : initial;
   });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(NAV_EXPANDED_STORAGE_KEY, JSON.stringify(expandedGroups));
+    } catch {
+      /* ignore */
+    }
+  }, [expandedGroups]);
 
   useEffect(() => {
     setExpandedGroups((prev) => {
@@ -137,7 +172,7 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-gradient-to-b from-white to-[#F7F4FC] h-screen max-h-dvh fixed left-0 top-0 z-30 flex flex-col overflow-hidden shadow-lg border-r border-white/60">
+    <aside className="h-full w-full max-h-dvh bg-gradient-to-b from-white to-[#F7F4FC] flex flex-col overflow-hidden shadow-lg border-r border-white/60">
       {/* Logo */}
       <div className="shrink-0 p-6 border-b border-white/70">
         <div className="flex items-center gap-3 min-w-0">
@@ -161,9 +196,10 @@ export const Sidebar: React.FC = () => {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => onNavigate?.()}
               className={cn(
                 'flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200',
-                isActive ? 'bg-[#5CB0CC] text-white shadow-lg' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
+                isActive ? 'bg-[#4facfe] text-white shadow-lg' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
               )}
             >
               <Icon className="w-5 h-5" />
@@ -185,7 +221,7 @@ export const Sidebar: React.FC = () => {
                 onClick={() => toggleGroup(group.label)}
                 className={cn(
                   'w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-left',
-                  isActive ? 'bg-[#5CB0CC]/10 text-[#171415]' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
+                  isActive ? 'bg-[#4facfe]/15 text-[#171415]' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
                 )}
               >
                 <div className="flex items-center space-x-3">
@@ -210,10 +246,11 @@ export const Sidebar: React.FC = () => {
                       <Link
                         key={child.href}
                         href={child.href}
+                        onClick={() => onNavigate?.()}
                         className={cn(
                           'flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 relative',
                           isChildActive
-                            ? 'bg-[#5CB0CC] text-white shadow-md'
+                            ? 'bg-[#4facfe] text-white shadow-md'
                             : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'
                         )}
                       >
@@ -235,17 +272,26 @@ export const Sidebar: React.FC = () => {
         {flatNavItems.slice(1).map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          const showMsgBadge =
+            totalUnread > 0 &&
+            (item.href === '/customer-chats' || item.href === '/marketplace-chats');
           return (
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => onNavigate?.()}
               className={cn(
-                'flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200',
-                isActive ? 'bg-[#5CB0CC] text-white shadow-lg' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
+                'relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200',
+                isActive ? 'bg-[#4facfe] text-white shadow-lg' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.name}</span>
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="font-medium flex-1 min-w-0">{item.name}</span>
+              {showMsgBadge ? (
+                <span className="shrink-0 min-w-[1.25rem] h-5 px-1 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              ) : null}
             </Link>
           );
         })}

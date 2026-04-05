@@ -1,13 +1,13 @@
 /**
  * Cleanses product data: removes gibberish titles, replaces unprofessional
- * images with standard placeholder. Run against pawsewa_production.
+ * images with standard placeholder. Uses the same DB as the API (DB_NAME / PawSewaDB).
  * Usage: node scripts/cleanse-products.js
  */
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const mongoose = require('mongoose');
-const { getConnectionUri } = require('../src/config/db');
+const { getConnectionUri, getMongooseConnectionOptions } = require('../src/config/db');
 const Product = require('../src/models/Product');
 
 function log(level, ...args) {
@@ -50,10 +50,7 @@ function needsPlaceholderImage(images) {
 async function run() {
   const uri = getConnectionUri();
   log('INFO', 'Connecting to database...');
-  await mongoose.connect(uri, {
-    tls: uri.startsWith('mongodb+srv'),
-    tlsAllowInvalidCertificates: true,
-  });
+  await mongoose.connect(uri, getMongooseConnectionOptions(uri));
   const dbName = mongoose.connection.db?.databaseName || 'unknown';
   log('INFO', 'Connected to', dbName);
 

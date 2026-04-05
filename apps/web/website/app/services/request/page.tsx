@@ -82,6 +82,16 @@ export default function ServiceRequestPage() {
     fetchMyPets();
   }, []);
 
+  useEffect(() => {
+    if (pets.length === 0 || typeof window === 'undefined') {
+      return;
+    }
+    const petId = new URLSearchParams(window.location.search).get('petId');
+    if (petId && pets.some((p) => p._id === petId)) {
+      setSelectedPetId(petId);
+    }
+  }, [pets]);
+
   const fetchMyPets = async () => {
     try {
       if (!localStorage.getItem('token')) {
@@ -179,7 +189,7 @@ export default function ServiceRequestPage() {
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <p className="text-paw-bark text-xl">Loading...</p>
       </PageShell>
     );
@@ -187,7 +197,7 @@ export default function ServiceRequestPage() {
 
   if (pets.length === 0) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center p-6">
+      <PageShell className="flex min-h-dvh items-center justify-center p-6">
         <div className="paw-surface-card w-full max-w-xl p-10 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-paw-sand text-paw-bark">
             <PawPrint className="h-7 w-7" strokeWidth={1.75} aria-hidden />

@@ -13,7 +13,7 @@ function CareBookingContent() {
   const id = searchParams.get('id');
 
   return (
-    <PageShell className="flex min-h-screen flex-col items-center justify-center">
+    <PageShell className="flex min-h-dvh flex-col items-center justify-center">
       <PageContent compact className="max-w-md pb-16 pt-10">
       <div className="paw-surface-card w-full p-10 text-center">
         {success === '1' ? (
@@ -46,7 +46,7 @@ export default function CareBookingSuccessPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-screen items-center justify-center">
+        <PageShell className="flex min-h-dvh items-center justify-center">
           <p className="text-paw-bark">Loading...</p>
         </PageShell>
       }

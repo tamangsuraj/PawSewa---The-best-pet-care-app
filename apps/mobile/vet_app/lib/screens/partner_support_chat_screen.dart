@@ -4,12 +4,14 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
+import '../services/chat_unread_notify_service.dart';
 
 /// PawSewa Customer Support (same thread model as user app — Marketplace SUPPORT).
 class PartnerSupportChatScreen extends StatefulWidget {
@@ -36,6 +38,13 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
   Timer? _typingDebounce;
   bool _typingRemote = false;
   Timer? _typingHide;
+  ChatUnreadNotifyService? _unreadNotify;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _unreadNotify ??= context.read<ChatUnreadNotifyService>();
+  }
 
   @override
   void initState() {
@@ -60,6 +69,7 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       if (_socket.isConnected) {
         _socket.joinCustomerCareRoom(id, (ack) {
           if (kDebugMode) debugPrint('[CustomerCare] join $ack');
+          _socket.emitMarkReadConversation(id);
         });
         return;
       }
@@ -102,6 +112,7 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
           ..addAll(msgs.map((e) => Map<String, dynamic>.from(e as Map)));
         _loading = false;
       });
+      _unreadNotify?.setActiveChatId('c:$id');
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } on DioException catch (e) {
       final d = e.response?.data;
@@ -200,6 +211,7 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
 
   @override
   void dispose() {
+    _unreadNotify?.setActiveChatId(null);
     _typingHide?.cancel();
     _typingDebounce?.cancel();
     _socket.removeCustomerCareMessageListener(_onCareMessage);

@@ -59,7 +59,7 @@ export default function MarketplaceChatPage({
   };
 
   return (
-    <PageShell className="flex min-h-screen flex-col">
+    <PageShell className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link href="/shop" className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors">

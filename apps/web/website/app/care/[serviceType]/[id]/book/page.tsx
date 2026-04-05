@@ -185,7 +185,7 @@ export default function CareBookPage({ params }: { params: { serviceType: string
 
   if (loading || !center) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <p className="text-paw-bark">Loading...</p>
       </PageShell>
     );

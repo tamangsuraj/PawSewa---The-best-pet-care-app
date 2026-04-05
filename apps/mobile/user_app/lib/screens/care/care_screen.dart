@@ -8,6 +8,12 @@ import 'care_all_services_screen.dart';
 import 'hostel_detail_screen.dart';
 import 'pet_care_service_card.dart';
 
+/// Pet Care+ hub (hostels, daycare, grooming, etc.).
+///
+/// This widget is a **root tab body** inside the customer dashboard scaffold.
+/// The app bar (drawer, PawSewa title, “Pet Care+” subtitle, messages) lives on
+/// the parent — do not add a duplicate [AppBar] here.
+///
 /// Backend serviceType -> section header (reference layout order).
 const List<Map<String, String>> _sectionConfig = [
   {'type': 'Hostel', 'header': 'Book a Pet Hostel'},
@@ -19,7 +25,10 @@ const List<Map<String, String>> _sectionConfig = [
 ];
 
 class CareScreen extends StatefulWidget {
-  const CareScreen({super.key});
+  const CareScreen({super.key, this.onOpenMainDrawer});
+
+  /// Opens the root [PetDashboardScreen] drawer (e.g. after closing a pushed care sub-route).
+  final VoidCallback? onOpenMainDrawer;
 
   @override
   State<CareScreen> createState() => _CareScreenState();
@@ -146,6 +155,7 @@ class _CareScreenState extends State<CareScreen> {
           serviceType: serviceType,
           sectionTitle: header,
           items: List<Map<String, dynamic>>.from(fullList),
+          onOpenMainDrawer: widget.onOpenMainDrawer,
         ),
       ),
     );

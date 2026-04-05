@@ -87,6 +87,7 @@ const { registerVetDirectSocket } = require('./sockets/vetDirectSocket');
 const { registerUnifiedChatSocket } = require('./sockets/unifiedChatSocket');
 const { presenceConnect, presenceDisconnect } = require('./sockets/presenceStore');
 const { setIO } = require('./sockets/socketStore');
+const { startLiveMapSimulation } = require('./services/liveMapSimulation');
 const customerCareRoutes = require('./routes/customerCareRoutes');
 const marketplaceChatRoutes = require('./routes/marketplaceChatRoutes');
 const chatRoutes = require('./routes/chatRoutes');
@@ -369,6 +370,7 @@ async function start() {
     logger.info('CORS enabled for localhost and local network.');
     logger.event('Socket.io initialized for real-time synchronization.');
     logger.info('Mobile devices can connect via: http://<your-ip>:' + PORT);
+    startLiveMapSimulation();
   });
 }
 

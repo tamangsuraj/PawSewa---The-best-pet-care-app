@@ -172,7 +172,7 @@ function MyServiceRequestsPageInner() {
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent mb-4" />
           <p className="text-paw-bark text-xl">Loading your appointments…</p>
@@ -327,7 +327,7 @@ export default function MyServiceRequestsPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-screen items-center justify-center">
+        <PageShell className="flex min-h-dvh items-center justify-center">
           <p className="text-paw-bark">Loading…</p>
         </PageShell>
       }

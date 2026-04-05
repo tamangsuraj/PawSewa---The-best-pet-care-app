@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
@@ -10,6 +11,7 @@ import '../core/constants.dart';
 import '../widgets/editorial_canvas.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
+import '../services/chat_unread_notify_service.dart';
 
 /// Real-time marketplace thread for partners (Socket.io + HTTP fallback).
 class PartnerMarketplaceChatScreen extends StatefulWidget {
@@ -46,6 +48,13 @@ class _PartnerMarketplaceChatScreenState
   bool _typingRemote = false;
   Timer? _typingDebounce;
   Timer? _typingHide;
+  ChatUnreadNotifyService? _unreadNotify;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _unreadNotify ??= context.read<ChatUnreadNotifyService>();
+  }
 
   @override
   void initState() {
@@ -76,7 +85,9 @@ class _PartnerMarketplaceChatScreenState
     for (var i = 0; i < 40; i++) {
       await Future.delayed(const Duration(milliseconds: 200));
       if (_socket.isConnected) {
-        _socket.joinMarketplaceRoom(widget.conversationId, (_) {});
+        _socket.joinMarketplaceRoom(widget.conversationId, (_) {
+          _socket.emitMarkReadConversation(widget.conversationId);
+        });
         return;
       }
     }
@@ -192,6 +203,7 @@ class _PartnerMarketplaceChatScreenState
             _messages = list;
             _error = null;
           });
+          _unreadNotify?.setActiveChatId('c:${widget.conversationId}');
           _scrollToBottom();
         }
       }
@@ -210,6 +222,7 @@ class _PartnerMarketplaceChatScreenState
 
   @override
   void dispose() {
+    _unreadNotify?.setActiveChatId(null);
     _typingDebounce?.cancel();
     _typingHide?.cancel();
     _socket.removeMarketplaceMessageListener(_onSocketMessage);

@@ -69,7 +69,7 @@ export default function RegisterPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <div className="text-center">
           <PawSewaLogoSpinner size={64} className="mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>
@@ -120,7 +120,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <PageShell className="flex min-h-screen">
+    <PageShell className="flex min-h-dvh">
       <div className="hidden lg:flex lg:w-[46%] relative items-center justify-center p-12 overflow-hidden bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_20%_30%,rgba(13,148,136,0.22),transparent_55%)]"

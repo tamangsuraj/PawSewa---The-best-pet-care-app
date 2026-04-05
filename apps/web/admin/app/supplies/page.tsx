@@ -664,7 +664,7 @@ export default function LiveSuppliesPage() {
   ).length;
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
+    <div className="p-8 bg-gray-50 min-h-dvh">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>

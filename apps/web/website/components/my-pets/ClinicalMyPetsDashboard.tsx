@@ -127,6 +127,18 @@ function formatAppointmentNo(id: string): string {
   return `#${tail.toUpperCase()}`;
 }
 
+function formatSpecialist(name: string | null | undefined): string {
+  if (!name || name === '—') {
+    return '—';
+  }
+  const t = name.trim();
+  const lower = t.toLowerCase();
+  if (lower.startsWith('dr.') || lower.startsWith('dr ')) {
+    return t;
+  }
+  return `Dr. ${t}`;
+}
+
 function formatAgeFromDob(dob?: string, fallbackYears?: number): string {
   if (dob) {
     const birth = new Date(dob);
@@ -245,7 +257,14 @@ const SIDEBAR_TABS = [
 
 type TabId = (typeof SIDEBAR_TABS)[number]['id'];
 
-export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
+/** Medical dashboard: data from `GET /pets/:id/health-summary` + unified appointments + service requests (same DB as `pawsewa_chat` when configured on the API). */
+export function ClinicalMyPetsDashboard({
+  pets,
+  routePetId,
+}: {
+  pets: PetListItem[];
+  routePetId: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { logout } = useAuth();
@@ -256,7 +275,9 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
     ? tabParam
     : 'dashboard';
 
-  const [activePetId, setActivePetId] = useState(pets[0]?._id || '');
+  const [activePetId, setActivePetId] = useState(() =>
+    pets.some((p) => p._id === routePetId) ? routePetId : pets[0]?._id || ''
+  );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [health, setHealth] = useState<HealthSummary | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(true);
@@ -271,10 +292,10 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
   }>({ open: false, title: '', body: '' });
 
   useEffect(() => {
-    if (pets.length && !pets.find((p) => p._id === activePetId)) {
-      setActivePetId(pets[0]._id);
+    if (pets.some((p) => p._id === routePetId)) {
+      setActivePetId(routePetId);
     }
-  }, [pets, activePetId]);
+  }, [routePetId, pets]);
 
   const loadDashboardData = useCallback(async () => {
     if (!activePetId) return;
@@ -316,7 +337,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
   const setTab = (id: TabId) => {
     const q = new URLSearchParams(searchParams.toString());
     q.set('tab', id);
-    router.push(`/my-pets?${q.toString()}`, { scroll: false });
+    router.push(`/my-pets/${routePetId}?${q.toString()}`, { scroll: false });
     setMobileNavOpen(false);
   };
 
@@ -396,7 +417,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
           kind: 'unified' as const,
           id: a._id,
           displayNo: formatAppointmentNo(a._id),
-          specialist: staff || '—',
+          specialist: formatSpecialist(staff),
           dateLabel,
           serviceLabel: svc || '—',
           status: (a.status || 'pending').toUpperCase(),
@@ -418,7 +439,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
           kind: 'service' as const,
           id: s._id,
           displayNo: formatAppointmentNo(s._id),
-          specialist: s.assignedStaff?.name || '—',
+          specialist: formatSpecialist(s.assignedStaff?.name),
           dateLabel,
           serviceLabel: s.serviceType || 'Service request',
           status: (s.status || 'pending').replace(/_/g, ' ').toUpperCase(),
@@ -475,17 +496,19 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
     }
   };
 
-  const barColors = weightData.map((d) => {
-    if (d.weightKg <= 0) return '#E8DFD0';
-    if (d.isCurrent) return '#3D2914';
-    return '#C4A574';
+  const brownBarScale = ['#EBE0D4', '#D9CBB8', '#C4A882', '#A67B52', '#8B5A32', '#703418'];
+  const barColors = weightData.map((d, i) => {
+    if (d.weightKg <= 0) {
+      return '#E8E4DF';
+    }
+    return brownBarScale[Math.min(i, brownBarScale.length - 1)];
   });
 
   return (
-    <PageShell className="min-h-[calc(100vh-4.25rem)]">
-    <div className="relative min-h-[calc(100vh-4.25rem)] text-paw-ink">
+    <PageShell className="min-h-[calc(100vh-4.25rem)] bg-[#F5F5F5]">
+    <div className="relative min-h-[calc(100vh-4.25rem)] text-slate-900">
       {/* Mobile top bar (below global Navbar) */}
-      <div className="sticky top-[4.25rem] z-30 flex items-center justify-between border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md px-4 py-3 lg:hidden">
+      <div className="sticky top-[4.25rem] z-30 flex items-center justify-between border-b border-neutral-200 bg-[#F5F5F5]/95 backdrop-blur-md px-4 py-3 lg:hidden">
         <button
           type="button"
           aria-label="Open menu"
@@ -494,37 +517,41 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
         >
           <Menu className="h-6 w-6" />
         </button>
-        <span className="font-semibold text-paw-bark">My Pets</span>
+        <span className="font-bold text-[#703418]">My Pets</span>
         <span className="w-10" />
       </div>
 
-      <div className="flex">
-        {/* Sidebar */}
+      <div className="flex items-start">
+        {/* Sidebar — sticky on desktop; light gray canvas per medical dashboard spec */}
         <aside
           className={clsx(
-            'fixed bottom-0 left-0 top-[4.25rem] z-50 w-[min(100%,280px)] transform border-r border-paw-bark/10 bg-white/95 backdrop-blur-sm shadow-paw transition-transform lg:static lg:top-auto lg:z-0 lg:h-auto lg:min-h-[calc(100vh-4.25rem)] lg:w-64 lg:shrink-0 lg:translate-x-0',
+            'fixed bottom-0 left-0 top-[4.25rem] z-50 w-[min(100%,280px)] transform border-r border-neutral-200 bg-[#F5F5F5] shadow-sm transition-transform lg:sticky lg:top-[4.25rem] lg:z-10 lg:max-h-[calc(100vh-4.25rem)] lg:w-64 lg:shrink-0 lg:translate-x-0 lg:overflow-y-auto lg:self-start',
             mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )}
         >
           <div className="flex h-full min-h-0 flex-col overflow-y-auto pt-4 lg:pt-6">
-            <div className="border-b border-[#E8DFD0] px-4 pb-4">
-              <label className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            <div className="border-b border-neutral-200/90 px-4 pb-4">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Active pet
               </label>
               <div className="mt-2 flex items-center gap-3">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-cream ring-2 ring-[#E8DFD0]">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white ring-2 ring-neutral-200">
                   {activePet?.photoUrl ? (
                     <Image src={activePet.photoUrl} alt="" fill className="object-cover" unoptimized />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-paw-bark/35">
+                    <div className="flex h-full w-full items-center justify-center text-[#703418]/35">
                       <PawPrint className="h-7 w-7" strokeWidth={1.5} aria-hidden />
                     </div>
                   )}
                 </div>
                 <select
-                  className="min-w-0 flex-1 rounded-lg border border-[#E8DFD0] bg-cream px-2 py-2 text-sm font-medium text-paw-bark"
+                  className="min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-2 py-2 text-sm font-semibold text-[#703418] transition hover:border-[#703418]/40"
                   value={activePetId}
-                  onChange={(e) => setActivePetId(e.target.value)}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const q = new URLSearchParams(searchParams.toString());
+                    router.push(`/my-pets/${id}?${q.toString()}`);
+                  }}
                 >
                   {pets.map((p) => (
                     <option key={p._id} value={p._id}>
@@ -533,7 +560,9 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                   ))}
                 </select>
               </div>
-              <p className="mt-1 truncate text-xs text-slate-600">{activePet?.breed || 'Mixed / —'}</p>
+              <p className="mt-1 truncate text-xs font-semibold tracking-wide text-[#703418]">
+                {(activePet?.breed || 'Mixed / —').toString().toUpperCase()}
+              </p>
               {(health?.pawId || activePet?.pawId) && (
                 <p className="mt-2 truncate rounded-lg border border-[#E8DFD0] bg-cream px-2 py-1.5 font-mono text-[11px] font-semibold text-paw-bark">
                   PawID: {health?.pawId || activePet?.pawId}
@@ -550,16 +579,16 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     type="button"
                     onClick={() => setTab(id)}
                     className={clsx(
-                      'relative flex w-full items-center gap-3 rounded-lg py-2.5 pl-3 pr-3 text-left text-sm font-medium transition-colors lg:pl-4',
+                      'relative flex w-full items-center gap-3 rounded-lg py-2.5 pl-3 pr-3 text-left text-sm font-semibold transition-colors lg:pl-4',
                       active
-                        ? 'bg-cream text-paw-bark shadow-sm'
-                        : 'text-slate-600 hover:bg-cream/80 hover:text-paw-bark'
+                        ? 'bg-white text-[#703418] shadow-sm'
+                        : 'text-slate-600 hover:bg-white/70 hover:text-[#703418]'
                     )}
                   >
                     <span
                       className={clsx(
                         'absolute left-0 top-1/2 hidden h-8 w-1 -translate-y-1/2 rounded-r lg:block',
-                        active ? 'bg-paw-bark' : 'bg-transparent'
+                        active ? 'bg-[#703418]' : 'bg-transparent'
                       )}
                     />
                     <Icon className="h-5 w-5 shrink-0 opacity-80" />
@@ -569,11 +598,11 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
               })}
             </nav>
 
-            <div className="space-y-1 border-t border-[#E8DFD0] px-2 py-4">
+            <div className="space-y-1 border-t border-neutral-200 px-2 py-4">
               <button
                 type="button"
                 onClick={() => void openHubWithSupport()}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-600 hover:bg-cream"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-600 transition hover:bg-white/80"
               >
                 <HelpCircle className="h-5 w-5" />
                 Help Center
@@ -583,7 +612,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                 onClick={() => {
                   logout();
                 }}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-600 hover:bg-cream"
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-600 transition hover:bg-white/80"
               >
                 <LogOut className="h-5 w-5" />
                 Sign Out
@@ -593,7 +622,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
 
           <button
             type="button"
-            className="absolute right-3 top-3 rounded-lg p-2 text-slate-500 hover:bg-cream lg:hidden"
+            className="absolute right-3 top-3 rounded-lg p-2 text-slate-500 transition hover:bg-white/90 lg:hidden"
             aria-label="Close menu"
             onClick={() => setMobileNavOpen(false)}
           >
@@ -610,8 +639,8 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
           />
         ) : null}
 
-        {/* Main */}
-        <main className="relative flex-1 overflow-y-auto bg-paw-cream/20 px-4 py-6 sm:px-6 lg:px-10">
+        {/* Main — 12-column grid inside dashboard tab; canvas #F5F5F5 */}
+        <main className="relative min-h-[calc(100vh-4.25rem)] flex-1 overflow-y-auto bg-[#F5F5F5] px-4 py-6 sm:px-6 lg:min-h-0 lg:px-8">
           {fetchError ? (
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {fetchError}
@@ -625,44 +654,46 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
               ) : (
                 <>
                   {/* Hero */}
-                  <section className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-stretch">
-                    <div className="relative mx-auto w-full max-w-md shrink-0 lg:mx-0">
-                      <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[#E8DFD0] shadow-md">
+                  <section className="col-span-12 mb-8 grid grid-cols-12 gap-6 lg:items-stretch">
+                    <div className="col-span-12 flex justify-center lg:col-span-5 xl:col-span-4">
+                      <div className="relative w-full max-w-md">
+                        <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-neutral-200 shadow-md">
                         {heroPhoto ? (
                           <Image src={heroPhoto} alt={heroName} fill className="object-cover" unoptimized />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-paw-bark/25">
+                          <div className="flex h-full items-center justify-center text-[#703418]/20">
                             <PawPrint className="h-24 w-24" strokeWidth={1} aria-hidden />
                           </div>
                         )}
-                        <div className="absolute bottom-3 right-3 max-w-[calc(100%-1.5rem)] rounded-full bg-paw-bark px-4 py-1.5 text-xs font-semibold tracking-wide text-paw-cream shadow-paw">
+                        <div className="absolute bottom-3 right-3 max-w-[calc(100%-1.5rem)] rounded-full bg-[#703418] px-4 py-1.5 text-xs font-bold tracking-wide text-white shadow-md">
                           <span className="block truncate font-mono">
-                            ID: {pawIdDisplay || idBadgeFallback}
+                            ID: {pawIdDisplay ? pawIdDisplay : `#${idBadgeFallback}`}
                           </span>
                         </div>
                       </div>
+                      </div>
                     </div>
-                    <div className="flex flex-1 flex-col justify-center">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    <div className="col-span-12 flex flex-col justify-center lg:col-span-7 xl:col-span-8">
+                      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#A67C52]">
                         Pet medical profile
                       </p>
-                      <h1 className="font-display mt-2 text-4xl font-semibold text-paw-bark md:text-5xl">
+                      <h1 className="mt-2 font-sans text-4xl font-bold tracking-tight text-[#703418] md:text-5xl">
                         {heroName}
                       </h1>
-                      <div className="mt-6 grid grid-cols-1 gap-4 border-t border-[#E8DFD0] pt-6 sm:grid-cols-3">
+                      <div className="mt-6 grid grid-cols-1 gap-4 border-t border-neutral-200 pt-6 sm:grid-cols-3">
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Breed</p>
-                          <p className="mt-1 text-lg font-medium">{heroBreed}</p>
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Breed</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-900">{heroBreed}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Age</p>
-                          <p className="mt-1 text-lg font-medium">
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Age</p>
+                          <p className="mt-1 text-lg font-semibold text-slate-900">
                             {formatAgeFromDob(health?.dob, health?.age?.years ?? activePet?.age)}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Status</p>
-                          <p className="mt-1 flex items-center gap-2 text-lg font-medium">
+                          <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</p>
+                          <p className="mt-1 flex items-center gap-2 text-lg font-semibold text-slate-900">
                             <span className={clsx('h-2.5 w-2.5 rounded-full', statusInfo.dotClass)} />
                             {statusInfo.text}
                           </p>
@@ -671,12 +702,12 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     </div>
                   </section>
 
-                  {/* Widget grid */}
-                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                  {/* Widget grid — 12 columns, 6+6 mid row */}
+                  <div className="grid grid-cols-12 gap-5">
                     {/* Weight */}
-                    <div className="rounded-2xl border border-[#E8DFD0] bg-white p-5 shadow-sm">
+                    <div className="col-span-12 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm lg:col-span-6 xl:col-span-6">
                       <div className="mb-2 flex items-center justify-between">
-                        <h2 className="text-sm font-semibold text-paw-bark">Weight tracker</h2>
+                        <h2 className="text-sm font-bold text-[#703418]">Weight tracker</h2>
                         {currentWeightDisplayKg != null ? (
                           <span className="text-xs font-medium text-slate-500">
                             Current: {currentWeightDisplayKg} kg
@@ -736,14 +767,29 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
+                      {(() => {
+                        const last = weightData[weightData.length - 1];
+                        if (!last) {
+                          return null;
+                        }
+                        const kg =
+                          currentWeightDisplayKg ??
+                          (last.weightKg > 0 ? last.weightKg : null);
+                        return (
+                          <p className="mt-2 text-center text-xs font-bold tracking-wide text-[#703418]">
+                            {last.name.toUpperCase()}
+                            {kg != null ? ` (CURRENT: ${kg}KG)` : ''}
+                          </p>
+                        );
+                      })()}
                     </div>
 
-                    {/* Allergies */}
+                    {/* Allergies — clinical teal */}
                     <div
-                      className="rounded-2xl p-5 shadow-md"
-                      style={{ backgroundColor: '#0B4F55' }}
+                      className="col-span-12 rounded-2xl p-5 shadow-md lg:col-span-6 xl:col-span-6"
+                      style={{ backgroundColor: '#004D4D' }}
                     >
-                      <h2 className="text-sm font-semibold text-white/95">Active allergies</h2>
+                      <h2 className="text-sm font-bold text-white">Active allergies</h2>
                       <div className="mt-4 flex flex-wrap gap-2">
                         {allergies.length ? (
                           allergies.map((a) => (
@@ -762,8 +808,8 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     </div>
 
                     {/* Vaccinations */}
-                    <div className="rounded-2xl border border-[#E8DFD0] bg-white p-5 shadow-sm">
-                      <h2 className="text-sm font-semibold text-paw-bark">Vaccination history</h2>
+                    <div className="col-span-12 rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm lg:col-span-6 xl:col-span-6">
+                      <h2 className="text-sm font-bold text-[#703418]">Vaccination history</h2>
                       <ul className="mt-4 space-y-3">
                         {vaccinationRows.length ? (
                           vaccinationRows.map((row) => (
@@ -784,7 +830,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                                     body: row.detail,
                                   })
                                 }
-                                className="shrink-0 rounded-lg border border-[#E8DFD0] bg-[#F5F0E8] px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-[#E8DFD0]"
+                                className="shrink-0 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[#703418] transition hover:border-[#703418] hover:bg-[#703418]/5"
                               >
                                 View record
                               </button>
@@ -797,12 +843,16 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                     </div>
 
                     {/* Daily care */}
-                    <div className="relative rounded-2xl bg-paw-bark p-5 text-white shadow-md">
+                    <div className="relative col-span-12 rounded-2xl bg-[#703418] p-5 text-white shadow-md lg:col-span-6 xl:col-span-6">
                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                        <h2 className="text-sm font-semibold text-white">Daily care schedule</h2>
+                        <h2 className="text-sm font-bold text-white">Daily care schedule</h2>
                         <Link
-                          href="/vets"
-                          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-paw-bark shadow-sm hover:bg-cream"
+                          href={
+                            activePetId
+                              ? `/services/request?petId=${encodeURIComponent(activePetId)}`
+                              : '/services/request'
+                          }
+                          className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-[#703418] shadow-sm transition hover:bg-neutral-100"
                         >
                           <Plus className="h-4 w-4" />
                           Book vet visit
@@ -834,8 +884,8 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                   </div>
 
                   {/* Appointments table */}
-                  <section className="mt-10 rounded-2xl bg-white p-4 shadow-sm sm:p-6">
-                    <h2 className="text-sm font-semibold text-paw-bark">Recent appointments</h2>
+                  <section className="mt-10 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+                    <h2 className="text-sm font-bold text-[#703418]">Recent appointments</h2>
                     <div className="mt-4 overflow-x-auto">
                       <table className="w-full min-w-[640px] border-collapse text-left text-sm">
                         <thead>
@@ -852,7 +902,7 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                             tableRows.slice(0, 12).map((row) => (
                               <tr
                                 key={row.key}
-                                className="cursor-pointer border-t border-[#F0EBE3] transition-colors hover:bg-cream/80"
+                                className="cursor-pointer border-t border-neutral-100 transition-colors hover:bg-[#F5F5F5]"
                                 onClick={() => onRowNavigate(row)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' || e.key === ' ') {
@@ -868,7 +918,14 @@ export function ClinicalMyPetsDashboard({ pets }: { pets: PetListItem[] }) {
                                 <td className="py-3 pr-4 text-slate-600">{row.dateLabel}</td>
                                 <td className="py-3 pr-4">{row.serviceLabel}</td>
                                 <td className="py-3">
-                                  <span className="inline-block rounded-full bg-[#ECE8E0] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                                  <span
+                                    className={clsx(
+                                      'inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
+                                      row.status === 'COMPLETED' || row.status === 'CANCELLED'
+                                        ? 'bg-neutral-200 text-neutral-700'
+                                        : 'bg-amber-100 text-amber-900'
+                                    )}
+                                  >
                                     {row.status}
                                   </span>
                                 </td>

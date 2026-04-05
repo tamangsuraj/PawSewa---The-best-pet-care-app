@@ -4,12 +4,14 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
+import '../../services/chat_unread_notify_service.dart';
 import '../../widgets/pawsewa_brand_logo.dart';
 import 'vet_direct_chat_screen.dart';
 
@@ -40,6 +42,13 @@ class _MessagesScreenState extends State<MessagesScreen> {
   List<Map<String, dynamic>> _myVets = [];
   Map<String, bool> _vetOnline = {};
   Timer? _presenceTimer;
+  ChatUnreadNotifyService? _unreadNotify;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _unreadNotify ??= context.read<ChatUnreadNotifyService>();
+  }
 
   @override
   void initState() {
@@ -138,6 +147,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _error = e.toString();
     } finally {
       if (mounted) {
+        final cid = _conversationId;
+        if (cid != null) {
+          _unreadNotify?.setActiveChatId('c:$cid');
+        }
         setState(() => _loading = false);
         _scrollToBottom();
       }
@@ -152,6 +165,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (_socket.isConnected) {
         _socket.joinCustomerCareRoom(id, (ack) {
           if (kDebugMode) debugPrint('[CustomerCare] join $ack');
+          _socket.emitMarkReadConversation(id);
         });
         return;
       }
@@ -253,6 +267,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   void dispose() {
+    _unreadNotify?.setActiveChatId(null);
     _presenceTimer?.cancel();
     _typingDebounce?.cancel();
     _typingHide?.cancel();

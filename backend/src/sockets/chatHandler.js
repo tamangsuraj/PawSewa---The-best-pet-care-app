@@ -6,6 +6,8 @@ const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../config/fcm');
 const { isAdminRole } = require('../services/customerCareService');
 const { handleUnifiedSendMessage } = require('./unifiedChatSocket');
+const { getIO } = require('./socketStore');
+const { bumpUnread, requestKey } = require('../services/chatUnreadService');
 
 const ROOM_PREFIX = 'request:';
 const SUPPORT_ROOM = 'support:global';
@@ -172,11 +174,29 @@ function registerChatHandler(io) {
         io.to(room).emit('new_message', emitPayload);
         callback?.({ success: true, messageId: msg._id });
 
+        const requesterId = request.user?.toString();
+        const staffId = request.assignedStaff?.toString();
+        const senderStr = userId.toString();
+        const recipientForUnread =
+          senderStr === requesterId ? staffId : requesterId;
+        if (
+          recipientForUnread &&
+          String(recipientForUnread) !== senderStr
+        ) {
+          const senderLean = await User.findById(userId).select('name').lean();
+          const ioServer = getIO();
+          if (ioServer) {
+            await bumpUnread(ioServer, recipientForUnread, requestKey(requestId), {
+              senderName: (senderLean?.name || 'Someone').trim(),
+              preview: text.trim(),
+              requestId: String(requestId),
+              threadType: 'request',
+            });
+          }
+        }
+
         setImmediate(async () => {
           try {
-            const requesterId = request.user?.toString();
-            const staffId = request.assignedStaff?.toString();
-            const senderStr = userId.toString();
             const senderUser = await User.findById(userId).select('name role').lean();
             const isVet = isVeterinarianRole(senderUser?.role);
             const adminSender = isAdminRole(senderUser?.role);

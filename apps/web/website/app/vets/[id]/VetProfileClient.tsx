@@ -67,7 +67,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent" />
           <p className="mt-4 text-paw-bark/70">Loading profile...</p>
@@ -78,7 +78,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
   if (error || !vet) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center px-4">
+      <PageShell className="flex min-h-dvh items-center justify-center px-4">
         <div className="max-w-md text-center">
           <Stethoscope className="mx-auto mb-4 h-16 w-16 text-paw-bark/25" />
           <h2 className="font-display text-2xl font-semibold text-paw-ink mb-2">Profile not found</h2>

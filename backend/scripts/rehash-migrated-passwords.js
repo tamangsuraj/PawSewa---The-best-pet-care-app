@@ -8,11 +8,12 @@
  *   (If NEW_PASSWORD is not set, script will not update any user.)
  *
  * Optional: EMAIL=one@example.com to update only that user.
- * Requires: backend/.env with MONGO_URI and DB_NAME=pawsewa_production.
+ * Requires: backend/.env with MONGO_URI and DB_NAME (same DB as the API server).
  */
 require('dotenv').config();
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { getConnectionUri, getMongooseConnectionOptions, getConfiguredDbName } = require('../src/config/db');
 
 const MIGRATION_PLACEHOLDER = '$2a$10$migratedNoPasswordSetAdminMustResetPasswordReq';
 
@@ -31,14 +32,11 @@ async function run() {
     process.exit(1);
   }
 
-  const dbUri = process.env.MONGO_URI || 'mongodb://localhost:27017/';
-  const dbName = process.env.DB_NAME || 'pawsewa_production';
-  let uri = dbUri.replace(/\?.*$/, '');
-  if (!uri.endsWith('/')) uri += '/';
-  uri += dbName + (dbUri.includes('?') ? dbUri.slice(dbUri.indexOf('?')) : '');
+  const uri = getConnectionUri();
+  const dbName = getConfiguredDbName();
 
   log('INFO', 'Connecting to', dbName, '...');
-  await mongoose.connect(uri);
+  await mongoose.connect(uri, getMongooseConnectionOptions(uri));
 
   const usersColl = mongoose.connection.collection('users');
   const filter = { email: { $exists: true, $ne: '' } };

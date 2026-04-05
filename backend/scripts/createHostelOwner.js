@@ -5,11 +5,13 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
+const { getConnectionUri, getMongooseConnectionOptions } = require('../src/config/db');
 const User = require('../src/models/User');
 
 const createHostelOwner = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    const uri = getConnectionUri();
+    await mongoose.connect(uri, getMongooseConnectionOptions(uri));
     console.log('✅ Connected to MongoDB');
 
     const email = 'hostel@pawsewa.com';

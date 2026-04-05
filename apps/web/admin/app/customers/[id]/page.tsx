@@ -165,7 +165,7 @@ export default function CustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="text-slate-400">Loading...</div>
       </div>
     );
@@ -173,7 +173,7 @@ export default function CustomerDetailPage() {
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-dvh">
         <div className="text-slate-400">User not found</div>
       </div>
     );

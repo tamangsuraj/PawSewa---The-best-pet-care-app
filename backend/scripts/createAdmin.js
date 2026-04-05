@@ -5,16 +5,13 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { getConnectionUri } = require('../src/config/db');
+const { getConnectionUri, getMongooseConnectionOptions } = require('../src/config/db');
 const User = require('../src/models/User');
 
 const createAdmin = async () => {
   try {
     const uri = getConnectionUri();
-    await mongoose.connect(uri, {
-      tls: uri.startsWith('mongodb+srv'),
-      tlsAllowInvalidCertificates: true,
-    });
+    await mongoose.connect(uri, getMongooseConnectionOptions(uri));
     console.log('[SUCCESS] Connected to MongoDB:', mongoose.connection.db?.databaseName || 'unknown');
 
     // Check if admin already exists

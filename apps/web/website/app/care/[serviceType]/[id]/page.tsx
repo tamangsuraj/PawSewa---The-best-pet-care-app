@@ -65,14 +65,14 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <p className="text-paw-bark">Loading...</p>
       </PageShell>
     );
   }
   if (!center) {
     return (
-      <PageShell className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4 px-4">
         <p className="text-paw-bark/75">Not found.</p>
         <Link href={`/care/${serviceType}`} className="text-paw-teal-mid font-semibold hover:underline">
           Back to {label}

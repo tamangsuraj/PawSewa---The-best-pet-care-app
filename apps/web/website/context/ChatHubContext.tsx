@@ -10,7 +10,7 @@ import React, {
   useState,
 } from 'react';
 import Image from 'next/image';
-import { MessageCircle, X, ChevronLeft, Send } from 'lucide-react';
+import { X, ChevronLeft, Send } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -54,6 +54,8 @@ type ChatHubContextValue = {
   /** Open floating hub on a thread already in inbox (seller / delivery / support). */
   openKnownThread: (thread: HubThread) => void;
   hubOpen: boolean;
+  /** Server-backed total unread (all chat threads). */
+  chatUnreadTotal: number;
 };
 
 const ChatHubContext = createContext<ChatHubContextValue | null>(null);
@@ -72,6 +74,7 @@ export function useChatHub(): ChatHubContextValue {
       refreshInboxPreview: async () => [],
       openKnownThread: () => {},
       hubOpen: false,
+      chatUnreadTotal: 0,
     };
   }
   return v;
@@ -80,6 +83,9 @@ export function useChatHub(): ChatHubContextValue {
 export function ChatHubProvider({ children }: { children: React.ReactNode }) {
   const { user, token, isAuthenticated } = useAuth();
   const [hubOpen, setHubOpen] = useState(false);
+  const hubOpenRef = useRef(false);
+  hubOpenRef.current = hubOpen;
+  const [chatUnreadTotal, setChatUnreadTotal] = useState(0);
   const [view, setView] = useState<'list' | 'thread'>('list');
   const [threads, setThreads] = useState<HubThread[]>([]);
   const [active, setActive] = useState<HubThread | null>(null);
@@ -168,14 +174,54 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated || !token || !userId) {
+      setChatUnreadTotal(0);
       disconnectChatSocket();
       socketRef.current = null;
       return;
     }
     const s = getOrCreateChatSocket(token);
     socketRef.current = s;
+
+    const onNotify = (p: Record<string, unknown>) => {
+      if (typeof p.totalUnread === 'number') {
+        setChatUnreadTotal(p.totalUnread);
+      }
+      const tabHidden =
+        typeof document !== 'undefined' && document.visibilityState !== 'visible';
+      const hubClosed = !hubOpenRef.current;
+      if (tabHidden || hubClosed) {
+        try {
+          const a = new Audio('/notification.mp3');
+          void a.play().catch(() => {});
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+    const onSync = (p: Record<string, unknown>) => {
+      if (typeof p.totalUnread === 'number') {
+        setChatUnreadTotal(p.totalUnread);
+      }
+    };
+    s.on('new_message_notification', onNotify);
+    s.on('unread_sync', onSync);
+
+    let cancelled = false;
+    void api
+      .get('/chats/unread-summary')
+      .then((r) => {
+        if (cancelled) return;
+        const n = r.data?.data?.totalUnread;
+        if (typeof n === 'number') {
+          setChatUnreadTotal(n);
+        }
+      })
+      .catch(() => {});
+
     return () => {
-      /* keep socket alive across page nav; only clear on logout */
+      cancelled = true;
+      s.off('new_message_notification', onNotify);
+      s.off('unread_sync', onSync);
     };
   }, [isAuthenticated, token, userId]);
 
@@ -471,6 +517,7 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
       refreshInboxPreview: refreshInbox,
       openKnownThread,
       hubOpen,
+      chatUnreadTotal,
     }),
     [
       openHub,
@@ -483,6 +530,7 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
       refreshInbox,
       openKnownThread,
       hubOpen,
+      chatUnreadTotal,
     ],
   );
 
@@ -493,8 +541,8 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
   return (
     <ChatHubContext.Provider value={ctx}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] flex flex-col items-end gap-2">
-        {hubOpen && (
+      {hubOpen ? (
+        <div className="fixed bottom-5 right-5 z-[100] flex flex-col items-end gap-2">
           <div
             className="w-[min(100vw-1.5rem,22rem)] max-h-[min(70vh,32rem)] flex flex-col rounded-2xl border border-[#703418]/20 bg-[#fdf8f5] shadow-2xl overflow-hidden font-sans"
           >
@@ -646,16 +694,8 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
-        )}
-        <button
-          type="button"
-          onClick={() => (hubOpen ? setHubOpen(false) : openHub())}
-          className="flex items-center justify-center w-14 h-14 rounded-full shadow-lg bg-[#703418] text-white border-2 border-[#0d9488] hover:bg-[#5c2c14] transition-colors"
-          aria-label={hubOpen ? 'Close messages' : 'Open messages'}
-        >
-          <MessageCircle className="w-7 h-7" />
-        </button>
-      </div>
+        </div>
+      ) : null}
     </ChatHubContext.Provider>
   );
 }

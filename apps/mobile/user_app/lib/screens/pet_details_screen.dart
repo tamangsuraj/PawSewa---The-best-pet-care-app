@@ -7,6 +7,7 @@ import '../core/constants.dart';
 import '../models/pet.dart';
 import '../services/pet_service.dart';
 import 'book_service_screen.dart';
+import 'medical_history/medical_history_screen.dart';
 
 class PetDetailsScreen extends StatefulWidget {
   final Pet pet;
@@ -344,6 +345,67 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
                 const SizedBox(width: 12),
                 _LastVetVisitCard(visitDaysAgo: visitDaysAgo),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => MedicalHistoryScreen(pet: widget.pet),
+                  ),
+                );
+              },
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  child: Row(
+                    children: [
+                      Icon(Icons.history_edu_rounded, color: _primary, size: 26),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Medical history',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: _primary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Visits, diagnosis & prescriptions',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),

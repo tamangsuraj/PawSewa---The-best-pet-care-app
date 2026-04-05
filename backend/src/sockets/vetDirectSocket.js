@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 const VetDirectMessage = require('../models/VetDirectMessage');
+const { bumpUnread, vetDirectKey } = require('../services/chatUnreadService');
 const { batchOnline } = require('./presenceStore');
 const {
   makeVetDirectRoomId,
@@ -117,6 +118,19 @@ function registerVetDirectSocket(io) {
         };
 
         io.to(socketRoomName(ownerId, vetId)).emit('vet_direct_new_message', emitPayload);
+
+        const recipientId =
+          uid === String(ownerId) ? String(vetId) : String(ownerId);
+        if (recipientId && recipientId !== uid) {
+          await bumpUnread(io, recipientId, vetDirectKey(ownerId, vetId), {
+            senderName: (me.name || 'Someone').trim(),
+            preview: text,
+            ownerId: String(ownerId),
+            vetId: String(vetId),
+            threadType: 'vetdirect',
+          });
+        }
+
         callback?.({ success: true, messageId: msg._id.toString() });
       } catch (err) {
         logger.error('[vetDirectSocket] send_vet_direct_message', err?.message);

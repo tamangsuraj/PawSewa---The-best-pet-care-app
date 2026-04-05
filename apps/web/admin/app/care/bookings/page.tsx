@@ -4,9 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
 import { CalendarCheck, RefreshCw } from 'lucide-react';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
 
 interface OpUser {
   _id: string;
@@ -136,12 +133,7 @@ export default function CareBookingsPage() {
   };
 
   return (
-    <ProtectedRoute>
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-64">
-          <Header />
-          <main className="pt-24 px-6 pb-6">
+    <>
             <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-[#703418]/10 rounded-xl flex items-center justify-center">
@@ -295,9 +287,6 @@ export default function CareBookingsPage() {
                 </div>
               </div>
             )}
-          </main>
-        </div>
-      </div>
-    </ProtectedRoute>
+    </>
   );
 }

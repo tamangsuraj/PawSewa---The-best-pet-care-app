@@ -196,7 +196,7 @@ export default function CheckoutPage() {
 
   if (authLoading || !hydrated || items.length === 0) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-[#703418]" />
       </PageShell>
     );

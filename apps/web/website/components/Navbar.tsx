@@ -158,7 +158,7 @@ export function Navbar() {
         </div>
       </div>
 
-      {mobileOpen && (
+      {mobileOpen ? (
         <div className="lg:hidden border-t border-paw-bark/10 bg-white/90 backdrop-blur-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
           <div className="container mx-auto px-4 py-4 flex flex-col gap-0.5">
             {mainNav.map(({ href, label }) => (
@@ -226,7 +226,7 @@ export function Navbar() {
             )}
           </div>
         </div>
-      )}
+      ) : null}
     </nav>
   );
 }

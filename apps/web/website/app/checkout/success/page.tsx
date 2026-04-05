@@ -71,7 +71,7 @@ export default function CheckoutSuccessPage() {
 
   if (!mounted) {
     return (
-      <PageShell className="flex min-h-screen items-center justify-center">
+      <PageShell className="flex min-h-dvh items-center justify-center">
         <p className="text-paw-bark/60">Loading…</p>
       </PageShell>
     );

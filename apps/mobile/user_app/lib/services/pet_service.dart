@@ -61,6 +61,38 @@ class PetService {
     }
   }
 
+  /// GET /pets/:id/medical-history — service-request timeline for one pet (owner-only).
+  Future<Map<String, dynamic>?> getPetMedicalHistory(String petId) async {
+    await _ensureBaseUrl();
+    try {
+      final token = await _getToken();
+      if (token == null) {
+        return null;
+      }
+
+      final response = await _dio.get(
+        '/pets/$petId/medical-history',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        final list = data is List ? data : <dynamic>[];
+        final pet = response.data['pet'];
+        return {
+          'records': list,
+          if (pet is Map) 'pet': Map<String, dynamic>.from(pet),
+        };
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Error fetching pet medical history: $e');
+      }
+      return null;
+    }
+  }
+
   /// GET /pets/:id/health-summary — returns pet + age (display), visit_days_ago
   Future<Map<String, dynamic>?> getPetHealthSummary(String petId) async {
     await _ensureBaseUrl();

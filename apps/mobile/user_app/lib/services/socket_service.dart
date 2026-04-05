@@ -554,6 +554,41 @@ class SocketService {
     _connectListeners.add(listener);
   }
 
+  void removeConnectListener(void Function() listener) {
+    _connectListeners.remove(listener);
+  }
+
+  /// Clears server-side unread for a marketplace/support/delivery thread.
+  void emitMarkReadConversation(String conversationId) {
+    _socket?.emit('mark_read', {'conversationId': conversationId});
+  }
+
+  /// Unified clear: conversation, service request, or vet-direct.
+  void emitMarkAsRead({
+    String? conversationId,
+    String? requestId,
+    String? ownerId,
+    String? vetId,
+    String? chatId,
+  }) {
+    final p = <String, dynamic>{};
+    if (chatId != null && chatId.isNotEmpty) {
+      p['chatId'] = chatId;
+    }
+    if (conversationId != null && conversationId.isNotEmpty) {
+      p['conversationId'] = conversationId;
+    }
+    if (requestId != null && requestId.isNotEmpty) {
+      p['requestId'] = requestId;
+    }
+    if (ownerId != null && vetId != null) {
+      p['ownerId'] = ownerId;
+      p['vetId'] = vetId;
+    }
+    if (p.isEmpty) return;
+    _socket?.emitWithAck('mark_as_read', p, ack: (_) {});
+  }
+
   void addDisconnectListener(void Function(String) listener) {
     _disconnectListeners.add(listener);
   }

@@ -102,9 +102,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       await _loadAssignedShopOrders();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
     }
   }
 
@@ -289,469 +289,565 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                     ),
                   )
                 : RefreshIndicator(
-              color: primary,
-              onRefresh: () async {
-                await _loadData();
-                await _loadAssignedShopOrders();
-              },
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return ListView(
-                padding: EdgeInsets.all(
-                  (constraints.maxWidth * 0.04).clamp(12.0, 20.0),
-                ),
-                children: [
-                  if (_loadingShopOrders && _assignedShopOrders.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: LinearProgressIndicator(
-                        color: primary,
-                        backgroundColor: primary.withValues(alpha: 0.15),
-                      ),
-                    ),
-                  if (_assignedShopOrders.isNotEmpty) ...[
-                    Text(
-                      'Orders assigned to your shop',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ..._assignedShopOrders.map((o) {
-                      final id = o['_id']?.toString() ?? '';
-                      final user = o['user'];
-                      final name = user is Map
-                          ? (user['name']?.toString() ?? 'Customer')
-                          : 'Customer';
-                      final addr = o['deliveryLocation'] is Map
-                          ? (o['deliveryLocation']['address']?.toString() ?? '')
-                          : '';
-                      final confirmed = o['sellerConfirmedAt'] != null;
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                    color: primary,
+                    onRefresh: () async {
+                      await _loadData();
+                      await _loadAssignedShopOrders();
+                    },
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return ListView(
+                          padding: EdgeInsets.all(
+                            (constraints.maxWidth * 0.04).clamp(12.0, 20.0),
+                          ),
+                          children: [
+                            if (_loadingShopOrders &&
+                                _assignedShopOrders.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: LinearProgressIndicator(
+                                  color: primary,
+                                  backgroundColor: primary.withValues(
+                                    alpha: 0.15,
+                                  ),
+                                ),
+                              ),
+                            if (_assignedShopOrders.isNotEmpty) ...[
                               Text(
-                                'Order …${id.length > 6 ? id.substring(id.length - 6) : id}',
+                                'Orders assigned to your shop',
                                 style: GoogleFonts.outfit(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              Text(
-                                name,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                              if (addr.isNotEmpty)
-                                Text(
-                                  addr,
-                                  maxLines: 3,
-                                  softWrap: true,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.outfit(fontSize: 12),
-                                ),
                               const SizedBox(height: 8),
-                              if (confirmed)
-                                Text(
-                                  'Stock confirmed',
-                                  style: GoogleFonts.outfit(
-                                    color: Colors.green[700],
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                )
-                              else
-                                ElevatedButton(
-                                  onPressed: id.isEmpty
-                                      ? null
-                                      : () => _confirmShopOrder(id),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: Text(
-                                    'Confirm stock',
-                                    style: GoogleFonts.outfit(),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 20),
-                  ],
-                  if (_error != null)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red[50],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: GoogleFonts.outfit(color: Colors.red[700]),
-                      ),
-                    ),
-                  Text(
-                    'Add New Product',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildCategorySection(primary),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _nameController,
-                    label: 'Name *',
-                    hint: 'Product name',
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Images (optional)',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          final images = await _picker.pickMultiImage(
-                            imageQuality: 85,
-                          );
-                          if (images.isNotEmpty) {
-                            setState(() {
-                              _selectedImages = images;
-                            });
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: Text(
-                          'Choose Images',
-                          style: GoogleFonts.outfit(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _selectedImages.isEmpty
-                              ? 'No images selected'
-                              : '${_selectedImages.length} image(s) selected',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
-                          maxLines: 2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _priceController,
-                          label: 'Price (NPR) *',
-                          hint: 'e.g. 1000',
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                          controller: _stockController,
-                          label: 'Stock *',
-                          hint: 'e.g. 5',
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedCategoryId,
-                    items: _categories
-                        .map(
-                          (c) => DropdownMenuItem<String>(
-                            value: c['_id']?.toString(),
-                            child: Text(c['name']?.toString() ?? 'Category'),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCategoryId = value;
-                      });
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Category *',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _descriptionController,
-                    label: 'Description',
-                    hint: 'Short description (optional)',
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Switch(
-                        value: _isAvailable,
-                        thumbColor: WidgetStateProperty.resolveWith<Color?>(
-                          (states) => states.contains(WidgetState.selected)
-                              ? primary
-                              : null,
-                        ),
-                        onChanged: (v) {
-                          setState(() {
-                            _isAvailable = v;
-                          });
-                        },
-                      ),
-                      Text(
-                        'Active / visible in apps',
-                        style: GoogleFonts.outfit(fontSize: 13),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saving ? null : _submitProduct,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(
-                        _saving ? 'Saving…' : 'Create Product',
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Existing Products',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (_products.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'No products yet. Add your first product above.',
-                        style: GoogleFonts.outfit(color: Colors.grey[700]),
-                      ),
-                    )
-                  else
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childAspectRatio: 0.62,
-                      ),
-                      itemCount: _products.length,
-                      itemBuilder: (context, index) {
-                        final product =
-                            _products[index] as Map<String, dynamic>;
-                        final id = product['_id']?.toString() ?? '';
-                        final name = product['name']?.toString() ?? 'Product';
-                        final price =
-                            (product['price'] as num?)?.toDouble() ?? 0;
-                        final stock =
-                            product['stockQuantity']?.toString() ?? '0';
-                        final images = product['images'] as List<dynamic>? ?? [];
-                        final imageUrl = images.isNotEmpty
-                            ? images.first.toString()
-                            : null;
-                        final category = product['category'] is Map
-                            ? (product['category']?['name'] ?? '').toString()
-                            : '';
-                        final subtitle = category.isNotEmpty
-                            ? '$stock in stock • $category'
-                            : 'Stock: $stock';
-                        return Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF6F1EC),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: imageUrl != null
-                                      ? ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: Image.network(
-                                            imageUrl,
-                                            fit: BoxFit.contain,
-                                            width: double.infinity,
-                                            height: double.infinity,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
-                                                Icon(
-                                              Icons.pets,
-                                              size: 32,
-                                              color: primary.withValues(
-                                                  alpha: 0.5),
+                              ..._assignedShopOrders.map((o) {
+                                final id = o['_id']?.toString() ?? '';
+                                final user = o['user'];
+                                final name = user is Map
+                                    ? (user['name']?.toString() ?? 'Customer')
+                                    : 'Customer';
+                                final addr = o['deliveryLocation'] is Map
+                                    ? (o['deliveryLocation']['address']
+                                              ?.toString() ??
+                                          '')
+                                    : '';
+                                final confirmed =
+                                    o['sellerConfirmedAt'] != null;
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Order …${id.length > 6 ? id.substring(id.length - 6) : id}',
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        Text(
+                                          name,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 13,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                        if (addr.isNotEmpty)
+                                          Text(
+                                            addr,
+                                            maxLines: 3,
+                                            softWrap: true,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 12,
                                             ),
                                           ),
-                                        )
-                                      : Icon(
-                                          Icons.pets,
-                                          size: 32,
-                                          color: primary.withValues(
-                                              alpha: 0.5),
-                                        ),
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Text(
-                                    'Rs. ${price.toStringAsFixed(0)}',
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 13,
-                                      color: Colors.black87,
+                                        const SizedBox(height: 8),
+                                        if (confirmed)
+                                          Text(
+                                            'Stock confirmed',
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.green[700],
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          )
+                                        else
+                                          ElevatedButton(
+                                            onPressed: id.isEmpty
+                                                ? null
+                                                : () => _confirmShopOrder(id),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: primary,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            child: Text(
+                                              'Confirm stock',
+                                              style: GoogleFonts.outfit(),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ),
-                                  const Spacer(),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 28,
-                                      minHeight: 28,
-                                    ),
-                                    icon: const Icon(Icons.edit, size: 20),
+                                );
+                              }),
+                              const SizedBox(height: 20),
+                            ],
+                            if (_error != null)
+                              Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  _error!,
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.red[700],
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              'Add New Product',
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildCategorySection(primary),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _nameController,
+                              label: 'Name *',
+                              hint: 'Product name',
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Images (optional)',
+                              style: GoogleFonts.outfit(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: ElevatedButton(
                                     onPressed: () async {
-                                      final controller =
-                                          TextEditingController(text: stock);
-                                      final result =
-                                          await showDialog<String>(
-                                        context: context,
-                                        builder: (ctx) {
-                                          return AlertDialog(
-                                            title: const Text(
-                                                'Update Stock'),
-                                            content: TextField(
-                                              controller: controller,
-                                              keyboardType:
-                                                  TextInputType.number,
-                                              decoration:
-                                                  const InputDecoration(
-                                                labelText:
-                                                    'Stock quantity',
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(ctx)
-                                                        .pop(),
-                                                child: const Text(
-                                                    'Cancel'),
-                                              ),
-                                              TextButton(
-                                                onPressed: () =>
-                                                    Navigator.of(ctx).pop(
-                                                        controller.text
-                                                            .trim()),
-                                                child: const Text('Save'),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                      if (result != null &&
-                                          result.isNotEmpty) {
-                                        await _updateStock(id, result);
+                                      final images = await _picker
+                                          .pickMultiImage(imageQuality: 85);
+                                      if (images.isNotEmpty) {
+                                        setState(() {
+                                          _selectedImages = images;
+                                        });
                                       }
                                     },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: primary,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: Text(
+                                      'Choose Images',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
                                   ),
-                                ],
+                                ),
+                                SizedBox(
+                                  width: (constraints.maxWidth * 0.03).clamp(
+                                    8.0,
+                                    14.0,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    _selectedImages.isEmpty
+                                        ? 'No images selected'
+                                        : '${_selectedImages.length} image(s) selected',
+                                    maxLines: 2,
+                                    softWrap: true,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 12,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: _priceController,
+                                    label: 'Price (NPR) *',
+                                    hint: 'e.g. 1000',
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: _stockController,
+                                    label: 'Stock *',
+                                    hint: 'e.g. 5',
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              initialValue: _selectedCategoryId,
+                              items: _categories
+                                  .map(
+                                    (c) => DropdownMenuItem<String>(
+                                      value: c['_id']?.toString(),
+                                      child: Text(
+                                        c['name']?.toString() ?? 'Category',
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCategoryId = value;
+                                });
+                              },
+                              decoration: InputDecoration(
+                                labelText: 'Category *',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
-                            ],
-                          ),
+                            ),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _descriptionController,
+                              label: 'Description',
+                              hint: 'Short description (optional)',
+                              maxLines: 3,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Switch(
+                                  value: _isAvailable,
+                                  thumbColor:
+                                      WidgetStateProperty.resolveWith<Color?>(
+                                        (states) =>
+                                            states.contains(
+                                              WidgetState.selected,
+                                            )
+                                            ? primary
+                                            : null,
+                                      ),
+                                  onChanged: (v) {
+                                    setState(() {
+                                      _isAvailable = v;
+                                    });
+                                  },
+                                ),
+                                Text(
+                                  'Active / visible in apps',
+                                  style: GoogleFonts.outfit(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _saving ? null : _submitProduct,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primary,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
+                                ),
+                                child: Text(
+                                  _saving ? 'Saving…' : 'Create Product',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            Text(
+                              'Existing Products',
+                              style: GoogleFonts.outfit(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (_products.isEmpty)
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'No products yet. Add your first product above.',
+                                  style: GoogleFonts.outfit(
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              )
+                            else
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount:
+                                          constraints.maxWidth >= 720
+                                          ? 3
+                                          : constraints.maxWidth < 360
+                                          ? 1
+                                          : 2,
+                                      mainAxisSpacing:
+                                          (constraints.maxWidth * 0.04).clamp(
+                                            10.0,
+                                            20.0,
+                                          ),
+                                      crossAxisSpacing:
+                                          (constraints.maxWidth * 0.04).clamp(
+                                            10.0,
+                                            20.0,
+                                          ),
+                                      childAspectRatio:
+                                          constraints.maxWidth >= 720
+                                          ? 0.70
+                                          : constraints.maxWidth < 360
+                                          ? 1.78
+                                          : 0.62,
+                                    ),
+                                itemCount: _products.length,
+                                itemBuilder: (context, index) {
+                                  final product =
+                                      _products[index] as Map<String, dynamic>;
+                                  final id = product['_id']?.toString() ?? '';
+                                  final name =
+                                      product['name']?.toString() ?? 'Product';
+                                  final price =
+                                      (product['price'] as num?)?.toDouble() ??
+                                      0;
+                                  final stock =
+                                      product['stockQuantity']?.toString() ??
+                                      '0';
+                                  final images =
+                                      product['images'] as List<dynamic>? ?? [];
+                                  final imageUrl = images.isNotEmpty
+                                      ? images.first.toString()
+                                      : null;
+                                  final category = product['category'] is Map
+                                      ? (product['category']?['name'] ?? '')
+                                            .toString()
+                                      : '';
+                                  final subtitle = category.isNotEmpty
+                                      ? '$stock in stock • $category'
+                                      : 'Stock: $stock';
+                                  return Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(
+                                            alpha: 0.06,
+                                          ),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: AspectRatio(
+                                            aspectRatio: 1,
+                                            child: Container(
+                                              width: double.infinity,
+                                              height: double.infinity,
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF6F1EC),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: imageUrl != null
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            8,
+                                                          ),
+                                                      child: Image.network(
+                                                        imageUrl,
+                                                        fit: BoxFit.contain,
+                                                        width: double.infinity,
+                                                        height: double.infinity,
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) => Icon(
+                                                              Icons.pets,
+                                                              size: 32,
+                                                              color: primary
+                                                                  .withValues(
+                                                                    alpha: 0.5,
+                                                                  ),
+                                                            ),
+                                                      ),
+                                                    )
+                                                  : Icon(
+                                                      Icons.pets,
+                                                      size: 32,
+                                                      color: primary.withValues(
+                                                        alpha: 0.5,
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          name,
+                                          maxLines: 2,
+                                          softWrap: true,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          subtitle,
+                                          maxLines: 1,
+                                          softWrap: true,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w400,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                'Rs. ${price.toStringAsFixed(0)}',
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 13,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints: const BoxConstraints(
+                                                minWidth: 28,
+                                                minHeight: 28,
+                                              ),
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 20,
+                                              ),
+                                              onPressed: () async {
+                                                final controller =
+                                                    TextEditingController(
+                                                      text: stock,
+                                                    );
+                                                final result = await showDialog<String>(
+                                                  context: context,
+                                                  builder: (ctx) {
+                                                    return AlertDialog(
+                                                      title: const Text(
+                                                        'Update Stock',
+                                                      ),
+                                                      content: TextField(
+                                                        controller: controller,
+                                                        keyboardType:
+                                                            TextInputType
+                                                                .number,
+                                                        decoration:
+                                                            const InputDecoration(
+                                                              labelText:
+                                                                  'Stock quantity',
+                                                            ),
+                                                      ),
+                                                      actions: [
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                ctx,
+                                                              ).pop(),
+                                                          child: const Text(
+                                                            'Cancel',
+                                                          ),
+                                                        ),
+                                                        TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(
+                                                                ctx,
+                                                              ).pop(
+                                                                controller.text
+                                                                    .trim(),
+                                                              ),
+                                                          child: const Text(
+                                                            'Save',
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    );
+                                                  },
+                                                );
+                                                if (result != null &&
+                                                    result.isNotEmpty) {
+                                                  await _updateStock(
+                                                    id,
+                                                    result,
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                          ],
                         );
                       },
                     ),
-                ],
-              ),
-            ),
+                  ),
           ),
         ],
       ),

@@ -50,7 +50,7 @@ export default function LoginPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <div className="text-center">
           <PawSewaLogoSpinner size={64} className="mx-auto mb-4" />
           <p className="text-gray-600">Loading...</p>

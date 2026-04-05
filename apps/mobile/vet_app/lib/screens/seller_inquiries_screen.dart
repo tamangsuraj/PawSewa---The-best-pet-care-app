@@ -6,6 +6,7 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../widgets/editorial_canvas.dart';
 import 'partner_marketplace_chat_screen.dart';
+import 'partner_support_chat_screen.dart';
 
 /// Customer inquiries for shop owners (Daraz-style inbox).
 class SellerInquiriesScreen extends StatefulWidget {
@@ -61,6 +62,19 @@ class _SellerInquiriesScreenState extends State<SellerInquiriesScreen> {
         backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.support_agent, color: Colors.white),
+            tooltip: 'Support',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PartnerSupportChatScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         clipBehavior: Clip.none,

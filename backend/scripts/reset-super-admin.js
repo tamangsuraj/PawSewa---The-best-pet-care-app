@@ -7,7 +7,7 @@
 
 require('dotenv').config();
 const mongoose = require('mongoose');
-const { getConnectionUri } = require('../src/config/db');
+const { getConnectionUri, getMongooseConnectionOptions } = require('../src/config/db');
 const User = require('../src/models/User');
 
 function ts() {
@@ -27,10 +27,7 @@ async function run() {
   const uri = getConnectionUri();
   log('INFO', 'Connecting to MongoDB...');
 
-  await mongoose.connect(uri, {
-    tls: uri.startsWith('mongodb+srv'),
-    tlsAllowInvalidCertificates: true,
-  });
+  await mongoose.connect(uri, getMongooseConnectionOptions(uri));
 
   log('SUCCESS', 'Connected to:', mongoose.connection.db?.databaseName || 'unknown');
 

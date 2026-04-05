@@ -4,12 +4,14 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
+import '../services/chat_unread_notify_service.dart';
 
 /// Vet-side 1:1 chat with a pet owner (room id: ownerUserId_vetUserId).
 class VetDirectOwnerChatScreen extends StatefulWidget {
@@ -44,6 +46,13 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
   bool _typingRemote = false;
   Timer? _typingDebounce;
   Timer? _typingHide;
+  ChatUnreadNotifyService? _unreadNotify;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _unreadNotify ??= context.read<ChatUnreadNotifyService>();
+  }
 
   @override
   void initState() {
@@ -81,6 +90,10 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
           vetId: _vetId,
           callback: (ack) {
             if (kDebugMode) debugPrint('[VetDirect] join $ack');
+            _socket.emitMarkAsRead(
+              ownerId: widget.ownerId,
+              vetId: _vetId,
+            );
           },
         );
         return;
@@ -124,6 +137,7 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
         }
         _loading = false;
       });
+      _unreadNotify?.setActiveChatId('v:${widget.ownerId}:$_vetId');
       _scrollBottom();
     } on DioException catch (e) {
       final d = e.response?.data;
@@ -261,6 +275,7 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
 
   @override
   void dispose() {
+    _unreadNotify?.setActiveChatId(null);
     _typingDebounce?.cancel();
     _typingHide?.cancel();
     _socket.removeVetDirectMessageListener(_onMsg);

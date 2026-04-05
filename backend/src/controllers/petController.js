@@ -1,5 +1,7 @@
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose');
 const Pet = require('../models/Pet');
+const ServiceRequest = require('../models/ServiceRequest');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
 const { generatePetRemindersV1 } = require('../utils/reminderEngine');
@@ -16,7 +18,7 @@ async function ensurePetHasPawId(petId) {
 }
 
 /**
- * @desc    Create a new pet
+ * @desc    Create a new pet (persisted with Mongoose `Pet` → MongoDB collection `pets`; no mock store).
  * @route   POST /api/v1/pets
  * @access  Private
  */
@@ -179,23 +181,21 @@ const getMyPets = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get all pets (admin) with optional search by name, species, breed, or pawId
+ * @desc    Get all pets (admin), optionally filtered by unique PawID only (?pawId=)
  * @route   GET /api/v1/pets/admin
  * @access  Private/Admin
  */
 const getAllPets = asyncHandler(async (req, res) => {
   try {
-    const { search } = req.query || {};
+    const { pawId } = req.query || {};
     const filter = {};
 
-    if (search && typeof search === 'string') {
-      const regex = new RegExp(search, 'i');
-      filter.$or = [
-        { name: regex },
-        { species: regex },
-        { breed: regex },
-        { pawId: regex },
-      ];
+    if (pawId && typeof pawId === 'string') {
+      const q = pawId.trim();
+      if (q) {
+        const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter.pawId = new RegExp(escaped, 'i');
+      }
     }
 
     const pets = await Pet.find(filter)
@@ -263,6 +263,193 @@ const getPetById = asyncHandler(async (req, res) => {
  * @route   GET /api/v1/pets/:id/health-summary
  * @access  Private
  */
+/** Pull bare URLs from clinical text for attachment thumbnails in the owner app. */
+function extractUrlsFromText(text) {
+  if (!text || typeof text !== 'string') {
+    return [];
+  }
+  const re = /https?:\/\/[^\s)\]'">]+/gi;
+  const raw = text.match(re) || [];
+  const cleaned = raw.map((u) => u.replace(/[.,;:!?)]+$/, ''));
+  return [...new Set(cleaned)];
+}
+
+function formatShortDate(d) {
+  if (!d) {
+    return '';
+  }
+  const dt = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(dt.getTime())) {
+    return '';
+  }
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * @desc    Medical timeline for one pet (service requests + visit notes; owner-only).
+ * @route   GET /api/v1/pets/:id/medical-history
+ * @access  Private
+ */
+const getPetMedicalHistory = asyncHandler(async (req, res) => {
+  try {
+    const petId = req.params?.id;
+    if (!petId) {
+      return res.status(400).json({ success: false, message: 'Pet ID required' });
+    }
+    if (!mongoose.Types.ObjectId.isValid(petId)) {
+      return res.status(400).json({ success: false, message: 'Invalid pet id' });
+    }
+    const pet = await Pet.findById(petId).lean();
+    if (!pet) {
+      return res.status(404).json({ success: false, message: 'Pet not found' });
+    }
+    const ownerId = (pet.owner && typeof pet.owner === 'object' ? pet.owner._id : pet.owner)?.toString() ?? '';
+    const userId = req.user?._id?.toString() ?? '';
+    if (ownerId !== userId && req.user?.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to access this pet' });
+    }
+
+    const requests = await ServiceRequest.find({ pet: petId })
+      .populate('assignedStaff', 'name email phone specialty')
+      .sort({ completedAt: -1, preferredDate: -1, createdAt: -1 })
+      .lean();
+
+    const baseUrl = process.env.BASE_URL || '';
+
+    const records = requests.map((r, idx) => {
+      const idStr = r._id.toString();
+      const appointmentNumber = idStr.slice(-6).toUpperCase();
+      const staff = r.assignedStaff;
+      let doctorName = 'Your veterinary team';
+      if (staff && typeof staff === 'object') {
+        const n = (staff.name || '').trim();
+        if (n) {
+          doctorName = n.toLowerCase().startsWith('dr.') ? n : `Dr. ${n}`;
+        }
+      }
+
+      const visitDate = r.completedAt || r.preferredDate || r.createdAt;
+      const visitNotes = (r.visitNotes && String(r.visitNotes).trim()) || '';
+      const ownerNotes = (r.notes && String(r.notes).trim()) || '';
+      const diagnosis =
+        visitNotes ||
+        ownerNotes ||
+        'No clinical notes have been recorded for this visit yet.';
+
+      const adminNotes = (r.adminNotes && String(r.adminNotes).trim()) || '';
+      let prescribed = adminNotes;
+      if (!prescribed) {
+        prescribed = 'No separate prescription or treatment list on file. See diagnosis notes or attached documents.';
+      }
+      if (r.prescriptionUrl) {
+        prescribed = `${prescribed}\n\nA prescription or discharge document is available in the full report.`.trim();
+      }
+
+      let prescriptionResolved = r.prescriptionUrl || null;
+      if (
+        prescriptionResolved &&
+        typeof prescriptionResolved === 'string' &&
+        !prescriptionResolved.startsWith('http') &&
+        baseUrl
+      ) {
+        prescriptionResolved = `${String(baseUrl).replace(/\/$/, '')}/uploads/${prescriptionResolved}`;
+      }
+
+      const attachments = [];
+      if (prescriptionResolved) {
+        attachments.push({
+          type: 'prescription',
+          url: prescriptionResolved,
+          label: 'Prescription',
+        });
+      }
+      const extraUrls = extractUrlsFromText(`${visitNotes}\n${ownerNotes}`);
+      for (const u of extraUrls) {
+        if (prescriptionResolved && u === prescriptionResolved) {
+          continue;
+        }
+        attachments.push({
+          type: 'link',
+          url: u,
+          label: 'Attachment',
+        });
+      }
+
+      const badges = [];
+      const st = r.status || '';
+      if (st === 'completed' && r.completedAt) {
+        badges.push({
+          type: 'resolved',
+          label: `Case resolved: ${formatShortDate(r.completedAt)}`,
+        });
+      }
+      const now = Date.now();
+      if (r.scheduledTime && st !== 'completed') {
+        const t = new Date(r.scheduledTime).getTime();
+        if (!Number.isNaN(t) && t > now) {
+          badges.push({
+            type: 'followup',
+            label: `Follow-up: ${formatShortDate(r.scheduledTime)}`,
+          });
+        }
+      } else if (idx === 0 && pet.nextVaccinationDate) {
+        const nv = new Date(pet.nextVaccinationDate).getTime();
+        if (!Number.isNaN(nv) && nv >= new Date().setHours(0, 0, 0, 0)) {
+          badges.push({
+            type: 'followup',
+            label: `Follow-up: ${formatShortDate(pet.nextVaccinationDate)}`,
+          });
+        }
+      }
+
+      const w = pet.weight != null ? Number(pet.weight) : null;
+      const vitals = {
+        weightKg: Number.isFinite(w) ? w : null,
+        temperatureC: null,
+        heartRateBpm: null,
+      };
+
+      return {
+        id: idStr,
+        serviceRequestId: idStr,
+        appointmentNumber,
+        title: r.serviceType || 'Veterinary visit',
+        date: visitDate,
+        doctorName,
+        diagnosis,
+        prescribed,
+        status: st,
+        completedAt: r.completedAt || null,
+        scheduledTime: r.scheduledTime || null,
+        prescriptionUrl: prescriptionResolved,
+        attachments,
+        internalNotes: '',
+        vitals,
+        serviceType: r.serviceType || null,
+        badges,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: records.length,
+      data: records,
+      pet: {
+        name: pet.name,
+        nextVaccinationDate: pet.nextVaccinationDate || null,
+        weight: pet.weight != null ? Number(pet.weight) : null,
+      },
+    });
+  } catch (error) {
+    console.error('SERVER CRASH:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+});
+
 const getPetHealthSummary = asyncHandler(async (req, res) => {
   try {
     const id = req.params?.id;
@@ -581,6 +768,7 @@ module.exports = {
   getMyPets,
   getPetById,
   getPetHealthSummary,
+  getPetMedicalHistory,
   updatePet,
   deletePet,
   adminCreatePetForCustomer,

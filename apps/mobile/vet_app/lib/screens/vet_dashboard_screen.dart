@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -25,6 +26,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
 import '../services/socket_service.dart';
+import '../services/chat_unread_notify_service.dart';
 
 class VetDashboardScreen extends StatefulWidget {
   const VetDashboardScreen({super.key});
@@ -979,6 +981,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   }
 
   Future<void> _handleLogout() async {
+    if (mounted) {
+      context.read<ChatUnreadNotifyService>().reset();
+    }
     SocketService.instance.disconnect();
     await _storage.clearAll();
     if (mounted) {
@@ -1015,6 +1020,27 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               backgroundColor: const Color(AppConstants.primaryColor),
               elevation: 0,
               actions: [
+                Consumer<ChatUnreadNotifyService>(
+                  builder: (context, unread, _) {
+                    final c = unread.totalUnread;
+                    final btn = IconButton(
+                      icon: const Icon(Icons.support_agent, color: Colors.white),
+                      tooltip: 'Support',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const PartnerSupportChatScreen(),
+                          ),
+                        );
+                      },
+                    );
+                    if (c <= 0) return btn;
+                    return Badge.count(
+                      count: c > 99 ? 99 : c,
+                      child: btn,
+                    );
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.logout, color: Colors.white),
                   onPressed: _handleLogout,
@@ -1711,7 +1737,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           if (!shopOwner) return homeBody;
           return IndexedStack(
             index: _partnerNavIndex,
-            children: [homeBody, const SellerInquiriesScreen()],
+            children: [
+              homeBody,
+              const SellerInquiriesScreen(),
+            ],
           );
         },
       ),
@@ -1739,24 +1768,6 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               ],
             )
           : null,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const PartnerSupportChatScreen(),
-            ),
-          );
-        },
-        backgroundColor: const Color(AppConstants.primaryColor),
-        icon: const Icon(Icons.support_agent, color: Colors.white),
-        label: Text(
-          'Support',
-          style: GoogleFonts.outfit(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
     );
   }
 

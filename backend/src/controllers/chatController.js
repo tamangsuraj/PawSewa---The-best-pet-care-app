@@ -11,6 +11,7 @@ const {
   canVetChatWithOwner,
 } = require('../utils/vetChatEligibility');
 const { getIO } = require('../sockets/socketStore');
+const { bumpUnread, vetDirectKey, getSummaryForUser } = require('../services/chatUnreadService');
 const logger = require('../utils/logger');
 const { lookupUserByEmailWithStats } = require('../services/supportUserLookupService');
 const {
@@ -155,6 +156,17 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
     io.to(socketRoomName(ownerId, vetId)).emit('vet_direct_new_message', payload);
   }
 
+  const recipientId = uid === String(ownerId) ? String(vetId) : String(ownerId);
+  if (io && recipientId && recipientId !== uid) {
+    await bumpUnread(io, recipientId, vetDirectKey(ownerId, vetId), {
+      senderName: (req.user.name || 'Someone').trim(),
+      preview: trimmed,
+      ownerId: String(ownerId),
+      vetId: String(vetId),
+      threadType: 'vetdirect',
+    });
+  }
+
   logger.info(
     `[INFO] Vet-direct message saved room=${roomId} sender=${uid}`
   );
@@ -190,6 +202,12 @@ const findUserByEmail = asyncHandler(async (req, res, next) => {
 /** PawSewa support thread history (same handler as customer-care messages). */
 const getChatHistory = getCustomerCareConversationHistory;
 
+/** @route GET /api/v1/chats/unread-summary */
+const getUnreadSummary = asyncHandler(async (req, res) => {
+  const summary = await getSummaryForUser(req.user._id);
+  res.json({ success: true, data: summary });
+});
+
 module.exports = {
   getMyVetsForChat,
   getMyPatientsForChat,
@@ -197,4 +215,5 @@ module.exports = {
   postVetDirectMessage,
   findUserByEmail,
   getChatHistory,
+  getUnreadSummary,
 };

@@ -12,6 +12,7 @@ const appointmentSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Owner is required'],
     },
+    // Veterinarians are stored in the `users` collection (role veterinarian); no separate Vet model.
     veterinarian: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -33,6 +34,7 @@ const appointmentSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    collection: 'appointments',
   }
 );
 

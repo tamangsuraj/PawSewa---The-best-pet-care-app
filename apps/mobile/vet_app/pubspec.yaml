@@ -38,6 +38,8 @@ dependencies:
   # HTTP & API
   dio: ^5.4.0
   socket_io_client: ^2.0.3+1
+  provider: ^6.1.2
+  audioplayers: ^6.1.0
   
   # Secure Storage
   flutter_secure_storage: ^9.0.0
@@ -99,6 +101,7 @@ flutter:
   assets:
     - assets/brand/pawsewa_logo.png
     - assets/brand/image_607767.png
+    - assets/sounds/notification.mp3
 
   # Map / staff icons
   # When you add custom PNG/SVG markers, list them here, for example:

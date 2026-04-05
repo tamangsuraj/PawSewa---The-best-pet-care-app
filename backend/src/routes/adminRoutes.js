@@ -12,6 +12,7 @@ const Payment = require('../models/Payment');
 const PaymentLog = require('../models/PaymentLog');
 const CareBooking = require('../models/CareBooking');
 const Hostel = require('../models/Hostel');
+const LiveLocation = require('../models/LiveLocation');
 const User = require('../models/User');
 const MarketplaceConversation = require('../models/MarketplaceConversation');
 const { adminAssignCarePartner } = require('../controllers/careBookingController');
@@ -46,7 +47,7 @@ router.patch('/requests/:id/assign', protect, authorize('admin'), assignServiceR
 // - All active Care+ requests (blue paw pins)
 router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
   try {
-    const [staffLocations, pendingRequests, careRequests, productOrders, careBookings] =
+    const [staffLocations, pendingRequests, careRequests, productOrders, careBookings, livePins] =
       await Promise.all([
         StaffLocation.find({}).populate('staff', 'name role phone'),
         ServiceRequest.find({
@@ -65,6 +66,7 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
           .populate('assignedPartner', 'name role')
           .select('status serviceType hostelId assignedPartner careAssignmentStatus')
           .lean(),
+        LiveLocation.find({}).sort({ category: 1, name: 1 }).lean(),
       ]);
 
     res.json({
@@ -139,6 +141,17 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
               lng: b.hostelId.location.coordinates.lng,
             },
           })),
+        // Seeded venues + simulated fleet (MongoDB live_locations). Never includes customer home addresses.
+        liveLocations: livePins.map((p) => ({
+          _id: p._id,
+          key: p.key,
+          category: p.category,
+          name: p.name,
+          status: p.status,
+          isDynamic: p.isDynamic,
+          detailPath: p.detailPath || '/',
+          coordinates: { lat: p.lat, lng: p.lng },
+        })),
       },
     });
   } catch (err) {

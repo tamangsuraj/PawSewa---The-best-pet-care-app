@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
 import { UserCheck, RefreshCw, ShieldCheck } from 'lucide-react';
 
 const PROVIDER_ROLES = ['hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner'] as const;
@@ -67,12 +64,7 @@ export default function ServiceProvidersPage() {
   };
 
   return (
-    <ProtectedRoute>
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
-        <div className="flex-1 ml-64">
-          <Header />
-          <main className="pt-24 px-6 pb-6">
+    <>
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-[#703418]/10 rounded-xl flex items-center justify-center">
@@ -173,9 +165,6 @@ export default function ServiceProvidersPage() {
                 </table>
               </div>
             )}
-          </main>
-        </div>
-      </div>
-    </ProtectedRoute>
+    </>
   );
 }

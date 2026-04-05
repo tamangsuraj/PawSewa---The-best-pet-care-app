@@ -4,9 +4,10 @@
  */
 require('dotenv').config();
 const mongoose = require('mongoose');
+const { getConnectionUri, getMongooseConnectionOptions, getConfiguredDbName } = require('../src/config/db');
 
-const uri = process.env.MONGO_URI;
-if (!uri || uri.includes('YOUR_ATLAS_PASSWORD') || uri.includes('<db_password>')) {
+const uri = getConnectionUri();
+if (!process.env.MONGO_URI || uri.includes('YOUR_ATLAS_PASSWORD') || uri.includes('<db_password>')) {
   console.error('[ERROR] Set MONGO_URI in .env with your real Atlas password.');
   console.error('  1. Atlas → Database Access → your user (e.g. admin) → Edit');
   console.error('  2. Edit Password → set a new password → Copy');
@@ -16,12 +17,9 @@ if (!uri || uri.includes('YOUR_ATLAS_PASSWORD') || uri.includes('<db_password>')
 
 async function run() {
   try {
-    await mongoose.connect(uri, {
-      tls: true,
-      tlsAllowInvalidCertificates: true,
-    });
+    await mongoose.connect(uri, getMongooseConnectionOptions(uri));
     const db = mongoose.connection.db?.databaseName || 'unknown';
-    console.log('[SUCCESS] Connected to MongoDB. Database:', db);
+    console.log('[SUCCESS] Connected to MongoDB. Database:', db, '(expected:', getConfiguredDbName() + ')');
     await mongoose.disconnect();
     process.exit(0);
   } catch (err) {

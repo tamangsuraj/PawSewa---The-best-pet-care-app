@@ -6,6 +6,7 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../utils/fcm');
+const { bumpUnread, convKey } = require('./chatUnreadService');
 
 const ROOM_PREFIX = 'mpchat:';
 const DELIVERY_GRACE_MS = 30 * 60 * 1000;
@@ -305,6 +306,15 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
     },
     senderId: null,
   }).catch(() => {});
+
+  if (io && receiverId && String(receiverId) !== String(senderId)) {
+    await bumpUnread(io, receiverId, convKey(conversationId), {
+      senderName,
+      preview: trimmed,
+      conversationId: String(conversationId),
+      threadType: convDoc.type === 'DELIVERY' ? 'delivery' : 'seller',
+    });
+  }
 
   return msg;
 }

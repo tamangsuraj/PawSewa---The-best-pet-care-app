@@ -11,11 +11,24 @@ import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../messages/marketplace_thread_screen.dart';
 
+/// How to filter the owner’s shop orders in the list.
+enum MyOrdersListMode {
+  all,
+  activeOnly,
+  historyOnly,
+}
+
 class MyOrdersScreen extends StatefulWidget {
-  const MyOrdersScreen({super.key, this.highlightOrderId});
+  const MyOrdersScreen({
+    super.key,
+    this.highlightOrderId,
+    this.listMode = MyOrdersListMode.all,
+  });
 
   /// If set, the list will scroll to and briefly highlight this order (e.g. after checkout).
   final String? highlightOrderId;
+
+  final MyOrdersListMode listMode;
 
   @override
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -130,8 +143,37 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   static const Color _primary = Color(AppConstants.primaryColor);
 
+  List<Map<String, dynamic>> get _visibleOrders {
+    switch (widget.listMode) {
+      case MyOrdersListMode.all:
+        return _orders;
+      case MyOrdersListMode.activeOnly:
+        return _orders.where((o) {
+          final s = o['status']?.toString() ?? 'pending';
+          return s != 'delivered';
+        }).toList();
+      case MyOrdersListMode.historyOnly:
+        return _orders.where((o) {
+          final s = o['status']?.toString() ?? '';
+          return s == 'delivered';
+        }).toList();
+    }
+  }
+
+  String get _appBarTitle {
+    switch (widget.listMode) {
+      case MyOrdersListMode.all:
+        return 'My Orders';
+      case MyOrdersListMode.activeOnly:
+        return 'Current orders';
+      case MyOrdersListMode.historyOnly:
+        return 'Order history';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final visible = _visibleOrders;
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
@@ -143,7 +185,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'My Orders',
+          _appBarTitle,
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,
@@ -205,14 +247,37 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                 ],
               ),
             )
+          : visible.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.inventory_2_outlined,
+                    size: 64,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    widget.listMode == MyOrdersListMode.activeOnly
+                        ? 'No active orders'
+                        : 'No completed orders yet',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _load,
               color: _primary,
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: _orders.length,
+                itemCount: visible.length,
                 itemBuilder: (context, index) {
-                  final o = _orders[index];
+                  final o = visible[index];
                   final id = o['_id']?.toString();
                   final highlight = widget.highlightOrderId != null &&
                       id != null &&

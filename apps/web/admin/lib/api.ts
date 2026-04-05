@@ -1,5 +1,10 @@
 import axios from 'axios';
 
+/**
+ * Admin REST client. Must target the same Node API as user_app / vet_app / website
+ * (e.g. local `http://localhost:3000/api/v1` or your shared ngrok URL + `/api/v1`).
+ * Pets admin list: GET /pets/admin → `petController.getAllPets` → MongoDB `PawSewaDB.pets` (or DB_NAME).
+ */
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
   headers: {

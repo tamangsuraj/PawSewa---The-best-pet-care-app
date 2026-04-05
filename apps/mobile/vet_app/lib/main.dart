@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'core/api_client.dart';
@@ -13,6 +14,7 @@ import 'widgets/pawsewa_brand_logo.dart';
 import 'widgets/pawsewa_logo_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/vet_dashboard_screen.dart';
+import 'services/chat_unread_notify_service.dart';
 
 Future<void> _logHealthCheck() async {
   try {
@@ -52,7 +54,14 @@ void main() async {
       '[SUCCESS] Brand Assets Updated: New PawSewa Logo implemented across 4 platforms.',
     );
   }
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ChatUnreadNotifyService()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

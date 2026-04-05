@@ -9,6 +9,14 @@ const {
   isAdminRole,
 } = require('../services/customerCareService');
 const {
+  clearUnread,
+  convKey,
+  requestKey,
+  vetDirectKey,
+  clearSupportThreadForStaff,
+  getSummaryForUser,
+} = require('../services/chatUnreadService');
+const {
   conversationRoom: mpRoom,
   loadConversationForUser,
   canSendInConversation,
@@ -204,8 +212,62 @@ function registerUnifiedChatSocket(io) {
           readerId,
           readAt: new Date().toISOString(),
         });
+        const ioServer = getIO();
+        if (!ioServer) return;
+        if (conv.type === 'SUPPORT' && isAdminRole(socket.user?.role)) {
+          await clearSupportThreadForStaff(ioServer, conversationId);
+        } else {
+          await clearUnread(ioServer, readerId, convKey(conversationId));
+        }
       } catch (err) {
         logger.error('[unifiedChatSocket] mark_read', err?.message);
+      }
+    });
+
+    socket.on('mark_as_read', async (payload, callback) => {
+      const readerId = socket.user?._id?.toString();
+      if (!readerId) {
+        callback?.({ success: false, message: 'Not authenticated' });
+        return;
+      }
+      const ioServer = getIO();
+      if (!ioServer) {
+        callback?.({ success: false, message: 'Realtime unavailable' });
+        return;
+      }
+      try {
+        const p = payload && typeof payload === 'object' ? payload : {};
+        const chatId = typeof p.chatId === 'string' ? p.chatId : null;
+        const conversationId = p.conversationId ? String(p.conversationId) : null;
+        const requestId = p.requestId ? String(p.requestId) : null;
+        const ownerId = p.ownerId ? String(p.ownerId) : null;
+        const vetId = p.vetId ? String(p.vetId) : null;
+
+        if (chatId) {
+          await clearUnread(ioServer, readerId, chatId);
+        } else if (conversationId) {
+          const conv = await MarketplaceConversation.findById(conversationId)
+            .select('type')
+            .lean();
+          if (conv?.type === 'SUPPORT' && isAdminRole(socket.user?.role)) {
+            await clearSupportThreadForStaff(ioServer, conversationId);
+          } else {
+            await clearUnread(ioServer, readerId, convKey(conversationId));
+          }
+        } else if (requestId) {
+          await clearUnread(ioServer, readerId, requestKey(requestId));
+        } else if (ownerId && vetId) {
+          await clearUnread(ioServer, readerId, vetDirectKey(ownerId, vetId));
+        } else {
+          callback?.({ success: false, message: 'Missing conversationId, requestId, ownerId/vetId, or chatId' });
+          return;
+        }
+
+        const summary = await getSummaryForUser(readerId);
+        callback?.({ success: true, data: summary });
+      } catch (err) {
+        logger.error('[unifiedChatSocket] mark_as_read', err?.message);
+        callback?.({ success: false, message: err?.message || 'Server error' });
       }
     });
 

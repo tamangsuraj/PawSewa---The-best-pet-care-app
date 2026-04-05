@@ -3,12 +3,14 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
+import '../../services/chat_unread_notify_service.dart';
 
 class MarketplaceThreadScreen extends StatefulWidget {
   const MarketplaceThreadScreen({
@@ -48,6 +50,13 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
   Timer? _typingDebounce;
   Timer? _typingHide;
   bool _sentFirstWithProduct = false;
+  ChatUnreadNotifyService? _unreadNotify;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _unreadNotify ??= context.read<ChatUnreadNotifyService>();
+  }
 
   @override
   void initState() {
@@ -100,7 +109,10 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     } catch (e) {
       _error = e.toString();
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        _unreadNotify?.setActiveChatId('c:${widget.conversationId}');
+        setState(() => _loading = false);
+      }
       _scrollToBottom();
     }
   }
@@ -109,7 +121,9 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     for (var i = 0; i < 40; i++) {
       await Future.delayed(const Duration(milliseconds: 200));
       if (_socket.isConnected) {
-        _socket.joinMarketplaceRoom(widget.conversationId, (_) {});
+        _socket.joinMarketplaceRoom(widget.conversationId, (_) {
+          _socket.emitMarkReadConversation(widget.conversationId);
+        });
         return;
       }
     }
@@ -220,6 +234,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
 
   @override
   void dispose() {
+    _unreadNotify?.setActiveChatId(null);
     _typingDebounce?.cancel();
     _typingHide?.cancel();
     _socket.removeMarketplaceMessageListener(_onSocketMessage);

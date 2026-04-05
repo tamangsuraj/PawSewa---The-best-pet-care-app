@@ -42,7 +42,7 @@ export default function LoginPage() {
   // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#5c2d12]">
+      <div className="min-h-dvh flex items-center justify-center bg-[#5c2d12]">
         <div className="text-center">
           <div className="mx-auto mb-4 flex justify-center rounded-xl p-3 border border-white/25 bg-transparent">
             <PawSewaLogoSpinner size={64} />
@@ -69,7 +69,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#5c2d12] p-4">
+    <div className="min-h-dvh flex items-center justify-center bg-[#5c2d12] p-4">
       <div className="w-full max-w-md">
         {/* Login Card - darker brown card on brown background */}
         <div className="bg-[#4a2510] rounded-2xl shadow-2xl p-8 border border-[#6b3d1a]">

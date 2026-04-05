@@ -1,11 +1,18 @@
 /**
  * Database and collection audit script.
- * Lists all databases, their collections, document counts, and samples pawsewa_production users.
+ * Lists all databases, their collections, document counts, and samples users in the configured DB.
  * Run from backend: node scripts/check-db.js
+ *
+ * Uses the same connection rules as the API server: MONGO_URI + dbName (DB_NAME required in .env).
  */
 
 require('dotenv').config();
 const mongoose = require('mongoose');
+const {
+  getConnectionUri,
+  getMongooseConnectionOptions,
+  getConfiguredDbName,
+} = require('../src/config/db');
 
 function ts() {
   const d = new Date();
@@ -17,25 +24,15 @@ function log(level, ...args) {
   console.log(`[${ts()}] [${level}] ${msg}`);
 }
 
-function getBaseUri() {
-  let uri = process.env.MONGO_URI || 'mongodb://localhost:27017/pawsewa_dev';
-  const dbName = process.env.DB_NAME;
-  if (dbName) {
-    uri = uri.replace(/\/([^/?]+)(\?|$)/, `/${dbName}$2`);
-  }
-  return uri;
-}
-
 async function run() {
-  const uri = getBaseUri();
+  const uri = getConnectionUri();
+  const logicalDb = getConfiguredDbName();
+  log('INFO', 'Configured logical database (dbName):', logicalDb);
   log('INFO', 'Connecting to MongoDB...');
 
-  await mongoose.connect(uri, {
-    tls: uri.startsWith('mongodb+srv'),
-    tlsAllowInvalidCertificates: true,
-  });
+  await mongoose.connect(uri, getMongooseConnectionOptions(uri));
 
-  log('SUCCESS', 'Connected.');
+  log('SUCCESS', 'Connected. Active db:', mongoose.connection.db?.databaseName || 'unknown');
 
   const client = mongoose.connection.getClient();
   const admin = client.db().admin();
@@ -48,10 +45,7 @@ async function run() {
   }
   log('INFO', '--- End database list ---');
 
-  const databasesFound = [];
-
   for (const { name: dbName } of databases) {
-    databasesFound.push(dbName);
     const db = client.db(dbName);
     const collections = await db.listCollections().toArray();
     const collNames = collections.map((c) => c.name);
@@ -66,38 +60,49 @@ async function run() {
     }
   }
 
-  if (dbNames.includes('pawsewa_production')) {
-    const prodDb = client.db('pawsewa_production');
-    const usersColl = prodDb.collection('users');
+  if (dbNames.includes(logicalDb)) {
+    const targetDb = client.db(logicalDb);
+    const usersColl = targetDb.collection('users');
     const sample = await usersColl.findOne({});
-    log('INFO', '--- Sample user document (pawsewa_production.users) ---');
+    log('INFO', `--- Sample user document (${logicalDb}.users) ---`);
     if (sample) {
       const roleInfo = sample.role !== undefined ? `role: ${JSON.stringify(sample.role)}` : 'role: (not present)';
       log('INFO', roleInfo);
       log('INFO', 'Sample document keys:', Object.keys(sample).join(', '));
-      log('INFO', 'Sample (sanitized):', JSON.stringify({
-        _id: sample._id,
-        name: sample.name,
-        email: sample.email,
-        role: sample.role,
-        phone: sample.phone,
-      }, null, 2));
+      log(
+        'INFO',
+        'Sample (sanitized):',
+        JSON.stringify(
+          {
+            _id: sample._id,
+            name: sample.name,
+            email: sample.email,
+            role: sample.role,
+            phone: sample.phone,
+          },
+          null,
+          2,
+        ),
+      );
     } else {
       log('INFO', 'No documents in users collection.');
     }
     log('INFO', '--- End sample ---');
 
-    log('INFO', '--- Credential audit (pawsewa_production.users) ---');
+    log('INFO', `--- Credential audit (${logicalDb}.users) ---`);
     const users = await usersColl.find({}).project({ email: 1, password: 1, name: 1 }).toArray();
     for (const u of users) {
       const pw = u.password == null ? '(none)' : String(u.password);
       const isHashed = pw.startsWith('$2a$') || pw.startsWith('$2b$') || pw.startsWith('$2y$');
-      const trunc = pw.length > 40 ? pw.substring(0, 40) + '...' : pw;
+      const trunc = pw.length > 40 ? `${pw.substring(0, 40)}...` : pw;
       log('INFO', `email: ${u.email || '(missing)'} | password: ${trunc} | style: ${isHashed ? 'hashed' : 'plain'}`);
     }
     log('INFO', '--- End credential audit ---');
+
+    const petCount = await targetDb.collection('pets').countDocuments();
+    log('INFO', `Pets in ${logicalDb}.pets:`, petCount);
   } else {
-    log('INFO', 'pawsewa_production not found; skipping users sample.');
+    log('INFO', `Database "${logicalDb}" not found on this cluster; skipping users/pets sample.`);
   }
 
   await mongoose.disconnect();
