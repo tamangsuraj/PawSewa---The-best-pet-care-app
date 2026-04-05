@@ -44,7 +44,7 @@ export function PawSewaLogo({
           nav ? 'max-w-[min(100vw-8rem,420px)]' : 'max-w-[min(100%,280px)]',
           useMatte ? 'mix-blend-multiply' : '',
           nav
-            ? 'drop-shadow-[0_2px_12px_rgba(75,54,33,0.12)]'
+            ? 'drop-shadow-[0_2px_12px_rgba(112,52,24,0.12)]'
             : '',
           className,
         ]

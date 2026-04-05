@@ -37,7 +37,7 @@ export function InboxDropdown() {
     return (
       <a
         href="/login?next=/"
-        className="text-[#4B3621]/88 hover:text-[#2e2118] text-sm font-semibold px-3.5 py-2 rounded-full hover:bg-[#4B3621]/[0.07] transition-colors"
+        className="text-[#703418]/90 hover:text-[#2e2118] text-sm font-semibold px-3.5 py-2 rounded-full hover:bg-[#703418]/[0.07] transition-colors"
       >
         Inbox
       </a>
@@ -57,8 +57,8 @@ export function InboxDropdown() {
         onClick={() => setOpen((v) => !v)}
         className={`flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full transition-all border ${
           open || hubOpen
-            ? 'text-[#FAF7F2] bg-gradient-to-br from-[#5c4330] to-[#3d2a1c] border-[#4B3621]/25 shadow-[0_4px_14px_rgba(75,54,33,0.2)]'
-            : 'text-[#4B3621]/88 border-transparent hover:bg-[#4B3621]/[0.07]'
+            ? 'text-[#FAF7F2] bg-gradient-to-br from-[#703418] to-[#5c2c14] border-[#703418]/25 shadow-[0_4px_14px_rgba(112,52,24,0.2)]'
+            : 'text-[#703418]/90 border-transparent hover:bg-[#703418]/[0.07]'
         }`}
         aria-expanded={open}
         aria-haspopup="true"
@@ -69,9 +69,9 @@ export function InboxDropdown() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-[min(70vh,24rem)] overflow-y-auto rounded-2xl border border-[#4B3621]/15 bg-[#FAF7F2] shadow-[0_24px_60px_rgba(75,54,33,0.18)] z-[60] py-2">
-          <div className="px-3 pb-2 border-b border-[#4B3621]/10 flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[#4B3621]/70">
+        <div className="absolute right-0 mt-2 w-80 max-h-[min(70vh,24rem)] overflow-y-auto rounded-2xl border border-[#703418]/15 bg-[#FAF7F2] shadow-[0_24px_60px_rgba(112,52,24,0.18)] z-[60] py-2">
+          <div className="px-3 pb-2 border-b border-[#703418]/10 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#703418]/70">
               Messages
             </span>
             <span className="text-[10px] text-[#0d9488]">Socket.io · realtime</span>
@@ -95,15 +95,15 @@ export function InboxDropdown() {
                         alt=""
                         width={36}
                         height={36}
-                        className="rounded-full object-cover border border-[#4B3621]/15"
+                        className="rounded-full object-cover border border-[#703418]/15"
                       />
                     ) : (
-                      <div className="w-9 h-9 rounded-full bg-[#0d9488]/15 flex items-center justify-center text-[#4B3621] text-xs font-bold shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-[#0d9488]/15 flex items-center justify-center text-[#703418] text-xs font-bold shrink-0">
                         {(t.title || '?')[0]}
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[#4B3621] truncate">{t.title}</p>
+                      <p className="text-sm font-semibold text-[#703418] truncate">{t.title}</p>
                       {t.subtitle ? (
                         <p className="text-xs text-gray-500 truncate">{t.subtitle}</p>
                       ) : null}
@@ -114,7 +114,7 @@ export function InboxDropdown() {
               ))}
             </ul>
           )}
-          <div className="border-t border-[#4B3621]/10 px-3 py-2">
+          <div className="border-t border-[#703418]/10 px-3 py-2">
             <button
               type="button"
               onClick={() => {

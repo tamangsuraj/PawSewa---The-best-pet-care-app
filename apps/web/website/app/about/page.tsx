@@ -24,8 +24,8 @@ export default function AboutPage() {
               dispatcher model — so your companion gets timely, professional attention.
             </p>
             <p className="text-lg text-paw-bark/70 leading-relaxed">
-              We aim to make quality pet healthcare accessible, efficient, and calm for every household
-              in Nepal.
+              We aim to make quality pet healthcare accessible, efficient, and calm for every family that
+              trusts PawSewa.
             </p>
           </div>
         </div>

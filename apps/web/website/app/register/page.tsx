@@ -192,7 +192,7 @@ export default function RegisterPage() {
             <PawSewaLogo variant="hero" height={100} className="brightness-0 invert opacity-95" />
           </div>
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-paw-cream/75 mb-2">
-            Nepal · care &amp; commerce
+            PawSewa · pet care
           </p>
           <h1 className="font-display text-4xl font-semibold tracking-tight mb-4">
             Welcome to PawSewa

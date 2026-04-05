@@ -31,11 +31,12 @@ const ClinicMapCard = dynamic(
 const CAT_HERO =
   'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=960&q=85';
 
+/** Home showcase labels — typical pet-care tools & supplies (matches seeded shop variety). */
 const DESIGN_SUPPLY = [
-  { title: 'Himalayan Yak Chews', category: 'NUTRITION', price: 1250 },
-  { title: 'NexGard Flea & Tick', category: 'MEDICINE', price: 2400 },
-  { title: 'Wild Salmon Bites', category: 'TREATS', price: 850 },
-  { title: 'Silver Ion Grooming Kit', category: 'GROOMING', price: 4500 },
+  { title: 'Self-cleaning slicker brush', category: 'GROOMING', price: 890 },
+  { title: 'LED nail grinder kit', category: 'GROOMING', price: 2100 },
+  { title: 'Stainless elevated feeder', category: 'FEEDING', price: 1650 },
+  { title: 'Automatic water fountain', category: 'SUPPLIES', price: 3200 },
 ] as const;
 
 interface Vet {
@@ -64,7 +65,7 @@ interface ServiceRequestRow {
 }
 
 const cardLift =
-  'rounded-[1.35rem] border border-paw-bark/10 bg-white/88 backdrop-blur-sm shadow-paw transition-all duration-500 ease-out hover:shadow-paw-lg hover:-translate-y-1';
+  'rounded-[1.35rem] border border-paw-bark/10 bg-white/90 backdrop-blur-sm shadow-paw transition-all duration-500 ease-out hover:shadow-paw-lg hover:-translate-y-1';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -175,19 +176,19 @@ export default function HomePage() {
         <div className="container relative z-10 mx-auto px-4 py-16 md:py-28">
           <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.08fr_0.92fr] lg:gap-20">
             <div className="paw-hero-stagger flex flex-col space-y-6">
-              <p className="paw-eyebrow">The compassionate guardian</p>
+              <p className="paw-eyebrow">PawSewa</p>
               <h1 className="font-display text-balance text-[2.5rem] font-semibold leading-[1.02] tracking-tight text-paw-ink sm:text-5xl md:text-[3.45rem]">
-                For your Nepal&apos;s{' '}
-                <span className="font-normal italic text-paw-bark">pets</span>.
+                Pet care, thoughtfully{' '}
+                <span className="font-normal italic text-paw-bark">unified</span>.
               </h1>
               <p className="max-w-xl text-lg leading-relaxed text-paw-bark/85">
-                A premium ecosystem for Himalayan pet care — clinical precision, grounded warmth, and
-                lifelong wellbeing in one deliberate experience.
+                PawSewa brings vets, services, and everyday supplies into one clear experience — clinical
+                focus, calm support, and your companion&apos;s wellbeing at the center.
               </p>
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
                   href="/vets"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-paw-bark to-paw-ink px-8 py-3.5 text-sm font-semibold text-paw-cream shadow-[0_12px_36px_rgba(61,46,36,0.25)] transition-transform hover:-translate-y-0.5"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-paw-bark to-paw-ink px-8 py-3.5 text-sm font-semibold text-paw-cream shadow-[0_12px_36px_rgba(112,52,24,0.25)] transition-transform hover:-translate-y-0.5"
                 >
                   Book a vet
                 </Link>
@@ -202,7 +203,7 @@ export default function HomePage() {
             </div>
             <div className="relative lg:pl-4">
               <div
-                className="pointer-events-none absolute -right-6 top-12 hidden h-40 w-[1px] rotate-12 bg-gradient-to-b from-transparent via-paw-teal-mid/35 to-transparent lg:block"
+                className="pointer-events-none absolute -right-6 top-12 hidden h-40 w-[1px] rotate-12 bg-gradient-to-b from-transparent via-paw-teal-mid/30 to-transparent lg:block"
                 aria-hidden
               />
               <div
@@ -219,7 +220,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-paw-ink/25 via-transparent to-transparent" />
               </div>
               <div
-                className={`absolute -bottom-5 left-2 max-w-[260px] rounded-2xl border border-paw-bark/10 bg-white/92 p-4 shadow-paw-lg backdrop-blur-md md:left-6 ${cardLift}`}
+                className={`absolute -bottom-5 left-2 max-w-[260px] rounded-2xl border border-paw-bark/10 bg-white/90 p-4 shadow-paw-lg backdrop-blur-md md:left-6 ${cardLift}`}
               >
                 <div className="mb-2 flex items-center gap-2">
                   <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-paw-teal-mid shadow-[0_0_12px_rgba(13,148,136,0.5)]" />
@@ -282,7 +283,7 @@ export default function HomePage() {
               </div>
               <h3 className="font-display text-lg text-paw-ink">Clinics</h3>
               <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
-                Verified veterinarians across the valley.
+                Verified veterinarians when you need them.
               </p>
             </Link>
             <div
@@ -324,9 +325,9 @@ export default function HomePage() {
       {/* Appointments + Recent Activity */}
       <section className="py-8 px-4 pb-20">
         <div className="container mx-auto max-w-6xl grid lg:grid-cols-2 gap-8">
-          <div className={`bg-white border border-[#4B3621]/10 p-6 md:p-8 ${cardLift}`}>
+          <div className={`bg-white border border-[#703418]/10 p-6 md:p-8 ${cardLift}`}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-display text-2xl font-semibold text-[#4B3621]">Appointments</h3>
+              <h3 className="font-display text-2xl font-semibold text-[#703418]">Appointments</h3>
               <Link href="/my-service-requests" className="text-sm font-semibold text-[#0d9488] hover:underline">
                 View all
               </Link>
@@ -342,10 +343,10 @@ export default function HomePage() {
                 {upcomingAppointments.map((a) => (
                   <li
                     key={a._id}
-                    className="flex items-center justify-between gap-3 p-4 rounded-xl bg-[#FAF7F2] border border-[#4B3621]/8"
+                    className="flex items-center justify-between gap-3 p-4 rounded-xl bg-[#FAF7F2] border border-[#703418]/8"
                   >
                     <div>
-                      <p className="font-semibold text-[#4B3621]">{a.serviceType || 'Visit'}</p>
+                      <p className="font-semibold text-[#703418]">{a.serviceType || 'Visit'}</p>
                       <p className="text-xs text-gray-600">
                         {a.pet?.name ? `${a.pet.name} · ` : ''}
                         {a.preferredDate
@@ -367,14 +368,14 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => void openHubWithSupport()}
-              className="mt-6 w-full py-3 rounded-xl border border-[#4B3621]/20 text-sm font-semibold text-[#4B3621] hover:bg-[#4B3621]/5 transition-colors"
+              className="mt-6 w-full py-3 rounded-xl border border-[#703418]/20 text-sm font-semibold text-[#703418] hover:bg-[#703418]/5 transition-colors"
             >
               Message Customer Care
             </button>
           </div>
 
           <div
-            className={`bg-[#2c241c] text-[#FAF7F2] p-6 md:p-8 rounded-2xl border border-[#4B3621]/30 shadow-[0_24px_60px_rgba(0,0,0,0.2)] ${cardLift}`}
+            className={`bg-[#2c241c] text-[#FAF7F2] p-6 md:p-8 rounded-2xl border border-[#703418]/30 shadow-[0_24px_60px_rgba(0,0,0,0.2)] ${cardLift}`}
           >
             <h3 className="font-display text-2xl font-semibold mb-6">Recent Activity</h3>
             {!isAuthenticated ? (
@@ -416,19 +417,19 @@ export default function HomePage() {
       </section>
 
       {/* Essential Supplies */}
-      <section className="py-16 px-4 bg-white/70 border-y border-[#4B3621]/10">
+      <section className="py-16 px-4 bg-white/70 border-y border-[#703418]/10">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="font-display text-3xl font-semibold text-[#4B3621] text-center mb-4">
+          <h2 className="font-display text-3xl font-semibold text-[#703418] text-center mb-4">
             Essential Supplies
           </h2>
           <p className="text-center text-gray-600 mb-12 max-w-2xl mx-auto">
-            Marketplace parity: chat with sellers in real time (same Socket.io stack as the mobile app).
+            Grooming tools, wellness picks, and daily essentials — message sellers on PawSewa in real time.
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {showcase.map((item) => (
               <div
                 key={item.title}
-                className={`bg-[#1a1512] rounded-2xl overflow-hidden border border-[#4B3621]/20 ${cardLift}`}
+                className={`bg-[#1a1512] rounded-2xl overflow-hidden border border-[#703418]/20 ${cardLift}`}
               >
                 <div className="aspect-square relative bg-[#2a2218]">
                   {item.image ? (
@@ -458,7 +459,7 @@ export default function HomePage() {
                           quantity: 1,
                         });
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#4B3621] hover:bg-[#3d2a1a] text-sm font-semibold transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#703418] hover:bg-[#5c2c14] text-sm font-semibold transition-colors"
                     >
                       <ShoppingCart className="w-4 h-4" />
                       Cart
@@ -487,7 +488,7 @@ export default function HomePage() {
       {/* Verified Clinics */}
       <section className="py-16 md:py-24 px-4 pb-24">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="font-display text-3xl font-semibold text-[#4B3621] text-center mb-12">
+          <h2 className="font-display text-3xl font-semibold text-[#703418] text-center mb-12">
             Verified Clinics Nearby
           </h2>
           <div className="grid lg:grid-cols-2 gap-8 items-stretch">
@@ -495,13 +496,13 @@ export default function HomePage() {
               {clinicList.map((c, i) => (
                 <div
                   key={c.name}
-                  className={`bg-white border border-[#4B3621]/10 p-5 rounded-2xl flex gap-4 ${cardLift}`}
+                  className={`bg-white border border-[#703418]/10 p-5 rounded-2xl flex gap-4 ${cardLift}`}
                 >
-                  <div className="w-12 h-12 rounded-xl bg-[#4B3621]/10 flex items-center justify-center shrink-0">
-                    <Stethoscope className="w-6 h-6 text-[#4B3621]" />
+                  <div className="w-12 h-12 rounded-xl bg-[#703418]/10 flex items-center justify-center shrink-0">
+                    <Stethoscope className="w-6 h-6 text-[#703418]" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-[#4B3621]">{c.name}</h3>
+                    <h3 className="font-semibold text-[#703418]">{c.name}</h3>
                     {c.vet?.clinicLocation ? (
                       <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                         <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -518,7 +519,7 @@ export default function HomePage() {
                     {c.vet?._id ? (
                       <Link
                         href={`/vets/${c.vet._id}`}
-                        className="block mt-2 text-xs font-semibold text-[#4B3621] hover:underline"
+                        className="block mt-2 text-xs font-semibold text-[#703418] hover:underline"
                       >
                         View profile →
                       </Link>

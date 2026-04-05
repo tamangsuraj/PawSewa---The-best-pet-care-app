@@ -12,6 +12,21 @@ const Payment = require('../models/Payment');
 const PaymentLog = require('../models/PaymentLog');
 const CareBooking = require('../models/CareBooking');
 const Hostel = require('../models/Hostel');
+const User = require('../models/User');
+const { adminAssignCarePartner } = require('../controllers/careBookingController');
+
+const DISPATCH_RIDER_ROLES = ['rider'];
+const DISPATCH_SELLER_ROLES = ['shop_owner'];
+const DISPATCH_CARE_ROLES = [
+  'veterinarian',
+  'vet',
+  'groomer',
+  'trainer',
+  'hostel_owner',
+  'care_service',
+  'service_provider',
+  'facility_owner',
+];
 
 // Admin dispatcher routes
 // Mirror of PATCH /api/v1/service-requests/:id/assign, but namespaced for admin
@@ -273,6 +288,33 @@ router.patch('/hostels/:id/verify', protect, authorize('admin'), async (req, res
   }
 });
 
+// GET /api/v1/admin/dispatch-operators
+// Riders, sellers, and care professionals for assignment UIs
+router.get('/dispatch-operators', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const select = 'name email phone role';
+    const [riders, sellers, carePartners] = await Promise.all([
+      User.find({ role: { $in: DISPATCH_RIDER_ROLES } }).select(select).sort({ name: 1 }).lean(),
+      User.find({ role: { $in: DISPATCH_SELLER_ROLES } }).select(select).sort({ name: 1 }).lean(),
+      User.find({ role: { $in: DISPATCH_CARE_ROLES } }).select(select).sort({ name: 1 }).lean(),
+    ]);
+    res.json({
+      success: true,
+      data: { riders, sellers, carePartners },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/v1/admin/care-bookings/:id/assign-partner
+router.patch(
+  '/care-bookings/:id/assign-partner',
+  protect,
+  authorize('admin'),
+  adminAssignCarePartner
+);
+
 // GET /api/v1/admin/care-bookings
 // All care bookings with filter by serviceType
 router.get('/care-bookings', protect, authorize('admin'), async (req, res, next) => {
@@ -291,6 +333,7 @@ router.get('/care-bookings', protect, authorize('admin'), async (req, res, next)
         .populate('hostelId', 'name location serviceType')
         .populate('petId', 'name breed age')
         .populate('userId', 'name email phone')
+        .populate('assignedPartner', 'name email phone role')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)

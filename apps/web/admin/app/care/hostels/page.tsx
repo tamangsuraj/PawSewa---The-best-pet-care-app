@@ -94,7 +94,7 @@ export default function CareHostelsPage() {
                 <button
                   onClick={load}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#703418] text-white rounded-lg hover:bg-[#5a2a13] disabled:opacity-60 text-sm font-medium"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#703418] text-white rounded-lg hover:bg-[#5c2c14] disabled:opacity-60 text-sm font-medium"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
@@ -158,7 +158,7 @@ export default function CareHostelsPage() {
                           {!h.isVerified && (
                             <button
                               onClick={() => handleVerify(h._id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#703418] rounded-lg hover:bg-[#5a2a13]"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#703418] rounded-lg hover:bg-[#5c2c14]"
                             >
                               <ShieldCheck className="w-4 h-4" />
                               Verify

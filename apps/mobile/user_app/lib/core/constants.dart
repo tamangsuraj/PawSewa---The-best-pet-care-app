@@ -28,9 +28,9 @@ class AppConstants {
   static const String tokenKey = "user_auth_token";
   static const String userKey = "user_data";
 
-  // Brand — organic editorial (aligned with customer website tokens)
-  static const int primaryColor = 0xFF4B3621; // warm bark brown
-  static const int inkColor = 0xFF3D2E24; // deep ink for type
+  // Brand — Deep Brown primary (unified across web + mobile)
+  static const int primaryColor = 0xFF703418;
+  static const int inkColor = 0xFF5C2C14; // darker brown for body type
   static const int secondaryColor = 0xFFFAF6F0; // cream surface
   static const int accentColor = 0xFF0D9488; // care teal
   static const int accentWarmColor = 0xFFA67B5B; // warm tan chips / legacy accents

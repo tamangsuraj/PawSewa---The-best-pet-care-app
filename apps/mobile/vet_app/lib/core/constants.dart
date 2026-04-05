@@ -25,9 +25,9 @@ class AppConstants {
   static const String tokenKey = "partner_auth_token";
   static const String userKey = "partner_user_data";
 
-  // Brand — partner / clinical luxe (deeper ink, teal accent; fonts via PartnerTheme)
-  static const int primaryColor = 0xFF3D2E24; // ink — authority
-  static const int inkColor = 0xFF2C2219; // deeper type
+  // Brand — Deep Brown primary (unified with customer web + user_app)
+  static const int primaryColor = 0xFF703418;
+  static const int inkColor = 0xFF5C2C14; // deeper type on cream
   static const int secondaryColor = 0xFFF5F0EA; // warm bone
   static const int accentColor = 0xFF14B8A6; // bright teal CTA
   static const int accentWarmColor = 0xFF9A6B45; // warm bronze chips

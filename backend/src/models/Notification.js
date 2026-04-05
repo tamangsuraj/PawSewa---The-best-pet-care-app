@@ -19,12 +19,16 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['service_request', 'case', 'system', 'reminder'],
+      enum: ['service_request', 'case', 'system', 'reminder', 'care_booking'],
       default: 'service_request',
     },
     serviceRequest: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ServiceRequest',
+    },
+    careBooking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CareBooking',
     },
     isRead: {
       type: Boolean,

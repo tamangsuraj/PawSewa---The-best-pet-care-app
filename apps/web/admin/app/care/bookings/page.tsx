@@ -1,17 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { getAdminSocket } from '@/lib/socket';
 import { CalendarCheck, RefreshCw } from 'lucide-react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
+
+interface OpUser {
+  _id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+}
 
 interface CareBooking {
   _id: string;
   hostelId: { name: string; location?: { address?: string }; serviceType?: string };
   petId: { name: string; breed?: string; age?: number };
   userId: { name: string; email: string; phone?: string };
+  assignedPartner?: OpUser | null;
+  careAssignmentStatus?: string;
   checkIn: string;
   checkOut: string;
   nights: number;
@@ -31,8 +41,19 @@ export default function CareBookingsPage() {
   const [error, setError] = useState('');
   const [serviceTypeFilter, setServiceTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [carePartners, setCarePartners] = useState<OpUser[]>([]);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
 
-  const load = async () => {
+  const loadPartners = async () => {
+    try {
+      const resp = await api.get('/admin/dispatch-operators');
+      setCarePartners(resp.data?.data?.carePartners ?? []);
+    } catch {
+      /* optional */
+    }
+  };
+
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -41,20 +62,50 @@ export default function CareBookingsPage() {
       if (statusFilter) params.status = statusFilter;
       const resp = await api.get('/admin/care-bookings', { params });
       setBookings(resp.data?.data ?? []);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to load bookings';
-      const is404 = err.response?.status === 404;
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string }; status?: number } };
+      const msg = ax.response?.data?.message || (err instanceof Error ? err.message : 'Failed to load bookings');
+      const is404 = ax.response?.status === 404;
       setError(is404
         ? `${msg}. Ensure the backend is running (cd backend && npm run dev) and has been restarted with the latest code.`
         : msg);
     } finally {
       setLoading(false);
     }
-  };
+  }, [serviceTypeFilter, statusFilter]);
 
   useEffect(() => {
-    load();
-  }, [serviceTypeFilter, statusFilter]);
+    void load();
+    void loadPartners();
+  }, [load]);
+
+  useEffect(() => {
+    const socket = getAdminSocket();
+    if (!socket) return;
+    const bump = () => void load();
+    socket.on('care_booking:update', bump);
+    socket.on('care_booking:new', bump);
+    return () => {
+      socket.off('care_booking:update', bump);
+      socket.off('care_booking:new', bump);
+    };
+  }, [load]);
+
+  const assignPartner = async (bookingId: string, partnerId: string) => {
+    if (!partnerId) return;
+    setAssigningId(bookingId);
+    try {
+      await api.patch(`/admin/care-bookings/${bookingId}/assign-partner`, { partnerId });
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Assignment failed';
+      setError(msg);
+    } finally {
+      setAssigningId(null);
+    }
+  };
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -114,9 +165,13 @@ export default function CareBookingsPage() {
                   ))}
                 </select>
                 <button
-                  onClick={load}
+                  type="button"
+                  onClick={() => {
+                    void load();
+                    void loadPartners();
+                  }}
                   disabled={loading}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#703418] text-white rounded-lg hover:bg-[#5a2a12] disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#703418] text-white rounded-lg hover:bg-[#5c2c14] disabled:opacity-50"
                 >
                   <RefreshCw className="w-4 h-4" />
                   Refresh
@@ -164,6 +219,9 @@ export default function CareBookingsPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Assign professional
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -187,6 +245,37 @@ export default function CareBookingsPage() {
                           <td className="px-6 py-4">
                             {statusBadge(b.status)}
                             <p className="text-xs text-gray-500 mt-1">{b.paymentStatus}</p>
+                            {b.careAssignmentStatus === 'ASSIGNED_TO_PROFESSIONAL' ? (
+                              <p className="text-xs text-primary font-medium mt-1">Dispatched</p>
+                            ) : null}
+                          </td>
+                          <td className="px-6 py-4 min-w-[200px]">
+                            {b.assignedPartner ? (
+                              <p className="text-xs text-gray-800 font-medium">
+                                {b.assignedPartner.name ?? b.assignedPartner.email}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-400">—</p>
+                            )}
+                            <select
+                              className="mt-2 block w-full text-xs border border-gray-300 rounded-md px-2 py-1.5 focus:ring-2 focus:ring-[#703418] focus:border-[#703418]"
+                              defaultValue=""
+                              disabled={assigningId === b._id}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                e.target.value = '';
+                                if (v) void assignPartner(b._id, v);
+                              }}
+                            >
+                              <option value="">
+                                {b.assignedPartner ? 'Reassign…' : 'Select partner…'}
+                              </option>
+                              {carePartners.map((p) => (
+                                <option key={p._id} value={p._id}>
+                                  {p.name ?? p.email} ({p.role})
+                                </option>
+                              ))}
+                            </select>
                           </td>
                         </tr>
                       ))}

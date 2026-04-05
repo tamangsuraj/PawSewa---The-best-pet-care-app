@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../cart/cart_service.dart';
 import '../../core/constants.dart';
+import '../../widgets/editorial_canvas.dart';
 
 /// One place result from Nominatim search.
 class _PlaceResult {
@@ -181,6 +182,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
     final pin = _pin ?? _center;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           widget.returnAddress ? 'Select Location' : 'Select Delivery Location',
@@ -191,8 +193,13 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
       ),
-      body: Column(
+      body: Stack(
+        clipBehavior: Clip.none,
         children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: Column(
+              children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: TextField(
@@ -348,6 +355,9 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
               ],
             ),
           ),

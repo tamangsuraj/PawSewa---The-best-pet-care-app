@@ -48,8 +48,8 @@ export function HomeActiveOrdersRail() {
 
   return (
     <aside className="hidden xl:block fixed right-4 top-28 z-30 w-[17.5rem] max-h-[calc(100vh-8rem)] overflow-y-auto">
-      <div className="rounded-2xl border border-[#4B3621]/15 bg-[#FAF7F2]/95 backdrop-blur-md shadow-[0_20px_50px_rgba(75,54,33,0.14)] p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#4B3621]/70 mb-3">
+      <div className="rounded-2xl border border-[#703418]/15 bg-[#FAF7F2]/95 backdrop-blur-md shadow-[0_20px_50px_rgba(112,52,24,0.14)] p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#703418]/70 mb-3">
           Active orders
         </p>
         <ul className="space-y-3">
@@ -68,13 +68,13 @@ export function HomeActiveOrdersRail() {
             return (
               <li
                 key={o._id}
-                className="rounded-xl bg-white border border-[#4B3621]/10 p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
+                className="rounded-xl bg-white border border-[#703418]/10 p-3 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
               >
                 <div className="flex items-start gap-2">
-                  <Package className="w-4 h-4 text-[#4B3621] shrink-0 mt-0.5" />
+                  <Package className="w-4 h-4 text-[#703418] shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-mono text-gray-500 truncate">{o._id}</p>
-                    <p className="text-sm font-semibold text-[#4B3621] capitalize">
+                    <p className="text-sm font-semibold text-[#703418] capitalize">
                       {String(o.status || '').replace(/_/g, ' ')}
                     </p>
                     {lat != null && lng != null && (

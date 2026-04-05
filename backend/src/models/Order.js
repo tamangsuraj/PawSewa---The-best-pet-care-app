@@ -69,6 +69,19 @@ const orderSchema = new mongoose.Schema(
       enum: ['pending', 'processing', 'out_for_delivery', 'delivered'],
       default: 'pending',
     },
+    /** Workflow label for admin / analytics / sockets (derived on save). */
+    assignmentStatus: {
+      type: String,
+      enum: [
+        'NONE',
+        'ASSIGNED_TO_SELLER',
+        'SELLER_CONFIRMED',
+        'ASSIGNED_TO_RIDER',
+        'OUT_FOR_DELIVERY',
+        'DELIVERED',
+      ],
+      default: 'NONE',
+    },
     // deliveryCoordinates: { lat, lng } for navigation (derived from deliveryLocation)
     deliveryCoordinates: {
       lat: { type: Number },
@@ -144,6 +157,21 @@ orderSchema.pre('save', function () {
     delivered: 'Delivered',
   };
   if (this.status) this.deliveryStatus = statusMap[this.status] || 'Pending';
+
+  const st = this.status;
+  if (st === 'delivered') {
+    this.assignmentStatus = 'DELIVERED';
+  } else if (st === 'out_for_delivery') {
+    this.assignmentStatus = 'OUT_FOR_DELIVERY';
+  } else if (this.assignedRider) {
+    this.assignmentStatus = 'ASSIGNED_TO_RIDER';
+  } else if (this.sellerConfirmedAt) {
+    this.assignmentStatus = 'SELLER_CONFIRMED';
+  } else if (this.assignedSeller) {
+    this.assignmentStatus = 'ASSIGNED_TO_SELLER';
+  } else {
+    this.assignmentStatus = 'NONE';
+  }
 });
 
 module.exports = mongoose.model('Order', orderSchema);

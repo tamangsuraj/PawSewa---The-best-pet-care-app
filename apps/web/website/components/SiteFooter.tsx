@@ -13,7 +13,7 @@ export function SiteFooter() {
             <PawSewaLogo variant="nav" height={52} className="brightness-0 invert opacity-90" />
           </Link>
           <p className="text-sm leading-relaxed text-paw-cream/65">
-            Care and commerce for companions across Nepal — clinical rigor, warm editorial craft, one ecosystem.
+            PawSewa — pet care, vets, and supplies in one place. Clear, kind, and built around your companion.
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-10 gap-y-3 text-sm font-medium tracking-wide">

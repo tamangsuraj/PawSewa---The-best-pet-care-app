@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
+import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 import '../core/storage_service.dart';
 import '../services/push_notification_service.dart';
 import 'pet_dashboard_screen.dart';
@@ -183,55 +186,93 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final primary = const Color(AppConstants.primaryColor);
+    final ink = const Color(AppConstants.inkColor);
+    final accent = const Color(AppConstants.accentColor);
+    final size = MediaQuery.sizeOf(context);
+    final padding = (size.width * 0.06).clamp(16.0, 28.0);
+
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF703418),
-        title: const Text('Verify Email'),
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'Verify Email',
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 40),
-              // Icon
-              const Icon(
-                Icons.email_outlined,
-                size: 80,
-                color: Color(0xFF703418),
+      body: EditorialCanvas(
+        variant: EditorialSurfaceVariant.customer,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: padding,
+                vertical: padding * 1.2,
               ),
-              const SizedBox(height: 24),
-              // Title
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(
+                      color: primary.withValues(alpha: 0.1),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: ink.withValues(alpha: 0.08),
+                        blurRadius: 36,
+                        offset: const Offset(0, 20),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+              const SizedBox(height: 8),
+              Icon(
+                Icons.email_outlined,
+                size: 72,
+                color: primary,
+              ),
+              const SizedBox(height: 20),
               Text(
                 'Verify Your Email',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF703418),
+                style: GoogleFonts.fraunces(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: primary,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              // Subtitle
               Text(
                 'We\'ve sent a 6-digit code to',
-                style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  color: ink.withValues(alpha: 0.65),
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 widget.email,
-                style: const TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF703418),
+                  fontWeight: FontWeight.w700,
+                  color: accent,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
               // Error Message
               if (_errorMessage != null)
                 Container(
@@ -314,7 +355,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF703418)),
+                    borderSide: BorderSide(color: primary.withValues(alpha: 0.35)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -322,8 +363,8 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF703418),
+                    borderSide: BorderSide(
+                      color: accent,
                       width: 2,
                     ),
                   ),
@@ -339,7 +380,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               const SizedBox(height: 8),
               Text(
                 'Code expires in 10 minutes',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  color: ink.withValues(alpha: 0.5),
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -347,7 +391,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _verifyOTP,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF703418),
+                  backgroundColor: primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -366,11 +410,12 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                           ),
                         ),
                       )
-                    : const Text(
+                    : Text(
                         'Verify Email',
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
               ),
@@ -380,23 +425,31 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 children: [
                   Text(
                     'Didn\'t receive the code?',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      color: ink.withValues(alpha: 0.65),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: _isResending ? null : _resendOTP,
                     child: Text(
                       _isResending ? 'Sending...' : 'Resend Code',
-                      style: const TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF703418),
+                        fontWeight: FontWeight.w700,
+                        color: primary,
                       ),
                     ),
                   ),
                 ],
               ),
             ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),

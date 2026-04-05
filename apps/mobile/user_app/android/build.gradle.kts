@@ -1,3 +1,5 @@
+apply(from = "gradle/force_compile_sdk.gradle")
+
 allprojects {
     repositories {
         google()

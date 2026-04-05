@@ -1,0 +1,10 @@
+// Align all Android library/app modules (including Flutter plugins) to API 36 so builds
+// do not use a broken or incomplete local platforms/android-35 install (missing android.jar).
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        def android = subproject.extensions.findByName("android")
+        if (android != null) {
+            android.compileSdk = 36
+        }
+    }
+}

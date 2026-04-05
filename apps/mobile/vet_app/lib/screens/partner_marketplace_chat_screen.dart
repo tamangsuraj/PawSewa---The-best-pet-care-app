@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 
@@ -226,10 +227,164 @@ class _PartnerMarketplaceChatScreenState
     final fg = widget.highContrast ? Colors.white : Colors.black87;
     final subColor = widget.highContrast ? Colors.white70 : Colors.grey;
 
+    final mainBody = _loading
+        ? Center(
+            child: CircularProgressIndicator(
+              color: widget.highContrast ? Colors.orange : primary,
+            ),
+          )
+        : _error != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: fg),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => _loadMessages(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : Column(
+                children: [
+                  if (_typingRemote)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '${widget.peerName} is typing…',
+                        style: GoogleFonts.outfit(fontSize: 12, color: subColor),
+                      ),
+                    ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, i) {
+                        final m = _messages[i];
+                        final sender = m['sender'];
+                        final sid = sender is Map
+                            ? sender['_id']?.toString()
+                            : sender?.toString();
+                        final mine = _myUserId != null && sid == _myUserId;
+                        final content = m['content']?.toString() ?? '';
+                        final pn = m['productName']?.toString();
+                        final bubbleMine = widget.highContrast
+                            ? Colors.orange.shade800
+                            : primary;
+                        final bubbleOther = widget.highContrast
+                            ? Colors.grey.shade900
+                            : Colors.grey.shade200;
+                        final textCol = mine
+                            ? Colors.white
+                            : (widget.highContrast
+                                  ? Colors.white
+                                  : Colors.black87);
+                        return Align(
+                          alignment: mine
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.78,
+                            ),
+                            decoration: BoxDecoration(
+                              color: mine ? bubbleMine : bubbleOther,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (pn != null && pn.isNotEmpty)
+                                  Text(
+                                    'Product: $pn',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 11,
+                                      color: mine
+                                          ? Colors.white70
+                                          : (widget.highContrast
+                                                ? Colors.orangeAccent
+                                                : primary),
+                                    ),
+                                  ),
+                                Text(
+                                  content,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    color: textCol,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _text,
+                            onChanged: _onTextChanged,
+                            style: TextStyle(color: fg),
+                            decoration: InputDecoration(
+                              hintText: 'Quick message…',
+                              hintStyle: TextStyle(
+                                color: widget.highContrast
+                                    ? Colors.white.withValues(alpha: 0.4)
+                                    : Colors.grey,
+                              ),
+                              filled: true,
+                              fillColor: widget.highContrast
+                                  ? Colors.grey.shade900
+                                  : Colors.grey.shade100,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: _send,
+                          style: FilledButton.styleFrom(
+                            shape: const CircleBorder(),
+                            padding: const EdgeInsets.all(14),
+                            backgroundColor: widget.highContrast
+                                ? Colors.orange.shade700
+                                : primary,
+                          ),
+                          child: const Icon(Icons.send_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: widget.highContrast ? bg : Colors.transparent,
       appBar: AppBar(
         backgroundColor: widget.highContrast ? Colors.black : Colors.white,
+        surfaceTintColor: Colors.transparent,
         foregroundColor: fg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,155 +404,13 @@ class _PartnerMarketplaceChatScreenState
           ],
         ),
       ),
-      body: _loading
-          ? Center(
-              child: CircularProgressIndicator(
-                color: widget.highContrast ? Colors.orange : primary,
-              ),
-            )
-          : _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: fg),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: () => _loadMessages(),
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : Column(
+      body: widget.highContrast
+          ? mainBody
+          : Stack(
+              clipBehavior: Clip.none,
               children: [
-                if (_typingRemote)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '${widget.peerName} is typing…',
-                      style: GoogleFonts.outfit(fontSize: 12, color: subColor),
-                    ),
-                  ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
-                    itemBuilder: (context, i) {
-                      final m = _messages[i];
-                      final sender = m['sender'];
-                      final sid = sender is Map
-                          ? sender['_id']?.toString()
-                          : sender?.toString();
-                      final mine = _myUserId != null && sid == _myUserId;
-                      final content = m['content']?.toString() ?? '';
-                      final pn = m['productName']?.toString();
-                      final bubbleMine = widget.highContrast
-                          ? Colors.orange.shade800
-                          : primary;
-                      final bubbleOther = widget.highContrast
-                          ? Colors.grey.shade900
-                          : Colors.grey.shade200;
-                      final textCol = mine
-                          ? Colors.white
-                          : (widget.highContrast
-                                ? Colors.white
-                                : Colors.black87);
-                      return Align(
-                        alignment: mine
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.78,
-                          ),
-                          decoration: BoxDecoration(
-                            color: mine ? bubbleMine : bubbleOther,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (pn != null && pn.isNotEmpty)
-                                Text(
-                                  'Product: $pn',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 11,
-                                    color: mine
-                                        ? Colors.white70
-                                        : (widget.highContrast
-                                              ? Colors.orangeAccent
-                                              : primary),
-                                  ),
-                                ),
-                              Text(
-                                content,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  color: textCol,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _text,
-                          onChanged: _onTextChanged,
-                          style: TextStyle(color: fg),
-                          decoration: InputDecoration(
-                            hintText: 'Quick message…',
-                            hintStyle: TextStyle(
-                              color: widget.highContrast
-                                  ? Colors.white.withValues(alpha: 0.4)
-                                  : Colors.grey,
-                            ),
-                            filled: true,
-                            fillColor: widget.highContrast
-                                ? Colors.grey.shade900
-                                : Colors.grey.shade100,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: _send,
-                        style: FilledButton.styleFrom(
-                          shape: const CircleBorder(),
-                          padding: const EdgeInsets.all(14),
-                          backgroundColor: widget.highContrast
-                              ? Colors.orange.shade700
-                              : primary,
-                        ),
-                        child: const Icon(Icons.send_rounded),
-                      ),
-                    ],
-                  ),
-                ),
+                const EditorialBodyBackdrop(),
+                Positioned.fill(child: mainBody),
               ],
             ),
     );

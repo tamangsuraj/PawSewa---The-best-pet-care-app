@@ -8,7 +8,8 @@ plugins {
 
 android {
     namespace = "com.pawsewa.vet_app"
-    compileSdk = flutter.compileSdkVersion
+    // Use 36+ for current AndroidX; avoids broken API 35 platform jar on some Windows SDK installs.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

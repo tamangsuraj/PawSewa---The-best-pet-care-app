@@ -67,18 +67,33 @@ function buildProductDefs() {
   return [
     // —— Featured (reference SKUs) ——
     {
-      name: 'Himalayan Yak Chews',
+      name: 'Self-Cleaning Slicker Brush',
       description:
-        'Premium Himalayan Yak Chews sourced from the high altitudes of Nepal. Long-lasting, protein-rich dental chew for medium and large dogs. No artificial preservatives.',
-      price: 1290,
+        'Retracting pins help clear loose fur while you groom. Rounded tips are gentle on skin — suited to routine brushing and seasonal shedding for dogs and cats with medium-to-long coats.',
+      price: 890,
       stockQuantity: 120,
-      categorySlug: 'pet-food',
-      targetPets: ['DOG'],
-      tags: ['Natural', 'Dental', 'Long-lasting', 'DOG'],
-      badge: 'NATURAL',
+      categorySlug: 'pet-supplies',
+      targetPets: ['DOG', 'CAT'],
+      tags: ['Grooming', 'Shedding', 'DOG', 'CAT'],
+      badge: 'CARE',
       rating: 4.8,
       reviewCount: 156,
-      image: IMG('photo-1589924691995-400dc9cec109'),
+      image: IMG('photo-1587300003388-59208cc962cb'),
+      sellerKey: 'petcare',
+    },
+    {
+      name: 'Cordless LED Nail Grinder',
+      description:
+        'Low-noise motor with a diamond-grit drum and built-in LED for safer trims. USB rechargeable; includes grinding ports sized for small dogs and cats.',
+      price: 2100,
+      stockQuantity: 68,
+      categorySlug: 'pet-supplies',
+      targetPets: ['DOG', 'CAT'],
+      tags: ['Grooming', 'Nails', 'DOG', 'CAT'],
+      badge: 'CARE',
+      rating: 4.62,
+      reviewCount: 141,
+      image: IMG('photo-1601758224634-281c0353bd1b'),
       sellerKey: 'petcare',
     },
     {
@@ -97,9 +112,9 @@ function buildProductDefs() {
       sellerKey: 'feline',
     },
     {
-      name: 'NexGard Flea & Tick Chewables',
+      name: 'Monthly Flea & Tick Chewables',
       description:
-        'Vet-trusted monthly chewable for dogs that kills fleas and ticks before they bite. Beef-flavored and easy to dose; suitable for active outdoor companions.',
+        'Monthly beef-flavored chewable for dogs that targets fleas and ticks. Easy to dose; follow your veterinarian’s guidance for your pet’s weight and health.',
       price: 5200,
       stockQuantity: 64,
       categorySlug: 'health-wellness',
@@ -173,9 +188,9 @@ function buildProductDefs() {
       sellerKey: 'petcare',
     },
     {
-      name: 'Wild Alaskan Salmon Oil Pump',
+      name: 'Omega-3 Fish Oil Pump',
       description:
-        'Food-grade salmon oil with EPA and DHA to support joints, skin, and a glossy coat. Pump bottle for mess-free meals.',
+        'Food-grade fish oil with EPA and DHA to support joints, skin, and a glossy coat. Pump bottle for mess-free meals.',
       price: 1450,
       stockQuantity: 78,
       categorySlug: 'health-wellness',

@@ -13,7 +13,7 @@ const config: Config = {
         foreground: '#1f2937',
         primary: '#703418', // PawSewa Brown - Primary button
         secondary: '#f9fafb', // Light gray - Cards
-        accent: '#8B4513',
+        accent: '#5c2c14',
         danger: '#ef4444',
         success: '#10b981',
         gray: {

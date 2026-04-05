@@ -10,19 +10,29 @@ html {
   --background: #faf6f0;
   --foreground: #2a2118;
   /* PawSewa design system — organic editorial */
-  --paw-ink: #3d2e24;
-  --paw-bark: #5c4333;
-  --paw-clay: #6b5344;
+  --paw-ink: #5c2c14;
+  --paw-bark: #703418;
+  --paw-clay: #7a4a2a;
   --paw-cream: #faf6f0;
   --paw-sand: #ebe3d6;
   --paw-haze: #f3ebe2;
   --paw-teal: #0f766e;
   --paw-teal-mid: #0d9488;
+  /* Space-separated RGB for Tailwind opacity modifiers (text-paw-bark/90, etc.) */
+  --paw-ink-rgb: 92 44 20;
+  --paw-bark-rgb: 112 52 24;
+  --paw-clay-rgb: 122 74 42;
+  --paw-cream-rgb: 250 246 240;
+  --paw-sand-rgb: 235 227 214;
+  --paw-haze-rgb: 243 235 226;
+  --paw-teal-rgb: 15 118 110;
+  --paw-teal-mid-rgb: 13 148 136;
+  --paw-umber-rgb: 44 34 25;
   --paw-teal-glow: rgba(13, 148, 136, 0.14);
   --paw-umber: #2c2219;
-  --paw-mesh-a: rgba(91, 67, 48, 0.09);
+  --paw-mesh-a: rgba(112, 52, 24, 0.09);
   --paw-mesh-b: rgba(13, 148, 136, 0.07);
-  --paw-shadow: rgba(61, 46, 36, 0.12);
+  --paw-shadow: rgba(112, 52, 24, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -117,11 +127,11 @@ h6 {
 
 @layer components {
   .paw-card-glass {
-    @apply rounded-[1.35rem] border border-white/70 bg-white/72 shadow-[0_20px_50px_var(--paw-shadow)] backdrop-blur-xl transition-all duration-500 ease-out;
+    @apply rounded-[1.35rem] border border-white/70 bg-white/75 shadow-[0_20px_50px_var(--paw-shadow)] backdrop-blur-xl transition-all duration-500 ease-out;
   }
 
   .paw-card-glass:hover {
-    @apply -translate-y-1 shadow-[0_28px_64px_rgba(61,46,36,0.14)] border-white/90;
+    @apply -translate-y-1 shadow-[0_28px_64px_rgba(112,52,24,0.14)] border-white/90;
   }
 
   .paw-hero-stagger > * {

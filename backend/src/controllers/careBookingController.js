@@ -2,8 +2,10 @@ const asyncHandler = require('express-async-handler');
 const CareBooking = require('../models/CareBooking');
 const Hostel = require('../models/Hostel');
 const Pet = require('../models/Pet');
+const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const Notification = require('../models/Notification');
+const { broadcastCareBooking } = require('../services/careBookingSocketNotify');
 
 /**
  * @desc    Create a care booking (pet owner)
@@ -120,6 +122,8 @@ const createCareBooking = asyncHandler(async (req, res) => {
     careBooking: booking._id,
   });
 
+  await broadcastCareBooking(booking._id, 'new');
+
   res.status(201).json({
     success: true,
     message: 'Booking created. Complete payment to confirm.',
@@ -149,13 +153,28 @@ const getMyBookings = asyncHandler(async (req, res) => {
  * @route   GET /api/v1/care-bookings/incoming
  * @access  Private / hostel_owner
  */
+const PARTNER_CARE_ROLES = [
+  'veterinarian',
+  'vet',
+  'groomer',
+  'trainer',
+  'hostel_owner',
+  'care_service',
+  'service_provider',
+  'facility_owner',
+];
+
 const getIncomingBookings = asyncHandler(async (req, res) => {
   const hostels = await Hostel.find({ ownerId: req.user._id }).select('_id').lean();
   const hostelIds = hostels.map((h) => h._id);
-  const bookings = await CareBooking.find({ hostelId: { $in: hostelIds } })
+  const uid = req.user._id;
+  const bookings = await CareBooking.find({
+    $or: [{ hostelId: { $in: hostelIds } }, { assignedPartner: uid }],
+  })
     .populate('hostelId', 'name location')
     .populate('petId', 'name breed age photoUrl')
     .populate('userId', 'name email phone')
+    .populate('assignedPartner', 'name email phone role')
     .sort({ createdAt: -1 })
     .lean();
   res.json({
@@ -228,10 +247,59 @@ const initiateCareBookingPayment = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Admin: assign a Care+ booking to a partner user (vet_app). Socket + DB.
+ * PATCH body: { partnerId: string }
+ */
+const adminAssignCarePartner = asyncHandler(async (req, res) => {
+  const { partnerId } = req.body || {};
+  if (!partnerId) {
+    return res.status(400).json({ success: false, message: 'partnerId is required' });
+  }
+  const partner = await User.findById(partnerId).select('role name').lean();
+  if (!partner || !PARTNER_CARE_ROLES.includes(partner.role)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid partner — must be a care professional role',
+    });
+  }
+
+  const booking = await CareBooking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ success: false, message: 'Booking not found' });
+  }
+
+  booking.assignedPartner = partnerId;
+  await booking.save();
+
+  const populated = await CareBooking.findById(booking._id)
+    .populate('hostelId', 'name location serviceType')
+    .populate('petId', 'name breed age photoUrl')
+    .populate('userId', 'name email phone')
+    .populate('assignedPartner', 'name email phone role');
+
+  await broadcastCareBooking(booking._id, 'assigned');
+
+  await Notification.create({
+    user: partnerId,
+    title: 'Care booking assigned',
+    message: `You were assigned a ${booking.serviceType || 'Care'} booking (ref ${String(booking._id).slice(-6)}).`,
+    type: 'care_booking',
+    careBooking: booking._id,
+  });
+
+  res.json({
+    success: true,
+    message: 'Professional assigned',
+    data: populated,
+  });
+});
+
 module.exports = {
   createCareBooking,
   getMyBookings,
   getIncomingBookings,
   respondToBooking,
   initiateCareBookingPayment,
+  adminAssignCarePartner,
 };

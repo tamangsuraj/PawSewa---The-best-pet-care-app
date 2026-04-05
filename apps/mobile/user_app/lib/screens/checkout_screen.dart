@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String serviceRequestId;
@@ -93,7 +94,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final primary = const Color(AppConstants.primaryColor);
 
     return Scaffold(
-      backgroundColor: const Color(AppConstants.bentoBackgroundColor),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           'Checkout',
@@ -106,11 +107,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
             Text(
               'Select a payment method',
               style: GoogleFonts.outfit(
@@ -159,8 +165,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       );
                     },
             ),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
