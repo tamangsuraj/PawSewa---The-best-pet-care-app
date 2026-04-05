@@ -130,7 +130,7 @@ function loadStoredExpanded(): Record<string, boolean> | null {
 }
 
 interface SidebarProps {
-  /** Close mobile drawer after navigation */
+  /** Optional hook after a nav link is activated (legacy; no mobile drawer). */
   onNavigate?: () => void;
 }
 

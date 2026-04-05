@@ -4,30 +4,18 @@ import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useAdminChatUnread } from '@/context/AdminChatUnreadContext';
-import { LogOut, User, MessageCircle, Menu } from 'lucide-react';
+import { LogOut, User, MessageCircle } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 
-interface HeaderProps {
-  onMenuClick?: () => void;
-}
-
-export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+export const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const { totalUnread } = useAdminChatUnread();
 
   return (
-    <header className="bg-[#F7F4FC]/80 border-b border-white/70 backdrop-blur-md shadow-sm fixed top-0 right-0 left-0 z-40 md:left-[260px]">
-      <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={onMenuClick}
-            className="md:hidden shrink-0 p-2.5 rounded-xl text-[#171415] hover:bg-white/80 border border-white/70 shadow-sm"
-            aria-label="Open navigation menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-          <div className="shrink-0 rounded-xl p-1.5 border border-primary/20 bg-transparent hidden sm:block">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-white/70 bg-[#F7F4FC]/80 shadow-sm backdrop-blur-md">
+      <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="hidden shrink-0 rounded-xl border border-primary/20 bg-transparent p-1.5 sm:block">
             <PawSewaLogo variant="nav" height={40} />
           </div>
           <div className="min-w-0">

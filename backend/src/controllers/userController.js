@@ -173,6 +173,7 @@ const loginUser = asyncHandler(async (req, res) => {
         email: user.email,
         role: roleForClient,
         phone: user.phone,
+        profilePicture: user.profilePicture || null,
         location: user.location,
         isVerified: user.isVerified,
         token: generateToken(user._id),
@@ -367,6 +368,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
         email: user.email,
         role: user.role,
         phone: user.phone,
+        profilePicture: user.profilePicture || null,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -390,6 +392,10 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     user.email = req.body.email || user.email;
     user.phone = req.body.phone || user.phone;
 
+    if (req.body.profilePicture !== undefined) {
+      user.profilePicture = req.body.profilePicture || null;
+    }
+
     // Only update password if provided
     if (req.body.password) {
       user.password = req.body.password;
@@ -405,6 +411,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         email: updatedUser.email,
         role: updatedUser.role,
         phone: updatedUser.phone,
+        profilePicture: updatedUser.profilePicture || null,
         token: generateToken(updatedUser._id),
       },
     });

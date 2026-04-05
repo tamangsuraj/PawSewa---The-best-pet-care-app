@@ -14,7 +14,13 @@ import 'service_request_tracking_screen.dart';
 /// Unified list of both "Request Assistance" (cases) and "Book Appointment" (service requests).
 /// Same as admin Live Cases: one place for all customer requests.
 class MyRequestsScreen extends StatefulWidget {
-  const MyRequestsScreen({super.key});
+  const MyRequestsScreen({
+    super.key,
+    this.initialFilterStatus = 'all',
+  });
+
+  /// e.g. `completed` when opened from the drawer "Appointments History" shortcut.
+  final String initialFilterStatus;
 
   @override
   State<MyRequestsScreen> createState() => _MyRequestsScreenState();
@@ -25,7 +31,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   List<dynamic> _items = [];
   bool _isLoading = true;
   String? _error;
-  String _filterStatus = 'all';
+  late String _filterStatus;
   Timer? _refreshTimer;
 
   void _onStatusChange(Map<String, dynamic> _) {
@@ -35,6 +41,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   @override
   void initState() {
     super.initState();
+    _filterStatus = widget.initialFilterStatus;
     _loadAll();
     SocketService.instance.addStatusChangeListener(_onStatusChange);
     _refreshTimer = Timer.periodic(const Duration(seconds: 20), (_) {
@@ -114,6 +121,13 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
   bool _isAppointment(Map<String, dynamic> item) => item['_requestType'] == 'appointment';
 
+  String get _appBarTitle {
+    if (_filterStatus == 'completed') {
+      return 'Appointments history';
+    }
+    return 'My Requests';
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = const Color(AppConstants.primaryColor);
@@ -122,7 +136,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
       backgroundColor: const Color(AppConstants.bentoBackgroundColor),
       appBar: AppBar(
         title: Text(
-          'My Requests',
+          _appBarTitle,
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 18,

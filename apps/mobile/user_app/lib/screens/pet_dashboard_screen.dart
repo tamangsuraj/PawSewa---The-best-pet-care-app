@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../models/pet.dart';
@@ -25,12 +27,12 @@ import 'messages/messages_hub_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
+import 'owner_profile_screen.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../services/push_notification_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
-import 'package:flutter/foundation.dart';
 
 class PetDashboardScreen extends StatefulWidget {
   const PetDashboardScreen({super.key});
@@ -43,6 +45,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     with WidgetsBindingObserver {
   final _petService = PetService();
   final _storage = StorageService();
+  final _api = ApiClient();
   final GlobalKey<ScaffoldState> _shellScaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Pet> _pets = [];
@@ -51,6 +54,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   String? _userAvatarUrl;
   int _currentIndex = 0;
   int _lastBottomBarIndex = 0; // when on Messages, bottom bar shows this
+
+  /// Sub-tab for [ServicesScreen] (0 Upcoming … 3 Clinics). Reset when opening Services from the bottom bar.
+  int _servicesInitialTab = 0;
 
   @override
   void initState() {
@@ -111,6 +117,51 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
         }
       } catch (_) {}
     }
+  }
+
+  /// Sync name and avatar from `GET /users/profile` (Mongo `users` / pawsewa_chat.users).
+  Future<void> _refreshUserProfileFromApi() async {
+    try {
+      final response = await _api.getUserProfile();
+      if (response.statusCode != 200 || response.data is! Map) {
+        return;
+      }
+      final root = response.data as Map;
+      final data = root['data'];
+      if (data is! Map) {
+        return;
+      }
+      final m = Map<String, dynamic>.from(data);
+      final name = m['name']?.toString();
+      final pic = m['profilePicture']?.toString();
+      final raw = await _storage.getUser();
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map) {
+            final um = Map<String, dynamic>.from(decoded);
+            if (name != null && name.isNotEmpty) {
+              um['name'] = name;
+            }
+            if (pic != null && pic.isNotEmpty) {
+              um['profilePicture'] = pic;
+            }
+            await _storage.saveUser(jsonEncode(um));
+          }
+        } catch (_) {}
+      }
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        if (name != null && name.isNotEmpty) {
+          _userName = name;
+        }
+        if (pic != null && pic.isNotEmpty) {
+          _userAvatarUrl = pic;
+        }
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadPets() async {
@@ -387,27 +438,15 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   }
 
   void _goToTab(int index) {
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+    });
     Navigator.pop(context);
   }
 
   void _closeDrawerAndPush(Widget screen) {
     Navigator.pop(context);
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
-  }
-
-  void _navigateToDrawerScreen(String screenName, Widget? screen) {
-    if (screen == null) {
-      if (kDebugMode) {
-        debugPrint('[ERROR] Navigation failed: Screen $screenName not found.');
-      }
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Screen $screenName is not available.')),
-      );
-      return;
-    }
-    _closeDrawerAndPush(screen);
   }
 
   static const Color _primaryBrown = Color(AppConstants.primaryColor);
@@ -422,14 +461,17 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   }
 
   Widget _buildDrawer(BuildContext context) {
+    final maxW = MediaQuery.sizeOf(context).width;
+    final drawerW = math.min(maxW * 0.88, 320.0);
     return Drawer(
+      width: drawerW,
       backgroundColor: Colors.white,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -474,13 +516,18 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                           borderRadius: BorderRadius.circular(20),
                           elevation: 0,
                           child: InkWell(
-                            onTap: () {
-                              _navigateToDrawerScreen(
-                                'Edit Profile',
-                                const DrawerPlaceholderScreen(
-                                  title: 'Edit Profile',
+                            onTap: () async {
+                              Navigator.pop(context);
+                              final ok = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const OwnerProfileScreen(),
                                 ),
                               );
+                              if (ok == true && mounted) {
+                                await _loadUserData();
+                                await _refreshUserProfileFromApi();
+                              }
                             },
                             borderRadius: BorderRadius.circular(20),
                             child: Padding(
@@ -507,7 +554,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
               ),
             ),
             const Divider(height: 1, thickness: 1, color: _drawerDivider),
-            Flexible(
+            Expanded(
               child: ListView(
                 physics: const ClampingScrollPhysics(),
                 padding: const EdgeInsets.only(top: 4, bottom: 12),
@@ -515,6 +562,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   ExpansionTile(
                     iconColor: _primaryBrown,
                     collapsedIconColor: _primaryBrown,
+                    shape: const Border(),
+                    collapsedShape: const Border(),
                     leading: Icon(
                       Icons.local_shipping_outlined,
                       color: _primaryBrown,
@@ -535,17 +584,21 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         icon: Icons.home_outlined,
                         label: 'Home',
                         active: _currentIndex == 2,
-                        onTap: () => _goToTab(2),
+                        onTap: () {
+                          _goToTab(2);
+                        },
                       ),
                       _drawerSubItem(
-                        icon: Icons.history_rounded,
+                        icon: Icons.receipt_long_outlined,
                         label: 'Order History',
                         active: false,
-                        onTap: () => _closeDrawerAndPush(
-                          const MyOrdersScreen(
-                            listMode: MyOrdersListMode.historyOnly,
-                          ),
-                        ),
+                        onTap: () {
+                          _closeDrawerAndPush(
+                            const MyOrdersScreen(
+                              listMode: MyOrdersListMode.historyOnly,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -553,6 +606,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   ExpansionTile(
                     iconColor: _primaryBrown,
                     collapsedIconColor: _primaryBrown,
+                    shape: const Border(),
+                    collapsedShape: const Border(),
                     leading: Icon(
                       Icons.event_available_outlined,
                       color: _primaryBrown,
@@ -573,13 +628,21 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         icon: Icons.home_outlined,
                         label: 'Home',
                         active: _currentIndex == 1,
-                        onTap: () => _goToTab(1),
+                        onTap: () {
+                          _goToTab(1);
+                        },
                       ),
                       _drawerSubItem(
-                        icon: Icons.history_rounded,
+                        icon: Icons.receipt_long_outlined,
                         label: 'Appointments History',
                         active: false,
-                        onTap: () => _closeDrawerAndPush(const MyRequestsScreen()),
+                        onTap: () {
+                          _closeDrawerAndPush(
+                            const MyRequestsScreen(
+                              initialFilterStatus: 'completed',
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -587,6 +650,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   ExpansionTile(
                     iconColor: _primaryBrown,
                     collapsedIconColor: _primaryBrown,
+                    shape: const Border(),
+                    collapsedShape: const Border(),
                     leading: Icon(
                       Icons.cottage_outlined,
                       color: _primaryBrown,
@@ -607,75 +672,77 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         icon: Icons.home_outlined,
                         label: 'Home',
                         active: _currentIndex == 4,
-                        onTap: () => _goToTab(4),
+                        onTap: () {
+                          _goToTab(4);
+                        },
                       ),
                       _drawerSubItem(
-                        icon: Icons.history_rounded,
+                        icon: Icons.receipt_long_outlined,
                         label: 'Booking History',
                         active: false,
-                        onTap: () => _closeDrawerAndPush(
-                          const MyCareBookingsScreen(),
-                        ),
+                        onTap: () {
+                          _closeDrawerAndPush(
+                            const MyCareBookingsScreen(
+                              listMode: MyCareBookingsListMode.historyOnly,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                   _drawerUtilityTile(
                     icon: Icons.phone_in_talk_outlined,
                     label: 'Contact Us',
-                    onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(title: 'Contact Us'),
-                    ),
+                    onTap: () {
+                      _closeDrawerAndPush(
+                        const DrawerPlaceholderScreen(title: 'Contact Us'),
+                      );
+                    },
                   ),
                   _drawerUtilityTile(
                     icon: Icons.notifications_none_rounded,
                     label: 'Notifications',
-                    onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(title: 'Notifications'),
-                    ),
+                    onTap: () {
+                      _closeDrawerAndPush(
+                        const DrawerPlaceholderScreen(title: 'Notifications'),
+                      );
+                    },
                   ),
                   _drawerUtilityTile(
-                    icon: Icons.help_outline_rounded,
+                    icon: Icons.contact_support_outlined,
                     label: 'FAQs',
-                    onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(title: 'FAQs'),
-                    ),
+                    onTap: () {
+                      _closeDrawerAndPush(
+                        const DrawerPlaceholderScreen(title: 'FAQs'),
+                      );
+                    },
                   ),
                   _drawerUtilityTile(
                     icon: Icons.star_border_rounded,
                     label: 'Rate our app',
-                    onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(title: 'Rate our app'),
-                    ),
+                    onTap: () {
+                      _closeDrawerAndPush(
+                        const DrawerPlaceholderScreen(title: 'Rate our app'),
+                      );
+                    },
                   ),
-                  if (kDebugMode) ...[
-                    const Divider(height: 20, thickness: 1, color: _drawerDivider),
-                    _drawerUtilityTile(
-                      icon: Icons.build_outlined,
-                      label: 'Auth test (debug)',
-                      onTap: () => _closeDrawerAndPush(
-                        const DrawerPlaceholderScreen(title: 'Auth test'),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1, thickness: 1, color: _drawerDivider),
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    leading: Icon(Icons.logout_rounded, color: Colors.red.shade700, size: 22),
+                    title: Text(
+                      'Sign out',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red.shade800,
                       ),
                     ),
-                    _drawerUtilityTile(
-                      icon: Icons.g_mobiledata_rounded,
-                      label: 'Google Sign-In test',
-                      onTap: () => _closeDrawerAndPush(
-                        const DrawerPlaceholderScreen(
-                          title: 'Google Sign-In test',
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  _drawerUtilityTile(
-                    icon: Icons.logout_rounded,
-                    label: 'Sign out',
                     onTap: () {
                       Navigator.pop(context);
                       _handleLogout();
                     },
-                    iconColor: Colors.red.shade700,
-                    labelColor: Colors.red.shade800,
                   ),
                 ],
               ),
@@ -769,7 +836,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       case 0:
         return _buildHomeBody();
       case 1:
-        return const ServicesScreen();
+        return ServicesScreen(initialTabIndex: _servicesInitialTab);
       case 2:
         return const ShopScreen();
       case 3:
@@ -1073,7 +1140,14 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
             onTap: (index) {
               setState(() {
                 _lastBottomBarIndex = index;
-                _currentIndex = index <= 2 ? index : (index == 3 ? 4 : 5);
+                if (index <= 2) {
+                  _currentIndex = index;
+                } else {
+                  _currentIndex = index == 3 ? 4 : 5;
+                }
+                if (index == 1) {
+                  _servicesInitialTab = 0;
+                }
               });
             },
             backgroundColor: Colors.transparent,
@@ -1127,6 +1201,11 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     return Scaffold(
       key: _shellScaffoldKey,
       resizeToAvoidBottomInset: true,
+      onDrawerChanged: (isOpened) {
+        if (isOpened) {
+          unawaited(_refreshUserProfileFromApi());
+        }
+      },
       backgroundColor: _currentIndex == 4
           ? const Color(0xFFF8F9FA)
           : const Color(AppConstants.secondaryColor),
@@ -1198,7 +1277,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   size: 20,
                 ),
                 onPressed: () {
-                  setState(() => _currentIndex = 3);
+                  setState(() {
+                    _currentIndex = 3;
+                  });
                 },
                 tooltip: 'Messages',
               );
@@ -1233,7 +1314,11 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 return FadeTransition(opacity: animation, child: child);
               },
               child: KeyedSubtree(
-                key: ValueKey<int>(_currentIndex),
+                key: ValueKey<String>(
+                  _currentIndex == 1
+                      ? '1_${_servicesInitialTab.clamp(0, 3)}'
+                      : '$_currentIndex',
+                ),
                 child: _buildCurrentTab(),
               ),
             ),

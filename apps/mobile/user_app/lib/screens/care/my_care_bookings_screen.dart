@@ -5,9 +5,20 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
 
+/// How to filter hostel / care bookings from the drawer.
+enum MyCareBookingsListMode {
+  all,
+  historyOnly,
+}
+
 /// Lists care bookings for the logged-in owner (`GET /care-bookings/my`).
 class MyCareBookingsScreen extends StatefulWidget {
-  const MyCareBookingsScreen({super.key});
+  const MyCareBookingsScreen({
+    super.key,
+    this.listMode = MyCareBookingsListMode.all,
+  });
+
+  final MyCareBookingsListMode listMode;
 
   @override
   State<MyCareBookingsScreen> createState() => _MyCareBookingsScreenState();
@@ -68,14 +79,41 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
     }
   }
 
+  static const Set<String> _historyStatuses = {
+    'completed',
+    'cancelled',
+    'rejected',
+  };
+
+  List<dynamic> get _visibleItems {
+    if (widget.listMode == MyCareBookingsListMode.all) {
+      return _items;
+    }
+    return _items.where((raw) {
+      if (raw is! Map) {
+        return false;
+      }
+      final s = raw['status']?.toString() ?? '';
+      return _historyStatuses.contains(s);
+    }).toList();
+  }
+
+  String get _appBarTitle {
+    if (widget.listMode == MyCareBookingsListMode.historyOnly) {
+      return 'Booking history';
+    }
+    return 'Care bookings';
+  }
+
   @override
   Widget build(BuildContext context) {
     const brown = Color(AppConstants.primaryColor);
+    final visible = _visibleItems;
     return Scaffold(
       backgroundColor: const Color(AppConstants.secondaryColor),
       appBar: AppBar(
         title: Text(
-          'Care bookings',
+          _appBarTitle,
           style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         backgroundColor: brown,
@@ -118,12 +156,33 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                   ),
                 ],
               )
+            : visible.isEmpty
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(24),
+                children: [
+                  const SizedBox(height: 48),
+                  Icon(Icons.history_rounded, size: 56, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No past bookings',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Completed, cancelled, or rejected stays appear here.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ],
+              )
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
-                itemCount: _items.length,
+                itemCount: visible.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 10),
                 itemBuilder: (context, i) {
-                  final raw = _items[i];
+                  final raw = visible[i];
                   if (raw is! Map) {
                     return const SizedBox.shrink();
                   }

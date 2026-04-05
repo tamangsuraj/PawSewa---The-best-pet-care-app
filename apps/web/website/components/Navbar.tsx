@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Button } from './ui/Button';
-import { LogOut, User, Menu, X, ShoppingCart, Bell } from 'lucide-react';
+import { LogOut, User, ShoppingCart, Bell } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { InboxDropdown } from '@/components/nav/InboxDropdown';
 import { useChatHub } from '@/context/ChatHubContext';
@@ -29,8 +29,6 @@ export function Navbar() {
   const { user, logout, isLoading } = useAuth();
   const { totalItems } = useCart();
   const { openHub } = useChatHub();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const closeMobile = () => setMobileOpen(false);
 
   const linkBase =
     'text-sm font-semibold tracking-tight px-3.5 py-2 rounded-full transition-all duration-200';
@@ -45,8 +43,7 @@ export function Navbar() {
         <div className="flex items-center justify-between min-h-[4.75rem] py-2 sm:min-h-[5.125rem] sm:py-2.5">
           <Link
             href="/"
-            className="flex items-center min-w-0 shrink-0 pr-2 -ml-0.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-paw-teal-mid/40 focus-visible:ring-offset-2"
-            onClick={closeMobile}
+            className="-ml-0.5 flex min-w-0 shrink-0 items-center rounded-xl pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-paw-teal-mid/40 focus-visible:ring-offset-2"
           >
             <PawSewaLogo variant="nav" height={60} priority />
           </Link>
@@ -147,86 +144,81 @@ export function Navbar() {
             </div>
           )}
 
-          <button
-            type="button"
-            className="lg:hidden p-2 text-paw-ink"
-            onClick={() => setMobileOpen((o) => !o)}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          >
-            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </div>
 
-      {mobileOpen ? (
-        <div className="lg:hidden border-t border-paw-bark/10 bg-white/90 backdrop-blur-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-          <div className="container mx-auto px-4 py-4 flex flex-col gap-0.5">
-            {mainNav.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                onClick={closeMobile}
-                className="py-3 px-3 rounded-xl text-paw-ink font-semibold hover:bg-paw-bark/[0.06]"
-              >
-                {label}
-              </Link>
-            ))}
+      {/* Mobile / tablet: persistent top-rail links (no hamburger drawer). */}
+      <div className="border-t border-paw-bark/10 bg-white/75 backdrop-blur-lg lg:hidden">
+        <div className="container mx-auto px-3 pb-3 pt-1">
+          <div className="-mx-1 flex gap-1 overflow-x-auto pb-1">
+            {mainNav.map(({ href, label }) => {
+              const active =
+                href === '/shop'
+                  ? shopActive
+                  : href === '/pet-care-plus'
+                    ? petCarePlusActive
+                    : href === '/map'
+                      ? mapActive
+                      : pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold tracking-tight transition-colors ${
+                    active ? linkActive : linkIdle
+                  }`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
             {user ? (
               <>
                 <button
                   type="button"
                   onClick={() => {
-                    closeMobile();
                     openHub();
                   }}
-                  className="py-2.5 text-left text-paw-ink font-medium w-full"
+                  className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold tracking-tight text-paw-bark/90 hover:bg-paw-bark/[0.07]"
                 >
-                  Inbox / Messages
+                  Inbox
                 </button>
                 <Link
                   href="/my-pets"
-                  onClick={closeMobile}
-                  className={
-                    myPetsActive
-                      ? 'py-3 px-3 rounded-xl font-semibold text-paw-cream bg-gradient-to-br from-paw-bark to-paw-ink shadow-md'
-                      : 'py-3 px-3 rounded-xl text-paw-ink font-semibold hover:bg-paw-bark/[0.06]'
-                  }
+                  className={`shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold tracking-tight ${
+                    myPetsActive ? linkActive : linkIdle
+                  }`}
                 >
                   My Pets
                 </Link>
               </>
             ) : null}
-            <div className="py-3 border-t border-paw-bark/10 mt-2 flex items-center gap-4">
-              <Link
-                href="/checkout"
-                onClick={closeMobile}
-                className="flex items-center gap-2 text-paw-ink font-semibold"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Cart {totalItems > 0 ? `(${totalItems})` : ''}
-              </Link>
-            </div>
-            {!isLoading && !user && (
-              <div className="flex gap-2 pt-2">
+            <Link
+              href="/checkout"
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold text-paw-ink hover:bg-paw-bark/[0.06]"
+            >
+              <ShoppingCart className="h-4 w-4" strokeWidth={2} />
+              Cart{totalItems > 0 ? ` (${totalItems})` : ''}
+            </Link>
+            {!isLoading && !user ? (
+              <>
                 <Link
                   href="/login"
-                  onClick={closeMobile}
-                  className="flex-1 text-center py-3 rounded-full border border-paw-bark/20 font-semibold text-paw-ink hover:bg-paw-bark/[0.05]"
+                  className="shrink-0 whitespace-nowrap rounded-full border border-paw-bark/18 px-3.5 py-2 text-xs font-semibold text-paw-ink"
                 >
                   Sign In
                 </Link>
                 <Link
                   href="/register"
-                  onClick={closeMobile}
-                  className="flex-1 text-center py-3 rounded-full font-semibold bg-gradient-to-br from-paw-bark to-paw-ink text-paw-cream shadow-md"
+                  className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-paw-bark to-paw-ink px-3.5 py-2 text-xs font-semibold text-paw-cream shadow-sm"
                 >
                   Register
                 </Link>
-              </div>
-            )}
+              </>
+            ) : null}
           </div>
         </div>
-      ) : null}
+      </div>
     </nav>
   );
 }
