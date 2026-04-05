@@ -7,8 +7,8 @@ class GoogleAuthService {
   factory GoogleAuthService() => _instance;
   GoogleAuthService._internal();
 
-  // Web Client ID from the same Firebase project as this app (google-services.json).
-  // Required so Google returns an ID token on Android/iOS.
+  // Web application OAuth client ID (Google Cloud Console). Must match backend GOOGLE_CLIENT_ID
+  // so the ID token `aud` verifies server-side. Required for idToken on Android/iOS.
   static const String _serverClientId =
       '188502859936-doe0igj265poprfntbg3hkq8coo3kndu.apps.googleusercontent.com';
 
@@ -21,6 +21,9 @@ class GoogleAuthService {
 
   Future<Map<String, dynamic>?> signInWithGoogle() async {
     try {
+      // Ensure Dio base URL / interceptors match current ApiConfig (e.g. after host override).
+      await _apiClient.initialize();
+
       // Trigger the Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
@@ -43,11 +46,11 @@ class GoogleAuthService {
       final String email = googleUser.email;
       final String name = googleUser.displayName ?? email.split('@').first;
 
+      // Backend derives subject from verified ID token; omit googleId to avoid rare SDK/sub mismatches.
       final response = await _apiClient.post('/auth/google', {
         'googleToken': idToken,
         'email': email,
         'name': name,
-        'googleId': googleUser.id,
       });
 
       if (response.data['success'] == true) {

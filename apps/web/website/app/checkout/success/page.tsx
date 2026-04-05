@@ -6,7 +6,7 @@ import { CheckCircle, MessageCircle } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { useChatHub } from '@/context/ChatHubContext';
-import api from '@/lib/api';
+import api, { verifyPayment } from '@/lib/api';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
 
@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 
 export default function CheckoutSuccessPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [hadPidx, setHadPidx] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [hasRider, setHasRider] = useState(false);
@@ -29,7 +30,14 @@ export default function CheckoutSuccessPage() {
     if (!mounted) return;
     const params = new URLSearchParams(window.location.search);
     const id = params.get('orderId');
+    const pidx = params.get('pidx');
     setOrderId(id);
+    if (pidx && pidx.trim()) {
+      setHadPidx(true);
+      void verifyPayment(pidx.trim()).catch(() => {
+        /* callback may have already marked paid */
+      });
+    }
   }, [mounted]);
 
   useEffect(() => {
@@ -76,9 +84,13 @@ export default function CheckoutSuccessPage() {
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="w-12 h-12 text-green-600" />
         </div>
-        <h1 className="font-display text-2xl font-semibold text-paw-ink mb-2">Payment successful</h1>
+        <h1 className="font-display text-2xl font-semibold text-paw-ink mb-2">
+          {hadPidx ? 'Payment successful' : 'Order placed'}
+        </h1>
         <p className="text-paw-bark/75 mb-6">
-          Thank you for your order. Your payment has been completed successfully.
+          {hadPidx
+            ? 'Thank you for your order. Your payment has been completed successfully.'
+            : 'Thank you for your order. We have received it and will move it forward for fulfillment.'}
         </p>
         {orderId && (
           <p className="text-sm text-gray-500 font-mono mb-4">Order ID: {orderId}</p>

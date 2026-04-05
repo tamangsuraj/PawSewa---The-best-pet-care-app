@@ -210,8 +210,8 @@ export default function ServiceRequestPage() {
     <PageShell>
       <PageHero
         eyebrow="Scheduling"
-        title="Book a service"
-        subtitle="Appointment, health checkup, or vaccination — with map-based location in Kathmandu Valley."
+        title="Book an appointment"
+        subtitle="Same options as the app: Appointment, Health checkup, or Vaccination — pick a date, time window, and confirm your pin in Kathmandu Valley."
       />
 
       <PageContent>

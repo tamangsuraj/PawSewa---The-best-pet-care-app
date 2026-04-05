@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
-import { Headphones, MessageCircle, RefreshCw, Search, Send } from 'lucide-react';
+import { MessageCircle, RefreshCw, Search, Send } from 'lucide-react';
 import type { Socket } from 'socket.io-client';
 
 interface ConvRow {
@@ -263,8 +263,8 @@ export default function CustomerChatsPage() {
     emitTyping(v.trim().length > 0);
   };
 
-  const send = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const send = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     const t = draft.trim();
     if (!t || !selected?._id) return;
     const s = getAdminSocket();
@@ -399,7 +399,7 @@ export default function CustomerChatsPage() {
             <div className="mb-6 flex items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-primary mb-2 flex items-center gap-3">
-                  <Headphones className="w-8 h-8 text-primary" />
+                  <Send className="w-8 h-8 text-primary" />
                   Support Hub
                 </h1>
                 <p className="text-gray-600">
@@ -558,6 +558,11 @@ export default function CustomerChatsPage() {
                       <input
                         value={draft}
                         onChange={(e) => onDraftChange(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            void send();
+                          }
+                        }}
                         className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20"
                         placeholder="Type a reply…"
                         disabled={sending}

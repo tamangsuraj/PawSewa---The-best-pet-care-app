@@ -165,7 +165,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (_messages.any((m) => m['_id']?.toString() == mid)) return;
     setState(() {
       _messages.add({
-        '_id': mid.isEmpty ? 'tmp-${DateTime.now().millisecondsSinceEpoch}' : mid,
+        '_id': mid.isEmpty
+            ? 'tmp-${DateTime.now().millisecondsSinceEpoch}'
+            : mid,
         'senderId': data['senderId'],
         'receiverId': data['receiverId'],
         'text': data['text'],
@@ -220,35 +222,27 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final id = _conversationId;
     if (text.isEmpty || id == null) return;
     _socket.setCustomerCareTyping(id, false);
-    final saved = text;
-    setState(() => _textController.clear());
-
-    void restore() {
-      _textController.text = saved;
-    }
 
     if (_socket.isConnected) {
-      _socket.sendCustomerCareMessage(id, saved, (ack) {
+      _socket.sendCustomerCareMessage(id, text, (ack) {
         final ok = ack is Map && ack['success'] == true;
-        if (!ok && mounted) {
-          _fallbackHttpSend(id, saved, restore);
+        if (ok) {
+          if (mounted) setState(() => _textController.clear());
+        } else if (mounted) {
+          _fallbackHttpSend(id, text);
         }
       });
     } else {
-      await _fallbackHttpSend(id, saved, restore);
+      await _fallbackHttpSend(id, text);
     }
   }
 
-  Future<void> _fallbackHttpSend(
-    String id,
-    String text,
-    void Function() restore,
-  ) async {
+  Future<void> _fallbackHttpSend(String id, String text) async {
     try {
       await _api.postCustomerCareMessage(id, text);
+      if (mounted) setState(() => _textController.clear());
       await _loadThread();
     } catch (_) {
-      restore();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Message could not be sent')),
@@ -275,268 +269,288 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _loadThread,
-                child: const Text('Retry'),
-              ),
-            ],
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_error!, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: _loadThread,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
 
-    return SafeArea(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_myVets.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 0, 8),
-              child: Text(
-                'Your Pet\'s Vets',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(AppConstants.accentColor),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_myVets.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 0, 8),
+                child: Text(
+                  'Your Pet\'s Vets',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(AppConstants.accentColor),
+                  ),
                 ),
               ),
-            ),
-            SizedBox(
-              height: 104,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _myVets.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 16),
-                itemBuilder: (context, i) {
-                  final v = _myVets[i];
-                  final id = v['_id']?.toString() ?? '';
-                  final name = v['name']?.toString() ?? 'Vet';
-                  final pic = v['profilePicture']?.toString();
-                  final online = _vetOnline[id] == true;
-                  return GestureDetector(
-                    onTap: () {
-                      final oid = _myUserId;
-                      if (oid == null) return;
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => VetDirectChatScreen(
-                            vet: v,
-                            ownerId: oid,
+              SizedBox(
+                height: 104,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _myVets.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 16),
+                  itemBuilder: (context, i) {
+                    final v = _myVets[i];
+                    final id = v['_id']?.toString() ?? '';
+                    final name = v['name']?.toString() ?? 'Vet';
+                    final pic = v['profilePicture']?.toString();
+                    final online = _vetOnline[id] == true;
+                    return GestureDetector(
+                      onTap: () {
+                        final oid = _myUserId;
+                        if (oid == null) return;
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                VetDirectChatScreen(vet: v, ownerId: oid),
                           ),
-                        ),
-                      );
-                    },
-                    child: SizedBox(
-                      width: 72,
-                      child: Column(
-                        children: [
-                          Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              CircleAvatar(
-                                radius: 32,
-                                backgroundColor: const Color(
-                                  AppConstants.primaryColor,
-                                ).withValues(alpha: 0.12),
-                                backgroundImage: pic != null && pic.isNotEmpty
-                                    ? NetworkImage(pic)
-                                    : null,
-                                child: pic == null || pic.isEmpty
-                                    ? Text(
-                                        name.isNotEmpty
-                                            ? name[0].toUpperCase()
-                                            : '?',
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(AppConstants.primaryColor),
+                        );
+                      },
+                      child: SizedBox(
+                        width: 72,
+                        child: Column(
+                          children: [
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CircleAvatar(
+                                  radius: 32,
+                                  backgroundColor: const Color(
+                                    AppConstants.primaryColor,
+                                  ).withValues(alpha: 0.12),
+                                  backgroundImage: pic != null && pic.isNotEmpty
+                                      ? NetworkImage(pic)
+                                      : null,
+                                  child: pic == null || pic.isEmpty
+                                      ? Text(
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(
+                                              AppConstants.primaryColor,
+                                            ),
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                if (online)
+                                  Positioned(
+                                    right: 2,
+                                    bottom: 2,
+                                    child: Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        color: Colors.green,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.white,
+                                          width: 2,
                                         ),
-                                      )
-                                    : null,
-                              ),
-                              if (online)
-                                Positioned(
-                                  right: 2,
-                                  bottom: 2,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
                                       ),
                                     ),
                                   ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            name.startsWith('Dr.') ? name : 'Dr. $name',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
+                              ],
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              name.startsWith('Dr.') ? name : 'Dr. $name',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const Divider(height: 1),
+            ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: PawSewaBrandLogo(height: 48),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Customer Care',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey[700],
                           ),
-                        ],
+                        ),
+                        Text(
+                          _careName,
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(AppConstants.accentColor),
+                          ),
+                        ),
+                        Text(
+                          'We\'re here to help you and your pet',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                controller: _scroll,
+                padding: const EdgeInsets.all(16),
+                itemCount: _messages.length + (_typingRemote ? 1 : 0),
+                itemBuilder: (context, i) {
+                  if (_typingRemote && i == _messages.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        'Customer Care is typing…',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    );
+                  }
+                  final m = _messages[i];
+                  final mine =
+                      _myUserId != null &&
+                      m['senderId']?.toString() == _myUserId;
+                  final text = m['text']?.toString() ?? '';
+                  return Align(
+                    alignment: mine
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.78,
+                      ),
+                      decoration: BoxDecoration(
+                        color: mine
+                            ? const Color(AppConstants.primaryColor)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        text,
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          color: mine ? Colors.white : Colors.black87,
+                        ),
                       ),
                     ),
                   );
                 },
               ),
             ),
-            const Divider(height: 1),
+            Material(
+              color: Colors.white,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _textController,
+                        onChanged: _onTextChanged,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        minLines: 1,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: 'Message Customer Care…',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: _send,
+                      tooltip: 'Send',
+                      icon: const Icon(Icons.send_rounded, color: Colors.white),
+                      style: IconButton.styleFrom(
+                        backgroundColor: primary,
+                        padding: const EdgeInsets.all(14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: PawSewaBrandLogo(height: 48),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Customer Care',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      Text(
-                        _careName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(AppConstants.accentColor),
-                        ),
-                      ),
-                      Text(
-                        'We\'re here to help you and your pet',
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length + (_typingRemote ? 1 : 0),
-              itemBuilder: (context, i) {
-                if (_typingRemote && i == _messages.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Customer Care is typing…',
-                      style: GoogleFonts.outfit(
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  );
-                }
-                final m = _messages[i];
-                final mine =
-                    _myUserId != null && m['senderId']?.toString() == _myUserId;
-                final text = m['text']?.toString() ?? '';
-                return Align(
-                  alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.78,
-                    ),
-                    decoration: BoxDecoration(
-                      color: mine
-                          ? const Color(AppConstants.primaryColor)
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      text,
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        color: mine ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    onChanged: _onTextChanged,
-                    minLines: 1,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: 'Message Customer Care…',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: _send,
-                  style: FilledButton.styleFrom(
-                    shape: const CircleBorder(),
-                    padding: const EdgeInsets.all(14),
-                  ),
-                  child: const Icon(Icons.send_rounded, size: 22),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

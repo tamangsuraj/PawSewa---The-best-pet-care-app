@@ -267,6 +267,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     final primary = const Color(AppConstants.primaryColor);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: Text(
           'Shop Inventory',
@@ -293,8 +294,12 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                 await _loadData();
                 await _loadAssignedShopOrders();
               },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ListView(
+                padding: EdgeInsets.all(
+                  (constraints.maxWidth * 0.04).clamp(12.0, 20.0),
+                ),
                 children: [
                   if (_loadingShopOrders && _assignedShopOrders.isEmpty)
                     Padding(
@@ -346,6 +351,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                               if (addr.isNotEmpty)
                                 Text(
                                   addr,
+                                  maxLines: 3,
+                                  softWrap: true,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.outfit(fontSize: 12),
                                 ),
                               const SizedBox(height: 8),

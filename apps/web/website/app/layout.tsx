@@ -6,7 +6,7 @@ import { CartProvider } from "@/context/CartContext";
 import { ChatHubProvider } from "@/context/ChatHubContext";
 import { Navbar } from "@/components/Navbar";
 import { SiteFooter } from "@/components/SiteFooter";
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import { OptionalGoogleOAuthProvider } from '@/components/OptionalGoogleOAuthProvider';
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -38,7 +38,7 @@ export default function RootLayout({
     <html lang="en" className={`${fraunces.variable} ${outfit.variable}`}>
       <body className="font-sans antialiased">
         <span className="paw-noise" aria-hidden="true" />
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ''}>
+        <OptionalGoogleOAuthProvider>
           <AuthProvider>
             <CartProvider>
               <ChatHubProvider>
@@ -50,7 +50,7 @@ export default function RootLayout({
               </ChatHubProvider>
             </CartProvider>
           </AuthProvider>
-        </GoogleOAuthProvider>
+        </OptionalGoogleOAuthProvider>
       </body>
     </html>
   );

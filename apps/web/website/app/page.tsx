@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -9,13 +8,14 @@ import axios from 'axios';
 import {
   ArrowRight,
   Bone,
-  Home,
+  CalendarClock,
+  LifeBuoy,
   MapPin,
   MessageCircle,
   Phone,
   ShoppingCart,
+  Sparkles,
   Stethoscope,
-  Syringe,
   Truck,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -27,11 +27,6 @@ import {
   PAW_DECO_IMAGES,
   PAW_SHOWCASE_IMAGES,
 } from '@/lib/pawImageAssets';
-
-const ClinicMapCard = dynamic(
-  () => import('@/components/ClinicMapCard').then((m) => m.ClinicMapCard),
-  { ssr: false, loading: () => <div className="h-[280px] rounded-2xl bg-[#1a1512] animate-pulse" /> },
-);
 
 const CAT_HERO = PAW_CAT_HERO;
 
@@ -79,7 +74,7 @@ export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const { addItem } = useCart();
   const router = useRouter();
-  const { openSellerChat, openCareProviderChat, openHubWithSupport } = useChatHub();
+  const { openSellerChat, openHubWithSupport } = useChatHub();
   const [vets, setVets] = useState<Vet[]>([]);
   const [products, setProducts] = useState<ProductLite[]>([]);
   const [appointments, setAppointments] = useState<ServiceRequestRow[]>([]);
@@ -202,10 +197,10 @@ export default function HomePage() {
                   Book a vet
                 </Link>
                 <Link
-                  href="/services"
-                  className={`inline-flex items-center justify-center gap-2 rounded-full border-2 border-paw-ink/20 bg-white/70 px-8 py-3.5 text-sm font-semibold text-paw-ink backdrop-blur-sm transition-transform hover:-translate-y-0.5 ${cardLift}`}
+                  href="/pet-care-plus"
+                  className={`inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#703418]/25 bg-white/70 px-8 py-3.5 text-sm font-semibold text-[#703418] backdrop-blur-sm transition-transform hover:-translate-y-0.5 ${cardLift}`}
                 >
-                  Explore services
+                  Pet Care+
                   <ArrowRight className="h-4 w-4" strokeWidth={2.25} />
                 </Link>
               </div>
@@ -246,87 +241,96 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Our Services */}
+      {/* Core services — logistics stays here; facility care lives under Pet Care+ */}
       <section className="px-4 py-20 md:py-24">
         <div className="container mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <p className="paw-eyebrow-center">What we offer</p>
             <h2 className="font-display mt-3 text-3xl font-semibold tracking-tight text-paw-ink md:text-4xl">
-              Our services
+              Services
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-paw-bark/75">
-              One flow from vaccines to boarding — designed like a magazine spread, built for real pets.
+              Shop delivery stays on the home path; hostel, grooming, training, and spa are under{' '}
+              <Link href="/pet-care-plus" className="font-semibold text-[#703418] underline-offset-2 hover:underline">
+                Pet Care+
+              </Link>
+              .
             </p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <Link
-              href="/services/request"
+              href="/shop"
               className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
             >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-paw-sand to-paw-haze ring-1 ring-paw-bark/10 transition-transform duration-300 group-hover:scale-105">
-                <Syringe className="h-7 w-7 text-paw-ink" strokeWidth={1.75} />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#703418]/10 ring-1 ring-[#703418]/15 transition-transform duration-300 group-hover:scale-105">
+                <Truck className="h-7 w-7 text-[#703418]" strokeWidth={1.75} />
               </div>
-              <h3 className="font-display text-lg text-paw-ink">Vaccination</h3>
+              <h3 className="font-display text-lg text-[#703418]">Shop &amp; delivery</h3>
               <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
-                Jabs and health records in one calm flow.
+                Supplies to your door — core logistics (same catalog as the app).
+              </p>
+            </Link>
+            <Link
+              href="/book-appointment"
+              className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
+            >
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#703418]/10 ring-1 ring-[#703418]/15 transition-transform duration-300 group-hover:scale-105">
+                <CalendarClock className="h-7 w-7 text-[#703418]" strokeWidth={1.75} />
+              </div>
+              <h3 className="font-display text-lg text-[#703418]">Book an appointment</h3>
+              <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
+                Appointment, health checkup, or vaccination — calendar &amp; time windows like the app.
+              </p>
+            </Link>
+            <Link
+              href="/request-assistance"
+              className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
+            >
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#703418]/10 ring-1 ring-[#703418]/15 transition-transform duration-300 group-hover:scale-105">
+                <LifeBuoy className="h-7 w-7 text-[#703418]" strokeWidth={1.75} />
+              </div>
+              <h3 className="font-display text-lg text-[#703418]">Request assistance</h3>
+              <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
+                Urgent help — routed like the mobile Services tab.
               </p>
             </Link>
             <Link
               href="/my-pets"
               className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
             >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-paw-sand to-paw-haze ring-1 ring-paw-bark/10 transition-transform duration-300 group-hover:scale-105">
-                <Bone className="h-7 w-7 text-paw-ink" strokeWidth={1.75} />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#703418]/10 ring-1 ring-[#703418]/15 transition-transform duration-300 group-hover:scale-105">
+                <Bone className="h-7 w-7 text-[#703418]" strokeWidth={1.75} />
               </div>
-              <h3 className="font-display text-lg text-paw-ink">Pet profiles</h3>
+              <h3 className="font-display text-lg text-[#703418]">Pet profiles &amp; reminders</h3>
               <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
-                Paw IDs, photos, and notes synced everywhere.
+                Health timeline and vaccination reminders in My Pets.
               </p>
             </Link>
             <Link
               href="/vets"
               className={`group flex flex-col items-center bg-white/90 p-7 text-center ${cardLift}`}
             >
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-paw-sand to-paw-haze ring-1 ring-paw-bark/10 transition-transform duration-300 group-hover:scale-105">
-                <Home className="h-7 w-7 text-paw-ink" strokeWidth={1.75} />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#703418]/10 ring-1 ring-[#703418]/15 transition-transform duration-300 group-hover:scale-105">
+                <Stethoscope className="h-7 w-7 text-[#703418]" strokeWidth={1.75} />
               </div>
-              <h3 className="font-display text-lg text-paw-ink">Clinics</h3>
+              <h3 className="font-display text-lg text-[#703418]">Vet consultations</h3>
               <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
-                Verified veterinarians when you need them.
+                Verified clinicians — book from each profile.
               </p>
             </Link>
-            <div
-              className={`relative flex flex-col items-center border border-paw-ink/20 bg-gradient-to-br from-paw-ink to-paw-bark p-7 text-center text-paw-cream shadow-paw-lg ${cardLift}`}
+            <Link
+              href="/pet-care-plus"
+              className={`group relative flex flex-col items-center border-2 border-[#703418]/25 bg-gradient-to-br from-[#faf6f0] to-white p-7 text-center shadow-paw-lg ${cardLift}`}
             >
-              <span className="absolute right-3 top-3 rounded-full bg-paw-teal-mid px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-white shadow-sm">
-                NEW
-              </span>
-              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20">
-                <Truck className="h-7 w-7 text-paw-cream" strokeWidth={1.75} />
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#703418]/12 ring-1 ring-[#703418]/20 transition-transform duration-300 group-hover:scale-105">
+                <Sparkles className="h-7 w-7 text-[#703418]" strokeWidth={1.75} />
               </div>
-              <h3 className="font-display text-lg">Pet Care+</h3>
-              <p className="mb-4 mt-2 text-sm text-paw-cream/80">Hostel, grooming, training &amp; more.</p>
-              <Link
-                href="/care/hostel"
-                className="mb-3 text-sm font-semibold underline decoration-paw-teal-mid/60 underline-offset-4"
-              >
-                Explore more
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    router.push('/login?next=/');
-                    return;
-                  }
-                  void openCareProviderChat();
-                }}
-                className="mt-auto inline-flex items-center gap-2 rounded-full bg-paw-teal-mid px-4 py-2.5 text-xs font-semibold text-white shadow-md transition-colors hover:bg-paw-teal"
-              >
-                <MessageCircle className="h-3.5 w-3.5" />
-                Chat with provider
-              </button>
-            </div>
+              <h3 className="font-display text-lg text-[#703418]">Pet Care+</h3>
+              <p className="mt-2 text-sm leading-relaxed text-paw-bark/70">
+                Hostel, grooming, training, spa, wash &amp; daycare — facility bookings.
+              </p>
+              <span className="mt-4 text-sm font-bold text-[#703418]">Open hub →</span>
+            </Link>
           </div>
         </div>
       </section>
@@ -512,50 +516,51 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Verified Clinics */}
+      {/* Verified Clinics — list only (map removed from homepage) */}
       <section className="py-16 md:py-24 px-4 pb-24">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="font-display text-3xl font-semibold text-[#703418] text-center mb-12">
-            Verified Clinics Nearby
+          <h2 className="font-display text-3xl font-semibold text-[#703418] text-center mb-4">
+            Verified Clinics
           </h2>
-          <div className="grid lg:grid-cols-2 gap-8 items-stretch">
-            <div className="space-y-4">
-              {clinicList.map((c) => (
-                <div
-                  key={c.name}
-                  className={`bg-white border border-[#703418]/10 p-5 rounded-2xl flex gap-4 ${cardLift}`}
-                >
-                  <div className="w-12 h-12 rounded-xl bg-[#703418]/10 flex items-center justify-center shrink-0">
-                    <Stethoscope className="w-6 h-6 text-[#703418]" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-[#703418]">{c.name}</h3>
-                    {c.vet?.clinicLocation ? (
-                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                        <MapPin className="w-3.5 h-3.5 shrink-0" />
-                        {c.vet.clinicLocation}
-                      </p>
-                    ) : null}
-                    <a
-                      href={`tel:${c.phone.replace(/\s/g, '')}`}
-                      className="inline-flex items-center gap-2 mt-3 text-sm font-semibold text-[#0d9488]"
-                    >
-                      <Phone className="w-4 h-4" />
-                      {c.phone}
-                    </a>
-                    {c.vet?._id ? (
-                      <Link
-                        href={`/vets/${c.vet._id}`}
-                        className="block mt-2 text-xs font-semibold text-[#703418] hover:underline"
-                      >
-                        View profile →
-                      </Link>
-                    ) : null}
-                  </div>
+          <p className="mx-auto mb-10 max-w-xl text-center text-sm text-[#2c241c]/65">
+            Use the <Link href="/map" className="font-semibold text-[#703418] underline-offset-2 hover:underline">Map</Link>{' '}
+            tab for the full clinic map experience.
+          </p>
+          <div className="mx-auto max-w-2xl space-y-4">
+            {clinicList.map((c) => (
+              <div
+                key={c.name}
+                className={`bg-white border border-[#703418]/10 p-5 rounded-2xl flex gap-4 ${cardLift}`}
+              >
+                <div className="w-12 h-12 rounded-xl bg-[#703418]/10 flex items-center justify-center shrink-0">
+                  <Stethoscope className="w-6 h-6 text-[#703418]" />
                 </div>
-              ))}
-            </div>
-            <ClinicMapCard />
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-[#703418]">{c.name}</h3>
+                  {c.vet?.clinicLocation ? (
+                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      {c.vet.clinicLocation}
+                    </p>
+                  ) : null}
+                  <a
+                    href={`tel:${c.phone.replace(/\s/g, '')}`}
+                    className="inline-flex items-center gap-2 mt-3 text-sm font-semibold text-[#0d9488]"
+                  >
+                    <Phone className="w-4 h-4" />
+                    {c.phone}
+                  </a>
+                  {c.vet?._id ? (
+                    <Link
+                      href={`/vets/${c.vet._id}`}
+                      className="block mt-2 text-xs font-semibold text-[#703418] hover:underline"
+                    >
+                      View profile →
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

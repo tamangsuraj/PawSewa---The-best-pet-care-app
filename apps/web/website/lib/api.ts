@@ -38,11 +38,13 @@ api.interceptors.response.use(
   }
 );
 
-// Create order (for checkout). Body: { items: [{ productId, quantity }], deliveryLocation: { address, coordinates: [lng, lat] } }
+// Create order (for checkout). Body matches mobile: items, deliveryLocation, optional location, deliveryNotes, paymentMethod
 export const createOrder = (data: {
   items: Array<{ productId: string; quantity: number }>;
   deliveryLocation: { address: string; coordinates: [number, number] };
+  location?: { lat: number; lng: number; address: string };
   deliveryNotes?: string;
+  paymentMethod?: string;
 }) => api.post('/orders', data);
 
 // Initiate Khalti payment. Body: { type: 'order', orderId } or { type: 'service', serviceRequestId, amount }
@@ -52,6 +54,10 @@ export const initiatePayment = (data: {
   serviceRequestId?: string;
   amount?: number;
 }) => api.post('/payments/initiate-payment', data);
+
+/** Shop order Khalti session (same as mobile `POST /orders/:orderId/khalti/initiate`). */
+export const initiateKhaltiForOrder = (orderId: string) =>
+  api.post(`/orders/${orderId}/khalti/initiate`);
 
 // Verify payment with pidx
 export const verifyPayment = (pidx: string) =>

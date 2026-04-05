@@ -15,6 +15,7 @@ import { ShopNavbarSearch } from '@/components/shop/ShopNavbarSearch';
 const mainNav = [
   { href: '/', label: 'Home' },
   { href: '/services', label: 'Services' },
+  { href: '/pet-care-plus', label: 'Pet Care+' },
   { href: '/shop', label: 'Shop' },
   { href: '/map', label: 'Map' },
 ];
@@ -22,6 +23,7 @@ const mainNav = [
 export function Navbar() {
   const pathname = usePathname();
   const shopActive = pathname.startsWith('/shop');
+  const petCarePlusActive = pathname.startsWith('/pet-care-plus') || pathname.startsWith('/care');
   const mapActive = pathname === '/map';
   const myPetsActive = pathname.startsWith('/my-pets');
   const { user, logout, isLoading } = useAuth();
@@ -54,9 +56,11 @@ export function Navbar() {
               const active =
                 href === '/shop'
                   ? shopActive
-                  : href === '/map'
-                    ? mapActive
-                    : pathname === href;
+                  : href === '/pet-care-plus'
+                    ? petCarePlusActive
+                    : href === '/map'
+                      ? mapActive
+                      : pathname === href;
               return (
                 <Link
                   key={href}

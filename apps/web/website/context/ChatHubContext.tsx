@@ -627,12 +627,17 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
                     placeholder="Message…"
                     value={text}
                     onChange={(e) => onTextChange(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && void send()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        void send();
+                      }
+                    }}
                   />
                   <button
                     type="button"
                     onClick={() => void send()}
-                    className="rounded-full p-2.5 bg-[#0d9488] text-white hover:bg-[#0f766e]"
+                    className="rounded-full p-2.5 bg-[#703418] text-white hover:bg-[#5c2c14]"
                     aria-label="Send"
                   >
                     <Send className="w-5 h-5" />

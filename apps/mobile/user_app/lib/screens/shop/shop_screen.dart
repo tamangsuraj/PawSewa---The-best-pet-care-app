@@ -942,6 +942,7 @@ class _ShopScreenState extends State<ShopScreen> {
         final grandTotal = subtotal + delivery;
 
         return Scaffold(
+          resizeToAvoidBottomInset: true,
           backgroundColor: Colors.transparent,
           body: SafeArea(
             child: Stack(
@@ -1031,18 +1032,34 @@ class _ShopScreenState extends State<ShopScreen> {
                           )
                         : Builder(
                             builder: (context) {
-                              // Standard 2-column grid (match Image 12)
-                              const mainSpacing = 16.0;
-                              const crossSpacing = 16.0;
-                              const crossAxisCount = 2;
-                              // Card aspect ratio for Image 12: image, title, subtitle, price, button
-                              const childAspectRatio = 0.62;
+                              final mqW = MediaQuery.sizeOf(context).width;
+                              final mainSpacing =
+                                  (mqW * 0.04).clamp(10.0, 20.0);
+                              final crossSpacing =
+                                  (mqW * 0.04).clamp(10.0, 20.0);
+                              final hPad = (mqW * 0.04).clamp(12.0, 20.0);
+
+                              int crossAxisCount = 2;
+                              double childAspectRatio = 0.62;
+                              if (mqW >= 1200) {
+                                crossAxisCount = 4;
+                                childAspectRatio = 0.74;
+                              } else if (mqW >= 840) {
+                                crossAxisCount = 3;
+                                childAspectRatio = 0.70;
+                              } else if (mqW < 360) {
+                                crossAxisCount = 1;
+                                childAspectRatio = 1.82;
+                              } else if (mqW < 420) {
+                                crossAxisCount = 2;
+                                childAspectRatio = 0.56;
+                              }
 
                               return SliverPadding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
+                                padding: EdgeInsets.fromLTRB(
+                                  hPad,
                                   8,
-                                  16,
+                                  hPad,
                                   24,
                                 ),
                                 sliver: SliverGrid(
@@ -1176,116 +1193,155 @@ class _ShopScreenState extends State<ShopScreen> {
 
   Widget _buildPromoAndSearchHeader() {
     const primary = Color(AppConstants.primaryColor);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const _ShopPromoBanner(),
-        const SizedBox(height: 20),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onSubmitted: (_) => _runSearch(),
-                  decoration: InputDecoration(
-                    hintText: 'Search products',
-                    hintStyle: GoogleFonts.outfit(
-                      fontSize: 14,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 400;
+        final padH = (constraints.maxWidth * 0.04).clamp(12.0, 20.0);
+        final searchField = TextField(
+          controller: _searchController,
+          onSubmitted: (_) => _runSearch(),
+          decoration: InputDecoration(
+            hintText: 'Search products',
+            hintStyle: GoogleFonts.outfit(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: primary,
+              size: 22,
+            ),
+            suffixIcon: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      size: 20,
                       color: Colors.grey[600],
                     ),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: primary,
-                      size: 22,
-                    ),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(
-                              Icons.clear_rounded,
-                              size: 20,
-                              color: Colors.grey[600],
-                            ),
-                            onPressed: () {
-                              _clearSearch();
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: primary, width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                  ),
-                  style: GoogleFonts.outfit(fontSize: 14),
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const MyOrdersScreen(),
-                    ),
-                  );
-                },
-                icon: Icon(Icons.receipt_long_rounded, color: primary),
-                tooltip: 'My Orders',
-              ),
-              const SizedBox(width: 4),
-              _SearchFilterChip(
-                icon: Icons.tune_rounded,
-                label:
-                    (_filterCategory != null ||
-                        _filterMinPrice != null ||
-                        _filterMaxPrice != null)
-                    ? 'Filtered'
-                    : 'Filter',
-                onTap: () => _showFilterSheet(),
-              ),
-            ],
+                    onPressed: () {
+                      _clearSearch();
+                    },
+                  )
+                : null,
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: primary, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-      ],
+          style: GoogleFonts.outfit(fontSize: 14),
+        );
+        final ordersBtn = IconButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (context) => const MyOrdersScreen(),
+              ),
+            );
+          },
+          icon: Icon(Icons.receipt_long_rounded, color: primary),
+          tooltip: 'My Orders',
+        );
+        final filterChip = _SearchFilterChip(
+          icon: Icons.tune_rounded,
+          label: (_filterCategory != null ||
+                  _filterMinPrice != null ||
+                  _filterMaxPrice != null)
+              ? 'Filtered'
+              : 'Filter',
+          onTap: () => _showFilterSheet(),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _ShopPromoBanner(),
+            SizedBox(height: (constraints.maxWidth * 0.045).clamp(12.0, 24.0)),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: padH),
+              child: narrow
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        searchField,
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            ordersBtn,
+                            Flexible(child: filterChip),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(child: searchField),
+                        const SizedBox(width: 10),
+                        ordersBtn,
+                        const SizedBox(width: 4),
+                        filterChip,
+                      ],
+                    ),
+            ),
+            SizedBox(height: (constraints.maxWidth * 0.045).clamp(12.0, 24.0)),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildSectionTitle() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _selectedCategoryName,
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final titleSize = (w * 0.048).clamp(16.0, 22.0);
+        final subSize = (w * 0.032).clamp(11.0, 14.0);
+        final hPad = (w * 0.04).clamp(12.0, 20.0);
+        return Padding(
+          padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _selectedCategoryName,
+                maxLines: 2,
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w800,
+                  fontSize: titleSize,
+                ),
+              ),
+              SizedBox(height: (w * 0.012).clamp(3.0, 8.0)),
+              Text(
+                _categorySubtitle(),
+                maxLines: 3,
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.outfit(
+                  fontSize: subSize,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            _categorySubtitle(),
-            style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1366,41 +1422,46 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
       ),
     ];
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          height: 132,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            itemCount: _slideCount,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: slides[index],
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            _slideCount,
-            (i) => AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: _currentPage == i ? 18 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: _currentPage == i ? primary : Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(3),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bannerTargetWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: AspectRatio(
+                aspectRatio: 2.65,
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (i) => setState(() => _currentPage = i),
+                  itemCount: _slideCount,
+                  itemBuilder: (context, index) => slides[index],
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+            SizedBox(height: (bannerTargetWidth * 0.02).clamp(6.0, 12.0)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _slideCount,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: _currentPage == i ? 18 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: _currentPage == i ? primary : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1574,6 +1635,7 @@ class _CategoryCircleStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
     final screenWidth = MediaQuery.sizeOf(context).width;
+    final textScaler = MediaQuery.textScalerOf(context);
     final allCat = <Map<String, dynamic>>[
       {'slug': '', 'name': 'All'},
       {'slug': kFavouritesSlug, 'name': 'Favourites'},
@@ -1584,15 +1646,26 @@ class _CategoryCircleStrip extends StatelessWidget {
         final width = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : screenWidth;
+        final circle = (width * 0.14).clamp(48.0, 62.0);
+        final itemW = (circle + 14).clamp(62.0, 88.0);
+        final labelFont = (width * 0.028).clamp(9.0, 12.0);
+        final labelHeight =
+            textScaler.scale(labelFont * 1.35 * 2) + 4; // two lines max
+        final stripHeight =
+            (circle + 6 + labelHeight + 20).clamp(96.0, 168.0);
         return SizedBox(
-          height: 100,
+          height: stripHeight,
           width: width,
           child: ClipRect(
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: (width * 0.04).clamp(12.0, 20.0),
+                vertical: 8,
+              ),
               scrollDirection: Axis.horizontal,
               itemCount: allCat.length,
-              separatorBuilder: (context, index) => const SizedBox(width: 12),
+              separatorBuilder: (context, index) =>
+                  SizedBox(width: (width * 0.03).clamp(8.0, 14.0)),
               itemBuilder: (context, index) {
                 final c = allCat[index];
                 final slug = c['slug']?.toString() ?? '';
@@ -1607,15 +1680,14 @@ class _CategoryCircleStrip extends StatelessWidget {
                 return GestureDetector(
                   onTap: () => onChanged(slug),
                   child: SizedBox(
-                    width: 70,
-                    height: 100,
+                    width: itemW,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
                         Container(
-                          width: 56,
-                          height: 56,
+                          width: circle,
+                          height: circle,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
@@ -1628,13 +1700,13 @@ class _CategoryCircleStrip extends StatelessWidget {
                                 ? CachedNetworkImage(
                                     imageUrl: imageUrl,
                                     fit: BoxFit.cover,
-                                    width: 56,
-                                    height: 56,
+                                    width: circle,
+                                    height: circle,
                                     placeholder: (context, url) => Container(
                                       color: const Color(0xFFF5F0EB),
                                       child: Icon(
                                         Icons.pets,
-                                        size: 26,
+                                        size: circle * 0.45,
                                         color: primary,
                                       ),
                                     ),
@@ -1643,7 +1715,7 @@ class _CategoryCircleStrip extends StatelessWidget {
                                           color: const Color(0xFFF5F0EB),
                                           child: Icon(
                                             Icons.pets,
-                                            size: 26,
+                                            size: circle * 0.45,
                                             color: primary,
                                           ),
                                         ),
@@ -1654,26 +1726,28 @@ class _CategoryCircleStrip extends StatelessWidget {
                                       slug == kFavouritesSlug
                                           ? Icons.favorite_border
                                           : slug.isEmpty
-                                          ? Icons.grid_view
-                                          : Icons.pets,
-                                      size: 26,
+                                              ? Icons.grid_view
+                                              : Icons.pets,
+                                      size: circle * 0.45,
                                       color: primary,
                                     ),
                                   ),
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: (stripHeight * 0.06).clamp(4.0, 10.0)),
                         Text(
                           name,
                           textAlign: TextAlign.center,
                           maxLines: 2,
+                          softWrap: true,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.outfit(
-                            fontSize: 10,
+                            fontSize: labelFont,
                             fontWeight: isActive
                                 ? FontWeight.w700
                                 : FontWeight.w500,
                             color: isActive ? Colors.black87 : Colors.grey[700],
+                            height: 1.25,
                           ),
                         ),
                       ],
@@ -1793,47 +1867,50 @@ class _ProductCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image: centered, contained in unified container
+          // Image: square region scales with grid cell (AspectRatio + Expanded)
           Expanded(
             flex: 3,
-            child: GestureDetector(
-              onTap: onTapImage,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: imageBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    alignment: Alignment.center,
-                    child: imageUrl != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: imageUrl,
-                              fit: BoxFit.contain,
-                              width: double.infinity,
-                              height: double.infinity,
-                              placeholder: (_, _) => Icon(
-                                Icons.pets,
-                                size: 28,
-                                color: primary.withValues(alpha: 0.5),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: GestureDetector(
+                onTap: onTapImage,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      decoration: BoxDecoration(
+                        color: imageBg,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: imageUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                                height: double.infinity,
+                                placeholder: (_, _) => Icon(
+                                  Icons.pets,
+                                  size: 28,
+                                  color: primary.withValues(alpha: 0.5),
+                                ),
+                                errorWidget: (_, _, _) => Icon(
+                                  Icons.pets,
+                                  size: 40,
+                                  color: primary.withValues(alpha: 0.5),
+                                ),
                               ),
-                              errorWidget: (_, _, _) => Icon(
-                                Icons.pets,
-                                size: 40,
-                                color: primary.withValues(alpha: 0.5),
-                              ),
+                            )
+                          : Icon(
+                              Icons.pets,
+                              size: 28,
+                              color: primary.withValues(alpha: 0.5),
                             ),
-                          )
-                        : Icon(
-                            Icons.pets,
-                            size: 28,
-                            color: primary.withValues(alpha: 0.5),
-                          ),
-                  ),
+                    ),
                   if (personalizedBadge != null &&
                       personalizedBadge!.isNotEmpty)
                     Positioned(
@@ -1861,6 +1938,9 @@ class _ProductCard extends StatelessWidget {
                           ),
                           child: Text(
                             personalizedBadge!,
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.outfit(
                               fontSize: 9,
                               fontWeight: FontWeight.w600,
@@ -1870,7 +1950,8 @@ class _ProductCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1879,6 +1960,7 @@ class _ProductCard extends StatelessWidget {
           Text(
             name,
             maxLines: 2,
+            softWrap: true,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.outfit(
               fontSize: 13,
@@ -1891,6 +1973,7 @@ class _ProductCard extends StatelessWidget {
           Text(
             subtitle,
             maxLines: 1,
+            softWrap: true,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.outfit(
               fontSize: 11,
@@ -1905,6 +1988,9 @@ class _ProductCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Rs. ${price.toStringAsFixed(0)}',
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.outfit(
                     fontWeight: FontWeight.w500,
                     fontSize: 13,

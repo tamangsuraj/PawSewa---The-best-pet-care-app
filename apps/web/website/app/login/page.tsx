@@ -11,9 +11,8 @@ import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useGoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
+import { WebGoogleSignInButton } from '@/components/auth/WebGoogleSignInButton';
+import { isGoogleSignInConfigured } from '@/components/OptionalGoogleOAuthProvider';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,11 +27,9 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginWithToken, user, isLoading: authLoading } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
   const {
     register,
     handleSubmit,
@@ -41,65 +38,6 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     mode: 'onChange',
-  });
-
-  // Google Login Hook - MUST be called before any conditional returns
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setIsGoogleLoading(true);
-      setFormError('');
-      clearErrors();
-      
-      try {
-        // Get user info from Google using access token
-        const userInfoResponse = await axios.get(
-          'https://www.googleapis.com/oauth2/v3/userinfo',
-          { headers: { Authorization: `Bearer ${tokenResponse.access_token}` } }
-        );
-
-        const googleUser = userInfoResponse.data;
-        const displayName =
-          googleUser.name?.trim() ||
-          googleUser.email?.split('@')[0] ||
-          'User';
-
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/auth/google`,
-          {
-            googleToken: tokenResponse.access_token,
-            email: googleUser.email,
-            name: displayName,
-            googleId: googleUser.sub,
-          }
-        );
-
-        if (response.data.success) {
-          const { token, user: userData } = response.data.data;
-          
-          // Only allow pet_owner
-          if (userData.role !== 'pet_owner') {
-            setFormError('This is the customer website. Only pet owners can login here.');
-            return;
-          }
-
-          // Update auth context + localStorage in one place
-          loginWithToken({ token, ...userData });
-          
-          router.push('/dashboard');
-        }
-      } catch (err: unknown) {
-        console.error('Google login error:', err);
-        const ax = err as { response?: { data?: { message?: string } } };
-        setFormError(ax.response?.data?.message || 'Google login failed');
-      } finally {
-        setIsGoogleLoading(false);
-      }
-    },
-    onError: (error) => {
-      console.error('Google OAuth error:', error);
-      setFormError('Google login failed');
-      setIsGoogleLoading(false);
-    },
   });
 
   // Redirect if already logged in
@@ -268,29 +206,15 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Google Sign-In Button */}
-          <button
-            type="button"
-            onClick={() => {
-              clearErrors();
-              handleGoogleLogin();
-            }}
-            disabled={isGoogleLoading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-full border-2 border-paw-bark/15 bg-white/90 hover:bg-white hover:border-paw-bark/25 shadow-sm transition-all disabled:opacity-50"
-          >
-            {isGoogleLoading ? (
-              <div className="w-5 h-5 border-2 border-paw-bark border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <Image
-                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                alt="Google"
-                width={20}
-                height={20}
-                className="h-5 w-5"
-              />
-            )}
-            <span className="font-medium text-gray-700">Continue with Google</span>
-          </button>
+          {isGoogleSignInConfigured() ? (
+            <WebGoogleSignInButton onError={setFormError} clearOtherErrors={clearErrors} />
+          ) : (
+            <p className="rounded-2xl border border-dashed border-[#703418]/25 bg-[#faf6f0]/80 px-4 py-3 text-center text-xs text-[#703418]/70">
+              Google sign-in is not configured for this deployment. Set{' '}
+              <code className="rounded bg-white/80 px-1">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> to your Web OAuth
+              client ID (match <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code> on the API).
+            </p>
+          )}
 
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">

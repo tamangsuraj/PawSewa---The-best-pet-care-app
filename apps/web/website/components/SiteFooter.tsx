@@ -42,6 +42,18 @@ export function SiteFooter() {
               About
             </Link>
             <Link
+              href="/services"
+              className="text-[#f8f4ef] underline-offset-4 transition-colors hover:text-[#5eead4] hover:underline"
+            >
+              Services
+            </Link>
+            <Link
+              href="/pet-care-plus"
+              className="text-[#f8f4ef] underline-offset-4 transition-colors hover:text-[#5eead4] hover:underline"
+            >
+              Pet Care+
+            </Link>
+            <Link
               href="/shop"
               className="text-[#f8f4ef] underline-offset-4 transition-colors hover:text-[#5eead4] hover:underline"
             >

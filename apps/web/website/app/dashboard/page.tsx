@@ -111,10 +111,25 @@ export default function DashboardPage() {
             <p className="text-paw-bark/70 text-sm">View and manage your registered pets</p>
           </div>
 
-          <div className="paw-surface-card cursor-not-allowed p-6 opacity-60">
-            <Calendar className="w-12 h-12 text-paw-bark/40 mb-4" aria-hidden />
-            <h3 className="font-display text-xl font-semibold text-paw-bark/50 mb-2">Appointments</h3>
-            <p className="text-paw-bark/50 text-sm">Schedule and track veterinary appointments (coming soon)</p>
+          <div
+            onClick={() => router.push('/book-appointment')}
+            className="paw-surface-card cursor-pointer border-2 border-[#703418]/15 p-6 transition-shadow hover:shadow-md"
+          >
+            <Calendar className="mb-4 h-12 w-12 text-[#703418]" aria-hidden />
+            <h3 className="font-display mb-2 text-xl font-semibold text-[#703418]">Appointments</h3>
+            <p className="text-sm text-paw-bark/75">
+              Book a visit (same flow as the app) or view history in My appointments.
+            </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push('/my-service-requests');
+              }}
+              className="mt-4 text-sm font-semibold text-[#0d9488] underline-offset-2 hover:underline"
+            >
+              My appointments →
+            </button>
           </div>
         </div>
 

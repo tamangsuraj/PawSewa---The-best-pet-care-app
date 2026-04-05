@@ -124,7 +124,9 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
     if (!mounted) return;
     setState(() {
       _messages.add({
-        '_id': mid.isEmpty ? 'tmp-${DateTime.now().millisecondsSinceEpoch}' : mid,
+        '_id': mid.isEmpty
+            ? 'tmp-${DateTime.now().millisecondsSinceEpoch}'
+            : mid,
         'sender': data['sender'],
         'text': data['text'],
         'createdAt': data['timestamp'],
@@ -194,36 +196,36 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
       vetId: _vetId,
       isTyping: false,
     );
-    final saved = t;
-    setState(() => _text.clear());
-
-    void restore() => _text.text = saved;
 
     if (_socket.isConnected) {
       _socket.sendVetDirectMessage(
         ownerId: widget.ownerId,
         vetId: _vetId,
-        text: saved,
+        text: t,
         callback: (ack) {
           final ok = ack is Map && ack['success'] == true;
-          if (!ok && mounted) _fallbackHttp(saved, restore);
+          if (ok) {
+            if (mounted) setState(() => _text.clear());
+          } else if (mounted) {
+            _fallbackHttp(t);
+          }
         },
       );
     } else {
-      await _fallbackHttp(saved, restore);
+      await _fallbackHttp(t);
     }
   }
 
-  Future<void> _fallbackHttp(String text, void Function() restore) async {
+  Future<void> _fallbackHttp(String text) async {
     try {
       await _api.postVetDirectMessage(
         ownerId: widget.ownerId,
         vetId: _vetId,
         text: text,
       );
+      if (mounted) setState(() => _text.clear());
       await _loadMessages();
     } catch (_) {
-      restore();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Message could not be sent')),
@@ -257,8 +259,9 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor:
-                  const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
+              backgroundColor: const Color(
+                AppConstants.primaryColor,
+              ).withValues(alpha: 0.15),
               backgroundImage: _pic != null && _pic!.isNotEmpty
                   ? CachedNetworkImageProvider(_pic!)
                   : null,
@@ -288,116 +291,125 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _loadMessages,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length + (_typingRemote ? 1 : 0),
+                    itemBuilder: (context, i) {
+                      if (_typingRemote && i == _messages.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            '$_vetName is typing…',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        );
+                      }
+                      final m = _messages[i];
+                      final mine = m['sender']?.toString() == widget.ownerId;
+                      final text = m['text']?.toString() ?? '';
+                      return Align(
+                        alignment: mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.78,
+                          ),
+                          decoration: BoxDecoration(
+                            color: mine
+                                ? const Color(AppConstants.primaryColor)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            text,
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              color: mine ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Material(
+                  color: Colors.white,
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _loadMessages,
-                          child: const Text('Retry'),
+                        Expanded(
+                          child: TextField(
+                            controller: _text,
+                            onChanged: _onChanged,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _send(),
+                            minLines: 1,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              hintText: 'Message your vet…',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _send,
+                          tooltip: 'Send',
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(
+                              AppConstants.primaryColor,
+                            ),
+                            padding: const EdgeInsets.all(14),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                )
-              : Column(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.all(16),
-                        itemCount:
-                            _messages.length + (_typingRemote ? 1 : 0),
-                        itemBuilder: (context, i) {
-                          if (_typingRemote && i == _messages.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                '$_vetName is typing…',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            );
-                          }
-                          final m = _messages[i];
-                          final mine = m['sender']?.toString() ==
-                              widget.ownerId;
-                          final text = m['text']?.toString() ?? '';
-                          return Align(
-                            alignment: mine
-                                ? Alignment.centerRight
-                                : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              constraints: BoxConstraints(
-                                maxWidth:
-                                    MediaQuery.of(context).size.width * 0.78,
-                              ),
-                              decoration: BoxDecoration(
-                                color: mine
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                text,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  color: mine ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _text,
-                              onChanged: _onChanged,
-                              minLines: 1,
-                              maxLines: 4,
-                              decoration: InputDecoration(
-                                hintText: 'Message your vet…',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton(
-                            onPressed: _send,
-                            style: FilledButton.styleFrom(
-                              shape: const CircleBorder(),
-                              padding: const EdgeInsets.all(14),
-                            ),
-                            child: const Icon(Icons.send_rounded, size: 22),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
+              ],
+            ),
     );
   }
 }

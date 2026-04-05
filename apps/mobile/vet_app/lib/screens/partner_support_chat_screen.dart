@@ -16,7 +16,8 @@ class PartnerSupportChatScreen extends StatefulWidget {
   const PartnerSupportChatScreen({super.key});
 
   @override
-  State<PartnerSupportChatScreen> createState() => _PartnerSupportChatScreenState();
+  State<PartnerSupportChatScreen> createState() =>
+      _PartnerSupportChatScreenState();
 }
 
 class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
@@ -127,7 +128,9 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     if (_messages.any((m) => m['_id']?.toString() == mid)) return;
     setState(() {
       _messages.add({
-        '_id': mid.isEmpty ? 'tmp-${DateTime.now().millisecondsSinceEpoch}' : mid,
+        '_id': mid.isEmpty
+            ? 'tmp-${DateTime.now().millisecondsSinceEpoch}'
+            : mid,
         'senderId': data['senderId'],
         'receiverId': data['receiverId'],
         'text': data['text'],
@@ -166,26 +169,28 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     final id = _conversationId;
     if (text.isEmpty || id == null) return;
     _socket.setCustomerCareTyping(id, false);
-    final saved = text;
-    setState(() => _text.clear());
 
     if (_socket.isConnected) {
-      _socket.sendCustomerCareMessage(id, saved, (ack) {
+      _socket.sendCustomerCareMessage(id, text, (ack) {
         final ok = ack is Map && ack['success'] == true;
-        if (!ok && mounted) _fallbackSend(id, saved);
+        if (ok) {
+          if (mounted) setState(() => _text.clear());
+        } else if (mounted) {
+          _fallbackSend(id, text);
+        }
       });
     } else {
-      await _fallbackSend(id, saved);
+      await _fallbackSend(id, text);
     }
   }
 
   Future<void> _fallbackSend(String id, String text) async {
     try {
       await _api.postCustomerCareMessage(id, text);
+      if (mounted) setState(() => _text.clear());
       await _loadThread();
     } catch (_) {
       if (mounted) {
-        setState(() => _text.text = text);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Message could not be sent')),
         );
@@ -213,7 +218,10 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       appBar: AppBar(
         title: Text(
           'Customer Support',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white),
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
         foregroundColor: Colors.white,
@@ -221,160 +229,180 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: _loadThread,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: const Color(
+                          AppConstants.primaryColor,
+                        ).withValues(alpha: 0.15),
+                        child: const Icon(
+                          Icons.send_rounded,
+                          color: Color(AppConstants.primaryColor),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _careName,
+                              style: GoogleFonts.outfit(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(AppConstants.primaryColor),
+                              ),
+                            ),
+                            Text(
+                              'We\'re here to help',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scroll,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length + (_typingRemote ? 1 : 0),
+                    itemBuilder: (context, i) {
+                      if (_typingRemote && i == _messages.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Typing…',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        );
+                      }
+                      final m = _messages[i];
+                      final mine =
+                          _myUserId != null &&
+                          m['senderId']?.toString() == _myUserId;
+                      final t = m['text']?.toString() ?? '';
+                      return Align(
+                        alignment: mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.78,
+                          ),
+                          decoration: BoxDecoration(
+                            color: mine
+                                ? const Color(AppConstants.primaryColor)
+                                : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            t,
+                            style: GoogleFonts.outfit(
+                              fontSize: 14,
+                              color: mine ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Material(
+                  color: const Color(AppConstants.secondaryColor),
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _loadThread,
-                          child: const Text('Retry'),
+                        Expanded(
+                          child: TextField(
+                            controller: _text,
+                            onChanged: (v) {
+                              final id = _conversationId;
+                              if (id == null) return;
+                              _typingDebounce?.cancel();
+                              if (v.trim().isNotEmpty) {
+                                _socket.setCustomerCareTyping(id, true);
+                              } else {
+                                _socket.setCustomerCareTyping(id, false);
+                              }
+                              _typingDebounce = Timer(
+                                const Duration(milliseconds: 600),
+                                () {
+                                  if (v.trim().isEmpty) {
+                                    _socket.setCustomerCareTyping(id, false);
+                                  }
+                                },
+                              );
+                            },
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _send(),
+                            minLines: 1,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              hintText: 'Message…',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _send,
+                          tooltip: 'Send',
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(
+                              AppConstants.primaryColor,
+                            ),
+                            padding: const EdgeInsets.all(14),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                )
-              : Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor:
-                                const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
-                            child: const Icon(Icons.headset_mic_rounded,
-                                color: Color(AppConstants.primaryColor)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _careName,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(AppConstants.primaryColor),
-                                  ),
-                                ),
-                                Text(
-                                  'We\'re here to help',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _messages.length + (_typingRemote ? 1 : 0),
-                        itemBuilder: (context, i) {
-                          if (_typingRemote && i == _messages.length) {
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                'Typing…',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontStyle: FontStyle.italic,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            );
-                          }
-                          final m = _messages[i];
-                          final mine =
-                              _myUserId != null && m['senderId']?.toString() == _myUserId;
-                          final t = m['text']?.toString() ?? '';
-                          return Align(
-                            alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              constraints: BoxConstraints(
-                                maxWidth: MediaQuery.of(context).size.width * 0.78,
-                              ),
-                              decoration: BoxDecoration(
-                                color: mine
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                t,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  color: mine ? Colors.white : Colors.black87,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _text,
-                              onChanged: (v) {
-                                final id = _conversationId;
-                                if (id == null) return;
-                                _typingDebounce?.cancel();
-                                if (v.trim().isNotEmpty) {
-                                  _socket.setCustomerCareTyping(id, true);
-                                } else {
-                                  _socket.setCustomerCareTyping(id, false);
-                                }
-                                _typingDebounce = Timer(
-                                  const Duration(milliseconds: 600),
-                                  () {
-                                    if (v.trim().isEmpty) {
-                                      _socket.setCustomerCareTyping(id, false);
-                                    }
-                                  },
-                                );
-                              },
-                              minLines: 1,
-                              maxLines: 4,
-                              decoration: InputDecoration(
-                                hintText: 'Message…',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton(
-                            onPressed: _send,
-                            style: FilledButton.styleFrom(
-                              backgroundColor: const Color(AppConstants.primaryColor),
-                              shape: const CircleBorder(),
-                              padding: const EdgeInsets.all(14),
-                            ),
-                            child: const Icon(Icons.send_rounded, size: 22, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
+              ],
+            ),
     );
   }
 }

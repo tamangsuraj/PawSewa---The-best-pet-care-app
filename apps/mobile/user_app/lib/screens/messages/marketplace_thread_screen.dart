@@ -29,7 +29,8 @@ class MarketplaceThreadScreen extends StatefulWidget {
   final bool highContrast;
 
   @override
-  State<MarketplaceThreadScreen> createState() => _MarketplaceThreadScreenState();
+  State<MarketplaceThreadScreen> createState() =>
+      _MarketplaceThreadScreenState();
 }
 
 class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
@@ -87,11 +88,15 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
       final list = body['data'] as List<dynamic>? ?? [];
       if (!mounted) return;
       setState(() {
-        _messages = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _messages = list
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
       });
     } on DioException catch (e) {
       final d = e.response?.data;
-      _error = d is Map && d['message'] is String ? d['message'] as String : 'Could not load chat.';
+      _error = d is Map && d['message'] is String
+          ? d['message'] as String
+          : 'Could not load chat.';
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -117,7 +122,9 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     if (_messages.any((m) => m['_id']?.toString() == mid)) return;
     setState(() {
       _messages.add({
-        '_id': mid.isEmpty ? 'tmp-${DateTime.now().millisecondsSinceEpoch}' : mid,
+        '_id': mid.isEmpty
+            ? 'tmp-${DateTime.now().millisecondsSinceEpoch}'
+            : mid,
         'sender': {'_id': data['senderId']},
         'content': data['text'],
         'createdAt': data['timestamp'],
@@ -167,16 +174,12 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
     _socket.setMarketplaceTyping(widget.conversationId, false);
-    final saved = text;
-    setState(() => _textController.clear());
 
     String? productId;
     if (widget.productIdForFirstMessage != null && !_sentFirstWithProduct) {
       productId = widget.productIdForFirstMessage;
       _sentFirstWithProduct = true;
     }
-
-    void restore() => _textController.text = saved;
 
     if (_socket.isConnected) {
       _socket.sendMarketplaceMessage(
@@ -185,24 +188,28 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         productId: productId,
         callback: (ack) {
           final ok = ack is Map && ack['success'] == true;
-          if (!ok && mounted) _fallbackHttp(text, productId, restore);
+          if (ok) {
+            if (mounted) setState(() => _textController.clear());
+          } else if (mounted) {
+            _fallbackHttp(text, productId);
+          }
         },
       );
     } else {
-      await _fallbackHttp(text, productId, restore);
+      await _fallbackHttp(text, productId);
     }
   }
 
-  Future<void> _fallbackHttp(String text, String? productId, void Function() restore) async {
+  Future<void> _fallbackHttp(String text, String? productId) async {
     try {
       await _api.postMarketplaceMessage(
         widget.conversationId,
         text: text,
         productId: productId,
       );
+      if (mounted) setState(() => _textController.clear());
       await _loadMessages();
     } catch (_) {
-      restore();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Message could not be sent')),
@@ -229,7 +236,9 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     final bg = widget.highContrast ? const Color(0xFF121212) : Colors.white;
     final fg = widget.highContrast ? Colors.white : Colors.black87;
     final bubbleMine = widget.highContrast ? Colors.orange.shade700 : primary;
-    final bubbleOther = widget.highContrast ? Colors.grey.shade800 : Colors.grey.shade200;
+    final bubbleOther = widget.highContrast
+        ? Colors.grey.shade800
+        : Colors.grey.shade200;
 
     return Scaffold(
       backgroundColor: bg,
@@ -240,17 +249,30 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.peerName, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16)),
+            Text(
+              widget.peerName,
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
             if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
               Text(
                 widget.peerSubtitle!,
-                style: GoogleFonts.outfit(fontSize: 11, color: widget.highContrast ? Colors.white70 : Colors.grey),
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  color: widget.highContrast ? Colors.white70 : Colors.grey,
+                ),
               ),
           ],
         ),
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: widget.highContrast ? Colors.orange : primary))
+          ? Center(
+              child: CircularProgressIndicator(
+                color: widget.highContrast ? Colors.orange : primary,
+              ),
+            )
           : _error != null
           ? Center(
               child: Padding(
@@ -258,9 +280,16 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: fg)),
+                    Text(
+                      _error!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: fg),
+                    ),
                     const SizedBox(height: 16),
-                    FilledButton(onPressed: _loadMessages, child: const Text('Retry')),
+                    FilledButton(
+                      onPressed: _loadMessages,
+                      child: const Text('Retry'),
+                    ),
                   ],
                 ),
               ),
@@ -281,23 +310,37 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
-                              color: widget.highContrast ? Colors.white54 : Colors.grey,
+                              color: widget.highContrast
+                                  ? Colors.white54
+                                  : Colors.grey,
                             ),
                           ),
                         );
                       }
                       final m = _messages[i];
                       final sender = m['sender'];
-                      final sid = sender is Map ? sender['_id']?.toString() : sender?.toString();
+                      final sid = sender is Map
+                          ? sender['_id']?.toString()
+                          : sender?.toString();
                       final mine = _myUserId != null && sid == _myUserId;
-                      final content = m['content']?.toString() ?? m['text']?.toString() ?? '';
+                      final content =
+                          m['content']?.toString() ??
+                          m['text']?.toString() ??
+                          '';
                       final pn = m['productName']?.toString();
                       return Align(
-                        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                        alignment: mine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.78,
+                          ),
                           decoration: BoxDecoration(
                             color: mine ? bubbleMine : bubbleOther,
                             borderRadius: BorderRadius.circular(16),
@@ -313,7 +356,9 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                                     style: GoogleFonts.outfit(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: mine ? Colors.white70 : Colors.brown,
+                                      color: mine
+                                          ? Colors.white70
+                                          : Colors.brown,
                                     ),
                                   ),
                                 ),
@@ -321,7 +366,11 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                                 content,
                                 style: GoogleFonts.outfit(
                                   fontSize: 14,
-                                  color: mine ? Colors.white : (widget.highContrast ? Colors.white : Colors.black87),
+                                  color: mine
+                                      ? Colors.white
+                                      : (widget.highContrast
+                                            ? Colors.white
+                                            : Colors.black87),
                                 ),
                               ),
                             ],
@@ -331,40 +380,62 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                     },
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _textController,
-                          onChanged: _onTextChanged,
-                          style: TextStyle(color: fg),
-                          minLines: 1,
-                          maxLines: 4,
-                          decoration: InputDecoration(
-                            hintText: widget.threadType == 'DELIVERY'
-                                ? 'Message your rider…'
-                                : 'Message seller…',
-                            hintStyle: TextStyle(color: widget.highContrast ? Colors.white38 : null),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
-                            filled: widget.highContrast,
-                            fillColor: widget.highContrast ? Colors.grey.shade900 : null,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                Material(
+                  color: bg,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _textController,
+                            onChanged: _onTextChanged,
+                            textInputAction: TextInputAction.send,
+                            onSubmitted: (_) => _send(),
+                            style: TextStyle(color: fg),
+                            minLines: 1,
+                            maxLines: 4,
+                            decoration: InputDecoration(
+                              hintText: widget.threadType == 'DELIVERY'
+                                  ? 'Message your rider…'
+                                  : 'Message seller…',
+                              hintStyle: TextStyle(
+                                color: widget.highContrast
+                                    ? Colors.white38
+                                    : null,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              filled: widget.highContrast,
+                              fillColor: widget.highContrast
+                                  ? Colors.grey.shade900
+                                  : null,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: _send,
-                        style: FilledButton.styleFrom(
-                          shape: const CircleBorder(),
-                          padding: const EdgeInsets.all(14),
-                          backgroundColor: widget.highContrast ? Colors.orange : primary,
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _send,
+                          tooltip: 'Send',
+                          icon: const Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: widget.highContrast
+                                ? Colors.orange.shade700
+                                : primary,
+                            padding: const EdgeInsets.all(14),
+                          ),
                         ),
-                        child: const Icon(Icons.send_rounded, size: 22),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],

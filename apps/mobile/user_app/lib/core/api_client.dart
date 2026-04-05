@@ -1,7 +1,46 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'api_config.dart';
 import 'storage_service.dart';
+
+/// Extract API `message` from JSON object or JSON string body (some proxies return strings).
+String? _parseApiErrorMessage(dynamic data) {
+  if (data is Map && data['message'] != null) {
+    final m = data['message'];
+    return m is String ? m : m?.toString();
+  }
+  if (data is String) {
+    final s = data.trim();
+    if (s.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(s);
+      if (decoded is Map && decoded['message'] != null) {
+        final m = decoded['message'];
+        return m is String ? m : m?.toString();
+      }
+    } catch (_) {}
+    // Plain text (e.g. ngrok: "The endpoint … is offline.")
+    if (s.length > 280) {
+      return '${s.substring(0, 277)}...';
+    }
+    return s;
+  }
+  return null;
+}
+
+/// Ngrok and other proxies attach headers; body may be plain text, not JSON.
+String? _describeHttpError(Response? response, dynamic data) {
+  final ngrok = response?.headers.value('ngrok-error-code');
+  if (ngrok == 'ERR_NGROK_3200') {
+    return 'Ngrok tunnel is offline or the URL changed. On your PC run: ngrok http 3000 (or npm run tunnel in backend). Then open the app’s server URL setting and paste the new https address — old ngrok links stop working when the tunnel closes.';
+  }
+  if (ngrok != null && ngrok.startsWith('ERR_NGROK')) {
+    return 'Ngrok error ($ngrok). Check that ngrok is running and the app uses the current tunnel URL.';
+  }
+  return _parseApiErrorMessage(data);
+}
 
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
@@ -65,19 +104,33 @@ class ApiClient {
               error.type == DioExceptionType.sendTimeout;
           final isServerError = statusCode >= 500;
           final data = error.response?.data;
-          final hasMessage = data is Map && data['message'] != null;
+          final parsedMessage =
+              _describeHttpError(error.response, data);
+          final hasMessage =
+              parsedMessage != null && parsedMessage.isNotEmpty;
           final badResponseWithNoMessage =
               error.type == DioExceptionType.badResponse &&
               (error.error == null || error.error.toString() == 'null') &&
               !hasMessage;
 
+          // Surface proxy/plain-text errors (ngrok offline, etc.) on DioException.error
+          if (error.type == DioExceptionType.badResponse && hasMessage) {
+            final friendly = DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: error.type,
+              error: parsedMessage,
+            );
+            return handler.next(friendly);
+          }
+
           if (isTimeout || isServerError || badResponseWithNoMessage) {
             String message =
                 'Server is busy or unreachable. Please try again in a moment.';
-            if (statusCode == 401) {
+            if (hasMessage) {
+              message = parsedMessage;
+            } else if (statusCode == 401) {
               message = 'Please sign in again.';
-            } else if (hasMessage) {
-              message = (data['message'] as String?) ?? message;
             } else if (error.type == DioExceptionType.connectionTimeout ||
                 error.type == DioExceptionType.receiveTimeout ||
                 error.type == DioExceptionType.sendTimeout) {

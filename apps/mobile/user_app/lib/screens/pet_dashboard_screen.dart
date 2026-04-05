@@ -19,7 +19,6 @@ import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
 import 'shop/my_orders_screen.dart';
 import 'messages/messages_hub_screen.dart';
-import 'messages/messages_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
@@ -457,10 +456,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
 
   void _closeDrawerAndPush(Widget screen) {
     Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   void _navigateToDrawerScreen(String screenName, Widget? screen) {
@@ -523,7 +519,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                             onTap: () {
                               _navigateToDrawerScreen(
                                 'Edit Profile',
-                                const DrawerPlaceholderScreen(title: 'Edit Profile'),
+                                const DrawerPlaceholderScreen(
+                                  title: 'Edit Profile',
+                                ),
                               );
                             },
                             borderRadius: BorderRadius.circular(20),
@@ -556,7 +554,11 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 children: [
                   ExpansionTile(
-                    leading: Icon(Icons.shopping_bag_outlined, color: _primaryBrown, size: 24),
+                    leading: Icon(
+                      Icons.shopping_bag_outlined,
+                      color: _primaryBrown,
+                      size: 24,
+                    ),
                     title: Text(
                       'Pet Supply Order',
                       style: GoogleFonts.outfit(
@@ -576,12 +578,17 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         context,
                         icon: Icons.history,
                         label: 'Order History',
-                        onTap: () => _closeDrawerAndPush(const MyOrdersScreen()),
+                        onTap: () =>
+                            _closeDrawerAndPush(const MyOrdersScreen()),
                       ),
                     ],
                   ),
                   ExpansionTile(
-                    leading: Icon(Icons.calendar_today_outlined, color: _primaryBrown, size: 24),
+                    leading: Icon(
+                      Icons.calendar_today_outlined,
+                      color: _primaryBrown,
+                      size: 24,
+                    ),
                     title: Text(
                       'Appointments',
                       style: GoogleFonts.outfit(
@@ -601,12 +608,17 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         context,
                         icon: Icons.history,
                         label: 'Appointments History',
-                        onTap: () => _closeDrawerAndPush(const MyRequestsScreen()),
+                        onTap: () =>
+                            _closeDrawerAndPush(const MyRequestsScreen()),
                       ),
                     ],
                   ),
                   ExpansionTile(
-                    leading: Icon(Icons.bed_outlined, color: _primaryBrown, size: 24),
+                    leading: Icon(
+                      Icons.bed_outlined,
+                      color: _primaryBrown,
+                      size: 24,
+                    ),
                     title: Text(
                       'Pet Hostel',
                       style: GoogleFonts.outfit(
@@ -676,7 +688,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     label: 'Google Sign-In Test',
                     iconColor: Colors.blue.shade700,
                     onTap: () => _closeDrawerAndPush(
-                      const DrawerPlaceholderScreen(title: 'Google Sign-In Test'),
+                      const DrawerPlaceholderScreen(
+                        title: 'Google Sign-In Test',
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -728,21 +742,21 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     required VoidCallback onTap,
   }) {
     return ListTile(
-                    dense: true,
-                    leading: Padding(
-                      padding: const EdgeInsets.only(left: 12),
-                      child: Icon(icon, color: _primaryBrown, size: 20),
-                    ),
-                    title: Text(
-                      label,
-                      style: GoogleFonts.outfit(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    onTap: onTap,
-                  );
+      dense: true,
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Icon(icon, color: _primaryBrown, size: 20),
+      ),
+      title: Text(
+        label,
+        style: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          color: Colors.black87,
+        ),
+      ),
+      onTap: onTap,
+    );
   }
 
   Widget _buildCurrentTab() {
@@ -1042,9 +1056,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     const primary = Color(AppConstants.primaryColor);
     const iconSize = 20.0;
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-      ),
+      decoration: const BoxDecoration(color: Colors.white),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.only(top: 2, bottom: 4),
@@ -1139,67 +1151,72 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: _currentIndex == 4
           ? const Color(0xFFF8F9FA)
           : const Color(AppConstants.secondaryColor),
       drawer: _buildDrawer(context),
-      appBar: _currentIndex == 4 ? _buildPetCarePlusAppBar(context) : AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.menu, size: 22),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-          color: Colors.black87,
-        ),
-        title: Row(
-          children: [
-            const PawSewaBrandLogo(height: 26),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+      appBar: _currentIndex == 4
+          ? _buildPetCarePlusAppBar(context)
+          : AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.menu, size: 22),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                color: Colors.black87,
+              ),
+              title: Row(
                 children: [
-                  Text(
-                    AppConstants.appName,
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    _titleForIndex(),
-                    style: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(AppConstants.primaryColor),
+                  const PawSewaBrandLogo(height: 26),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          AppConstants.appName,
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          _titleForIndex(),
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(AppConstants.primaryColor),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
+              backgroundColor: Colors.white,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
+              iconTheme: const IconThemeData(color: Colors.black87),
+              actions: [
+                IconButton(
+                  icon: Icon(
+                    _currentIndex == 3
+                        ? Icons.chat_bubble
+                        : Icons.chat_bubble_outline,
+                    color: _currentIndex == 3
+                        ? const Color(AppConstants.primaryColor)
+                        : Colors.grey[700],
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _currentIndex = 3);
+                  },
+                  tooltip: 'Messages',
+                ),
+              ],
             ),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _currentIndex == 3 ? Icons.chat_bubble : Icons.chat_bubble_outline,
-              color: _currentIndex == 3
-                  ? const Color(AppConstants.primaryColor)
-                  : Colors.grey[700],
-              size: 20,
-            ),
-            onPressed: () {
-              setState(() => _currentIndex = 3);
-            },
-            tooltip: 'Messages',
-          ),
-        ],
-      ),
       body: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1219,10 +1236,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
               switchInCurve: Curves.easeInOut,
               switchOutCurve: Curves.easeInOut,
               transitionBuilder: (Widget child, Animation<double> animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: child,
-                );
+                return FadeTransition(opacity: animation, child: child);
               },
               child: KeyedSubtree(
                 key: ValueKey<int>(_currentIndex),
@@ -1233,7 +1247,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           if (_linkedVets.isNotEmpty && _currentIndex != 3)
             Positioned(
               right: 10,
-              bottom: (_currentIndex == 0 ? 108.0 : 32.0) +
+              bottom:
+                  (_currentIndex == 0 ? 108.0 : 32.0) +
                   MediaQuery.of(context).padding.bottom,
               child: _vetMessengerBubbles(),
             ),
@@ -1246,16 +1261,11 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           FloatingActionButton(
             heroTag: 'fab_customer_support',
             backgroundColor: const Color(AppConstants.primaryColor),
-            tooltip: 'Customer Support',
+            tooltip: 'Messages',
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const MessagesScreen(),
-                ),
-              );
+              setState(() => _currentIndex = 3);
             },
-            child: const Icon(Icons.support_agent, color: Colors.white),
+            child: const Icon(Icons.send_rounded, color: Colors.white),
           ),
           if (_currentIndex == 0) ...[
             const SizedBox(height: 12),

@@ -63,7 +63,7 @@ function normalizeStoredCart(raw: unknown): CartItem[] {
       byId.set(productId, { productId, name, price: priceNum, quantity });
     }
   }
-  return [...byId.values()];
+  return Array.from(byId.values());
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
