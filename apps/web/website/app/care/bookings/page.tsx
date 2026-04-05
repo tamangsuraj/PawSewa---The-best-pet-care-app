@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 function CareBookingContent() {
   const searchParams = useSearchParams();
@@ -12,8 +13,9 @@ function CareBookingContent() {
   const id = searchParams.get('id');
 
   return (
-    <PageShell className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div className="paw-card-glass w-full max-w-md rounded-[1.75rem] border border-paw-bark/10 p-10 text-center shadow-paw-lg">
+    <PageShell className="flex min-h-screen flex-col items-center justify-center">
+      <PageContent compact className="max-w-md pb-16 pt-10">
+      <div className="paw-surface-card w-full p-10 text-center">
         {success === '1' ? (
           <>
             <CheckCircle className="w-16 h-16 text-paw-teal-mid mx-auto mb-6" />
@@ -21,10 +23,7 @@ function CareBookingContent() {
             <p className="text-paw-bark/75 text-center mb-6">
               Your appointment has been booked. {id && `Reference: ${id}`}
             </p>
-            <Link
-              href="/"
-              className="inline-block py-3 px-8 rounded-full bg-paw-bark text-paw-cream font-semibold hover:bg-paw-ink shadow-paw"
-            >
+            <Link href="/" className="paw-cta-primary inline-block">
               Back to home
             </Link>
           </>
@@ -38,6 +37,7 @@ function CareBookingContent() {
           </>
         )}
       </div>
+      </PageContent>
     </PageShell>
   );
 }

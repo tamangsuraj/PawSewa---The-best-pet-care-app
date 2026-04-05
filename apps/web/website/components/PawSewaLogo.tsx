@@ -10,23 +10,22 @@ type Props = {
   className?: string;
   priority?: boolean;
   /**
-   * When the PNG has a white matte, multiply blend lets the page show through
-   * so the mark reads “floating” with no box. Prefer false for fully transparent PNGs.
+   * Renders the mark as light/white for dark backgrounds (e.g. footer).
+   * Does not affect other surfaces unless set.
    */
-  blendWhiteMatte?: boolean;
+  invertOnDark?: boolean;
 };
 
-/** Corporate PawSewa mark for headers and marketing surfaces. */
+/** Corporate PawSewa mark (#703418 transparent PNG) for headers and marketing surfaces. */
 export function PawSewaLogo({
   variant = 'nav',
   height = 40,
   className = '',
   priority = false,
-  blendWhiteMatte = false,
+  invertOnDark = false,
 }: Props) {
   const src = '/brand/image_607767.png';
   const nav = variant === 'nav';
-  const useMatte = blendWhiteMatte;
   const aspect = nav ? 4.6 : 3.2;
   const w = Math.round(height * aspect);
 
@@ -40,17 +39,14 @@ export function PawSewaLogo({
         width={w}
         height={height}
         className={[
-          'w-auto object-contain object-left bg-transparent',
+          'w-auto object-contain object-left !bg-transparent',
           nav ? 'max-w-[min(100vw-8rem,420px)]' : 'max-w-[min(100%,280px)]',
-          useMatte ? 'mix-blend-multiply' : '',
-          nav
-            ? 'drop-shadow-[0_2px_12px_rgba(112,52,24,0.12)]'
-            : '',
+          invertOnDark ? 'brightness-0 invert' : '',
           className,
         ]
           .filter(Boolean)
           .join(' ')}
-        style={{ height, width: 'auto', maxHeight: height }}
+        style={{ height, width: 'auto', maxHeight: height, backgroundColor: 'transparent' }}
         priority={priority}
         sizes={nav ? `(max-width: 640px) 240px, ${Math.min(w, 420)}px` : '(max-width:768px) 280px, 400px'}
       />

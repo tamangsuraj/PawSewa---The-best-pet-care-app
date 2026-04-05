@@ -43,7 +43,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
   bool _creatingCategory = false;
 
   void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
-    if (event != 'order:assigned_seller') return;
+    if (event != 'order:assigned_seller' && event != 'orderUpdate') return;
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('New order assigned to your shop')),

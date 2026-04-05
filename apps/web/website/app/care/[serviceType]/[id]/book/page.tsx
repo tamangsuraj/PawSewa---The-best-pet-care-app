@@ -7,6 +7,7 @@ import { ChevronLeft, MapPin, Phone, Clock, Home, Building2 } from 'lucide-react
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 const SERVICE_LABELS: Record<string, string> = {
   hostel: 'Hostel',
@@ -194,7 +195,7 @@ export default function CareBookPage({ params }: { params: { serviceType: string
     <PageShell>
     <div className="pb-32">
       <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link
             href={`/care/${serviceType}/${params.id}`}
             className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors"
@@ -205,13 +206,14 @@ export default function CareBookPage({ params }: { params: { serviceType: string
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main>
+        <PageContent compact className="space-y-6 pb-36">
         <section>
           <h2 className="text-sm font-bold text-paw-bark mb-2">SELECT PET</h2>
           <select
             value={selectedPetId}
             onChange={(e) => setSelectedPetId(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-paw-bark outline-none"
+            className="paw-input"
           >
             {pets.map((p) => (
               <option key={p._id} value={p._id}>{p.name} {p.pawId ? `(ID: ${p.pawId})` : ''}</option>
@@ -231,7 +233,7 @@ export default function CareBookPage({ params }: { params: { serviceType: string
                     value={checkInDate}
                     onChange={(e) => setCheckInDate(e.target.value)}
                     min={new Date().toISOString().slice(0, 10)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-paw-bark outline-none"
+                    className="paw-input"
                   />
                 </div>
                 <div>
@@ -241,7 +243,7 @@ export default function CareBookPage({ params }: { params: { serviceType: string
                     value={checkOutDate}
                     onChange={(e) => setCheckOutDate(e.target.value)}
                     min={checkInDate || new Date().toISOString().slice(0, 10)}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-paw-bark outline-none"
+                    className="paw-input"
                   />
                 </div>
               </div>
@@ -384,17 +386,20 @@ export default function CareBookPage({ params }: { params: { serviceType: string
             )}
           </div>
         </section>
+        </PageContent>
       </main>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-paw-bark/10 bg-paw-cream/95 backdrop-blur-md p-4">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <button
           type="button"
           onClick={handleConfirm}
           disabled={submitting || !selectedPetId || (isHostel ? !checkInDate || !checkOutDate || nights < 1 : (!selectedDate || !selectedTime))}
-          className="w-full py-3.5 rounded-full bg-paw-bark text-paw-cream font-semibold disabled:opacity-50 shadow-paw"
+          className="paw-cta-primary w-full disabled:opacity-50"
         >
           {submitting ? 'Processing...' : isHostel ? 'Confirm Hostel Booking' : 'Confirm Grooming Appointment'}
         </button>
+        </div>
       </div>
     </div>
     </PageShell>

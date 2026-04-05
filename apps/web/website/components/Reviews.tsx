@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Star, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -28,7 +28,7 @@ interface ReviewsProps {
 }
 
 export function Reviews({ targetType, targetId, averageRating = 0, reviewCount = 0, title = 'Ratings & Reviews' }: ReviewsProps) {
-  const { user: authUser, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [myReview, setMyReview] = useState<Review | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,16 +37,16 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
   const [formRating, setFormRating] = useState(5);
   const [formComment, setFormComment] = useState('');
 
-  const loadReviews = async () => {
+  const loadReviews = useCallback(async () => {
     try {
       const res = await api.get('/reviews', { params: { targetType, targetId } });
       setReviews(res.data?.data ?? []);
     } catch (e) {
       console.error('Failed to load reviews', e);
     }
-  };
+  }, [targetType, targetId]);
 
-  const loadMyReview = async () => {
+  const loadMyReview = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       const res = await api.get('/reviews/my', { params: { targetType, targetId } });
@@ -61,7 +61,7 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
     } catch (e) {
       console.error('Failed to load my review', e);
     }
-  };
+  }, [targetType, targetId, isAuthenticated]);
 
   useEffect(() => {
     const run = async () => {
@@ -69,8 +69,8 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
       await Promise.all([loadReviews(), loadMyReview()]);
       setLoading(false);
     };
-    run();
-  }, [targetType, targetId, isAuthenticated]);
+    void run();
+  }, [loadReviews, loadMyReview]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,11 +1,19 @@
 const rateLimit = require('express-rate-limit');
 
-// General API rate limiter: 100 requests per 15 minutes per IP
+// General API limiter (mounted at /api/v1). Admin routes are skipped — the panel issues many
+// parallel requests + socket-driven refetches; 100/15min per IP was causing 429 in dev.
+const generalApiMax = Number(process.env.API_RATE_LIMIT_MAX);
 const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: Number.isFinite(generalApiMax) && generalApiMax > 0 ? generalApiMax : 400,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    const p = req.path || '';
+    // Under app.use('/api/v1', limiter), path is relative (e.g. /admin/care-bookings, /cases, /service-requests).
+    // Skip admin routes and case/service-request routes when accessed by admin
+    return p.startsWith('/admin') || p.startsWith('/cases') || p.startsWith('/service-requests');
+  },
 });
 
 // Stricter limiter for authentication-sensitive endpoints like login/register

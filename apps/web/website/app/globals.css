@@ -126,12 +126,40 @@ h6 {
 }
 
 @layer components {
+  /** Matches home “card lift” — white editorial surfaces */
+  .paw-surface-card {
+    @apply rounded-[1.35rem] border border-paw-bark/10 bg-white/90 backdrop-blur-sm shadow-paw transition-all duration-500 ease-out hover:shadow-paw-lg hover:-translate-y-1;
+  }
+
   .paw-card-glass {
     @apply rounded-[1.35rem] border border-white/70 bg-white/75 shadow-[0_20px_50px_var(--paw-shadow)] backdrop-blur-xl transition-all duration-500 ease-out;
   }
 
   .paw-card-glass:hover {
     @apply -translate-y-1 shadow-[0_28px_64px_rgba(112,52,24,0.14)] border-white/90;
+  }
+
+  /**
+   * Focus ring: use plain CSS, not @apply with ring + opacity.
+   * Tailwind’s processor often rejects arbitrary hex/opacities and some theme
+   * ring utilities inside @apply — this avoids recurring build failures.
+   */
+  .paw-input {
+    @apply w-full rounded-xl border border-paw-bark/15 bg-white px-4 py-2.5 text-sm text-paw-ink placeholder:text-paw-bark/40 shadow-sm outline-none transition;
+  }
+
+  .paw-input:focus,
+  .paw-input:focus-visible {
+    border-color: rgb(var(--paw-bark-rgb) / 0.35);
+    box-shadow: 0 0 0 2px rgb(var(--paw-bark-rgb) / 0.12);
+  }
+
+  .paw-cta-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-gradient-to-br from-paw-bark to-paw-ink px-8 py-3.5 text-sm font-semibold text-paw-cream shadow-[0_12px_36px_rgba(112,52,24,0.25)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(112,52,24,0.3)] active:scale-[0.99];
+  }
+
+  .paw-cta-secondary {
+    @apply inline-flex items-center justify-center rounded-full border border-paw-bark/20 bg-white px-6 py-3 text-sm font-semibold text-paw-ink shadow-sm transition hover:border-paw-bark/35 hover:bg-paw-haze/80;
   }
 
   .paw-hero-stagger > * {

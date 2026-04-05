@@ -215,11 +215,15 @@ async function appendMessageAndNotify({
 
   const receiverId = senderIsCustomer ? conversation.partner : conversation.customer;
 
+  const receiverUser = await User.findById(receiverId).select('role').lean();
+
   const msg = await MarketplaceMessage.create({
     conversation: conversation._id,
     sender: senderId,
     receiver: receiverId,
     content: trimmed.slice(0, 4000),
+    senderRole: sender?.role || '',
+    receiverRole: receiverUser?.role || '',
   });
 
   await MarketplaceConversation.updateOne(
@@ -234,6 +238,7 @@ async function appendMessageAndNotify({
     receiverId: receiverId.toString(),
     text: msg.content,
     timestamp: (msg.createdAt || new Date()).toISOString(),
+    senderRole: msg.senderRole || sender?.role || '',
   };
 
   if (io) {
@@ -248,6 +253,18 @@ async function appendMessageAndNotify({
       text: payload.text,
       timestamp: payload.timestamp,
       threadType: 'support',
+      senderRole: payload.senderRole,
+    });
+
+    const custPop = await User.findById(conversation.customer).select('name email role').lean();
+    io.to('admin_room').emit('support_inbox_bump', {
+      conversationId: conversation._id.toString(),
+      lastMessageAt: payload.timestamp,
+      lastMessagePreview: trimmed.slice(0, 220),
+      customerId: custPop?._id?.toString(),
+      customerName: custPop?.name || 'User',
+      customerEmail: custPop?.email || '',
+      customerRole: custPop?.role || '',
     });
   }
 

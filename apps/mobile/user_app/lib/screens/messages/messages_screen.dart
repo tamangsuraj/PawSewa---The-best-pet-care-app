@@ -410,21 +410,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Image.asset(
-                      'assets/brand/image_607767.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => ColoredBox(
-                        color: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
-                        child: const Center(
-                          child: PawSewaBrandLogo(height: 32),
-                        ),
-                      ),
-                    ),
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: PawSewaBrandLogo(height: 48),
                   ),
                 ),
                 const SizedBox(width: 12),

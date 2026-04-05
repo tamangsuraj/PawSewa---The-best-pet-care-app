@@ -7,6 +7,7 @@ import axios from 'axios';
 import Image from 'next/image';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 export default function AddPetPage() {
   const router = useRouter();
@@ -95,9 +96,10 @@ export default function AddPetPage() {
         alert('Pet registered successfully!');
         router.push('/my-pets');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating pet:', error);
-      alert(error.response?.data?.message || 'Failed to register pet');
+      const ax = error as { response?: { data?: { message?: string } } };
+      alert(ax.response?.data?.message || 'Failed to register pet');
     } finally {
       setLoading(false);
     }
@@ -120,8 +122,8 @@ export default function AddPetPage() {
         subtitle="Add details and a photo so care and bookings stay accurate."
       />
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl mx-auto paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw p-8">
+      <PageContent>
+        <div className="mx-auto max-w-2xl paw-surface-card p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Photo Upload */}
             <div className="flex flex-col items-center">
@@ -324,13 +326,13 @@ export default function AddPetPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-paw-bark text-paw-cream py-4 rounded-full font-semibold hover:bg-paw-ink transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-paw"
+              className="paw-cta-primary flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Registering...' : 'Register pet'}
             </button>
           </form>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

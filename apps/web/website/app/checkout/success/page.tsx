@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useChatHub } from '@/context/ChatHubContext';
 import api from '@/lib/api';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,8 +70,9 @@ export default function CheckoutSuccessPage() {
   }
 
   return (
-    <PageShell className="flex flex-col items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw-lg p-8 text-center">
+    <PageShell className="flex flex-col items-center justify-center">
+      <PageContent compact className="max-w-md pb-16 pt-10">
+      <div className="paw-surface-card w-full p-8 text-center">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="w-12 h-12 text-green-600" />
         </div>
@@ -107,13 +109,11 @@ export default function CheckoutSuccessPage() {
             )}
           </div>
         )}
-        <Link
-          href="/shop"
-          className="inline-block px-6 py-3 rounded-full bg-paw-bark text-paw-cream font-medium hover:bg-paw-ink transition-colors shadow-paw"
-        >
-          Continue Shopping
+        <Link href="/shop" className="paw-cta-primary inline-block">
+          Continue shopping
         </Link>
       </div>
+      </PageContent>
     </PageShell>
   );
 }

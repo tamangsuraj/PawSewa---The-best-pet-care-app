@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   MapPin, 
   Phone, 
@@ -15,6 +16,8 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 interface Vet {
   _id: string;
@@ -42,11 +45,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchVet();
-  }, [vetId]);
-
-  const fetchVet = async () => {
+  const fetchVet = useCallback(async () => {
     try {
       setLoading(true);
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
@@ -54,12 +53,17 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
       if (response.data.success) {
         setVet(response.data.data);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load veterinarian profile');
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || 'Failed to load veterinarian profile');
     } finally {
       setLoading(false);
     }
-  };
+  }, [vetId]);
+
+  useEffect(() => {
+    void fetchVet();
+  }, [fetchVet]);
 
   if (loading) {
     return (
@@ -75,14 +79,11 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
   if (error || !vet) {
     return (
       <PageShell className="flex min-h-screen items-center justify-center px-4">
-        <div className="text-center max-w-md">
-          <Stethoscope className="w-16 h-16 text-paw-bark/25 mx-auto mb-4" />
+        <div className="max-w-md text-center">
+          <Stethoscope className="mx-auto mb-4 h-16 w-16 text-paw-bark/25" />
           <h2 className="font-display text-2xl font-semibold text-paw-ink mb-2">Profile not found</h2>
-          <p className="text-paw-bark/70 mb-6">{error || 'This veterinarian profile does not exist'}</p>
-          <Link
-            href="/vets"
-            className="inline-block px-6 py-3 rounded-full bg-paw-bark text-paw-cream hover:bg-paw-ink transition-colors font-medium shadow-paw"
-          >
+          <p className="mb-6 text-paw-bark/70">{error || 'This veterinarian profile does not exist'}</p>
+          <Link href="/vets" className="paw-cta-primary inline-block">
             Back to directory
           </Link>
         </div>
@@ -92,166 +93,138 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
   return (
     <PageShell>
-      {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream py-8 px-4">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_90%_0%,rgba(13,148,136,0.18),transparent_55%)]"
-          aria-hidden
-        />
-        <div className="container mx-auto relative">
-          <Link href="/vets">
-            <button className="flex items-center gap-2 text-paw-cream hover:text-white transition-colors mb-4 text-sm font-medium">
-              <ArrowLeft className="w-5 h-5" />
-              Back to Directory
-            </button>
+      <PageHero
+        leading={
+          <Link
+            href="/vets"
+            className="inline-flex items-center gap-2 text-sm font-medium text-paw-cream/90 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Back to directory
           </Link>
-        </div>
-      </div>
+        }
+        eyebrow="Veterinarian"
+        title={`Dr. ${vet.name}`}
+        subtitle={vet.specialty || vet.specialization || 'General practitioner'}
+      />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Profile Card */}
+      <PageContent>
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              {/* Profile Header */}
+            <div className="paw-surface-card overflow-hidden p-0">
               <div className="bg-gradient-to-br from-paw-bark via-paw-ink to-paw-teal-mid p-8 text-paw-cream">
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                  <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-xl overflow-hidden">
+                <div className="flex flex-col items-center gap-6 md:flex-row md:items-center">
+                  <div className="flex h-32 w-32 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white shadow-xl">
                     {vet.profilePicture ? (
-                      <img 
-                        src={vet.profilePicture} 
+                      <Image
+                        src={vet.profilePicture}
                         alt={vet.name}
-                        className="w-full h-full object-cover"
+                        width={128}
+                        height={128}
+                        unoptimized
+                        className="h-full w-full object-cover"
                       />
                     ) : (
-                      <span className="text-6xl font-bold text-paw-bark">
-                        {vet.name.charAt(0).toUpperCase()}
-                      </span>
+                      <span className="text-5xl font-bold text-paw-bark">{vet.name.charAt(0).toUpperCase()}</span>
                     )}
                   </div>
                   <div className="text-center md:text-left">
-                    <h1 className="text-4xl font-bold mb-2 font-poppins">
-                      Dr. {vet.name}
-                    </h1>
-                    <p className="text-xl text-paw-cream/85 mb-2">
-                      {vet.specialty || vet.specialization || 'General Practitioner'}
+                    <p className="text-lg text-paw-cream/90">
+                      {vet.specialty || vet.specialization || 'General practitioner'}
                     </p>
-                    <div className="flex items-center justify-center md:justify-start gap-1 text-yellow-300">
-                      <Star className="w-5 h-5 fill-current" />
-                      <Star className="w-5 h-5 fill-current" />
-                      <Star className="w-5 h-5 fill-current" />
-                      <Star className="w-5 h-5 fill-current" />
-                      <Star className="w-5 h-5 fill-current" />
-                      <span className="ml-2 text-white">5.0 (Verified)</span>
+                    <div className="mt-2 flex items-center justify-center gap-0.5 text-amber-300 md:justify-start">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Star key={i} className="h-5 w-5 fill-current" />
+                      ))}
+                      <span className="ml-2 text-sm text-paw-cream/90">5.0 (verified)</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Profile Content */}
               <div className="p-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4 font-poppins">
-                  About Dr. {vet.name}
-                </h2>
-                <p className="text-gray-600 leading-relaxed mb-6 font-inter">
+                <h2 className="font-display text-2xl font-semibold text-paw-ink">About Dr. {vet.name}</h2>
+                <p className="mt-4 leading-relaxed text-paw-bark/85">
                   {vet.bio || (
                     <>
-                      Dr. {vet.name} is a dedicated {(vet.specialty || vet.specialization)?.toLowerCase() || 'veterinary professional'} 
+                      Dr. {vet.name} is a dedicated{' '}
+                      {(vet.specialty || vet.specialization)?.toLowerCase() || 'veterinary professional'}
                       {vet.clinicName && ` practicing at ${vet.clinicName}`}
-                      {(vet.clinicLocation || vet.clinicAddress) && ` in ${vet.clinicLocation || vet.clinicAddress}`}. 
-                      With a commitment to providing exceptional care for your pets, Dr. {vet.name} offers 
-                      comprehensive veterinary services including routine check-ups, vaccinations, diagnostics, 
-                      and treatment for various pet health conditions.
+                      {(vet.clinicLocation || vet.clinicAddress) && ` in ${vet.clinicLocation || vet.clinicAddress}`}.
+                      Comprehensive care including check-ups, vaccinations, diagnostics, and treatment.
                     </>
                   )}
                 </p>
 
-                <h3 className="text-xl font-bold text-gray-800 mb-3 font-poppins">
-                  Specialization & Expertise
-                </h3>
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                  <p className="text-gray-700 font-inter">
-                    <strong className="text-paw-bark">{vet.specialty || vet.specialization || 'General Veterinary Medicine'}</strong>
+                <h3 className="font-display mt-8 text-xl font-semibold text-paw-ink">Specialization</h3>
+                <div className="mt-3 rounded-xl border border-paw-bark/10 bg-paw-haze/60 p-4">
+                  <p className="text-paw-bark/90">
+                    <strong>{vet.specialty || vet.specialization || 'General veterinary medicine'}</strong>
                     <br />
-                    Providing expert care in diagnosis, treatment, and preventive medicine for all types of pets.
+                    Diagnosis, treatment, and preventive care for companion animals.
                   </p>
                 </div>
 
                 {vet.workingHours && (vet.workingHours.open || vet.workingHours.close || vet.workingHours.days) && (
                   <>
-                    <h3 className="text-xl font-bold text-gray-800 mb-3 font-poppins">
-                      Working Hours
-                    </h3>
-                    <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
-                      <p className="text-gray-700 font-inter">
-                        {vet.workingHours.open && vet.workingHours.close && (
-                          <><strong className="text-paw-bark">Hours:</strong> {vet.workingHours.open} - {vet.workingHours.close}<br /></>
-                        )}
-                        {vet.workingHours.days && vet.workingHours.days.length > 0 && (
-                          <><strong className="text-paw-bark">Days:</strong> {vet.workingHours.days.join(', ')}</>
-                        )}
-                      </p>
+                    <h3 className="font-display mt-8 text-xl font-semibold text-paw-ink">Working hours</h3>
+                    <div className="mt-3 rounded-xl border border-paw-teal-mid/20 bg-paw-teal/5 p-4 text-paw-bark/90">
+                      {vet.workingHours.open && vet.workingHours.close && (
+                        <p>
+                          <strong className="text-paw-ink">Hours:</strong> {vet.workingHours.open} –{' '}
+                          {vet.workingHours.close}
+                        </p>
+                      )}
+                      {vet.workingHours.days && vet.workingHours.days.length > 0 && (
+                        <p className="mt-1">
+                          <strong className="text-paw-ink">Days:</strong> {vet.workingHours.days.join(', ')}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
 
-                <h3 className="text-xl font-bold text-gray-800 mb-3 font-poppins">
-                  Services Offered
-                </h3>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
-                    Routine Health Check-ups
-                  </li>
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
-                    Vaccinations & Immunizations
-                  </li>
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
-                    Diagnostic Services
-                  </li>
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
-                    Emergency Care
-                  </li>
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
-                    Surgical Procedures
-                  </li>
-                  <li className="flex items-center gap-2 text-gray-700">
-                    <div className="w-2 h-2 bg-paw-bark rounded-full"></div>
-                    Pet Wellness Consultations
-                  </li>
+                <h3 className="font-display mt-8 text-xl font-semibold text-paw-ink">Services offered</h3>
+                <ul className="mt-3 grid grid-cols-1 gap-2 text-paw-bark/90 md:grid-cols-2">
+                  {[
+                    'Routine health check-ups',
+                    'Vaccinations',
+                    'Diagnostics',
+                    'Emergency care',
+                    'Surgery',
+                    'Wellness consultations',
+                  ].map((s) => (
+                    <li key={s} className="flex items-center gap-2">
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-paw-bark" />
+                      {s}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
           </div>
 
-          {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24">
-              <h3 className="text-xl font-bold text-gray-800 mb-6 font-poppins">
-                Contact Information
-              </h3>
+            <div className="paw-surface-card sticky top-24 p-6">
+              <h3 className="font-display text-xl font-semibold text-paw-ink">Contact</h3>
 
-              <div className="space-y-4 mb-8">
+              <div className="mt-6 space-y-4">
                 {vet.clinicName && (
                   <div className="flex items-start gap-3">
-                    <Building2 className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
+                    <Building2 className="mt-1 h-5 w-5 shrink-0 text-paw-bark" />
                     <div>
-                      <p className="text-sm text-gray-500 font-poppins">Clinic</p>
-                      <p className="text-gray-800 font-medium">{vet.clinicName}</p>
+                      <p className="text-xs text-paw-bark/55">Clinic</p>
+                      <p className="font-medium text-paw-ink">{vet.clinicName}</p>
                     </div>
                   </div>
                 )}
 
                 {(vet.clinicLocation || vet.clinicAddress || vet.location) && (
                   <div className="flex items-start gap-3">
-                    <MapPin className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
+                    <MapPin className="mt-1 h-5 w-5 shrink-0 text-paw-bark" />
                     <div>
-                      <p className="text-sm text-gray-500 font-poppins">Location</p>
-                      <p className="text-gray-800 font-medium">
+                      <p className="text-xs text-paw-bark/55">Location</p>
+                      <p className="font-medium text-paw-ink">
                         {vet.clinicAddress || vet.clinicLocation || vet.location}
                       </p>
                     </div>
@@ -260,13 +233,10 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
 
                 {vet.phone && (
                   <div className="flex items-start gap-3">
-                    <Phone className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
+                    <Phone className="mt-1 h-5 w-5 shrink-0 text-paw-bark" />
                     <div>
-                      <p className="text-sm text-gray-500 font-poppins">Phone</p>
-                      <a 
-                        href={`tel:${vet.phone}`}
-                        className="text-gray-800 font-medium hover:text-paw-bark"
-                      >
+                      <p className="text-xs text-paw-bark/55">Phone</p>
+                      <a href={`tel:${vet.phone}`} className="font-medium text-paw-ink hover:text-paw-bark">
                         {vet.phone}
                       </a>
                     </div>
@@ -274,12 +244,12 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                 )}
 
                 <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-paw-bark mt-1 flex-shrink-0" />
+                  <Mail className="mt-1 h-5 w-5 shrink-0 text-paw-bark" />
                   <div>
-                    <p className="text-sm text-gray-500 font-poppins">Email</p>
-                    <a 
+                    <p className="text-xs text-paw-bark/55">Email</p>
+                    <a
                       href={`mailto:${vet.email}`}
-                      className="text-gray-800 font-medium hover:text-paw-bark break-all"
+                      className="break-all font-medium text-paw-ink hover:text-paw-bark"
                     >
                       {vet.email}
                     </a>
@@ -287,33 +257,33 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
                 </div>
               </div>
 
-              {/* CTA Buttons */}
-              <div className="space-y-3">
-                <button className="w-full py-3 bg-paw-bark text-white rounded-lg hover:bg-paw-bark/90 transition-colors font-medium flex items-center justify-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Book Appointment
-                </button>
-                
-                <a 
-                  href="https://play.google.com/store" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+              <div className="mt-8 space-y-3">
+                <button
+                  type="button"
+                  className="paw-cta-primary flex w-full items-center justify-center gap-2"
                 >
-                  <Download className="w-5 h-5" />
-                  Download PawSewa App
+                  <Calendar className="h-5 w-5" />
+                  Book appointment
+                </button>
+
+                <a
+                  href="https://play.google.com/store"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="paw-cta-secondary flex w-full items-center justify-center gap-2"
+                >
+                  <Download className="h-5 w-5" />
+                  Download PawSewa app
                 </a>
               </div>
 
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600 text-center font-inter">
-                  Download our mobile app for easy appointment booking and pet health management
-                </p>
-              </div>
+              <p className="mt-6 rounded-xl border border-paw-bark/10 bg-paw-haze/50 p-4 text-center text-sm text-paw-bark/75">
+                Use the mobile app for bookings and health tracking on the go.
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

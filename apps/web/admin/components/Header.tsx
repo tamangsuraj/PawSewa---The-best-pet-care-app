@@ -12,7 +12,7 @@ export const Header: React.FC = () => {
     <header className="bg-[#F7F4FC]/80 border-b border-white/70 backdrop-blur-md shadow-sm fixed top-0 right-0 left-64 z-40">
       <div className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4 min-w-0">
-          <div className="shrink-0 rounded-xl bg-white/90 p-1.5 border border-[#5CB0CC]/25 shadow-sm hidden sm:block">
+          <div className="shrink-0 rounded-xl p-1.5 border border-primary/20 bg-transparent hidden sm:block">
             <PawSewaLogo variant="nav" height={40} />
           </div>
           <div className="min-w-0">

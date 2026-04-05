@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { ArrowLeft, MapPin, User, CreditCard, PawPrint } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 type AppointmentDetail = {
   _id: string;
@@ -72,8 +73,9 @@ export default function AppointmentDetailPage() {
 
   if (error || !data) {
     return (
-      <PageShell className="px-4 py-16">
-        <div className="mx-auto max-w-lg text-center paw-card-glass rounded-2xl border border-paw-bark/10 p-10 shadow-paw">
+      <PageShell>
+        <PageContent>
+        <div className="mx-auto max-w-lg text-center paw-surface-card p-10">
           <p className="text-red-700">{error || 'Not found'}</p>
           <Link
             href="/my-pets?tab=appointments"
@@ -82,6 +84,7 @@ export default function AppointmentDetailPage() {
             Back to My Pets
           </Link>
         </div>
+        </PageContent>
       </PageShell>
     );
   }
@@ -118,8 +121,8 @@ export default function AppointmentDetailPage() {
         subtitle={subtitle}
       />
 
-      <div className="mx-auto max-w-2xl px-4 pb-10 -mt-2">
-        <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-6 shadow-paw sm:p-8">
+      <PageContent compact className="max-w-2xl pb-10 pt-2">
+        <div className="paw-surface-card p-6 sm:p-8">
           <div className="space-y-4 text-sm">
             {data.petId && typeof data.petId === 'object' && (
               <div className="flex items-start gap-3 text-slate-700">
@@ -199,21 +202,15 @@ export default function AppointmentDetailPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/my-pets?tab=appointments"
-              className="rounded-full border border-paw-bark/20 px-5 py-2.5 text-sm font-semibold text-paw-bark hover:bg-paw-sand/60 transition-colors"
-            >
+            <Link href="/my-pets?tab=appointments" className="paw-cta-secondary text-sm">
               All appointments
             </Link>
-            <Link
-              href="/vets"
-              className="rounded-full bg-paw-bark px-5 py-2.5 text-sm font-semibold text-paw-cream hover:bg-paw-ink shadow-paw transition-colors"
-            >
+            <Link href="/vets" className="paw-cta-primary text-sm">
               Book again
             </Link>
           </div>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

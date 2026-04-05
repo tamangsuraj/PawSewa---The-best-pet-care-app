@@ -46,7 +46,7 @@ export function Navbar() {
             className="flex items-center min-w-0 shrink-0 pr-2 -ml-0.5 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-paw-teal-mid/40 focus-visible:ring-offset-2"
             onClick={closeMobile}
           >
-            <PawSewaLogo variant="nav" height={60} blendWhiteMatte priority />
+            <PawSewaLogo variant="nav" height={60} priority />
           </Link>
 
           <div className="hidden lg:flex items-center gap-1 xl:gap-1.5">

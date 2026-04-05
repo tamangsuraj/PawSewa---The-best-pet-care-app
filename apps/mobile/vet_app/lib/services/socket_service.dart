@@ -30,6 +30,9 @@ class SocketService {
   /// Rider/seller shop fulfillment: job:available, order:assigned_rider, order:assigned_seller
   final List<void Function(String event, Map<String, dynamic> payload)?>
       _shopOrderListeners = [];
+  /// Admin care dispatch → partner My Business
+  final List<void Function(String event, Map<String, dynamic> payload)?>
+      _careBookingListeners = [];
 
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
@@ -215,6 +218,27 @@ class SocketService {
       _socket!.on(
         'order:assigned_seller',
         (data) => dispatchShopOrder('order:assigned_seller', data),
+      );
+      _socket!.on(
+        'orderUpdate',
+        (data) => dispatchShopOrder('orderUpdate', data),
+      );
+
+      void dispatchCareBooking(String event, dynamic data) {
+        final map = _toMap(data);
+        if (map == null) return;
+        for (final cb in _careBookingListeners) {
+          cb?.call(event, map);
+        }
+      }
+
+      _socket!.on(
+        'care_booking:assigned',
+        (data) => dispatchCareBooking('care_booking:assigned', data),
+      );
+      _socket!.on(
+        'care_booking:update',
+        (data) => dispatchCareBooking('care_booking:update', data),
       );
 
       _socket!.connect();
@@ -551,5 +575,17 @@ class SocketService {
     void Function(String event, Map<String, dynamic> payload) listener,
   ) {
     _shopOrderListeners.remove(listener);
+  }
+
+  void addCareBookingListener(
+    void Function(String event, Map<String, dynamic> payload) listener,
+  ) {
+    _careBookingListeners.add(listener);
+  }
+
+  void removeCareBookingListener(
+    void Function(String event, Map<String, dynamic> payload) listener,
+  ) {
+    _careBookingListeners.remove(listener);
   }
 }

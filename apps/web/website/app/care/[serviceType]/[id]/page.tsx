@@ -7,6 +7,7 @@ import { ChevronLeft, Droplets, Scissors, Hand, Ear, Sparkles } from 'lucide-rea
 import api from '@/lib/api';
 import { Reviews } from '@/components/Reviews';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 const SERVICE_LABELS: Record<string, string> = {
   hostel: 'Hostel',
@@ -87,7 +88,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
     <PageShell>
     <div className="pb-24">
       <header className="sticky top-0 z-20 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
           <Link
             href={`/care/${serviceType}`}
             className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors"
@@ -98,8 +99,9 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
         </div>
       </header>
 
-      <main className="container mx-auto px-4">
-        <div className="relative aspect-[4/3] max-h-[320px] rounded-2xl overflow-hidden bg-gray-100 -mx-4 mt-2">
+      <main>
+        <PageContent compact className="pb-28">
+        <div className="relative mt-2 aspect-[4/3] max-h-[320px] overflow-hidden rounded-[1.35rem] border border-paw-bark/10 bg-paw-haze/50">
           {displayImages[0] && displayImages[0].trim() !== '' ? (
             <Image src={displayImages[selectedImageIndex] || displayImages[0]} alt={center.name} fill className="object-cover" sizes="100vw" priority />
           ) : (
@@ -107,7 +109,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
           )}
         </div>
         {displayImages.length > 1 && displayImages[0] && (
-          <div className="flex gap-2 overflow-x-auto py-3 -mx-4 px-4">
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 py-3">
             {displayImages.map((src, i) => (
               <button key={i} type="button" onClick={() => setSelectedImageIndex(i)} className={`shrink-0 w-12 h-12 rounded-full overflow-hidden border-2 ${selectedImageIndex === i ? 'border-paw-bark' : 'border-gray-200'}`}>
                 <Image src={src} alt="" width={48} height={48} className="object-cover w-full h-full" />
@@ -116,9 +118,11 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
           </div>
         )}
 
-        <section className="mt-6">
-          <h2 className="text-xl font-bold text-paw-bark mb-2">{isGrooming ? 'Professional Spa & Hygiene' : 'About'}</h2>
-          <p className="text-gray-700 leading-relaxed">
+        <section className="paw-surface-card mt-6 p-5 md:p-6">
+          <h2 className="font-display text-xl font-semibold text-paw-ink mb-2">
+            {isGrooming ? 'Professional Spa & Hygiene' : 'About'}
+          </h2>
+          <p className="text-paw-bark/85 leading-relaxed">
             {center.description || 'Quality care for your pet. Book a session with us.'}
           </p>
         </section>
@@ -129,7 +133,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
               <h2 className="text-lg font-bold text-paw-bark mb-3">Included Services</h2>
               <div className="grid grid-cols-2 gap-3">
                 {INCLUDED_ICONS.map(({ label: l, icon: Icon }) => (
-                  <div key={l} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <div key={l} className="flex items-center gap-3 rounded-xl border border-paw-bark/10 bg-paw-haze/50 p-3">
                     <div className="w-10 h-10 rounded-lg bg-paw-bark/10 flex items-center justify-center">
                       <Icon className="w-5 h-5 text-paw-bark" />
                     </div>
@@ -141,7 +145,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
             <section className="mt-8">
               <h2 className="text-lg font-bold text-paw-bark mb-3">Our Groomers</h2>
               <div className="flex gap-4">
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-gray-50 border border-gray-100 flex-1">
+                <div className="flex flex-1 items-center gap-3 rounded-xl border border-paw-bark/10 bg-paw-haze/50 p-4">
                   <div className="w-12 h-12 rounded-full bg-paw-bark/20 flex items-center justify-center text-paw-bark font-bold">
                     {(center.ownerId as { name?: string })?.name?.charAt(0) ?? 'A'}
                   </div>
@@ -162,16 +166,22 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
           reviewCount={center.reviewCount}
           title="Ratings & Reviews"
         />
+        </PageContent>
       </main>
 
       <div className="fixed bottom-0 left-0 right-0 border-t border-paw-bark/10 bg-paw-cream/95 backdrop-blur-md p-4">
-        <div className="container mx-auto flex items-center justify-between gap-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <div>
-            <p className="text-sm text-gray-600">From</p>
-            <p className="text-xl font-bold text-paw-bark">NPR {price.toLocaleString()} {serviceType === 'hostel' ? '/ night' : '/ session'}</p>
+            <p className="text-sm text-paw-bark/65">From</p>
+            <p className="text-xl font-bold text-paw-bark">
+              Rs. {price.toLocaleString()} {serviceType === 'hostel' ? '/ night' : '/ session'}
+            </p>
           </div>
-          <Link href={`/care/${serviceType}/${center._id}/book`} className="flex-1 max-w-[200px] py-3 rounded-full bg-paw-bark text-paw-cream font-semibold text-center hover:bg-paw-ink transition-colors shadow-paw">
-            Book Now
+          <Link
+            href={`/care/${serviceType}/${center._id}/book`}
+            className="paw-cta-primary max-w-[220px] flex-1 text-center"
+          >
+            Book now
           </Link>
         </div>
       </div>

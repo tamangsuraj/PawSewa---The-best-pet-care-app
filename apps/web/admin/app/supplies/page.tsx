@@ -44,6 +44,7 @@ interface Rider {
 
 interface Order {
   _id: string;
+  assignmentStatus?: string;
   user?: { _id: string; name: string; email?: string; phone?: string };
   items: Array<{ name: string; price: number; quantity: number }>;
   totalAmount: number;
@@ -219,9 +220,16 @@ function OrderDetailModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Order #{order._id.slice(-6)}
-          </h2>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Order #{order._id.slice(-6)}
+            </h2>
+            {order.assignmentStatus ? (
+              <p className="text-xs text-primary font-medium mt-1">
+                {order.assignmentStatus.replace(/_/g, ' ')}
+              </p>
+            ) : null}
+          </div>
           <button
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
@@ -564,12 +572,19 @@ export default function LiveSuppliesPage() {
       void loadOrders();
     };
     socket.on('order:assigned_seller', onSellerAssigned);
+    const onRiderAssigned = (payload: { order?: Order }) => {
+      if (payload?.order) mergeOrder(payload.order);
+      toast.success('Rider assignment updated');
+      void loadOrders();
+    };
+    socket.on('order:assigned_rider', onRiderAssigned);
     return () => {
       socket.off('orderUpdate', handler);
       socket.off('new:order', onNew);
       socket.off('order:paid', onPaid);
       socket.off('order:seller_confirmed', onSellerOk);
       socket.off('order:assigned_seller', onSellerAssigned);
+      socket.off('order:assigned_rider', onRiderAssigned);
     };
   }, [mergeOrder, loadOrders]);
 

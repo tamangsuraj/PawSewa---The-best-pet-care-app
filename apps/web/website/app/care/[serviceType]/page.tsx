@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ChevronLeft, MapPin, Star } from 'lucide-react';
 import api from '@/lib/api';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 const SERVICE_LABELS: Record<string, string> = {
   hostel: 'Hostel',
@@ -51,7 +52,7 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
   return (
     <PageShell>
       <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/85 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4 sm:px-6">
           <Link
             href="/"
             className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors"
@@ -59,12 +60,13 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
             <ChevronLeft className="w-6 h-6" />
           </Link>
           <div>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-paw-bark/50">Care</p>
+            <p className="paw-eyebrow !text-paw-bark/55 before:bg-paw-teal-mid/45">Care</p>
             <h1 className="font-display text-xl font-semibold text-paw-ink">{label}</h1>
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-6">
+      <main>
+        <PageContent compact className="pb-10">
         {loading ? (
           <div className="text-center py-12 text-paw-bark">Loading...</div>
         ) : list.length === 0 ? (
@@ -76,7 +78,7 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
           <div className="space-y-6">
             {list.map((item) => (
               <Link key={item._id} href={`/care/${type}/${item._id}`}>
-                <article className="rounded-2xl overflow-hidden border border-paw-bark/10 bg-white/90 shadow-paw hover:shadow-paw-lg transition-all">
+                <article className="paw-surface-card overflow-hidden">
                   <div className="relative aspect-[4/3] bg-gray-100">
                     {item.images?.[0] ? (
                       <Image src={item.images[0]} alt={item.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 600px" />
@@ -100,7 +102,7 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
                         </span>
                       </div>
                       <span className="font-bold text-paw-bark">
-                        NPR {(item.pricePerSession ?? item.pricePerNight ?? 0).toLocaleString()}
+                        Rs. {(item.pricePerSession ?? item.pricePerNight ?? 0).toLocaleString()}
                         {type === 'hostel' ? ' / night' : ' / session'}
                       </span>
                     </div>
@@ -110,6 +112,7 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
             ))}
           </div>
         )}
+        </PageContent>
       </main>
     </PageShell>
   );

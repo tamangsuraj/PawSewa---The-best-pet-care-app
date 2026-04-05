@@ -35,6 +35,17 @@ const marketplaceMessageSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    /** Denormalized for admin / analytics (set on send). */
+    senderRole: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    receiverRole: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   { timestamps: true }
 );

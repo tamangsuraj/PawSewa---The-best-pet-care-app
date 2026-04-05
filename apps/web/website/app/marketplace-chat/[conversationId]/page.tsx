@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 export default function MarketplaceChatPage({
   params,
@@ -15,12 +16,12 @@ export default function MarketplaceChatPage({
 }) {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<{ _id: string; content?: string; productName?: string }[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const res = await api.get(`/marketplace-chat/conversations/${params.conversationId}/messages`);
       setMessages(res.data?.data ?? []);
@@ -29,17 +30,17 @@ export default function MarketplaceChatPage({
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.conversationId]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
       return;
     }
-    load();
-    const t = setInterval(load, 8000);
+    void load();
+    const t = setInterval(() => void load(), 8000);
     return () => clearInterval(t);
-  }, [isAuthenticated, params.conversationId, router]);
+  }, [isAuthenticated, router, load]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,20 +60,23 @@ export default function MarketplaceChatPage({
 
   return (
     <PageShell className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md px-4 py-3 flex items-center gap-3">
+      <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
         <Link href="/shop" className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors">
           <ChevronLeft className="w-6 h-6" />
         </Link>
-        <h1 className="text-lg font-semibold text-paw-ink font-display">Chat</h1>
+        <h1 className="font-display text-lg font-semibold text-paw-ink">Chat</h1>
+        </div>
       </header>
-      <main className="flex-1 overflow-y-auto p-4 space-y-2">
+      <PageContent flush className="min-h-0 flex-1 overflow-y-auto py-4">
+      <main className="space-y-2">
         {loading ? (
           <p className="text-gray-500 text-sm">Loading…</p>
         ) : (
           messages.map((m) => (
             <div
               key={m._id}
-              className="max-w-[85%] rounded-2xl px-3 py-2 text-sm bg-gray-100 text-gray-900"
+              className="max-w-[85%] rounded-2xl border border-paw-bark/10 bg-white/90 px-3 py-2 text-sm text-paw-ink shadow-sm"
             >
               {m.productName ? (
                 <p className="text-xs font-semibold text-paw-bark mb-1">Product: {m.productName}</p>
@@ -83,21 +87,20 @@ export default function MarketplaceChatPage({
         )}
         <div ref={bottomRef} />
       </main>
-      <div className="border-t border-gray-200 p-3 flex gap-2 bg-white">
+      </PageContent>
+      <div className="border-t border-paw-bark/10 bg-paw-cream/95 p-3">
+        <div className="mx-auto flex max-w-6xl gap-2 px-4 sm:px-6">
         <input
-          className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm"
+          className="paw-input flex-1 rounded-full text-sm"
           placeholder="Message…"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
         />
-        <button
-          type="button"
-          onClick={send}
-          className="px-4 py-2 rounded-full bg-paw-bark text-white text-sm font-semibold"
-        >
+        <button type="button" onClick={send} className="paw-cta-primary shrink-0 px-5 py-2 text-sm">
           Send
         </button>
+        </div>
       </div>
     </PageShell>
   );

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
 
 class MyBusinessScreen extends StatefulWidget {
@@ -27,6 +28,17 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
   List<dynamic> _bookings = [];
   String? _error;
 
+  void _onCareBookingSocket(String event, Map<String, dynamic> payload) {
+    if (event != 'care_booking:assigned' && event != 'care_booking:update') {
+      return;
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Care booking update — refreshing list')),
+    );
+    _loadBookings();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -34,10 +46,13 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
     _loadSubscription();
     _loadHostels();
     _loadBookings();
+    SocketService.instance.connect();
+    SocketService.instance.addCareBookingListener(_onCareBookingSocket);
   }
 
   @override
   void dispose() {
+    SocketService.instance.removeCareBookingListener(_onCareBookingSocket);
     _tabController.dispose();
     super.dispose();
   }

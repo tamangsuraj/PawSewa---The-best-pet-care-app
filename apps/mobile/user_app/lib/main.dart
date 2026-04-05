@@ -133,15 +133,15 @@ class _SplashScreenState extends State<SplashScreen> {
               Container(
                 width: 132,
                 height: 132,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.transparent,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
-                      blurRadius: 32,
-                      offset: const Offset(0, 14),
+                      color: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
+                      blurRadius: 28,
+                      offset: const Offset(0, 12),
                     ),
                   ],
                 ),

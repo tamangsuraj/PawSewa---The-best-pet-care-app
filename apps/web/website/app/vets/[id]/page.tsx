@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
         description,
       },
     };
-  } catch (error) {
+  } catch {
     return {
       title: 'Veterinarian Profile | PawSewa',
       description: 'Find trusted veterinary care for your pets on PawSewa',

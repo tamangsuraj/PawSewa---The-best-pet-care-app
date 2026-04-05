@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import api from '@/lib/api';
 import { MailCheck } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,8 +86,9 @@ export default function VerifyOTPPage() {
   };
 
   return (
-    <PageShell className="flex min-h-screen items-center justify-center p-4 sm:p-6">
-      <div className="paw-card-glass w-full max-w-md rounded-[1.75rem] border border-paw-bark/10 p-8 shadow-paw-lg">
+    <PageShell className="flex min-h-screen items-center justify-center">
+      <PageContent compact className="max-w-md py-10">
+      <div className="paw-surface-card w-full p-8">
         <div className="text-center mb-8">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-paw-teal/10 text-paw-teal-mid">
             <MailCheck className="h-7 w-7" strokeWidth={1.75} aria-hidden />
@@ -156,6 +158,7 @@ export default function VerifyOTPPage() {
           </button>
         </div>
       </div>
+      </PageContent>
     </PageShell>
   );
 }

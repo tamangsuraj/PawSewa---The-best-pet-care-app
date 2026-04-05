@@ -19,6 +19,7 @@ import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
 import 'shop/my_orders_screen.dart';
 import 'messages/messages_hub_screen.dart';
+import 'messages/messages_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
@@ -498,14 +499,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
               ),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const PawSewaBrandLogo(height: 36),
-                  ),
+                  const PawSewaBrandLogo(height: 36),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -1157,20 +1151,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
         ),
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: const Color(AppConstants.secondaryColor),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Image.asset(
-                'assets/brand/image_607767.png',
-                height: 26,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) =>
-                    const PawSewaBrandLogo(height: 26),
-              ),
-            ),
+            const PawSewaBrandLogo(height: 26),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -1258,8 +1239,28 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
             ),
         ],
       ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'fab_customer_support',
+            backgroundColor: const Color(AppConstants.primaryColor),
+            tooltip: 'Customer Support',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const MessagesScreen(),
+                ),
+              );
+            },
+            child: const Icon(Icons.support_agent, color: Colors.white),
+          ),
+          if (_currentIndex == 0) ...[
+            const SizedBox(height: 12),
+            FloatingActionButton.extended(
+              heroTag: 'fab_add_pet',
               onPressed: _navigateToAddPet,
               backgroundColor: const Color(AppConstants.primaryColor),
               icon: const Icon(Icons.add, color: Colors.white),
@@ -1270,8 +1271,10 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            )
-          : null,
+            ),
+          ],
+        ],
+      ),
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }

@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { getAllBlogPosts, getBlogPostBySlug, formatDate } from '@/lib/blog';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 type Props = {
   params: { slug: string };
@@ -149,12 +150,14 @@ export default function BlogPostPage({ params }: Props) {
   if (!post) {
     return (
       <PageShell>
-        <div className="container mx-auto px-4 py-16">
-          <h1 className="font-display text-3xl font-semibold text-paw-ink mb-3">Post not found</h1>
-          <Link href="/blog" className="text-paw-teal-mid font-semibold hover:underline">
-            ← Back to blog
-          </Link>
-        </div>
+        <PageContent>
+          <div className="paw-surface-card p-10 text-center md:p-12">
+            <h1 className="font-display text-2xl font-semibold text-paw-ink mb-4">Post not found</h1>
+            <Link href="/blog" className="font-semibold text-paw-teal-mid hover:underline">
+              ← Back to blog
+            </Link>
+          </div>
+        </PageContent>
       </PageShell>
     );
   }
@@ -167,32 +170,32 @@ export default function BlogPostPage({ params }: Props) {
         subtitle={post.description || undefined}
       />
 
-      <article className="container mx-auto px-4 pb-16 -mt-4">
-        <header className="paw-card-glass rounded-2xl border border-paw-bark/10 p-6 md:p-8 shadow-paw mb-10">
-          <div className="flex flex-wrap items-center gap-3 text-sm mb-4">
-            <span className="text-xs font-semibold text-paw-bark bg-paw-cream/80 px-3 py-1 rounded-full border border-paw-bark/10">
-              {formatDate(post.date)}
-            </span>
-            {post.tags.map((t) => (
-              <span
-                key={t}
-                className="text-xs font-semibold text-paw-bark/80 bg-white/80 px-3 py-1 rounded-full border border-paw-bark/8"
-              >
-                {t}
+      <PageContent compact className="pb-16 pt-2">
+        <article>
+          <header className="paw-surface-card mb-10 p-6 md:p-8">
+            <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+              <span className="rounded-full border border-paw-bark/10 bg-paw-sand/80 px-3 py-1 text-xs font-semibold text-paw-bark">
+                {formatDate(post.date)}
               </span>
-            ))}
-          </div>
-          <Link href="/blog" className="text-sm font-semibold text-paw-teal-mid hover:underline">
-            ← Back to blog
-          </Link>
-        </header>
+              {post.tags.map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full border border-paw-bark/10 bg-white/90 px-3 py-1 text-xs font-semibold text-paw-bark/85"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+            <Link href="/blog" className="text-sm font-semibold text-paw-teal-mid hover:underline">
+              ← Back to blog
+            </Link>
+          </header>
 
-        <div className="prose max-w-none">
-          <div className="max-w-3xl text-paw-bark/90">
-            {renderMarkdown(post.content)}
+          <div className="prose max-w-none">
+            <div className="max-w-3xl text-paw-bark/90">{renderMarkdown(post.content)}</div>
           </div>
-        </div>
-      </article>
+        </article>
+      </PageContent>
     </PageShell>
   );
 }

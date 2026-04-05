@@ -9,6 +9,7 @@ const {
   resolveCareAdminId,
   toClientConversationShape,
 } = require('../services/customerCareService');
+const { formatRoleLabel } = require('../utils/roleLabels');
 
 function assertSupportConv(conv) {
   if (!conv || conv.type !== 'SUPPORT') {
@@ -50,6 +51,8 @@ const getMine = asyncHandler(async (req, res) => {
         receiverId: m.receiver,
         text: m.content,
         timestamp: m.createdAt,
+        senderRole: m.senderRole || undefined,
+        receiverRole: m.receiverRole || undefined,
       })),
       careContact: {
         _id: populated.partner?._id,
@@ -66,8 +69,8 @@ const getMine = asyncHandler(async (req, res) => {
  */
 const listConversationsAdmin = asyncHandler(async (req, res) => {
   const convs = await MarketplaceConversation.find({ type: 'SUPPORT' })
-    .populate('customer', 'name email phone profilePicture')
-    .populate('partner', 'name email profilePicture')
+    .populate('customer', 'name email phone profilePicture role')
+    .populate('partner', 'name email profilePicture role')
     .sort({ updatedAt: -1 })
     .lean();
 
@@ -99,8 +102,14 @@ const listConversationsAdmin = asyncHandler(async (req, res) => {
     data: sorted.map((c) => {
       const last = lastByConv.get(String(c._id));
       const shaped = toClientConversationShape(c);
+      const cust = c.customer;
+      const roleLabel = formatRoleLabel(cust?.role);
+      const displayName = cust?.name || 'User';
       return {
         ...shaped,
+        threadLabel: `${displayName} — ${roleLabel}`,
+        customerRole: cust?.role,
+        customerRoleLabel: roleLabel,
         lastMessagePreview: last?.lastText || '',
         lastMessageAt: last?.lastAt || c.updatedAt,
       };
@@ -138,6 +147,8 @@ const getMessages = asyncHandler(async (req, res) => {
       receiverId: m.receiver != null ? m.receiver : m.sender,
       text: m.content,
       timestamp: m.createdAt,
+      senderRole: m.senderRole || undefined,
+      receiverRole: m.receiverRole || undefined,
     })),
   });
 });
@@ -177,6 +188,8 @@ const postMessage = asyncHandler(async (req, res) => {
       receiverId: msg.receiver,
       text: msg.content,
       timestamp: msg.createdAt,
+      senderRole: msg.senderRole,
+      receiverRole: msg.receiverRole,
     },
   });
 });

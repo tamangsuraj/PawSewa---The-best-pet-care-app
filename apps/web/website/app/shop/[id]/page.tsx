@@ -12,6 +12,7 @@ import { ChevronLeft, Plus, Star, Package, MessageCircle } from 'lucide-react';
 import { Reviews } from '@/components/Reviews';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 interface Product {
   _id: string;
@@ -75,17 +76,18 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
     <PageShell>
     <div className="pb-8">
       <header className="sticky top-0 z-10 border-b border-paw-bark/10 bg-paw-cream/90 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-3 flex items-center gap-4">
-          <Link href="/shop" className="p-2 -ml-2 rounded-xl hover:bg-paw-sand/80 text-paw-bark transition-colors">
-            <ChevronLeft className="w-6 h-6" />
+        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Link href="/shop" className="-ml-2 rounded-xl p-2 text-paw-bark transition-colors hover:bg-paw-sand/80">
+            <ChevronLeft className="h-6 w-6" />
           </Link>
-          <h1 className="text-lg font-semibold text-paw-ink truncate flex-1 font-display">Product</h1>
+          <h1 className="flex-1 truncate font-display text-lg font-semibold text-paw-ink">{product.name}</h1>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100">
+      <main>
+        <PageContent compact className="pb-12 pt-6">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div className="relative aspect-square overflow-hidden rounded-[1.35rem] border border-paw-bark/10 bg-white/90 shadow-paw">
             {imageUrl ? (
               <Image
                 src={imageUrl}
@@ -97,34 +99,33 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                 unoptimized={imageUrl.startsWith('http://')}
               />
             ) : (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-gray-400 bg-gray-50">
-                <Package className="w-16 h-16" strokeWidth={1.25} aria-hidden />
-                <span className="text-sm font-medium">No image</span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-paw-haze/50 text-paw-bark/40">
+                <Package className="h-16 w-16" strokeWidth={1.25} aria-hidden />
+                <span className="text-sm font-medium text-paw-bark/55">No image</span>
               </div>
             )}
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-paw-bark mb-2">{product.name}</h2>
-            <p className="text-2xl font-bold text-paw-bark mb-4">NPR {product.price.toLocaleString()}</p>
+          <div className="paw-surface-card p-6 md:p-8">
+            <p className="paw-eyebrow mb-3 !text-paw-bark/75 before:bg-paw-teal-mid/50">Shop</p>
+            <h2 className="font-display text-2xl font-semibold text-paw-ink">{product.name}</h2>
+            <p className="mt-2 text-2xl font-bold text-paw-bark">Rs. {product.price.toLocaleString()}</p>
             {product.rating != null && (
-              <div className="flex items-center gap-2 mb-4">
+              <div className="mb-4 mt-4 flex items-center gap-2">
                 <div className="flex text-amber-500">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Star key={i} className={`w-4 h-4 ${i <= Math.round(product.rating ?? 0) ? 'fill-current' : ''}`} />
+                    <Star key={i} className={`h-4 w-4 ${i <= Math.round(product.rating ?? 0) ? 'fill-current' : ''}`} />
                   ))}
                 </div>
-                <span className="text-sm text-gray-600">
-                  {(product.rating ?? 0).toFixed(1)} ({(product.reviewCount ?? 0)} reviews)
+                <span className="text-sm text-paw-bark/70">
+                  {(product.rating ?? 0).toFixed(1)} ({product.reviewCount ?? 0} reviews)
                 </span>
               </div>
             )}
-            {product.description && (
-              <p className="text-gray-700 mb-4">{product.description}</p>
-            )}
-            <p className="text-sm text-gray-600 mb-4">
+            {product.description && <p className="mb-4 text-paw-bark/85 leading-relaxed">{product.description}</p>}
+            <p className="mb-6 text-sm text-paw-bark/70">
               {inStock ? `In stock: ${product.stockQuantity}` : 'Out of stock'}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="flex w-full flex-col gap-3 sm:flex-row md:w-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -139,10 +140,10 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                   setTimeout(() => setJustAdded(false), 2500);
                 }}
                 disabled={!inStock}
-                className="flex items-center justify-center gap-2 flex-1 px-6 py-3 bg-paw-bark text-white rounded-xl font-semibold hover:bg-paw-bark/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="paw-cta-primary flex flex-1 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <Plus className="w-5 h-5" />
-                {justAdded ? 'Added to Cart!' : 'Add to Cart'}
+                <Plus className="h-5 w-5" />
+                {justAdded ? 'Added to cart' : 'Add to cart'}
               </button>
               <button
                 type="button"
@@ -162,16 +163,18 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
                     setChatBusy(false);
                   }
                 }}
-                className="flex items-center justify-center gap-2 flex-1 px-6 py-3 border-2 border-paw-bark text-paw-bark rounded-xl font-semibold hover:bg-paw-bark/5"
+                className="paw-cta-secondary flex flex-1 items-center justify-center gap-2 border-paw-bark/25"
               >
-                <MessageCircle className="w-5 h-5" />
-                Chat with Seller
+                <MessageCircle className="h-5 w-5" />
+                Chat with seller
               </button>
             </div>
             {justAdded && (
-              <p className="mt-2 text-sm text-green-600 font-medium">
+              <p className="mt-3 text-sm font-medium text-emerald-700">
                 Item added.{' '}
-                <Link href="/checkout" className="underline font-semibold">View cart & checkout</Link>
+                <Link href="/checkout" className="font-semibold underline">
+                  View cart & checkout
+                </Link>
               </p>
             )}
           </div>
@@ -184,6 +187,7 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
           reviewCount={product.reviewCount}
           title="Customer Reviews"
         />
+        </PageContent>
       </main>
     </div>
     </PageShell>

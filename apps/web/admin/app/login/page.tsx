@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { AlertCircle, Eye, EyeOff, Lock } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Lock, Shield } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { useForm } from 'react-hook-form';
@@ -44,8 +44,8 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#5c2d12]">
         <div className="text-center">
-          <div className="mx-auto mb-4 flex justify-center rounded-xl bg-white/10 p-3 border border-white/20">
-            <PawSewaLogoSpinner size={64} imageClassName="brightness-0 invert" />
+          <div className="mx-auto mb-4 flex justify-center rounded-xl p-3 border border-white/25 bg-transparent">
+            <PawSewaLogoSpinner size={64} />
           </div>
           <p className="text-white/80">Loading...</p>
         </div>
@@ -75,8 +75,8 @@ export default function LoginPage() {
         <div className="bg-[#4a2510] rounded-2xl shadow-2xl p-8 border border-[#6b3d1a]">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center rounded-xl bg-white/10 mb-4 border border-white/30 px-4 py-3">
-              <PawSewaLogo variant="nav" height={48} className="brightness-0 invert" />
+            <div className="inline-flex items-center justify-center rounded-xl mb-4 border border-white/30 px-4 py-3 bg-transparent">
+              <PawSewaLogo variant="nav" height={48} />
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Admin Portal</h1>
             <p className="text-white/80">PawSewa Control Room</p>

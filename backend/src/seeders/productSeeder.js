@@ -16,6 +16,7 @@ const Product = require('../models/Product');
 const Category = require('../models/Category');
 const User = require('../models/User');
 
+/** Unsplash photo path only (e.g. photo-1587300003388-59208cc962cb). Use IDs that still resolve — removed photos break Next/Image and seed data. */
 const IMG = (photoPath) =>
   `https://images.unsplash.com/${photoPath}?auto=format&fit=crop&q=80&w=800`;
 
@@ -184,7 +185,7 @@ function buildProductDefs() {
       badge: 'STYLE',
       rating: 4.45,
       reviewCount: 92,
-      image: IMG('photo-1548199973-35812388d1b4'),
+      image: IMG('photo-1548199973-03cce0bbc87b'),
       sellerKey: 'petcare',
     },
     {
@@ -229,7 +230,7 @@ function buildProductDefs() {
       badge: 'HEALTH',
       rating: 4.65,
       reviewCount: 134,
-      image: IMG('photo-1516734212186-a967d81b1248'),
+      image: IMG('photo-1601758228041-f3b2795255f1'),
       sellerKey: 'petcare',
     },
     {
@@ -465,14 +466,14 @@ async function run() {
   await connectDB();
 
   const petCareOwner = await ensureShopOwner({
-    email: 'shop.petcareplus.grooming@pawsewa.seed',
-    name: 'Pet Care+ Grooming',
+    email: 'priya.shrestha.shop@pawsewa.com',
+    name: 'Priya Shrestha',
     facilityName: 'Pet Care+ Grooming',
   });
 
   const felineOwner = await ensureShopOwner({
-    email: 'shop.urban.feline@pawsewa.seed',
-    name: 'The Urban Feline Co.',
+    email: 'kiran.thapa.shop@pawsewa.com',
+    name: 'Kiran Thapa',
     facilityName: 'The Urban Feline Co.',
   });
 
@@ -500,7 +501,7 @@ async function run() {
     {
       slug: 'collars-leashes',
       name: 'Collars & Leashes',
-      image: IMG('photo-1548199973-35812388d1b4'),
+      image: IMG('photo-1548199973-03cce0bbc87b'),
     },
     {
       slug: 'pet-supplies',

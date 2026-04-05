@@ -12,7 +12,7 @@ type Props = {
 export function PawSewaLogoSpinner({ size = 56, className = '' }: Props) {
   return (
     <div
-      className={`inline-flex items-center justify-center ${className}`}
+      className={`inline-flex items-center justify-center bg-transparent ${className}`}
       role="status"
       aria-label={`Loading — ${PAWSEWA_LOGO_ALT}`}
     >
@@ -21,8 +21,8 @@ export function PawSewaLogoSpinner({ size = 56, className = '' }: Props) {
         alt=""
         width={size}
         height={size}
-        className="animate-spin object-contain"
-        style={{ width: size, height: size }}
+        className="animate-spin object-contain !bg-transparent"
+        style={{ width: size, height: size, backgroundColor: 'transparent' }}
         aria-hidden
       />
     </div>

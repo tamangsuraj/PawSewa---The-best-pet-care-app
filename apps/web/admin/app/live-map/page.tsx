@@ -9,7 +9,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
-import { MapPin, RefreshCw, Package } from 'lucide-react';
+import { MapPin, RefreshCw, Package, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const MapContainer = dynamic(
@@ -59,6 +59,17 @@ interface CareRow {
 interface OrderPin {
   _id: string;
   status?: string;
+  assignmentStatus?: string;
+  coordinates?: { lat: number; lng: number };
+}
+
+interface CareBookingPin {
+  _id: string;
+  status?: string;
+  serviceType?: string;
+  hostelName?: string;
+  careAssignmentStatus?: string;
+  assignedPartner?: { name?: string; role?: string };
   coordinates?: { lat: number; lng: number };
 }
 
@@ -67,6 +78,7 @@ interface LiveMapData {
   requests: RequestRow[];
   careRequests: CareRow[];
   orders: OrderPin[];
+  careBookings?: CareBookingPin[];
 }
 
 export default function AdminLiveMapPage() {
@@ -111,11 +123,17 @@ export default function AdminLiveMapPage() {
     socket.on('new:order', bump);
     socket.on('order:paid', bump);
     socket.on('order:assigned_seller', bump);
+    socket.on('order:assigned_rider', bump);
+    socket.on('care_booking:update', bump);
+    socket.on('care_booking:new', bump);
     return () => {
       socket.off('orderUpdate', bump);
       socket.off('new:order', bump);
       socket.off('order:paid', bump);
       socket.off('order:assigned_seller', bump);
+      socket.off('order:assigned_rider', bump);
+      socket.off('care_booking:update', bump);
+      socket.off('care_booking:new', bump);
     };
   }, [load]);
 
@@ -128,6 +146,7 @@ export default function AdminLiveMapPage() {
   const requests = data?.requests ?? [];
   const care = data?.careRequests ?? [];
   const orders = data?.orders ?? [];
+  const careBookings = data?.careBookings ?? [];
 
   return (
     <ProtectedRoute>
@@ -180,6 +199,10 @@ export default function AdminLiveMapPage() {
               <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#703418]/10 text-[#703418] border border-[#703418]/25">
                 <Package className="w-3.5 h-3.5" />
                 Product delivery
+              </span>
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-100 text-violet-900 border border-violet-200">
+                <Building2 className="w-3.5 h-3.5" />
+                Care booking (facility)
               </span>
             </div>
 
@@ -315,11 +338,53 @@ export default function AdminLiveMapPage() {
                           <div className="text-sm max-w-[200px]">
                             <p className="font-semibold">Product order</p>
                             <p className="text-gray-600">{o.status}</p>
+                            {o.assignmentStatus ? (
+                              <p className="text-gray-500 text-xs">{o.assignmentStatus.replace(/_/g, ' ')}</p>
+                            ) : null}
                             <Link
                               href="/supplies"
                               className="text-primary text-xs font-medium underline"
                             >
                               Live supplies
+                            </Link>
+                          </div>
+                        </Popup>
+                      </CircleMarker>
+                    );
+                  })}
+                  {careBookings.map((b) => {
+                    const p = b.coordinates;
+                    if (!p || typeof p.lat !== 'number' || typeof p.lng !== 'number') {
+                      return null;
+                    }
+                    return (
+                      <CircleMarker
+                        key={`cb-${b._id}`}
+                        center={[p.lat, p.lng]}
+                        radius={7}
+                        pathOptions={{
+                          color: '#5b21b6',
+                          fillColor: '#8b5cf6',
+                          fillOpacity: 0.9,
+                          weight: 2,
+                        }}
+                      >
+                        <Popup>
+                          <div className="text-sm max-w-[220px]">
+                            <p className="font-semibold">Care booking</p>
+                            <p>{b.hostelName ?? 'Facility'}</p>
+                            <p className="text-gray-600">{b.serviceType ?? '—'}</p>
+                            <p className="text-gray-500 text-xs">{b.status}</p>
+                            {b.assignedPartner?.name ? (
+                              <p className="text-primary text-xs mt-1">
+                                Partner: {b.assignedPartner.name}
+                              </p>
+                            ) : null}
+                            <Link
+                              href="/care/bookings"
+                              className="text-primary text-xs font-medium underline mt-1 inline-block"
+                            >
+                              Open bookings
                             </Link>
                           </div>
                         </Popup>

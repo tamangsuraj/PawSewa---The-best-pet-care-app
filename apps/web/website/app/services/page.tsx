@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 export default function ServicesPage() {
   return (
@@ -11,8 +12,8 @@ export default function ServicesPage() {
         subtitle="Comprehensive care, retail, and logistics — designed around your pet’s life."
       />
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <PageContent>
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
           {[
             {
               emoji: '🏥',
@@ -53,7 +54,7 @@ export default function ServicesPage() {
           ].map((card) => (
             <div
               key={card.title}
-              className="paw-card-glass rounded-2xl border border-paw-bark/8 p-8 shadow-paw hover:shadow-paw-lg transition-shadow"
+              className="paw-surface-card rounded-[1.35rem] p-8"
             >
               <div className="text-5xl mb-4" aria-hidden>
                 {card.emoji}
@@ -69,25 +70,22 @@ export default function ServicesPage() {
           ))}
         </div>
 
-        <div className="mt-16 relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber text-paw-cream p-10 md:p-12 text-center shadow-paw-lg border border-white/10">
+        <div className="relative mt-16 overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br from-paw-bark via-paw-ink to-paw-umber p-10 text-center text-paw-cream shadow-paw-lg md:p-12">
           <div
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_50%_100%,rgba(13,148,136,0.2),transparent_50%)]"
             aria-hidden
           />
           <div className="relative">
-            <h2 className="font-display text-3xl font-semibold mb-4">Need help right now?</h2>
-            <p className="text-lg text-paw-cream/85 mb-8 max-w-lg mx-auto">
+            <h2 className="font-display mb-4 text-3xl font-semibold">Need help right now?</h2>
+            <p className="mx-auto mb-8 max-w-lg text-lg text-paw-cream/85">
               Request assistance and we will route your case to the best available veterinarian.
             </p>
-            <Link
-              href="/my-pets"
-              className="inline-block px-8 py-4 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors text-lg shadow-paw"
-            >
+            <Link href="/my-pets" className="paw-cta-primary text-base">
               Request assistance
             </Link>
           </div>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

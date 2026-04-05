@@ -40,7 +40,7 @@ function parseFrontmatter(raw: string): {
     const idx = line.indexOf(':');
     if (idx === -1) continue;
     const key = line.slice(0, idx).trim();
-    let value = line.slice(idx + 1).trim();
+    const value = line.slice(idx + 1).trim();
     if (!key) continue;
 
     // Arrays: [a, b, c]
@@ -98,9 +98,8 @@ export function getBlogPostBySlug(slug: string): BlogPost | null {
 }
 
 export function toMeta(post: BlogPost): BlogPostMeta {
-  // Avoid leaking raw markdown where not needed
-  const { content: _content, ...meta } = post;
-  return meta;
+  const { slug, title, description, date, tags } = post;
+  return { slug, title, description, date, tags };
 }
 
 export function formatDate(date: string) {

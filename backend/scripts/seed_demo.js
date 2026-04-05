@@ -43,10 +43,11 @@ async function run() {
   const riders = [];
   for (let i = 1; i <= 3; i += 1) {
     const riderId = `RID-${String(i).padStart(3, '0')}`;
+    const riderNames = ['Sunil Rai', 'Bikash Limbu', 'Nabin Dahal'];
     const email = `demo.rider${i}@pawsewa.local`;
     // Store riderId in licenseNumber as a stable visible identifier (schema has no riderId field).
     const rider = await upsertUserByEmail(email, {
-      name: `Demo Rider ${i}`,
+      name: riderNames[i - 1] || `Rider ${i}`,
       password: `PawSewaRider${i}!`,
       role: 'RIDER',
       phone: `98${String(10000000 + i).slice(0, 8)}`,
@@ -63,10 +64,11 @@ async function run() {
   const vets = [];
   for (let i = 1; i <= 3; i += 1) {
     const vetId = `VET-${String(i).padStart(3, '0')}`;
+    const vetNames = ['Dr. Sunita Joshi', 'Dr. Prakash Malla', 'Dr. Laxmi Bhattarai'];
     const email = `demo.vet${i}@pawsewa.local`;
     // Store vetId in clinicName to keep a stable visible identifier (schema has no vetId field).
     const vet = await upsertUserByEmail(email, {
-      name: `Demo Vet ${i}`,
+      name: vetNames[i - 1] || `Dr. Vet ${i}`,
       password: `PawSewaVet${i}!`,
       role: 'VET',
       phone: `97${String(20000000 + i).slice(0, 8)}`,
@@ -81,9 +83,10 @@ async function run() {
   // Demo customers (pet owners)
   const customers = [];
   for (let i = 1; i <= 2; i += 1) {
+    const customerNames = ['Rajesh Pandey', 'Kavita Maharjan'];
     const email = `demo.customer${i}@pawsewa.local`;
     const c = await upsertUserByEmail(email, {
-      name: `Demo Customer ${i}`,
+      name: customerNames[i - 1] || `Customer ${i}`,
       password: `PawSewaCustomer${i}!`,
       role: 'pet_owner',
       phone: `96${String(30000000 + i).slice(0, 8)}`,
@@ -185,7 +188,7 @@ async function run() {
       stockQuantity: 50,
       category: category._id,
       images: [
-        'https://images.unsplash.com/photo-1589927986089-35812388d1b4?auto=format&fit=crop&w=1200&q=80',
+        'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=1200&q=80',
       ],
       isAvailable: true,
     });

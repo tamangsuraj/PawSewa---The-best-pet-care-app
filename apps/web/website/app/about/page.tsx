@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Heart, Zap, UserRound, Clock, Smartphone, Target, Leaf } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 export default function AboutPage() {
   return (
@@ -12,8 +13,8 @@ export default function AboutPage() {
         subtitle="Your trusted partner in pet care — from dispatch to shop and clinic."
       />
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw p-10 md:p-12 mb-10">
+      <PageContent>
+        <div className="paw-surface-card mb-10 p-10 md:p-12">
           <div className="max-w-4xl mx-auto text-center">
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-paw-teal/10 text-paw-teal-mid">
               <Heart className="h-8 w-8" strokeWidth={1.75} aria-hidden />
@@ -52,10 +53,7 @@ export default function AboutPage() {
                 body: 'The assigned vet reaches out and provides care. Track status in real time from your dashboard.',
               },
             ].map((item) => (
-              <div
-                key={item.step}
-                className="paw-card-glass rounded-2xl border border-paw-bark/8 p-8 text-center shadow-paw"
-              >
+              <div key={item.step} className="paw-surface-card p-8 text-center">
                 <div className="w-16 h-16 bg-gradient-to-br from-paw-bark to-paw-ink text-paw-cream rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 shadow-paw-glow">
                   {item.step}
                 </div>
@@ -98,7 +96,7 @@ export default function AboutPage() {
 
         <div className="mb-12">
           <h2 className="font-display text-3xl font-semibold text-paw-ink text-center mb-8">Our team</h2>
-          <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/8 p-10 md:p-12 shadow-paw">
+          <div className="paw-surface-card p-10 md:p-12">
             <div className="max-w-3xl mx-auto text-center">
               <p className="text-lg text-paw-bark/80 leading-relaxed mb-6">
                 PawSewa is built by veterinary professionals, dispatchers, and pet-care specialists
@@ -138,7 +136,7 @@ export default function AboutPage() {
             </div>
           </div>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

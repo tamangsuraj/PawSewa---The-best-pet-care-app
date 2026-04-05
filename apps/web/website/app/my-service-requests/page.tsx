@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import {
@@ -19,6 +19,7 @@ import {
 import Link from 'next/link';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 interface ServiceRequest {
   _id: string;
@@ -41,6 +42,24 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
+function isActiveStatus(s: string) {
+  return ['pending', 'assigned', 'in_progress'].includes(s);
+}
+
+function isHistoryStatus(s: string) {
+  return ['completed', 'cancelled'].includes(s);
+}
+
+function isScheduledRequest(r: ServiceRequest) {
+  if (isHistoryStatus(r.status)) return false;
+  const dateStr = r.preferredDate ?? r.scheduledTime;
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d >= today;
+}
+
 function MyServiceRequestsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -52,22 +71,7 @@ function MyServiceRequestsPageInner() {
   const [tab, setTab] = useState<'active' | 'history' | 'scheduled'>('active');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      fetchMyRequests();
-    }
-
-    const onScroll = () => {
-      setShowBackToTop(window.scrollY > 300);
-    };
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  const fetchMyRequests = async () => {
+  const fetchMyRequests = useCallback(async () => {
     try {
       setLoading(true);
       if (!localStorage.getItem('token')) {
@@ -79,32 +83,38 @@ function MyServiceRequestsPageInner() {
         setRequests(response.data.data || []);
       }
       setError('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching service requests:', err);
-      setError(err.response?.data?.message || 'Failed to load appointments');
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || 'Failed to load appointments');
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  const isActive = (s: string) => ['pending', 'assigned', 'in_progress'].includes(s);
-  const isHistory = (s: string) => ['completed', 'cancelled'].includes(s);
-  const isScheduled = (r: ServiceRequest) => {
-    if (isHistory(r.status)) return false;
-    const dateStr = r.preferredDate ?? r.scheduledTime;
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return d >= today;
-  };
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    void fetchMyRequests();
+  }, [router, fetchMyRequests]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      setShowBackToTop(window.scrollY > 300);
+    };
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     if (!focusId || !requests.length) return;
     const target = requests.find((r) => r._id === focusId);
     if (!target) return;
-    if (isHistory(target.status)) setTab('history');
-    else if (isScheduled(target)) setTab('scheduled');
+    if (isHistoryStatus(target.status)) setTab('history');
+    else if (isScheduledRequest(target)) setTab('scheduled');
     else setTab('active');
   }, [focusId, requests]);
 
@@ -116,9 +126,9 @@ function MyServiceRequestsPageInner() {
     return () => window.clearTimeout(timer);
   }, [focusId, tab, requests]);
 
-  const activeList = requests.filter((r) => isActive(r.status));
-  const historyList = requests.filter((r) => isHistory(r.status));
-  const scheduledList = requests.filter((r) => isScheduled(r));
+  const activeList = requests.filter((r) => isActiveStatus(r.status));
+  const historyList = requests.filter((r) => isHistoryStatus(r.status));
+  const scheduledList = requests.filter((r) => isScheduledRequest(r));
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -179,7 +189,7 @@ function MyServiceRequestsPageInner() {
         subtitle="Active, scheduled, and past appointments."
       />
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <PageContent compact className="max-w-4xl">
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
@@ -197,7 +207,7 @@ function MyServiceRequestsPageInner() {
           </button>
         </div>
 
-        <div className="flex rounded-2xl paw-card-glass p-1 shadow-paw border border-paw-bark/10 mb-8">
+        <div className="paw-surface-card mb-8 flex rounded-2xl p-1">
           {(['active', 'history', 'scheduled'] as const).map((t) => (
             <button
               key={t}
@@ -211,7 +221,7 @@ function MyServiceRequestsPageInner() {
         </div>
 
         {currentList.length === 0 ? (
-          <div className="paw-card-glass rounded-[20px] border border-paw-bark/10 shadow-paw p-10 text-center">
+          <div className="paw-surface-card p-10 text-center">
             <div className="w-20 h-20 rounded-2xl bg-paw-bark/10 flex items-center justify-center mx-auto mb-6">
               <Calendar className="w-10 h-10 text-paw-bark" />
             </div>
@@ -225,10 +235,7 @@ function MyServiceRequestsPageInner() {
               {tab === 'history' && 'Completed and cancelled requests will show here.'}
               {tab === 'scheduled' && 'Upcoming appointments will appear here.'}
             </p>
-            <Link
-              href="/services/request"
-              className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-paw-bark text-paw-cream font-semibold hover:bg-paw-ink transition-colors shadow-paw-lg"
-            >
+            <Link href="/services/request" className="paw-cta-primary inline-flex items-center gap-2">
               Book Now
             </Link>
           </div>
@@ -238,7 +245,7 @@ function MyServiceRequestsPageInner() {
               <div
                 key={req._id}
                 ref={focusId === req._id ? highlightedRef : undefined}
-                className={`paw-card-glass rounded-[20px] shadow-paw p-5 border transition-colors ${
+                className={`paw-surface-card p-5 transition-colors ${
                   focusId === req._id
                     ? 'border-paw-bark ring-2 ring-paw-bark/30'
                     : 'border-paw-bark/10 hover:border-paw-bark/25'
@@ -300,7 +307,7 @@ function MyServiceRequestsPageInner() {
             ))}
           </div>
         )}
-      </div>
+      </PageContent>
 
       {showBackToTop && (
         <button

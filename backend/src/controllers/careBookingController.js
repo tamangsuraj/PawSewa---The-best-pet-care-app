@@ -207,6 +207,8 @@ const respondToBooking = asyncHandler(async (req, res) => {
   booking.status = accept ? 'accepted' : 'rejected';
   await booking.save();
 
+  await broadcastCareBooking(booking._id, 'update');
+
   await Notification.create({
     user: booking.userId._id,
     title: accept ? 'Booking accepted' : 'Booking rejected',

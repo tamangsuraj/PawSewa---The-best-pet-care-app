@@ -9,6 +9,7 @@ import {
   type PetListItem,
 } from '@/components/my-pets/ClinicalMyPetsDashboard';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 import { PawPrint } from 'lucide-react';
 
 function MyPetsClinicalShell() {
@@ -53,9 +54,10 @@ function MyPetsClinicalShell() {
 
   if (pets.length === 0) {
     return (
-      <PageShell className="min-h-[calc(100vh-4.25rem)] px-4 py-12">
+      <PageShell className="min-h-[calc(100vh-4.25rem)]">
+        <PageContent>
         <div className="mx-auto max-w-2xl text-center">
-          <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-12 shadow-paw">
+          <div className="paw-surface-card p-12">
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-paw-sand text-paw-bark">
               <PawPrint className="h-8 w-8" strokeWidth={1.75} aria-hidden />
             </div>
@@ -66,7 +68,7 @@ function MyPetsClinicalShell() {
             <button
               type="button"
               onClick={() => router.push('/my-pets/add')}
-              className="mt-8 rounded-full bg-paw-bark px-8 py-4 font-semibold text-paw-cream hover:bg-paw-ink shadow-paw"
+              className="paw-cta-primary mt-8"
             >
               Add your first pet
             </button>
@@ -79,6 +81,7 @@ function MyPetsClinicalShell() {
             </button>
           </div>
         </div>
+        </PageContent>
       </PageShell>
     );
   }

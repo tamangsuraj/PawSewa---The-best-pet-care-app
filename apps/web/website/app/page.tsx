@@ -22,14 +22,22 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useChatHub } from '@/context/ChatHubContext';
 import { HomeActiveOrdersRail } from '@/components/HomeActiveOrdersRail';
+import {
+  PAW_CAT_HERO,
+  PAW_DECO_IMAGES,
+  PAW_SHOWCASE_IMAGES,
+} from '@/lib/pawImageAssets';
 
 const ClinicMapCard = dynamic(
   () => import('@/components/ClinicMapCard').then((m) => m.ClinicMapCard),
   { ssr: false, loading: () => <div className="h-[280px] rounded-2xl bg-[#1a1512] animate-pulse" /> },
 );
 
-const CAT_HERO =
-  'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=960&q=85';
+const CAT_HERO = PAW_CAT_HERO;
+
+const SHOWCASE_FALLBACK_IMAGES = PAW_SHOWCASE_IMAGES;
+
+const ACTIVITY_DECO_IMAGES = PAW_DECO_IMAGES;
 
 /** Home showcase labels — typical pet-care tools & supplies (matches seeded shop variety). */
 const DESIGN_SUPPLY = [
@@ -128,10 +136,11 @@ export default function HomePage() {
 
   const showcase = DESIGN_SUPPLY.map((slot, i) => {
     const apiProduct = products[i] || products.find((p) => p.name?.toLowerCase().includes(slot.title.slice(0, 6).toLowerCase()));
+    const apiImg = apiProduct?.images?.[0]?.trim();
     return {
       ...slot,
       productId: apiProduct?._id,
-      image: apiProduct?.images?.[0],
+      image: apiImg || SHOWCASE_FALLBACK_IMAGES[i % SHOWCASE_FALLBACK_IMAGES.length],
       price: apiProduct?.price ?? slot.price,
     };
   });
@@ -374,24 +383,40 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div
-            className={`bg-[#2c241c] text-[#FAF7F2] p-6 md:p-8 rounded-2xl border border-[#703418]/30 shadow-[0_24px_60px_rgba(0,0,0,0.2)] ${cardLift}`}
-          >
-            <h3 className="font-display text-2xl font-semibold mb-6">Recent Activity</h3>
+          <div className={`bg-white border border-[#703418]/10 p-6 md:p-8 ${cardLift}`}>
+            <h3 className="font-display text-2xl font-semibold text-[#703418] mb-4">Recent Activity</h3>
+            <div className="mb-5 grid grid-cols-3 gap-2 rounded-xl overflow-hidden border border-[#703418]/10">
+              {ACTIVITY_DECO_IMAGES.map((src, idx) => (
+                <div key={src} className="relative aspect-[4/3] bg-[#f3ebe2]">
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="120px"
+                    priority={idx === 0}
+                  />
+                </div>
+              ))}
+            </div>
             {!isAuthenticated ? (
-              <p className="text-[#FAF7F2]/70 text-sm">Log in to load completed visits from the API.</p>
+              <p className="text-gray-700 text-sm leading-relaxed">
+                Log in to load completed visits from the API. Your history stays in sync with the PawSewa app.
+              </p>
             ) : completedActivity.length === 0 ? (
-              <p className="text-[#FAF7F2]/70 text-sm">No completed appointments yet.</p>
+              <p className="text-gray-700 text-sm leading-relaxed">
+                No completed appointments yet. Book a service to see your timeline here.
+              </p>
             ) : (
-              <ul className="space-y-0 border-l-2 border-[#0d9488]/40 ml-2 pl-6">
+              <ul className="space-y-0 border-l-2 border-[#0d9488]/50 ml-2 pl-5">
                 {completedActivity.map((a, idx) => (
-                  <li key={a._id} className="relative pb-8 last:pb-0">
-                    <span className="absolute -left-[1.6rem] top-1 w-3 h-3 rounded-full bg-[#0d9488] ring-4 ring-[#2c241c]" />
-                    <p className="text-sm font-semibold text-[#FAF7F2]">
+                  <li key={a._id} className="relative pb-7 last:pb-0">
+                    <span className="absolute -left-[1.35rem] top-1.5 w-2.5 h-2.5 rounded-full bg-[#0d9488] ring-4 ring-white" />
+                    <p className="text-sm font-semibold text-[#2c241c]">
                       {a.serviceType || 'Appointment'}{' '}
                       {a.pet?.name ? `· ${a.pet.name}` : ''}
                     </p>
-                    <p className="text-xs text-[#FAF7F2]/55 mt-1">
+                    <p className="text-xs text-gray-600 mt-1">
                       {a.completedAt
                         ? new Date(a.completedAt).toLocaleDateString(undefined, {
                             month: 'short',
@@ -403,10 +428,10 @@ export default function HomePage() {
                           : ''}
                     </p>
                     {a.visitNotes ? (
-                      <p className="text-xs text-[#FAF7F2]/70 mt-2 line-clamp-2">{a.visitNotes}</p>
+                      <p className="text-xs text-gray-600 mt-2 line-clamp-2">{a.visitNotes}</p>
                     ) : null}
                     {idx === 0 ? (
-                      <p className="text-[11px] text-[#0d9488] mt-2 font-medium">Synced from service history</p>
+                      <p className="text-[11px] text-[#0d9488] mt-2 font-semibold">Synced from service history</p>
                     ) : null}
                   </li>
                 ))}
@@ -429,21 +454,23 @@ export default function HomePage() {
             {showcase.map((item) => (
               <div
                 key={item.title}
-                className={`bg-[#1a1512] rounded-2xl overflow-hidden border border-[#703418]/20 ${cardLift}`}
+                className={`bg-white rounded-2xl overflow-hidden border border-[#703418]/12 shadow-[0_8px_30px_rgba(44,36,28,0.06)] ${cardLift}`}
               >
-                <div className="aspect-square relative bg-[#2a2218]">
-                  {item.image ? (
-                    <Image src={item.image} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, 25vw" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-[#FAF7F2]/30 text-sm p-4 text-center">
-                      {item.title}
-                    </div>
-                  )}
+                <div className="aspect-square relative bg-[#f3ebe2]">
+                  <Image
+                    src={item.image}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 640px) 100vw, 25vw"
+                  />
                 </div>
-                <div className="p-4 text-[#FAF7F2]">
+                <div className="p-4">
                   <p className="text-[10px] font-bold tracking-widest text-[#0d9488]">{item.category}</p>
-                  <h3 className="font-semibold mt-1 leading-snug">{item.title}</h3>
-                  <p className="text-lg font-bold mt-2">रू {Number(item.price).toLocaleString()}</p>
+                  <h3 className="font-semibold mt-1 leading-snug text-[#1a1410]">{item.title}</h3>
+                  <p className="text-lg font-bold mt-2 text-[#703418]">
+                    रू {Number(item.price).toLocaleString()}
+                  </p>
                   <div className="mt-4 flex gap-2">
                     <button
                       type="button"
@@ -459,15 +486,15 @@ export default function HomePage() {
                           quantity: 1,
                         });
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#703418] hover:bg-[#5c2c14] text-sm font-semibold transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#703418] hover:bg-[#5c2c14] text-sm font-semibold text-white transition-colors"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      Cart
+                      Add to cart
                     </button>
                     <button
                       type="button"
                       onClick={() => void onSellerChat(item.productId)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#FAF7F2]/25 text-sm font-semibold hover:bg-white/10 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-[#703418]/25 bg-[#FAF7F2] text-sm font-semibold text-[#5c2c14] hover:bg-[#efe8df] transition-colors"
                     >
                       <MessageCircle className="w-4 h-4" />
                       Seller
@@ -493,7 +520,7 @@ export default function HomePage() {
           </h2>
           <div className="grid lg:grid-cols-2 gap-8 items-stretch">
             <div className="space-y-4">
-              {clinicList.map((c, i) => (
+              {clinicList.map((c) => (
                 <div
                   key={c.name}
                   className={`bg-white border border-[#703418]/10 p-5 rounded-2xl flex gap-4 ${cardLift}`}

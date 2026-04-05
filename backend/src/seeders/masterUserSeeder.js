@@ -98,13 +98,13 @@ async function ensureVet() {
   if (vet) return vet;
 
   vet = await User.create({
-    name: 'Dr. Seeded Vet',
-    email: `seed-vet-${Date.now()}@pawsewa.com`,
+    name: 'Dr. Binod Poudel',
+    email: 'binod.poudel.vet@pawsewa.com',
     password: 'VetSeed#2026',
     role: 'veterinarian',
     isVerified: true,
     phone: '9801111222',
-    clinicName: 'Seeded Valley Clinic',
+    clinicName: 'Valley Pet Clinic',
     clinicLocation: 'Kathmandu',
   });
   // eslint-disable-next-line no-console
@@ -117,8 +117,8 @@ async function ensureRider() {
   if (rider) return rider;
 
   rider = await User.create({
-    name: 'Seed Delivery Rider',
-    email: `seed-rider-${Date.now()}@pawsewa.com`,
+    name: 'Ramesh Magar',
+    email: 'ramesh.magar@pawsewa.com',
     password: 'RiderSeed#2026',
     role: 'rider',
     isVerified: true,
@@ -134,7 +134,7 @@ async function upsertMasterUser() {
   let user = await User.findOne({ email: TEST_EMAIL }).select('+fcmTokens');
   if (user) {
     await clearArtifactsForUser(user._id);
-    user.name = user.name || 'Master Test User';
+    user.name = user.name || 'Amrita Koirala';
     user.password = TEST_PASSWORD;
     user.role = 'CUSTOMER';
     user.isVerified = true;
@@ -145,7 +145,7 @@ async function upsertMasterUser() {
   }
 
   user = await User.create({
-    name: 'Master Test User',
+    name: 'Amrita Koirala',
     email: TEST_EMAIL.toLowerCase().trim(),
     password: TEST_PASSWORD,
     role: 'CUSTOMER',
@@ -211,7 +211,7 @@ async function seedPetAndHistory({ testUser, vet, rider }) {
     visitNotes: 'Annual wellness and vaccination review — Max is healthy.',
     paymentStatus: 'paid',
     paymentMethod: 'cash_on_delivery',
-    notes: 'Seeded completed appointment',
+    notes: 'Completed appointment (sample history)',
   });
 
   await ServiceRequest.create({
@@ -229,7 +229,7 @@ async function seedPetAndHistory({ testUser, vet, rider }) {
     visitNotes: 'Dermatology follow-up — mild allergy; shampoo prescribed.',
     paymentStatus: 'paid',
     paymentMethod: 'online',
-    notes: 'Seeded completed skin check',
+    notes: 'Completed skin check (sample history)',
   });
 
   await Appointment.create({
@@ -253,7 +253,7 @@ async function seedPetAndHistory({ testUser, vet, rider }) {
   await Case.create({
     customer: testUser._id,
     pet: pet._id,
-    issueDescription: 'Seeded case: routine post-visit follow-up',
+    issueDescription: 'Routine post-visit follow-up',
     location: 'Kathmandu',
     latitude: loc.coordinates.lat,
     longitude: loc.coordinates.lng,
@@ -336,7 +336,7 @@ async function seedPetAndHistory({ testUser, vet, rider }) {
         paymentMethod: 'online',
         serviceType: type,
         packageName: label,
-        ownerNotes: `Seeded ${label} for master user`,
+        ownerNotes: `${label} — sample booking for demo account`,
       };
     };
 
@@ -372,7 +372,7 @@ async function seedPetAndHistory({ testUser, vet, rider }) {
     },
   ]);
   // eslint-disable-next-line no-console
-  console.log('[SEEDER] Vet direct messages seeded (vet follow-up thread).');
+  console.log('[SEEDER] Vet direct messages added (follow-up thread).');
 
   return pet;
 }

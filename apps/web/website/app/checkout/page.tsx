@@ -8,6 +8,7 @@ import { createOrder, initiatePayment } from '@/lib/api';
 import { ShoppingCart, MapPin, Loader2 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -64,10 +65,11 @@ export default function CheckoutPage() {
 
       // Window redirect to Khalti payment
       window.location.href = paymentUrl;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const ax = err as { response?: { data?: { message?: string } }; message?: string };
       const msg =
-        err?.response?.data?.message ??
-        err?.message ??
+        ax.response?.data?.message ??
+        ax.message ??
         'Checkout failed. Please check your connection and try again.';
       setError(msg);
       setLoading(false);
@@ -89,7 +91,7 @@ export default function CheckoutPage() {
     <PageShell>
       <PageHero eyebrow="Shop" title="Checkout" subtitle="Delivery address and order summary before Khalti." />
 
-      <div className="max-w-2xl mx-auto px-4 py-10">
+      <PageContent compact className="max-w-2xl pb-12 pt-4">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-800 text-sm">
             {error}
@@ -97,9 +99,9 @@ export default function CheckoutPage() {
         )}
 
         <form onSubmit={handleCheckout} className="space-y-6">
-          <div className="paw-card-glass rounded-2xl border border-paw-bark/10 shadow-paw p-6">
-            <h2 className="font-semibold text-paw-ink mb-4 flex items-center gap-2">
-              <MapPin className="w-5 h-5" />
+          <div className="paw-surface-card p-6">
+            <h2 className="mb-4 flex items-center gap-2 font-semibold text-paw-ink">
+              <MapPin className="h-5 w-5" />
               Delivery Address
             </h2>
             <textarea
@@ -107,14 +109,14 @@ export default function CheckoutPage() {
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Enter your full delivery address (street, area, city)"
               rows={3}
-              className="w-full px-4 py-3 border border-paw-bark/15 rounded-2xl focus:ring-2 focus:ring-paw-teal-mid/30 focus:border-paw-teal-mid bg-white/90"
+              className="paw-input min-h-[5.5rem]"
               required
             />
           </div>
 
-          <div className="paw-card-glass rounded-2xl border border-paw-bark/10 shadow-paw p-6">
-            <h2 className="font-semibold text-paw-ink mb-4 flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" />
+          <div className="paw-surface-card p-6">
+            <h2 className="mb-4 flex items-center gap-2 font-semibold text-paw-ink">
+              <ShoppingCart className="h-5 w-5" />
               Order Summary
             </h2>
             <ul className="space-y-2 mb-4 text-paw-bark/90">
@@ -149,7 +151,7 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-paw-bark text-paw-cream font-medium rounded-full hover:bg-paw-ink disabled:opacity-50 flex items-center justify-center gap-2 shadow-paw"
+            className="paw-cta-primary flex w-full items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -164,7 +166,7 @@ export default function CheckoutPage() {
             You will be redirected to Khalti to pay. If you cancel, you can return to the shop or try again from checkout.
           </p>
         </form>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

@@ -13,7 +13,14 @@ const PaymentLog = require('../models/PaymentLog');
 const CareBooking = require('../models/CareBooking');
 const Hostel = require('../models/Hostel');
 const User = require('../models/User');
+const MarketplaceConversation = require('../models/MarketplaceConversation');
 const { adminAssignCarePartner } = require('../controllers/careBookingController');
+const {
+  ensureDefaultCustomerCareConversation,
+  toClientConversationShape,
+} = require('../services/customerCareService');
+const { formatRoleLabel } = require('../utils/roleLabels');
+const { findUserByEmail } = require('../controllers/chatController');
 
 const DISPATCH_RIDER_ROLES = ['rider'];
 const DISPATCH_SELLER_ROLES = ['shop_owner'];
@@ -39,18 +46,26 @@ router.patch('/requests/:id/assign', protect, authorize('admin'), assignServiceR
 // - All active Care+ requests (blue paw pins)
 router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
   try {
-    const [staffLocations, pendingRequests, careRequests, productOrders] = await Promise.all([
-      StaffLocation.find({}).populate('staff', 'name role phone'),
-      ServiceRequest.find({
-        status: { $in: ['pending', 'assigned', 'in_progress'] },
-      }).select('location status serviceType assignedStaff'),
-      CareRequest.find({
-        status: { $in: ['pending_review', 'assigned', 'in_progress'] },
-      }).select('location status serviceType assignedStaff'),
-      Order.find({
-        status: { $in: ['pending', 'processing', 'out_for_delivery'] },
-      }).select('deliveryLocation status'),
-    ]);
+    const [staffLocations, pendingRequests, careRequests, productOrders, careBookings] =
+      await Promise.all([
+        StaffLocation.find({}).populate('staff', 'name role phone'),
+        ServiceRequest.find({
+          status: { $in: ['pending', 'assigned', 'in_progress'] },
+        }).select('location status serviceType assignedStaff'),
+        CareRequest.find({
+          status: { $in: ['pending_review', 'assigned', 'in_progress'] },
+        }).select('location status serviceType assignedStaff'),
+        Order.find({
+          status: { $in: ['pending', 'processing', 'out_for_delivery'] },
+        }).select('deliveryLocation status assignmentStatus'),
+        CareBooking.find({
+          status: { $in: ['pending', 'paid', 'accepted'] },
+        })
+          .populate('hostelId', 'name location serviceType')
+          .populate('assignedPartner', 'name role')
+          .select('status serviceType hostelId assignedPartner careAssignmentStatus')
+          .lean(),
+      ]);
 
     res.json({
       success: true,
@@ -95,9 +110,33 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
           .map((o) => ({
             _id: o._id,
             status: o.status,
+            assignmentStatus: o.assignmentStatus,
             coordinates: {
               lat: o.deliveryLocation.point.coordinates[1],
               lng: o.deliveryLocation.point.coordinates[0],
+            },
+          })),
+        // Hostel / Grooming / etc. bookings at facility GPS (same shape as customer-facing hostel map)
+        careBookings: careBookings
+          .filter((b) => {
+            const loc = b.hostelId && b.hostelId.location;
+            return (
+              loc &&
+              loc.coordinates &&
+              typeof loc.coordinates.lat === 'number' &&
+              typeof loc.coordinates.lng === 'number'
+            );
+          })
+          .map((b) => ({
+            _id: b._id,
+            status: b.status,
+            serviceType: b.serviceType || b.hostelId?.serviceType,
+            hostelName: b.hostelId?.name,
+            careAssignmentStatus: b.careAssignmentStatus,
+            assignedPartner: b.assignedPartner,
+            coordinates: {
+              lat: b.hostelId.location.coordinates.lat,
+              lng: b.hostelId.location.coordinates.lng,
             },
           })),
       },
@@ -344,6 +383,51 @@ router.get('/care-bookings', protect, authorize('admin'), async (req, res, next)
       success: true,
       data: bookings,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/admin/support/user-lookup?email=exact@match.com
+router.get('/support/user-lookup', protect, authorize('admin'), findUserByEmail);
+
+// POST /api/v1/admin/support/ensure-thread  { "email" } or { "userId" }
+router.post('/support/ensure-thread', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { email, userId } = req.body || {};
+    let targetId = userId;
+    if (!targetId && email) {
+      const u = await User.findOne({ email: String(email).toLowerCase().trim() })
+        .select('_id')
+        .lean();
+      if (!u) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+      targetId = u._id;
+    }
+    if (!targetId) {
+      return res.status(400).json({ success: false, message: 'userId or email required' });
+    }
+    const conv = await ensureDefaultCustomerCareConversation(targetId);
+    if (!conv) {
+      return res.status(503).json({
+        success: false,
+        message: 'Customer Care is not configured on the server',
+      });
+    }
+    const populated = await MarketplaceConversation.findById(conv._id)
+      .populate('customer', 'name email phone profilePicture role')
+      .lean();
+    const shaped = toClientConversationShape(populated);
+    const cust = populated.customer;
+    res.json({
+      success: true,
+      data: {
+        conversation: shaped,
+        threadLabel: `${cust?.name || 'User'} — ${formatRoleLabel(cust?.role)}`,
+        customer: cust,
+      },
     });
   } catch (err) {
     next(err);

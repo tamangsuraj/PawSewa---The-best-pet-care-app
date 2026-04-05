@@ -50,7 +50,11 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   String? _riderId;
 
   void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
-    if (event != 'job:available' && event != 'order:assigned_rider') return;
+    if (event != 'job:available' &&
+        event != 'order:assigned_rider' &&
+        event != 'orderUpdate') {
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('New delivery assignment')),

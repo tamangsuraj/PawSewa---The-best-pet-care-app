@@ -10,6 +10,7 @@ import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { PageShell } from '@/components/layout/PageShell';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { useForm } from 'react-hook-form';
@@ -106,9 +107,10 @@ export default function RegisterPage() {
 
           router.push('/dashboard');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Google sign-up error:', err);
-        setError(err.response?.data?.message || 'Google sign-up failed');
+        const ax = err as { response?: { data?: { message?: string } } };
+        setError(ax.response?.data?.message || 'Google sign-up failed');
       } finally {
         setIsGoogleLoading(false);
       }
@@ -173,8 +175,8 @@ export default function RegisterPage() {
 
       // Redirect to OTP verification page with email
       router.push(`/verify-otp?email=${encodeURIComponent(values.email)}`);
-    } catch (err: any) {
-      setError(err.message || 'Registration failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -188,8 +190,8 @@ export default function RegisterPage() {
           aria-hidden
         />
         <div className="relative text-center text-paw-cream max-w-md paw-hero-stagger flex flex-col items-center gap-0">
-          <div className="mx-auto mb-8 flex justify-center rounded-[1.5rem] bg-white/10 p-7 border border-white/20 backdrop-blur-md shadow-paw-lg">
-            <PawSewaLogo variant="hero" height={100} className="brightness-0 invert opacity-95" />
+          <div className="mx-auto mb-8 flex justify-center px-4 py-2 bg-transparent">
+            <PawSewaLogo variant="hero" height={100} />
           </div>
           <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-paw-cream/75 mb-2">
             PawSewa · pet care
@@ -213,7 +215,7 @@ export default function RegisterPage() {
             <p className="text-paw-bark/70 text-sm">Profiles, shop, and vets — unified.</p>
           </div>
 
-          <div className="paw-card-glass rounded-[1.75rem] p-6 sm:p-8 border border-paw-bark/10 shadow-paw">
+          <div className="paw-surface-card p-6 sm:p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50/90 border border-red-200/80 rounded-2xl flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -325,10 +327,12 @@ export default function RegisterPage() {
             {isGoogleLoading ? (
               <div className="w-5 h-5 border-2 border-paw-bark border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <img
+              <Image
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                 alt="Google"
-                className="w-5 h-5"
+                width={20}
+                height={20}
+                className="h-5 w-5"
               />
             )}
             <span className="font-medium text-gray-700">Continue with Google</span>

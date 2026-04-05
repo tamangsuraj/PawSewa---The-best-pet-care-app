@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { AlertCircle, Stethoscope, PawPrint } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 interface Pet {
   _id: string;
@@ -27,16 +28,7 @@ export default function RequestAssistancePage() {
   const [issueDescription, setIssueDescription] = useState('');
   const [location, setLocation] = useState('');
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      fetchMyPets();
-    }
-  }, []);
-
-  const fetchMyPets = async () => {
+  const fetchMyPets = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
 
@@ -62,7 +54,16 @@ export default function RequestAssistancePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+    } else {
+      void fetchMyPets();
+    }
+  }, [router, fetchMyPets]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,9 +135,9 @@ export default function RequestAssistancePage() {
           subtitle="Get help for your pet from our dispatch team."
         />
 
-        <div className="container mx-auto px-4 py-12">
-          <div className="max-w-2xl mx-auto">
-            <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-12 text-center shadow-paw">
+        <PageContent>
+          <div className="mx-auto max-w-2xl">
+            <div className="paw-surface-card p-12 text-center">
               <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-paw-sand text-paw-bark">
                 <PawPrint className="h-8 w-8" strokeWidth={1.75} aria-hidden />
               </div>
@@ -145,13 +146,13 @@ export default function RequestAssistancePage() {
               <button
                 type="button"
                 onClick={() => router.push('/my-pets/add')}
-                className="px-8 py-4 rounded-full bg-paw-bark text-paw-cream font-semibold hover:bg-paw-ink transition-colors text-lg shadow-paw"
+                className="paw-cta-primary text-lg"
               >
                 Add your first pet
               </button>
             </div>
           </div>
-        </div>
+        </PageContent>
       </PageShell>
     );
   }
@@ -164,9 +165,9 @@ export default function RequestAssistancePage() {
         subtitle="Describe the issue and your location — we route you to the best available vet."
       />
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-3xl mx-auto">
-          <div className="paw-card-glass rounded-2xl border-2 border-paw-bark/15 p-6 mb-8 flex gap-4 items-start shadow-paw">
+      <PageContent>
+        <div className="mx-auto max-w-3xl">
+          <div className="paw-surface-card mb-8 flex items-start gap-4 border-2 border-paw-bark/15 p-6">
             <div className="bg-paw-bark/10 p-3 rounded-full shrink-0">
               <Stethoscope className="w-6 h-6 text-paw-bark" aria-hidden />
             </div>
@@ -179,7 +180,7 @@ export default function RequestAssistancePage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-8 shadow-paw">
+          <form onSubmit={handleSubmit} className="paw-surface-card p-8">
             {error && (
               <div className="mb-6 bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -196,7 +197,7 @@ export default function RequestAssistancePage() {
                 value={selectedPetId}
                 onChange={(e) => setSelectedPetId(e.target.value)}
                 required
-                className="w-full px-4 py-3 border-2 border-paw-bark/15 rounded-2xl focus:border-paw-teal-mid focus:outline-none focus:ring-2 focus:ring-paw-teal-mid/20 text-lg bg-white/90"
+                className="paw-input text-lg"
               >
                 <option value="">Choose your pet...</option>
                 {pets.map((pet) => (
@@ -220,7 +221,7 @@ export default function RequestAssistancePage() {
                 maxLength={1000}
                 rows={6}
                 placeholder="Please describe what's wrong with your pet in detail..."
-                className="w-full px-4 py-3 border-2 border-paw-bark/15 rounded-2xl focus:border-paw-teal-mid focus:outline-none focus:ring-2 focus:ring-paw-teal-mid/20 resize-none bg-white/90"
+                className="paw-input resize-none text-base"
               />
               <p className="text-sm text-paw-bark/50 mt-2">{issueDescription.length}/1000 characters</p>
             </div>
@@ -236,7 +237,7 @@ export default function RequestAssistancePage() {
                 onChange={(e) => setLocation(e.target.value)}
                 required
                 placeholder="Enter your address"
-                className="w-full px-4 py-3 border-2 border-paw-bark/15 rounded-2xl focus:border-paw-teal-mid focus:outline-none focus:ring-2 focus:ring-paw-teal-mid/20 bg-white/90"
+                className="paw-input text-lg"
               />
             </div>
 
@@ -244,7 +245,7 @@ export default function RequestAssistancePage() {
               <button
                 type="button"
                 onClick={() => router.push('/my-pets')}
-                className="flex-1 px-6 py-4 rounded-full bg-paw-sand text-paw-ink font-semibold hover:bg-paw-sand/80 border border-paw-bark/10 transition-colors"
+                className="paw-cta-secondary flex-1 px-6 py-4 disabled:opacity-50"
                 disabled={submitting}
               >
                 Cancel
@@ -252,7 +253,7 @@ export default function RequestAssistancePage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="flex-1 px-6 py-4 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors disabled:bg-paw-bark/30 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-paw"
+                className="paw-cta-primary flex flex-1 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {submitting ? (
                   <>
@@ -266,7 +267,7 @@ export default function RequestAssistancePage() {
             </div>
           </form>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

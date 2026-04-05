@@ -11,10 +11,11 @@ const {
 
 router.get('/care-profile', getCareProfile);
 
-router.get('/mine', protect, authorize('pet_owner', 'customer'), getMine);
+// Any authenticated user may open their PawSewa support thread (customers, vets, riders, sellers, …).
+router.get('/mine', protect, getMine);
 
 router.get('/conversations', protect, authorize('admin'), listConversationsAdmin);
-router.get('/conversations/:id/messages', protect, authorize('admin', 'pet_owner', 'customer'), getMessages);
-router.post('/conversations/:id/messages', protect, authorize('admin', 'pet_owner', 'customer'), postMessage);
+router.get('/conversations/:id/messages', protect, getMessages);
+router.post('/conversations/:id/messages', protect, postMessage);
 
 module.exports = router;

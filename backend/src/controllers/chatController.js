@@ -12,6 +12,10 @@ const {
 } = require('../utils/vetChatEligibility');
 const { getIO } = require('../sockets/socketStore');
 const logger = require('../utils/logger');
+const { lookupUserByEmailWithStats } = require('../services/supportUserLookupService');
+const {
+  getMessages: getCustomerCareConversationHistory,
+} = require('./customerCareController');
 
 /**
  * @route GET /api/v1/chats/my-vets
@@ -166,9 +170,31 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc Admin: exact email → user + stats + existing support thread id
+ * @route GET /api/v1/admin/support/user-lookup
+ */
+const findUserByEmail = asyncHandler(async (req, res, next) => {
+  try {
+    const data = await lookupUserByEmailWithStats(req.query.email);
+    res.json({ success: true, data });
+  } catch (e) {
+    const code = e.statusCode;
+    if (code === 400 || code === 404) {
+      return res.status(code).json({ success: false, message: e.message });
+    }
+    next(e);
+  }
+});
+
+/** PawSewa support thread history (same handler as customer-care messages). */
+const getChatHistory = getCustomerCareConversationHistory;
+
 module.exports = {
   getMyVetsForChat,
   getMyPatientsForChat,
   getVetDirectMessages,
   postVetDirectMessage,
+  findUserByEmail,
+  getChatHistory,
 };

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { 
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 interface Case {
   _id: string;
@@ -48,16 +50,7 @@ export default function MyCasesPage() {
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      fetchMyCases();
-    }
-  }, []);
-
-  const fetchMyCases = async () => {
+  const fetchMyCases = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -77,7 +70,16 @@ export default function MyCasesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+    } else {
+      void fetchMyCases();
+    }
+  }, [router, fetchMyCases]);
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -158,10 +160,10 @@ export default function MyCasesPage() {
         }
       />
 
-      <div className="container mx-auto px-4 py-12">
+      <PageContent compact>
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6">
+          <div className="paw-surface-card p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Pending</p>
@@ -173,7 +175,7 @@ export default function MyCasesPage() {
             </div>
           </div>
 
-          <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6">
+          <div className="paw-surface-card p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Active</p>
@@ -185,7 +187,7 @@ export default function MyCasesPage() {
             </div>
           </div>
 
-          <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6">
+          <div className="paw-surface-card p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Completed</p>
@@ -197,7 +199,7 @@ export default function MyCasesPage() {
             </div>
           </div>
 
-          <div className="paw-card-glass rounded-2xl shadow-paw p-6 border-2 border-paw-bark/20">
+          <div className="paw-surface-card border-2 border-paw-bark/20 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm font-medium mb-1">Total Cases</p>
@@ -213,7 +215,7 @@ export default function MyCasesPage() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-2 mb-8 flex gap-2 overflow-x-auto">
+        <div className="paw-surface-card mb-8 flex gap-2 overflow-x-auto p-2">
           {[
             { value: 'all', label: 'All Cases' },
             { value: 'pending', label: 'Pending' },
@@ -245,7 +247,7 @@ export default function MyCasesPage() {
 
         {/* Cases List */}
         {filteredCases.length === 0 ? (
-          <div className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 shadow-paw p-12 text-center">
+          <div className="paw-surface-card p-12 text-center">
             <h2 className="font-display text-2xl font-semibold text-paw-ink mb-2">
               {filterStatus === 'all' ? 'No Cases Yet' : `No ${filterStatus.replace('_', ' ')} Cases`}
             </h2>
@@ -258,7 +260,7 @@ export default function MyCasesPage() {
               <button
                 type="button"
                 onClick={() => router.push('/request-assistance')}
-                className="px-8 py-4 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors text-lg shadow-paw"
+                className="paw-cta-primary text-lg"
               >
                 Request assistance
               </button>
@@ -269,17 +271,20 @@ export default function MyCasesPage() {
             {filteredCases.map((caseData) => (
               <div
                 key={caseData._id}
-                className="paw-card-glass rounded-2xl border border-paw-bark/8 shadow-paw p-6 hover:shadow-paw-lg transition-shadow"
+                className="paw-surface-card p-6"
               >
                 <div className="flex flex-col lg:flex-row gap-6">
                   {/* Pet Info */}
                   <div className="flex items-start gap-4 lg:w-1/3">
                     <div className="w-20 h-20 bg-paw-bark/10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
                       {caseData.pet.image ? (
-                        <img
+                        <Image
                           src={caseData.pet.image}
                           alt={caseData.pet.name}
-                          className="w-full h-full object-cover"
+                          width={80}
+                          height={80}
+                          unoptimized
+                          className="h-full w-full object-cover"
                         />
                       ) : (
                         <span className="text-3xl">🐾</span>
@@ -379,14 +384,14 @@ export default function MyCasesPage() {
               <button
                 type="button"
                 onClick={() => router.push('/request-assistance')}
-                className="px-8 py-4 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors text-lg shadow-paw"
+                className="paw-cta-primary text-lg"
               >
                 Request assistance
               </button>
             </div>
           </div>
         )}
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

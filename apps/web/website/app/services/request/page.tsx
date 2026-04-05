@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { AlertCircle, MapPin, Stethoscope, PawPrint } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 const KathmanduBounds = {
   minLat: 27.55,
@@ -35,6 +36,14 @@ interface Pet {
   age?: number;
   photoUrl?: string;
 }
+
+const SERVICE_TYPE_OPTIONS = ['Appointment', 'Health Checkup', 'Vaccination'] as const;
+
+const TIME_WINDOW_OPTIONS = [
+  'Morning (9am-12pm)',
+  'Afternoon (12pm-4pm)',
+  'Evening (4pm-8pm)',
+] as const;
 
 export default function ServiceRequestPage() {
   const [pets, setPets] = useState<Pet[]>([]);
@@ -159,9 +168,10 @@ export default function ServiceRequestPage() {
         alert('✅ Request submitted! You can see it in My Appointments.');
         window.location.href = '/my-service-requests';
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error submitting service request:', err);
-      setError(err.response?.data?.message || 'Failed to submit request. Please try again.');
+      const ax = err as { response?: { data?: { message?: string } } };
+      setError(ax.response?.data?.message || 'Failed to submit request. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +188,7 @@ export default function ServiceRequestPage() {
   if (pets.length === 0) {
     return (
       <PageShell className="flex min-h-screen items-center justify-center p-6">
-        <div className="paw-card-glass w-full max-w-xl rounded-[1.75rem] border border-paw-bark/10 p-10 text-center shadow-paw-lg">
+        <div className="paw-surface-card w-full max-w-xl p-10 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-paw-sand text-paw-bark">
             <PawPrint className="h-7 w-7" strokeWidth={1.75} aria-hidden />
           </div>
@@ -187,7 +197,7 @@ export default function ServiceRequestPage() {
           <button
             type="button"
             onClick={() => (window.location.href = '/my-pets/add')}
-            className="px-6 py-3 rounded-full bg-paw-bark text-paw-cream font-semibold hover:bg-paw-ink transition-colors shadow-paw"
+            className="paw-cta-primary"
           >
             Add your first pet
           </button>
@@ -204,10 +214,10 @@ export default function ServiceRequestPage() {
         subtitle="Appointment, health checkup, or vaccination — with map-based location in Kathmandu Valley."
       />
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto space-y-8">
+      <PageContent>
+        <div className="mx-auto max-w-4xl space-y-8">
           {/* Info card */}
-          <div className="paw-card-glass border-2 border-paw-bark/15 rounded-2xl p-6 flex gap-4 items-start shadow-paw">
+          <div className="paw-surface-card flex items-start gap-4 border-2 border-paw-bark/15 p-6">
             <div className="bg-paw-bark/10 p-3 rounded-full">
               <Stethoscope className="w-6 h-6 text-paw-bark" />
             </div>
@@ -220,7 +230,7 @@ export default function ServiceRequestPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="paw-card-glass rounded-[1.75rem] border border-paw-bark/10 p-8 space-y-6 shadow-paw">
+          <form onSubmit={handleSubmit} className="paw-surface-card space-y-6 p-8">
             {error && (
               <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
                 <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -253,11 +263,11 @@ export default function ServiceRequestPage() {
                 Service Type *
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {['Appointment', 'Health Checkup', 'Vaccination'].map((type) => (
+                {SERVICE_TYPE_OPTIONS.map((type) => (
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setServiceType(type as any)}
+                    onClick={() => setServiceType(type)}
                     className={`rounded-2xl border-2 px-4 py-3 text-sm font-medium transition-colors ${
                       serviceType === type
                         ? 'border-paw-bark bg-paw-bark text-white'
@@ -320,13 +330,19 @@ export default function ServiceRequestPage() {
                 </label>
                 <select
                   value={timeWindow}
-                  onChange={(e) => setTimeWindow(e.target.value as any)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const next = TIME_WINDOW_OPTIONS.find((t) => t === v);
+                    setTimeWindow(next ?? '');
+                  }}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-2xl focus:border-paw-teal-mid focus:outline-none"
                 >
                   <option value="">Choose a time window...</option>
-                  <option value="Morning (9am-12pm)">Morning (9am-12pm)</option>
-                  <option value="Afternoon (12pm-4pm)">Afternoon (12pm-4pm)</option>
-                  <option value="Evening (4pm-8pm)">Evening (4pm-8pm)</option>
+                  {TIME_WINDOW_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -410,10 +426,8 @@ export default function ServiceRequestPage() {
                   !confirmedLatLng ||
                   !isInsideKathmandu
                 }
-                className={`px-6 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 ${
-                  submitting || !isInsideKathmandu
-                    ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                    : 'bg-paw-bark text-paw-cream hover:bg-paw-ink'
+                className={`paw-cta-primary flex items-center gap-2 text-sm ${
+                  submitting || !isInsideKathmandu ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
                 {submitting ? 'Submitting...' : 'Submit Request'}
@@ -421,7 +435,7 @@ export default function ServiceRequestPage() {
             </div>
           </form>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

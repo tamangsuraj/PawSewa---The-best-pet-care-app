@@ -9,7 +9,9 @@ import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { useForm } from 'react-hook-form';
@@ -85,9 +87,10 @@ export default function LoginPage() {
           
           router.push('/dashboard');
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Google login error:', err);
-        setFormError(err.response?.data?.message || 'Google login failed');
+        const ax = err as { response?: { data?: { message?: string } } };
+        setFormError(ax.response?.data?.message || 'Google login failed');
       } finally {
         setIsGoogleLoading(false);
       }
@@ -162,18 +165,19 @@ export default function LoginPage() {
       }
 
       router.push('/dashboard');
-    } catch (err: any) {
-      setFormError(err.message || 'Login failed');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Login failed';
+      setFormError(msg);
     }
   };
 
   return (
-    <PageShell className="flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-md">
-        <div className="paw-card-glass rounded-[1.5rem] p-8 sm:p-10 shadow-paw-lg">
+    <PageShell className="flex items-center justify-center">
+      <PageContent compact className="max-w-md py-10">
+        <div className="paw-surface-card p-8 sm:p-10">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-5 rounded-2xl bg-white/80 px-5 py-4 border border-paw-bark/10 shadow-sm">
-              <PawSewaLogo variant="nav" height={56} blendWhiteMatte />
+            <div className="inline-flex items-center justify-center mb-5 px-2 py-2 bg-transparent">
+              <PawSewaLogo variant="nav" height={56} />
             </div>
             <p className="paw-eyebrow-center text-[0.65rem] mb-3">Member access</p>
             <h2 className="font-display text-3xl sm:text-[2rem] font-semibold text-paw-ink tracking-tight mb-2">
@@ -277,10 +281,12 @@ export default function LoginPage() {
             {isGoogleLoading ? (
               <div className="w-5 h-5 border-2 border-paw-bark border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <img
+              <Image
                 src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                 alt="Google"
-                className="w-5 h-5"
+                width={20}
+                height={20}
+                className="h-5 w-5"
               />
             )}
             <span className="font-medium text-gray-700">Continue with Google</span>
@@ -294,15 +300,14 @@ export default function LoginPage() {
 
           {/* Register Link */}
           <p className="text-center text-gray-600">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/register" className="text-paw-teal-mid font-semibold hover:underline">
               Create one now
             </Link>
           </p>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-paw-bark/45 mt-8 tracking-wide">
+        <p className="mt-8 text-center text-xs tracking-wide text-paw-bark/45">
           By continuing, you agree to PawSewa&apos;s{' '}
           <Link href="/terms" className="text-paw-teal-mid underline underline-offset-2">
             Terms
@@ -312,7 +317,7 @@ export default function LoginPage() {
             Privacy
           </Link>
         </p>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }

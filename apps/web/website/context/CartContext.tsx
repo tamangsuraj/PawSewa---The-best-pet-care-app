@@ -20,7 +20,51 @@ interface CartContextType {
   totalItems: number;
 }
 
-const CART_STORAGE_KEY = 'pawsewa_cart';
+const CART_VERSION = 1;
+/** Current persisted shape: `{ v, items }`. Legacy plain arrays lived under `pawsewa_cart`. */
+const CART_STORAGE_KEY = 'pawsewa_cart_v2';
+const LEGACY_CART_STORAGE_KEY = 'pawsewa_cart';
+
+function normalizeStoredCart(raw: unknown): CartItem[] {
+  let rows: unknown[];
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && 'items' in raw) {
+    const items = (raw as { items?: unknown }).items;
+    rows = Array.isArray(items) ? items : [];
+  } else if (Array.isArray(raw)) {
+    rows = raw;
+  } else {
+    return [];
+  }
+
+  const byId = new Map<string, CartItem>();
+  for (const row of rows) {
+    if (row === null || typeof row !== 'object') continue;
+    const r = row as Record<string, unknown>;
+    const productId = typeof r.productId === 'string' ? r.productId.trim() : '';
+    if (!productId) continue;
+    const name = typeof r.name === 'string' ? r.name.trim() : '';
+    if (!name) continue;
+    const priceNum = typeof r.price === 'number' ? r.price : Number(r.price);
+    if (!Number.isFinite(priceNum) || priceNum < 0) continue;
+
+    let quantity = 1;
+    if (r.quantity !== undefined && r.quantity !== null) {
+      const q = typeof r.quantity === 'number' ? r.quantity : Number(r.quantity);
+      if (!Number.isFinite(q)) continue;
+      const qi = Math.floor(q);
+      if (qi < 1) continue;
+      quantity = qi;
+    }
+
+    const prev = byId.get(productId);
+    if (prev) {
+      byId.set(productId, { ...prev, quantity: prev.quantity + quantity });
+    } else {
+      byId.set(productId, { productId, name, price: priceNum, quantity });
+    }
+  }
+  return [...byId.values()];
+}
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -30,18 +74,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(CART_STORAGE_KEY);
+      const fromV2 = localStorage.getItem(CART_STORAGE_KEY);
+      const fromLegacy = localStorage.getItem(LEGACY_CART_STORAGE_KEY);
+      const stored = fromV2 ?? fromLegacy;
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) setItems(parsed);
+        const parsed: unknown = JSON.parse(stored);
+        setItems(normalizeStoredCart(parsed));
       }
-    } catch (_) {}
+      if (fromLegacy) {
+        localStorage.removeItem(LEGACY_CART_STORAGE_KEY);
+      }
+    } catch (_) {
+      setItems([]);
+    }
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (mounted) {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(
+        CART_STORAGE_KEY,
+        JSON.stringify({ v: CART_VERSION, items })
+      );
     }
   }, [items, mounted]);
 

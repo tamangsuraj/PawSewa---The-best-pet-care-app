@@ -21,8 +21,13 @@ import {
 import { PriceRangeDualSlider } from '@/components/shop/PriceRangeDualSlider';
 import { ShopFloatingCart } from '@/components/shop/ShopFloatingCart';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
+import { PAW_DEFAULT_PRODUCT_IMAGE } from '@/lib/pawImageAssets';
 
 const PRICE_CAP = 10000;
+
+/** When DB image URLs 404, Next/Image still errors — prefer a known-good Unsplash asset. */
+const DEFAULT_PRODUCT_IMAGE = PAW_DEFAULT_PRODUCT_IMAGE;
 
 type CategoryRef = { _id: string; name: string; slug: string };
 
@@ -145,7 +150,7 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
           }`}
         />
       ))}
-      <span className="ml-1 text-[11px] text-paw-foreground/55">({count})</span>
+      <span className="ml-1 text-[11px] text-[#2c241c]/55">({count})</span>
     </div>
   );
 }
@@ -180,6 +185,9 @@ function ShopPageInner() {
   const [sort, setSort] = useState<'recommended' | 'newest' | 'price_asc' | 'price_desc'>(
     'recommended'
   );
+
+  /** Next/Image cannot recover from bad remote URLs without swapping src */
+  const [productImageFallback, setProductImageFallback] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -266,11 +274,12 @@ function ShopPageInner() {
 
   return (
     <PageShell padBottom>
-    <main className="pb-32 pt-6 text-paw-foreground">
-      <div className="mx-auto grid max-w-[1600px] grid-cols-1 gap-8 px-4 lg:grid-cols-[minmax(250px,300px)_1fr] lg:gap-10 lg:px-8">
+    <main className="pb-32 pt-6 text-[#2c241c]">
+      <PageContent wide flush className="pb-8 pt-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(250px,300px)_1fr] lg:gap-10">
         <aside className="order-2 h-fit lg:sticky lg:top-[5.5rem] lg:order-1">
-          <div className="rounded-2xl border border-paw-foreground/10 bg-white p-5 shadow-[0_4px_24px_rgba(74,46,27,0.06)]">
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-paw-foreground/50">
+          <div className="paw-card-glass rounded-[1.35rem] p-5">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-[#2c241c]/50">
               Shop categories
             </p>
             <ul className="space-y-1">
@@ -283,8 +292,8 @@ function ShopPageInner() {
                       onClick={() => setActivePreset(preset)}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors ${
                         active
-                          ? 'bg-[#4A2E1B]/12 font-semibold text-paw-foreground'
-                          : 'text-paw-foreground/80 hover:bg-paw-panel'
+                          ? 'bg-[#4A2E1B]/12 font-semibold text-[#2c241c]'
+                          : 'text-[#2c241c]/80 hover:bg-paw-panel'
                       }`}
                     >
                       <Icon className="h-5 w-5 shrink-0 opacity-80" />
@@ -295,8 +304,8 @@ function ShopPageInner() {
               })}
             </ul>
 
-            <div className="mt-8 border-t border-paw-foreground/10 pt-6">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-paw-foreground/50">
+            <div className="mt-8 border-t border-[#2c241c]/10 pt-6">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em] text-[#2c241c]/50">
                 Pet type
               </p>
               <div className="space-y-2 text-sm">
@@ -313,7 +322,7 @@ function ShopPageInner() {
                       type="checkbox"
                       checked={checked}
                       onChange={toggle}
-                      className="h-4 w-4 rounded border-paw-foreground/30 text-paw-foreground focus:ring-[#4A2E1B]"
+                      className="h-4 w-4 rounded border-[#2c241c]/30 text-[#2c241c] focus:ring-[#4A2E1B]"
                     />
                     <span>{label}</span>
                   </label>
@@ -321,8 +330,8 @@ function ShopPageInner() {
               </div>
             </div>
 
-            <div className="mt-8 border-t border-paw-foreground/10 pt-6">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-paw-foreground/50">
+            <div className="mt-8 border-t border-[#2c241c]/10 pt-6">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-[#2c241c]/50">
                 Price range
               </p>
               <PriceRangeDualSlider
@@ -340,18 +349,19 @@ function ShopPageInner() {
         </aside>
 
         <div className="order-1 min-w-0 lg:order-2">
-          <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <header className="mb-8 flex flex-col gap-4 border-b border-[#703418]/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-paw-foreground/55">
+              <p className="paw-eyebrow mb-2 !text-[#703418]/80 before:bg-[#0d9488]/50">Shop</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#2c241c]/55">
                 Premium marketplace
               </p>
-              <h1 className="font-display mt-2 text-3xl font-bold tracking-tight text-paw-foreground md:text-4xl">
+              <h1 className="font-display mt-2 text-3xl font-bold tracking-tight text-[#2c241c] md:text-4xl">
                 {shopMeta.primaryPetName
                   ? `Curated Care for Your ${shopMeta.primaryPetName}`
                   : 'Curated Care for Every Companion'}
               </h1>
               {!shopMeta.primaryPetName ? (
-                <p className="mt-1 text-sm text-paw-foreground/60">
+                <p className="mt-1 text-sm text-[#2c241c]/60">
                   {isAuthenticated
                     ? 'Trending & recommended picks from across the marketplace.'
                     : 'Sign in and add a pet for picks tailored to your companion.'}
@@ -362,7 +372,7 @@ function ShopPageInner() {
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as typeof sort)}
-                className="w-full cursor-pointer appearance-none rounded-full border border-paw-foreground/15 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-paw-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4A2E1B]/15"
+                className="w-full cursor-pointer appearance-none rounded-full border border-[#2c241c]/15 bg-white py-2.5 pl-4 pr-10 text-sm font-medium text-[#2c241c] shadow-sm focus:outline-none focus:ring-2 focus:ring-[#4A2E1B]/15"
                 aria-label="Sort products"
               >
                 <option value="recommended">Sort by: Recommended</option>
@@ -370,7 +380,7 @@ function ShopPageInner() {
                 <option value="price_asc">Sort by: Price (Low → High)</option>
                 <option value="price_desc">Sort by: Price (High → Low)</option>
               </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-paw-foreground/45">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#2c241c]/45">
                 ▾
               </span>
             </div>
@@ -399,12 +409,12 @@ function ShopPageInner() {
               ))}
             </div>
           ) : products.length === 0 ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-paw-foreground/20 bg-white/80 px-8 py-16 text-center shadow-sm">
-              <PawPrint className="mb-4 h-14 w-14 text-paw-foreground/25" />
-              <h2 className="font-display text-xl font-semibold text-paw-foreground">
+            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-[#2c241c]/20 bg-white/80 px-8 py-16 text-center shadow-sm">
+              <PawPrint className="mb-4 h-14 w-14 text-[#2c241c]/25" />
+              <h2 className="font-display text-xl font-semibold text-[#2c241c]">
                 No products found in this category
               </h2>
-              <p className="mt-2 max-w-md text-sm text-paw-foreground/65">
+              <p className="mt-2 max-w-md text-sm text-[#2c241c]/65">
                 Try another category, adjust your filters, or clear the search. New arrivals land here as
                 soon as sellers list them.
               </p>
@@ -427,7 +437,9 @@ function ShopPageInner() {
           ) : (
             <div className="relative grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => {
-                const imageUrl = product.images?.[0] || '';
+                const primaryImg = product.images?.[0]?.trim();
+                const usePlaceholder = productImageFallback[product._id] || !primaryImg;
+                const imageUrl = usePlaceholder ? DEFAULT_PRODUCT_IMAGE : primaryImg!;
                 const badge = productBadgeLabel(product);
                 const showPetMatchBadge =
                   product.recommendationTier === 'match' && Boolean(shopMeta.userPetType);
@@ -442,44 +454,41 @@ function ShopPageInner() {
                 return (
                   <article
                     key={product._id}
-                    className="group flex min-h-[400px] flex-col overflow-hidden rounded-2xl border border-paw-foreground/8 bg-white shadow-[0_4px_20px_rgba(74,46,27,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(74,46,27,0.12)]"
+                    className="group flex min-h-[400px] flex-col overflow-hidden rounded-2xl border border-[#2c241c]/8 bg-white shadow-[0_4px_20px_rgba(74,46,27,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_40px_rgba(74,46,27,0.12)]"
                   >
                     <Link
                       href={`/shop/${product._id}`}
                       className="relative min-h-[200px] w-full flex-[3] basis-0 overflow-hidden bg-[#EDE9E2]"
                     >
-                      {imageUrl ? (
-                        <Image
-                          src={imageUrl}
-                          alt=""
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          unoptimized={imageUrl.startsWith('http://')}
-                        />
-                      ) : (
-                        <div className="flex h-full min-h-[200px] items-center justify-center text-paw-foreground/25">
-                          <PawPrint className="h-16 w-16" />
-                        </div>
-                      )}
+                      <Image
+                        src={imageUrl}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        unoptimized={imageUrl.startsWith('http://')}
+                        onError={() =>
+                          setProductImageFallback((m) => ({ ...m, [product._id]: true }))
+                        }
+                      />
                       <span
                         className={`absolute left-3 top-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${badgeTone(badge)}`}
                       >
                         {badge}
                       </span>
                       {petMatchBadge ? (
-                        <span className="absolute bottom-3 left-3 rounded-md border border-paw-foreground/15 bg-white/90 px-2 py-0.5 text-[10px] font-medium normal-case tracking-tight text-paw-foreground/85 shadow-sm backdrop-blur-sm">
+                        <span className="absolute bottom-3 left-3 rounded-md border border-[#2c241c]/15 bg-white/90 px-2 py-0.5 text-[10px] font-medium normal-case tracking-tight text-[#2c241c]/85 shadow-sm backdrop-blur-sm">
                           {petMatchBadge}
                         </span>
                       ) : null}
                     </Link>
 
                     <div className="flex min-h-0 flex-[2] basis-0 flex-col p-4 pt-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-paw-foreground/45">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c241c]/45">
                         {vendor}
                       </p>
                       <Link href={`/shop/${product._id}`}>
-                        <h2 className="mt-1 line-clamp-2 min-h-[2.75rem] text-base font-bold leading-snug text-paw-foreground hover:underline">
+                        <h2 className="mt-1 line-clamp-2 min-h-[2.75rem] text-base font-bold leading-snug text-[#1a1410] hover:underline">
                           {product.name}
                         </h2>
                       </Link>
@@ -487,7 +496,7 @@ function ShopPageInner() {
                         <StarRow rating={rating} count={reviewCount} />
                       </div>
                       <div className="mt-auto flex items-center justify-between gap-2 pt-4">
-                        <span className="text-lg font-bold text-paw-foreground">
+                        <span className="text-lg font-bold text-[#703418]">
                           Rs. {Math.round(product.price).toLocaleString('en-NP')}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -495,7 +504,7 @@ function ShopPageInner() {
                             type="button"
                             title="Chat with seller"
                             onClick={() => void handleChat(product._id)}
-                            className="flex h-10 w-10 items-center justify-center rounded-full border border-paw-foreground/15 bg-white text-paw-foreground shadow-sm transition-all hover:bg-paw-panel max-sm:opacity-100 sm:translate-x-1 sm:opacity-0 sm:group-hover:translate-x-0 sm:group-hover:opacity-100"
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#2c241c]/15 bg-white text-[#2c241c] shadow-sm transition-all hover:bg-paw-panel max-sm:opacity-100 sm:translate-x-1 sm:opacity-0 sm:group-hover:translate-x-0 sm:group-hover:opacity-100"
                           >
                             <MessageCircle className="h-5 w-5" />
                           </button>
@@ -537,6 +546,7 @@ function ShopPageInner() {
           )}
         </div>
       </div>
+      </PageContent>
 
       <ShopFloatingCart />
     </main>
@@ -549,7 +559,7 @@ export default function ShopPage() {
     <Suspense
       fallback={
         <PageShell className="flex min-h-[50vh] items-center justify-center">
-          <p className="text-paw-foreground">Loading shop…</p>
+          <p className="text-[#2c241c]">Loading shop…</p>
         </PageShell>
       }
     >

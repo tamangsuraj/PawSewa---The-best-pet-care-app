@@ -92,7 +92,7 @@ const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ cl
   { name: 'Live map', href: '/live-map', icon: Map },
   { name: 'Reminders', href: '/reminders', icon: BellRing },
   { name: 'Communication Center', href: '/communication-center', icon: Megaphone },
-  { name: 'Customer Chats', href: '/customer-chats', icon: MessageCircle },
+  { name: 'Support Hub', href: '/customer-chats', icon: MessageCircle },
   { name: 'Marketplace Chats', href: '/marketplace-chats', icon: MessageCircle },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Veterinarians', href: '/veterinarians', icon: UserCheck },
@@ -114,7 +114,7 @@ export const Sidebar: React.FC = () => {
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
-    navGroups.forEach((g) => {
+    collapsibleNavGroups.forEach((g) => {
       initial[g.label] = isGroupActive(g, pathname);
     });
     return initial;
@@ -123,7 +123,7 @@ export const Sidebar: React.FC = () => {
   useEffect(() => {
     setExpandedGroups((prev) => {
       const next = { ...prev };
-      navGroups.forEach((g) => {
+      collapsibleNavGroups.forEach((g) => {
         if (isGroupActive(g, pathname)) {
           next[g.label] = true;
         }
@@ -137,11 +137,11 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-gradient-to-b from-white to-[#F7F4FC] min-h-screen fixed left-0 top-0 shadow-lg border-r border-white/60">
+    <aside className="w-64 bg-gradient-to-b from-white to-[#F7F4FC] h-screen max-h-dvh fixed left-0 top-0 z-30 flex flex-col overflow-hidden shadow-lg border-r border-white/60">
       {/* Logo */}
-      <div className="p-6 border-b border-white/70">
+      <div className="shrink-0 p-6 border-b border-white/70">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="shrink-0 rounded-xl bg-white/80 p-1.5 border border-[#5CB0CC]/30 shadow-sm">
+          <div className="shrink-0 rounded-xl p-1.5 border border-primary/20 bg-transparent">
             <PawSewaLogo variant="nav" height={44} priority />
           </div>
           <div className="min-w-0">
@@ -151,8 +151,8 @@ export const Sidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="p-4 space-y-2 overflow-y-auto">
+      {/* Navigation — scrollable; min-h-0 required for flex child to shrink and show overflow */}
+      <nav className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-4 space-y-2">
         {/* Dashboard first */}
         {flatNavItems.slice(0, 1).map((item) => {
           const Icon = item.icon;
@@ -251,8 +251,8 @@ export const Sidebar: React.FC = () => {
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+      {/* Footer — in flex flow so it stays visible and does not cover nav links */}
+      <div className="shrink-0 p-4 border-t border-gray-200 bg-gradient-to-b from-transparent to-[#F7F4FC]">
         <p className="text-xs text-gray-500 text-center">Admin Portal v1.0</p>
       </div>
     </aside>

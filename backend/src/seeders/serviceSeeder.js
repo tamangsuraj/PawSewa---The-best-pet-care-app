@@ -26,7 +26,7 @@ const DEFAULT_VENDOR_PASSWORD = process.env.SEED_VENDOR_PASSWORD || 'SeedVendor#
 /** High-res Unsplash — dogs, grooming, training, daycare vibes (w=1400 for crisp cards). */
 const IMG = {
   golden: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=1400&q=85',
-  grooming: 'https://images.unsplash.com/photo-1516734212186-a967f81ad2d7?auto=format&fit=crop&w=1400&q=85',
+  grooming: 'https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&fit=crop&w=1400&q=85',
   puppy: 'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?auto=format&fit=crop&w=1400&q=85',
   training: 'https://images.unsplash.com/photo-1588943211346-0908a1fb0b01?auto=format&fit=crop&w=1400&q=85',
   bath: 'https://images.unsplash.com/photo-1522276492815-f0eb71f75a7d?auto=format&fit=crop&w=1400&q=85',
@@ -40,12 +40,12 @@ const IMG = {
 };
 
 const VENDORS = [
-  { email: 'care.hostel@pawsewa.seed', name: 'Himalaya Hostel Vendor', role: 'hostel_owner', phone: '+977-9801110001' },
-  { email: 'care.daycare@pawsewa.seed', name: 'Kathmandu Daycare Vendor', role: 'facility_owner', phone: '+977-9801110002' },
-  { email: 'care.grooming@pawsewa.seed', name: 'Posh Grooming Vendor', role: 'groomer', phone: '+977-9801110003' },
-  { email: 'care.training@pawsewa.seed', name: 'K9 Training Vendor', role: 'trainer', phone: '+977-9801110004' },
-  { email: 'care.wash@pawsewa.seed', name: 'Quick Wash Vendor', role: 'service_provider', phone: '+977-9801110005' },
-  { email: 'care.spa@pawsewa.seed', name: 'Serenity Spa Vendor', role: 'groomer', phone: '+977-9801110006' },
+  { email: 'ravi.karki.hostel@pawsewa.com', name: 'Ravi Karki', role: 'hostel_owner', phone: '+977-9801110001' },
+  { email: 'sita.gurung.daycare@pawsewa.com', name: 'Sita Gurung', role: 'facility_owner', phone: '+977-9801110002' },
+  { email: 'maya.tamang.groom@pawsewa.com', name: 'Maya Tamang', role: 'groomer', phone: '+977-9801110003' },
+  { email: 'dipesh.shrestha.train@pawsewa.com', name: 'Dipesh Shrestha', role: 'trainer', phone: '+977-9801110004' },
+  { email: 'anita.kc.wash@pawsewa.com', name: 'Anita KC', role: 'service_provider', phone: '+977-9801110005' },
+  { email: 'sarita.basnet.spa@pawsewa.com', name: 'Sarita Basnet', role: 'groomer', phone: '+977-9801110006' },
 ];
 
 /** Kathmandu Valley coordinates (approx). */
@@ -356,7 +356,7 @@ async function seedCareBookingsForTestUser(hostelDocs) {
       paymentStatus: 'paid',
       paymentMethod: 'cash_on_delivery',
       serviceType: 'Hostel',
-      packageName: 'Boarding — seeded',
+      packageName: 'Boarding — standard',
     },
     {
       hostelId: hGroom._id,
@@ -372,7 +372,7 @@ async function seedCareBookingsForTestUser(hostelDocs) {
       paymentStatus: 'paid',
       paymentMethod: 'online',
       serviceType: 'Grooming',
-      packageName: 'Full groom — seeded',
+      packageName: 'Full groom — deluxe',
     },
   ];
   await CareBooking.insertMany(rows);
@@ -382,12 +382,12 @@ async function seedCareBookingsForTestUser(hostelDocs) {
 
 function vendorForServiceType(serviceType) {
   const map = {
-    Hostel: 'care.hostel@pawsewa.seed',
-    Daycare: 'care.daycare@pawsewa.seed',
-    Grooming: 'care.grooming@pawsewa.seed',
-    Training: 'care.training@pawsewa.seed',
-    Wash: 'care.wash@pawsewa.seed',
-    Spa: 'care.spa@pawsewa.seed',
+    Hostel: 'ravi.karki.hostel@pawsewa.com',
+    Daycare: 'sita.gurung.daycare@pawsewa.com',
+    Grooming: 'maya.tamang.groom@pawsewa.com',
+    Training: 'dipesh.shrestha.train@pawsewa.com',
+    Wash: 'anita.kc.wash@pawsewa.com',
+    Spa: 'sarita.basnet.spa@pawsewa.com',
   };
   return map[serviceType] || VENDORS[0].email;
 }

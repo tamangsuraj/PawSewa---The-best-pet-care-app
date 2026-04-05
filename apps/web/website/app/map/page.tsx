@@ -5,7 +5,9 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import axios from 'axios';
 import 'leaflet/dist/leaflet.css';
-import { MapPin } from 'lucide-react';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHero } from '@/components/layout/PageHero';
+import { PageContent } from '@/components/layout/PageContent';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((m) => m.MapContainer),
@@ -98,27 +100,21 @@ export default function NearbyVetsMapPage() {
   }>;
 
   return (
-    <div className="min-h-screen bg-paw-cream">
-      <div className="container mx-auto max-w-5xl px-4 py-10">
-        <div className="mb-6">
-          <p className="paw-eyebrow">PawSewa</p>
-          <h1 className="font-display text-3xl font-semibold text-paw-ink mt-2 flex items-center gap-2">
-            <MapPin className="w-8 h-8 text-paw-bark" />
-            Vet map
-          </h1>
-          <p className="text-paw-bark/80 mt-2 max-w-2xl">
-            Same OpenStreetMap stack as the mobile app. Pins use clinic/live
-            coordinates when available; open a profile for full details.
-          </p>
-        </div>
+    <PageShell>
+      <PageHero
+        eyebrow="PawSewa"
+        title="Vet map"
+        subtitle="Same OpenStreetMap stack as the mobile app. Pins use clinic and live coordinates when available; open a profile for full details."
+      />
 
+      <PageContent compact className="max-w-5xl">
         {loading ? (
-          <p className="text-paw-bark/70">Loading map…</p>
+          <p className="text-paw-bark/75">Loading map…</p>
         ) : err ? (
-          <p className="text-red-700">{err}</p>
+          <div className="paw-surface-card rounded-2xl p-6 text-red-800">{err}</div>
         ) : (
           <>
-            <div className="rounded-2xl border border-paw-bark/15 overflow-hidden shadow-paw h-[min(560px,70vh)] bg-white">
+            <div className="paw-surface-card h-[min(560px,70vh)] overflow-hidden rounded-[1.35rem] border-paw-bark/10 p-0">
               <MapContainer
                 center={DEFAULT_CENTER}
                 zoom={12}
@@ -168,7 +164,7 @@ export default function NearbyVetsMapPage() {
             </p>
           </>
         )}
-      </div>
-    </div>
+      </PageContent>
+    </PageShell>
   );
 }

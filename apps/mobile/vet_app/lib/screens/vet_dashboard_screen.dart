@@ -19,6 +19,7 @@ import 'rider_delivery_orders_screen.dart';
 import 'earnings_screen.dart';
 import 'my_business_screen.dart';
 import 'patient_chats_screen.dart';
+import 'partner_support_chat_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
@@ -997,14 +998,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           : AppBar(
               title: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const PawSewaBrandLogo(height: 28),
-                  ),
+                  const PawSewaBrandLogo(height: 28),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1745,6 +1739,24 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               ],
             )
           : null,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const PartnerSupportChatScreen(),
+            ),
+          );
+        },
+        backgroundColor: const Color(AppConstants.primaryColor),
+        icon: const Icon(Icons.support_agent, color: Colors.white),
+        label: Text(
+          'Support',
+          style: GoogleFonts.outfit(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 

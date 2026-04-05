@@ -360,4 +360,16 @@ class ApiClient {
       data: {'ownerId': ownerId, 'vetId': vetId, 'text': text},
     );
   }
+
+  /// PawSewa Customer Support thread (vets, riders, sellers, …).
+  Future<Response> getCustomerCareMine() async {
+    return await _dio.get('/customer-care/mine');
+  }
+
+  Future<Response> postCustomerCareMessage(String conversationId, String text) async {
+    return await _dio.post(
+      '/customer-care/conversations/$conversationId/messages',
+      data: {'text': text},
+    );
+  }
 }

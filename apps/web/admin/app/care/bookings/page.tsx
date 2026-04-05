@@ -64,11 +64,17 @@ export default function CareBookingsPage() {
       setBookings(resp.data?.data ?? []);
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string }; status?: number } };
+      const status = ax.response?.status;
       const msg = ax.response?.data?.message || (err instanceof Error ? err.message : 'Failed to load bookings');
-      const is404 = ax.response?.status === 404;
-      setError(is404
-        ? `${msg}. Ensure the backend is running (cd backend && npm run dev) and has been restarted with the latest code.`
-        : msg);
+      const is404 = status === 404;
+      const is429 = status === 429;
+      setError(
+        is404
+          ? `${msg}. Ensure the backend is running (cd backend && npm run dev) and has been restarted with the latest code.`
+          : is429
+            ? 'Too many requests (rate limited). Wait a minute and refresh, or restart the API server after updating rate limits for /admin routes.'
+            : msg
+      );
     } finally {
       setLoading(false);
     }
@@ -82,10 +88,15 @@ export default function CareBookingsPage() {
   useEffect(() => {
     const socket = getAdminSocket();
     if (!socket) return;
-    const bump = () => void load();
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const bump = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => void load(), 500);
+    };
     socket.on('care_booking:update', bump);
     socket.on('care_booking:new', bump);
     return () => {
+      clearTimeout(debounce);
       socket.off('care_booking:update', bump);
       socket.off('care_booking:new', bump);
     };

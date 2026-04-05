@@ -32,12 +32,18 @@ class _PawSewaLogoSpinnerState extends State<PawSewaLogoSpinner>
       child: RotationTransition(
         turns: _c,
         child: Image.asset(
-          'assets/brand/pawsewa_logo.png',
+          'assets/brand/image_607767.png',
           width: widget.size,
           height: widget.size,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
           gaplessPlayback: true,
+          errorBuilder: (_, _, _) => Image.asset(
+            'assets/brand/pawsewa_logo.png',
+            width: widget.size,
+            height: widget.size,
+            fit: BoxFit.contain,
+          ),
         ),
       ),
     );

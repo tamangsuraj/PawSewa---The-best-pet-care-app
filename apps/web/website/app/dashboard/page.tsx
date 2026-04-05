@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { User, Mail, Phone, Shield, Dog, Calendar } from 'lucide-react';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { PageShell } from '@/components/layout/PageShell';
+import { PageContent } from '@/components/layout/PageContent';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -33,9 +34,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageShell className="py-12 px-4">
-      <div className="container mx-auto max-w-4xl">
-        <div className="paw-card-glass rounded-[1.75rem] p-8 mb-8 shadow-paw">
+    <PageShell>
+      <PageContent className="max-w-4xl py-12">
+        <div className="paw-surface-card mb-8 p-8">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-6">
             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-paw-bark to-paw-ink flex items-center justify-center shadow-paw-glow shrink-0">
               <User className="w-10 h-10 text-paw-cream" />
@@ -60,7 +61,7 @@ export default function DashboardPage() {
           {user.role !== 'pet_owner' && (
             <div className="mb-6 p-4 rounded-2xl border border-paw-teal/20 bg-paw-teal/5">
               <p className="text-sm text-paw-ink">
-                <strong>Note:</strong> You're viewing the customer dashboard. 
+                <strong>Note:</strong> You&apos;re viewing the customer dashboard.{' '}
                 {user.role === 'veterinarian' && ' Professional veterinarian features are available in the admin panel.'}
                 {user.role === 'admin' && ' Admin features are available in the admin panel.'}
               </p>
@@ -103,14 +104,14 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div
             onClick={() => router.push('/my-pets')}
-            className="paw-card-glass rounded-2xl p-6 shadow-paw hover:shadow-paw-lg transition-shadow cursor-pointer border border-paw-bark/8"
+            className="paw-surface-card cursor-pointer p-6"
           >
             <Dog className="w-12 h-12 text-paw-teal-mid mb-4" aria-hidden />
             <h3 className="font-display text-xl font-semibold text-paw-ink mb-2">My Pets</h3>
             <p className="text-paw-bark/70 text-sm">View and manage your registered pets</p>
           </div>
 
-          <div className="paw-card-glass rounded-2xl p-6 shadow-paw opacity-60 cursor-not-allowed border border-paw-bark/8">
+          <div className="paw-surface-card cursor-not-allowed p-6 opacity-60">
             <Calendar className="w-12 h-12 text-paw-bark/40 mb-4" aria-hidden />
             <h3 className="font-display text-xl font-semibold text-paw-bark/50 mb-2">Appointments</h3>
             <p className="text-paw-bark/50 text-sm">Schedule and track veterinary appointments (coming soon)</p>
@@ -122,7 +123,7 @@ export default function DashboardPage() {
             You are signed in and ready to use PawSewa.
           </p>
         </div>
-      </div>
+      </PageContent>
     </PageShell>
   );
 }
