@@ -1,13 +1,17 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
+import 'order_proof_view_screen.dart';
 
 class ShopInventoryScreen extends StatefulWidget {
   const ShopInventoryScreen({super.key});
@@ -97,7 +101,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       await _apiClient.confirmSellerOrderStock(orderId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock confirmed — admin notified')),
+        const SnackBar(content: Text('Stock confirmed — order is now preparing')),
       );
       await _loadAssignedShopOrders();
     } catch (e) {
@@ -105,6 +109,82 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+    }
+  }
+
+  Future<void> _markPacked(String orderId) async {
+    try {
+      await _apiClient.sellerMarkPacked(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Marked packed — rider can dispatch')),
+      );
+      await _loadAssignedShopOrders();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? '$e'
+                : '$e',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _promptTracking(String orderId) async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Tracking / reference', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        content: TextField(
+          controller: ctrl,
+          decoration: const InputDecoration(
+            labelText: 'Tracking number (optional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    if (ok != true) {
+      ctrl.dispose();
+      return;
+    }
+    if (!mounted) {
+      ctrl.dispose();
+      return;
+    }
+    try {
+      await _apiClient.sellerSetOrderTracking(orderId, ctrl.text.trim());
+      ctrl.dispose();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tracking saved')));
+      await _loadAssignedShopOrders();
+    } catch (e) {
+      ctrl.dispose();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _shareInvoice(String orderId) async {
+    try {
+      final r = await _apiClient.getOrderInvoice(orderId);
+      final body = r.data;
+      if (body is Map && body['data'] != null) {
+        final text = const JsonEncoder.withIndent('  ').convert(body['data']);
+        await Share.share(text, subject: 'PawSewa order invoice');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invoice failed: $e')));
     }
   }
 
@@ -334,6 +414,11 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                     : '';
                                 final confirmed =
                                     o['sellerConfirmedAt'] != null;
+                                final status = o['status']?.toString() ?? '';
+                                final hasProof = o['proofOfDelivery'] is Map &&
+                                    ((o['proofOfDelivery'] as Map)['otp']?.toString().trim().isNotEmpty == true ||
+                                        (o['proofOfDelivery'] as Map)['photoUrl']?.toString().trim().isNotEmpty == true ||
+                                        (o['proofOfDelivery'] as Map)['notes']?.toString().trim().isNotEmpty == true);
                                 return Card(
                                   margin: const EdgeInsets.only(bottom: 8),
                                   child: Padding(
@@ -355,6 +440,14 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                             color: Colors.grey[700],
                                           ),
                                         ),
+                                        if (status.isNotEmpty)
+                                          Text(
+                                            'Status: $status',
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 12,
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
                                         if (addr.isNotEmpty)
                                           Text(
                                             addr,
@@ -388,6 +481,72 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                               style: GoogleFonts.outfit(),
                                             ),
                                           ),
+                                        if (id.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              if (status == 'processing' && confirmed)
+                                                ElevatedButton(
+                                                  onPressed: () => _markPacked(id),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.teal.shade700,
+                                                    foregroundColor: Colors.white,
+                                                  ),
+                                                  child: Text(
+                                                    'Mark packed',
+                                                    style: GoogleFonts.outfit(),
+                                                  ),
+                                                ),
+                                              TextButton(
+                                                onPressed: () => _promptTracking(id),
+                                                child: Text(
+                                                  'Tracking',
+                                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                                                ),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => _shareInvoice(id),
+                                                child: Text(
+                                                  'Invoice',
+                                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                        if (status == 'packed')
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 6),
+                                            child: Text(
+                                              'Packed — waiting for rider pickup',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 12,
+                                                color: Colors.teal.shade800,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        if (status == 'delivered' && hasProof) ...[
+                                          const SizedBox(height: 10),
+                                          OutlinedButton.icon(
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => OrderProofViewScreen(
+                                                    order: Map<String, dynamic>.from(o),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            icon: const Icon(Icons.receipt_long_rounded),
+                                            label: Text(
+                                              'View delivery proof',
+                                              style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),

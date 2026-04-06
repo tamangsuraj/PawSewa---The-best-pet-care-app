@@ -68,6 +68,66 @@ const careBookingSchema = new mongoose.Schema(
       trim: true,
       maxlength: 500,
     },
+    /** Private notes for the care facility/staff (not shown to customer). */
+    facilityNotes: {
+      type: String,
+      trim: true,
+      maxlength: 2000,
+      default: '',
+    },
+    /** Extra charges added by facility (e.g. grooming add-on, meds, damages). */
+    extraCharges: {
+      type: [
+        {
+          label: { type: String, trim: true, maxlength: 120, required: true },
+          amount: { type: Number, min: 0, required: true },
+          createdAt: { type: Date, default: Date.now },
+          createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        },
+      ],
+      default: [],
+    },
+    /** Intake + records for the stay/session. */
+    intake: {
+      vaccination: { type: String, trim: true, maxlength: 200, default: '' },
+      diet: { type: String, trim: true, maxlength: 500, default: '' },
+      temperament: { type: String, trim: true, maxlength: 200, default: '' },
+      checklist: {
+        type: [
+          {
+            key: { type: String, trim: true, maxlength: 80, required: true },
+            label: { type: String, trim: true, maxlength: 120, required: true },
+            done: { type: Boolean, default: false },
+          },
+        ],
+        default: [],
+      },
+      feedingSchedule: {
+        type: [
+          {
+            time: { type: String, trim: true, maxlength: 16, required: true }, // e.g. 08:00
+            food: { type: String, trim: true, maxlength: 120, default: '' },
+            notes: { type: String, trim: true, maxlength: 300, default: '' },
+          },
+        ],
+        default: [],
+      },
+      incidents: {
+        type: [
+          {
+            at: { type: Date, default: Date.now },
+            title: { type: String, trim: true, maxlength: 120, required: true },
+            notes: { type: String, trim: true, maxlength: 1000, default: '' },
+            severity: { type: String, trim: true, maxlength: 20, default: 'low' },
+            createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+          },
+        ],
+        default: [],
+      },
+    },
+    checkedInAt: { type: Date, default: null },
+    checkedOutAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
     serviceType: {
       type: String,
       enum: ['Hostel', 'Daycare', 'Grooming', 'Training', 'Wash', 'Spa'],

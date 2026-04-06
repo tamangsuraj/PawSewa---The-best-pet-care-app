@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const axios = require('axios');
+const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
@@ -167,7 +168,7 @@ const adminGetOrders = asyncHandler(async (req, res) => {
   const { status, liveOnly, limit: limitQ, page: pageQ } = req.query;
   const filter = {};
   if (liveOnly === '1' || liveOnly === 'true') {
-    filter.status = { $in: ['pending', 'processing', 'out_for_delivery'] };
+    filter.status = { $in: ['pending', 'processing', 'packed', 'out_for_delivery'] };
   }
   if (status) filter.status = status;
 
@@ -243,7 +244,7 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find({
     assignedRider: riderId,
-    status: { $in: ['pending', 'processing', 'out_for_delivery'] },
+    status: { $in: ['pending', 'processing', 'packed', 'out_for_delivery'] },
   })
     .populate('user', 'name email phone')
     .populate('assignedSeller', 'name email phone')
@@ -252,10 +253,44 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
   res.json({ success: true, data: orders });
 });
 
+const ORDER_STATUS_VALUES = [
+  'pending',
+  'processing',
+  'packed',
+  'out_for_delivery',
+  'delivered',
+  'returned',
+  'refunded',
+  'cancelled',
+];
+
+function allowedStatusTransitions(current, { isAdmin, isAssignedRider }) {
+  const graph = {
+    pending: ['processing', 'cancelled'],
+    processing: ['packed', 'out_for_delivery'],
+    packed: ['out_for_delivery'],
+    out_for_delivery: ['delivered'],
+    delivered: ['returned', 'refunded'],
+    returned: [],
+    refunded: [],
+    cancelled: [],
+  };
+  let allowed = graph[current] || [];
+  if (isAssignedRider && !isAdmin) {
+    const riderOnly = {
+      pending: ['processing'],
+      processing: ['out_for_delivery'],
+      packed: ['out_for_delivery'],
+      out_for_delivery: ['delivered'],
+    };
+    allowed = riderOnly[current] || [];
+  }
+  return allowed;
+}
+
 /**
  * Rider or Admin: PATCH /api/v1/orders/:orderId/status
- * Body: { status: 'pending' | 'processing' | 'out_for_delivery' | 'delivered' }
- * Rider can only update orders assigned to them.
+ * Body: { status } — flow statuses + admin-only terminal transitions from delivered.
  */
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
@@ -277,31 +312,38 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!status || !['pending', 'processing', 'out_for_delivery', 'delivered'].includes(status)) {
+  if (!status || !ORDER_STATUS_VALUES.includes(status)) {
     return res.status(400).json({
       success: false,
-      message: 'Valid status: pending, processing, out_for_delivery, delivered',
+      message: `Valid status: ${ORDER_STATUS_VALUES.join(', ')}`,
     });
   }
 
   const current = order.status;
-  const validTransitions = {
-    pending: ['processing'],
-    processing: ['out_for_delivery'],
-    out_for_delivery: ['delivered'],
-    delivered: [],
-  };
-  const allowed = validTransitions[current];
-  if (!Array.isArray(allowed) || !allowed.includes(status)) {
+  const allowed = allowedStatusTransitions(current, { isAdmin, isAssignedRider });
+  if (!allowed.includes(status)) {
     return res.status(400).json({
       success: false,
-      message: `Cannot change status from "${current}" to "${status}". Allowed: ${(allowed || []).join(', ') || 'none'}.`,
+      message: `Cannot change status from "${current}" to "${status}". Allowed: ${allowed.join(', ') || 'none'}.`,
+    });
+  }
+
+  if (status === 'cancelled' && !isAdmin) {
+    return res.status(403).json({ success: false, message: 'Only admin can cancel an order' });
+  }
+  if ((status === 'returned' || status === 'refunded') && !isAdmin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Use the seller close endpoint for returns/refunds after delivery',
     });
   }
 
   order.status = status;
   if (status === 'delivered') {
     order.deliveredAt = new Date();
+  }
+  if (status === 'cancelled' && !order.fulfillmentCloseReason) {
+    order.fulfillmentCloseReason = 'cancelled_by_admin';
   }
   await order.save();
 
@@ -321,6 +363,79 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     success: true,
     data: updated,
     message: 'Status updated',
+  });
+});
+
+/**
+ * Rider: PATCH /api/v1/orders/:orderId/deliver
+ * Body: { otp?: string, photoUrl?: string, notes?: string }
+ * Sets proofOfDelivery and marks order delivered.
+ */
+const deliverOrderWithProof = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { otp, photoUrl, notes } = req.body || {};
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const uid = req.user?._id?.toString();
+  const isAdmin = req.user?.role === 'admin';
+  const isAssignedRider =
+    order.assignedRider && order.assignedRider.toString() === uid;
+
+  if (!isAdmin && !isAssignedRider) {
+    return res.status(403).json({
+      success: false,
+      message: 'Only the assigned rider or admin can deliver this order',
+    });
+  }
+
+  const otpStr = otp != null ? String(otp).trim() : '';
+  const photoStr = photoUrl != null ? String(photoUrl).trim() : '';
+  const notesStr = notes != null ? String(notes).trim() : '';
+
+  if (!otpStr && !photoStr) {
+    return res.status(400).json({
+      success: false,
+      message: 'Provide at least OTP or a delivery photo as proof',
+    });
+  }
+
+  order.proofOfDelivery = {
+    otp: otpStr,
+    photoUrl: photoStr,
+    notes: notesStr,
+    submittedAt: new Date(),
+    submittedBy: req.user?._id || null,
+  };
+
+  const current = order.status;
+  // Allow delivering from out_for_delivery only (or admin override).
+  if (!isAdmin && current !== 'out_for_delivery') {
+    return res.status(400).json({
+      success: false,
+      message: 'Order must be out_for_delivery before it can be delivered',
+    });
+  }
+
+  order.status = 'delivered';
+  order.deliveredAt = new Date();
+  await order.save();
+
+  await setDeliveryConversationExpiry(order._id);
+  await broadcastShopOrder(orderId, 'update');
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
+
+  res.json({
+    success: true,
+    data: updated,
+    message: 'Delivered with proof',
   });
 });
 
@@ -345,7 +460,7 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
     order.assignedRider = riderId;
   }
 
-  if (status && ['pending', 'processing', 'out_for_delivery', 'delivered'].includes(status)) {
+  if (status && ORDER_STATUS_VALUES.includes(status)) {
     order.status = status;
   }
 
@@ -430,6 +545,9 @@ const confirmSellerOrder = asyncHandler(async (req, res) => {
   }
 
   order.sellerConfirmedAt = new Date();
+  if (order.status === 'pending') {
+    order.status = 'processing';
+  }
   await order.save();
 
   const updated = await Order.findById(orderId)
@@ -626,6 +744,251 @@ const updateMyOrderDeliveryGps = asyncHandler(async (req, res) => {
   res.json({ success: true, data: order });
 });
 
+/**
+ * Shop owner: PATCH /api/v1/orders/:orderId/seller-pack
+ * processing → packed (ready for rider pickup).
+ */
+const sellerMarkPacked = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  const uid = req.user?._id?.toString();
+  if (!order.assignedSeller || order.assignedSeller.toString() !== uid) {
+    return res.status(403).json({ success: false, message: 'This order is not assigned to your shop' });
+  }
+  if (order.status !== 'processing') {
+    return res.status(400).json({
+      success: false,
+      message: 'Order must be in processing state before it can be marked packed',
+    });
+  }
+  order.status = 'packed';
+  order.packedAt = new Date();
+  await order.save();
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
+
+  await broadcastShopOrder(orderId, 'update');
+  res.json({ success: true, data: updated, message: 'Marked as packed' });
+});
+
+/**
+ * Shop owner: PATCH /api/v1/orders/:orderId/seller-tracking
+ * Body: { trackingNumber: string }
+ */
+const sellerSetTracking = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { trackingNumber } = req.body || {};
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  const uid = req.user?._id?.toString();
+  if (!order.assignedSeller || order.assignedSeller.toString() !== uid) {
+    return res.status(403).json({ success: false, message: 'This order is not assigned to your shop' });
+  }
+  const tn = trackingNumber != null ? String(trackingNumber).trim().slice(0, 200) : '';
+  order.trackingNumber = tn;
+  await order.save();
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
+
+  await broadcastShopOrder(orderId, 'update');
+  res.json({ success: true, data: updated, message: 'Tracking updated' });
+});
+
+/**
+ * Shop owner or admin: PATCH /api/v1/orders/:orderId/seller-close
+ * delivered → returned | refunded with reason (analytics).
+ */
+const sellerCloseOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const { status, reason } = req.body || {};
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  const isAdmin = req.user?.role === 'admin';
+  const uid = req.user?._id?.toString();
+  const isSeller = order.assignedSeller && order.assignedSeller.toString() === uid;
+  if (!isAdmin && !isSeller) {
+    return res.status(403).json({ success: false, message: 'Not allowed' });
+  }
+  if (!['returned', 'refunded'].includes(status)) {
+    return res.status(400).json({ success: false, message: 'status must be returned or refunded' });
+  }
+  if (order.status !== 'delivered') {
+    return res.status(400).json({ success: false, message: 'Only delivered orders can be closed as returned/refunded' });
+  }
+  const r = reason != null ? String(reason).trim().slice(0, 500) : '';
+  if (!r) {
+    return res.status(400).json({ success: false, message: 'reason is required' });
+  }
+  order.status = status;
+  order.fulfillmentCloseReason = r;
+  await order.save();
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone')
+    .populate('assignedSeller', 'name email phone');
+
+  await broadcastShopOrder(orderId, 'update');
+  res.json({ success: true, data: updated, message: 'Order updated' });
+});
+
+/**
+ * GET /api/v1/orders/:orderId/invoice
+ * Customer (owner), assigned seller, or admin — JSON invoice for print/share.
+ */
+const getOrderInvoice = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const order = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('items.product', 'name sku')
+    .populate('assignedSeller', 'name phone email')
+    .lean();
+
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const uid = req.user?._id?.toString();
+  const isAdmin = req.user?.role === 'admin';
+  const ownerId = order.user && (order.user._id || order.user);
+  const sellerId = order.assignedSeller && (order.assignedSeller._id || order.assignedSeller);
+  const ok =
+    isAdmin ||
+    (ownerId && ownerId.toString() === uid) ||
+    (sellerId && sellerId.toString() === uid);
+  if (!ok) {
+    return res.status(403).json({ success: false, message: 'Not allowed to view this invoice' });
+  }
+
+  const lines = (order.items || []).map((it) => ({
+    productId: it.product ? (it.product._id || it.product).toString() : null,
+    name: it.name || (it.product && it.product.name) || 'Item',
+    unitPrice: it.price,
+    quantity: it.quantity,
+    lineTotal: (Number(it.price) || 0) * (Number(it.quantity) || 0),
+  }));
+
+  res.json({
+    success: true,
+    data: {
+      orderId: order._id.toString(),
+      createdAt: order.createdAt,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      customer: order.user,
+      seller: order.assignedSeller || null,
+      deliveryAddress: order.deliveryLocation?.address || order.location?.address || '',
+      trackingNumber: order.trackingNumber || '',
+      lines,
+      totalAmount: order.totalAmount,
+      currency: 'NPR',
+    },
+  });
+});
+
+/**
+ * Shop owner: GET /api/v1/orders/seller/analytics
+ */
+const getSellerShopAnalytics = asyncHandler(async (req, res) => {
+  const sellerId = req.user?._id;
+  if (!sellerId) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+  const sid = new mongoose.Types.ObjectId(sellerId);
+
+  const baseMatch = { assignedSeller: sid };
+
+  const [revAgg, placedCount, deliveredCount, cancelledAgg, bestAgg] = await Promise.all([
+    Order.aggregate([
+      { $match: { ...baseMatch, status: 'delivered' } },
+      { $group: { _id: null, revenue: { $sum: '$totalAmount' }, count: { $sum: 1 } } },
+    ]),
+    Order.countDocuments(baseMatch),
+    Order.countDocuments({ ...baseMatch, status: 'delivered' }),
+    Order.aggregate([
+      {
+        $match: {
+          ...baseMatch,
+          status: { $in: ['cancelled', 'returned', 'refunded'] },
+        },
+      },
+      {
+        $group: {
+          _id: { $ifNull: ['$fulfillmentCloseReason', 'unknown'] },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 20 },
+    ]),
+    Order.aggregate([
+      { $match: { ...baseMatch, status: 'delivered' } },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product',
+          units: { $sum: '$items.quantity' },
+          revenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } },
+        },
+      },
+      { $sort: { units: -1 } },
+      { $limit: 10 },
+    ]),
+  ]);
+
+  const revenue = revAgg[0]?.revenue || 0;
+  const deliveredOrders = revAgg[0]?.count || 0;
+  const conversionRate =
+    placedCount > 0 ? Math.round((deliveredCount / placedCount) * 1000) / 10 : 0;
+
+  const productIds = bestAgg.map((b) => b._id).filter(Boolean);
+  const products = await Product.find({ _id: { $in: productIds } })
+    .select('name images')
+    .lean();
+  const nameById = new Map(products.map((p) => [p._id.toString(), p]));
+
+  const bestSellers = bestAgg.map((b) => {
+    const id = b._id ? b._id.toString() : '';
+    const p = nameById.get(id);
+    return {
+      productId: id,
+      name: p?.name || 'Product',
+      image: p?.images?.[0] || null,
+      unitsSold: b.units,
+      revenue: Math.round(b.revenue * 100) / 100,
+    };
+  });
+
+  res.json({
+    success: true,
+    data: {
+      revenue: Math.round(revenue * 100) / 100,
+      ordersAssigned: placedCount,
+      ordersDelivered: deliveredCount,
+      conversionRatePercent: conversionRate,
+      cancelledOrClosedByReason: cancelledAgg.map((c) => ({
+        reason: c._id,
+        count: c.count,
+      })),
+      bestSellers,
+    },
+  });
+});
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -634,9 +997,15 @@ module.exports = {
   getSellerAssignedOrders,
   getRiderActiveOrders,
   updateOrderStatus,
+  deliverOrderWithProof,
   assignRiderToOrder,
   assignSellerToOrder,
   confirmSellerOrder,
+  sellerMarkPacked,
+  sellerSetTracking,
+  sellerCloseOrder,
+  getOrderInvoice,
+  getSellerShopAnalytics,
   bulkAssignOrders,
   initiateKhaltiForOrder,
   updateMyOrderDeliveryGps,

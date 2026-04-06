@@ -97,6 +97,18 @@ const productSchema = new mongoose.Schema(
       maxlength: 32,
       default: '',
     },
+    /** Optional variants (size/flavor); base price/stock still apply as default SKU. */
+    variants: {
+      type: [
+        {
+          name: { type: String, trim: true, maxlength: 80, required: true },
+          sku: { type: String, trim: true, maxlength: 64, default: '' },
+          price: { type: Number, min: 0, required: true },
+          stockQuantity: { type: Number, min: 0, default: 0 },
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -35,6 +36,9 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
 
   final List<_Attachment> _attachments = [];
   int? _uploadPct;
+  DateTime? _followUpAt;
+  String? _prescriptionUrl;
+  int? _pdfUploadPct;
 
   @override
   void initState() {
@@ -187,6 +191,109 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
     }
   }
 
+  Future<void> _pickAndUploadPrescriptionPdf() async {
+    final requestId = _requestId();
+    if (requestId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing service request id')),
+      );
+      return;
+    }
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final f = result.files.first;
+      final bytes = f.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read PDF bytes')),
+        );
+        return;
+      }
+      final name = (f.name.trim().isNotEmpty ? f.name.trim() : 'prescription.pdf');
+      final filename = name.toLowerCase().endsWith('.pdf') ? name : '$name.pdf';
+
+      if (!mounted) return;
+      setState(() => _pdfUploadPct = 0);
+
+      final resp = await _api.uploadServicePrescriptionPdf(
+        requestId,
+        bytes,
+        filename: filename,
+        onSendProgress: (sent, total) {
+          if (total <= 0) return;
+          final pct = ((sent / total) * 100).clamp(0, 100).round();
+          if (mounted) setState(() => _pdfUploadPct = pct);
+        },
+      );
+      final body = resp.data;
+      String url = '';
+      if (body is Map && body['success'] == true && body['data'] is Map) {
+        url = (body['data'] as Map)['prescriptionUrl']?.toString() ?? '';
+      }
+      if (!mounted) return;
+      setState(() {
+        _prescriptionUrl = url.trim().isEmpty ? null : url.trim();
+        _pdfUploadPct = null;
+      });
+      if (_prescriptionUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Upload failed — no URL returned')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Prescription uploaded')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _pdfUploadPct = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('PDF upload failed: $e')),
+      );
+    }
+  }
+
+  Future<void> _pickFollowUpDateTime() async {
+    final now = DateTime.now();
+    final initial = _followUpAt ?? now.add(const Duration(days: 7));
+    final d = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (d == null || !mounted) return;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (t == null || !mounted) return;
+    final dt = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    setState(() => _followUpAt = dt);
+
+    // Persist immediately so Medical History can show a follow-up badge even before completion.
+    final requestId = _requestId();
+    if (requestId.isEmpty) return;
+    try {
+      await _api.setServiceFollowUp(requestId: requestId, scheduledTime: dt);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Follow-up scheduled')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not schedule follow-up: $e')),
+      );
+    }
+  }
+
   void _applyTemplate(String key) {
     final t = key.toLowerCase();
     if (t == 'vaccination') {
@@ -274,11 +381,22 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
     }
 
     final notes = _formatVisitNotes();
+    final visitVitals = <String, dynamic>{
+      if (_weightCtrl.text.trim().isNotEmpty) 'weightKg': double.tryParse(_weightCtrl.text.trim()),
+      if (_tempCtrl.text.trim().isNotEmpty) 'temperatureC': double.tryParse(_tempCtrl.text.trim()),
+      if (_hrCtrl.text.trim().isNotEmpty) 'heartRateBpm': int.tryParse(_hrCtrl.text.trim()),
+    };
 
     setState(() => _completing = true);
     try {
       // 1) mark completed + save visitNotes (shows in owner Medical History + attachments extracted from URLs)
-      await _api.updateServiceStatus(requestId: requestId, status: 'completed', visitNotes: notes);
+      await _api.updateServiceStatus(
+        requestId: requestId,
+        status: 'completed',
+        visitNotes: notes,
+        visitVitals: visitVitals.isEmpty ? null : visitVitals,
+        scheduledTime: _followUpAt,
+      );
 
       // 2) also add a clinical entry (bell notification + linked vet record)
       final petId = _petId();
@@ -407,6 +525,48 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
           ),
           const SizedBox(height: 12),
           _Section(
+            title: 'Follow-up (optional)',
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(AppConstants.sandColor).withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: primary.withValues(alpha: 0.10)),
+                    ),
+                    child: Text(
+                      _followUpAt == null
+                          ? 'No follow-up scheduled'
+                          : '${_followUpAt!.day}/${_followUpAt!.month}/${_followUpAt!.year}  ${_followUpAt!.hour.toString().padLeft(2, '0')}:${_followUpAt!.minute.toString().padLeft(2, '0')}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: ink.withValues(alpha: 0.78),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: (_saving || _completing) ? null : _pickFollowUpDateTime,
+                  icon: const Icon(Icons.calendar_month_rounded),
+                  label: Text('Set', style: GoogleFonts.outfit(fontWeight: FontWeight.w800)),
+                ),
+                if (_followUpAt != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Clear follow-up',
+                    onPressed: () => setState(() => _followUpAt = null),
+                    icon: Icon(Icons.close_rounded, color: ink.withValues(alpha: 0.55)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _Section(
             title: 'Vitals (optional)',
             child: Row(
               children: [
@@ -442,6 +602,67 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
                     ),
                   ),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _Section(
+            title: 'Prescription PDF (optional)',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_pdfUploadPct != null) ...[
+                  LinearProgressIndicator(
+                    value: (_pdfUploadPct! / 100).clamp(0, 1),
+                    color: primary,
+                    backgroundColor: primary.withValues(alpha: 0.10),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Uploading PDF… $_pdfUploadPct%',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: ink.withValues(alpha: 0.65),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: (_saving || _completing || _pdfUploadPct != null)
+                          ? null
+                          : _pickAndUploadPrescriptionPdf,
+                      icon: const Icon(Icons.picture_as_pdf_rounded),
+                      label: Text('Upload PDF', style: GoogleFonts.outfit(fontWeight: FontWeight.w800)),
+                    ),
+                    const SizedBox(width: 10),
+                    if (_prescriptionUrl != null)
+                      FilledButton.icon(
+                        onPressed: () async {
+                          final uri = Uri.tryParse(_prescriptionUrl!);
+                          if (uri != null) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        style: FilledButton.styleFrom(backgroundColor: primary),
+                        icon: const Icon(Icons.open_in_new_rounded, color: Colors.white),
+                        label: Text('Open', style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: Colors.white)),
+                      ),
+                  ],
+                ),
+                if (_prescriptionUrl == null && _pdfUploadPct == null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Upload a discharge note or prescription PDF. Owners can view it inside the Medical History full report.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: ink.withValues(alpha: 0.60),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

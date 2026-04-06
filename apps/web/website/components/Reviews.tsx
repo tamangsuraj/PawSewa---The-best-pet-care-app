@@ -36,6 +36,8 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formRating, setFormRating] = useState(5);
   const [formComment, setFormComment] = useState('');
+  /** For product reviews: a delivered order that included this product (required by API). */
+  const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
 
   const loadReviews = useCallback(async () => {
     try {
@@ -64,6 +66,37 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
   }, [targetType, targetId, isAuthenticated]);
 
   useEffect(() => {
+    if (targetType !== 'product' || !isAuthenticated) {
+      setEligibleOrderId(null);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await api.get('/orders/my');
+        const orders: Array<{
+          _id: string;
+          status?: string;
+          items?: Array<{ product?: string | { _id?: string } }>;
+        }> = res.data?.data ?? [];
+        const delivered = orders.filter((o) => o.status === 'delivered');
+        for (const o of delivered) {
+          const has = o.items?.some((it) => {
+            const pid = typeof it.product === 'object' ? it.product?._id : it.product;
+            return pid != null && String(pid) === String(targetId);
+          });
+          if (has) {
+            setEligibleOrderId(o._id);
+            return;
+          }
+        }
+        setEligibleOrderId(null);
+      } catch {
+        setEligibleOrderId(null);
+      }
+    })();
+  }, [targetType, targetId, isAuthenticated]);
+
+  useEffect(() => {
     const run = async () => {
       setLoading(true);
       await Promise.all([loadReviews(), loadMyReview()]);
@@ -80,11 +113,17 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
         await api.patch(`/reviews/${myReview._id}`, { rating: formRating, comment: formComment });
         setEditingId(null);
       } else {
+        if (targetType === 'product' && !eligibleOrderId) {
+          alert('You can review this product only after it has been delivered to you in an order.');
+          setSubmitting(false);
+          return;
+        }
         await api.post('/reviews', {
           targetType,
           targetId,
           rating: formRating,
           comment: formComment,
+          ...(targetType === 'product' && eligibleOrderId ? { orderId: eligibleOrderId } : {}),
         });
       }
       await loadReviews();
@@ -136,14 +175,20 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
       </div>
 
       {isAuthenticated && !myReview && !editingId && (
-        <button
-          type="button"
-          onClick={() => setEditingId('new')}
-          className="mb-4 flex items-center gap-2 text-paw-bark font-medium hover:underline"
-        >
-          <MessageSquare className="w-4 h-4" />
-          Write a review
-        </button>
+        targetType === 'product' && !eligibleOrderId ? (
+          <p className="mb-4 text-sm text-gray-600">
+            You can write a review after this product has been delivered to you in a shop order.
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingId('new')}
+            className="mb-4 flex items-center gap-2 text-paw-bark font-medium hover:underline"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Write a review
+          </button>
+        )
       )}
       {isAuthenticated && myReview && editingId !== myReview._id && (
         <div className="mb-4 flex items-center gap-2">

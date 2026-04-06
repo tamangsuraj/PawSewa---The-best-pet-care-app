@@ -14,6 +14,7 @@ import '../services/location_service.dart';
 import '../services/socket_service.dart';
 import 'rider_en_route_screen.dart';
 import 'partner_marketplace_chat_screen.dart';
+import 'order_proof_view_screen.dart';
 
 /// For riders: list of assigned pet-supplies orders with status updates.
 /// Flow: Select status → Processing (at shop) → On the way (left shop) → Delivered.
@@ -96,7 +97,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     }
     final hasActive = _orders.any((o) {
       final s = (o['status'] ?? '').toString().toLowerCase();
-      return s == 'processing' || s == 'out_for_delivery';
+      return s == 'processing' || s == 'packed' || s == 'out_for_delivery';
     });
     if (!hasActive) {
       return;
@@ -284,6 +285,14 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     }
   }
 
+  Future<void> _openReceipt(Map<String, dynamic> order) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OrderProofViewScreen(order: Map<String, dynamic>.from(order)),
+      ),
+    );
+  }
+
   Future<void> _navigateToDeliveryAddress(
       BuildContext context, Map<String, dynamic> order) async {
     double? lat;
@@ -398,6 +407,8 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
         return 'Pending';
       case 'processing':
         return 'Processing';
+      case 'packed':
+        return 'Packed (pickup)';
       case 'out_for_delivery':
         return 'On the way';
       case 'delivered':
@@ -412,6 +423,8 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       case 'pending':
         return 'processing';
       case 'processing':
+        return 'out_for_delivery';
+      case 'packed':
         return 'out_for_delivery';
       case 'out_for_delivery':
         return 'delivered';
@@ -827,6 +840,9 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         onChatCustomer: (order['status']?.toString() ?? '') != 'pending'
                                             ? () => _openCustomerChat(context, order)
                                             : null,
+                                        onViewReceipt: (order['status']?.toString() ?? '') == 'delivered'
+                                            ? () => _openReceipt(order)
+                                            : null,
                                         statusLabel: _statusLabel,
                                         nextStatus: _nextStatus,
                                       );
@@ -859,6 +875,7 @@ class _OrderCard extends StatelessWidget {
     required this.onUpdateStatus,
     required this.onNavigate,
     this.onChatCustomer,
+    this.onViewReceipt,
     required this.statusLabel,
     required this.nextStatus,
   });
@@ -869,6 +886,7 @@ class _OrderCard extends StatelessWidget {
   final void Function(String orderId, String status) onUpdateStatus;
   final void Function(BuildContext context, Map<String, dynamic> order) onNavigate;
   final VoidCallback? onChatCustomer;
+  final VoidCallback? onViewReceipt;
   final String Function(String) statusLabel;
   final String? Function(String) nextStatus;
 
@@ -1042,7 +1060,7 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if ((status == 'processing' || status == 'out_for_delivery') &&
+            if ((status == 'processing' || status == 'packed' || status == 'out_for_delivery') &&
                 customerLatLng != null) ...[
               SizedBox(
                 width: double.infinity,
@@ -1096,6 +1114,33 @@ class _OrderCard extends StatelessWidget {
               ),
             ],
 
+            if (onViewReceipt != null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: onViewReceipt,
+                  icon: const Icon(Icons.receipt_long_rounded, size: 20),
+                  label: Text(
+                    'View receipt / proof',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent.withValues(alpha: 0.55)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
             if (next != null) ...[
               const SizedBox(height: 8),
               SwipeActionButton(
@@ -1120,6 +1165,8 @@ class _OrderCard extends StatelessWidget {
         return Colors.orange;
       case 'processing':
         return const Color(AppConstants.accentColor);
+      case 'packed':
+        return Colors.teal;
       case 'out_for_delivery':
         return Colors.deepOrange;
       case 'delivered':

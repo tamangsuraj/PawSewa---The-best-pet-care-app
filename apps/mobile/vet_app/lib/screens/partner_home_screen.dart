@@ -19,6 +19,7 @@ import 'shop_inventory_screen.dart';
 import 'shop_analytics_screen.dart';
 import 'care_calendar_screen.dart';
 import 'care_pet_records_screen.dart';
+import 'care_staff_tasks_screen.dart';
 import 'my_business_screen.dart';
 import 'profile_editor_screen.dart';
 
@@ -440,6 +441,12 @@ class _RoleHome extends StatelessWidget {
             title: 'Pet records',
             subtitle: 'Owner contacts & intake',
             onTap: () => onOpen(const CarePetRecordsScreen()),
+          ),
+          _ActionTileModel(
+            icon: Icons.checklist_rounded,
+            title: 'Staff tasks',
+            subtitle: 'Cleaning, walks, grooming',
+            onTap: () => onOpen(const CareStaffTasksScreen()),
           ),
           _ActionTileModel(
             icon: Icons.support_agent_rounded,

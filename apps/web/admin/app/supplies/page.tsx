@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
 import {
   AlertCircle,
+  Check,
   Package,
   RefreshCw,
   Truck,
@@ -59,7 +60,61 @@ interface Order {
   assignedRider?: { _id: string; name?: string; email?: string; phone?: string };
   assignedSeller?: { _id: string; name?: string; email?: string; phone?: string };
   sellerConfirmedAt?: string | null;
+  proofOfDelivery?: {
+    otp?: string;
+    photoUrl?: string;
+    notes?: string;
+    submittedAt?: string | null;
+    submittedBy?: string | null;
+  };
   createdAt: string;
+}
+
+function orderHasProof(o: Order): boolean {
+  const p = o.proofOfDelivery;
+  if (!p) return false;
+  return Boolean((p.otp && p.otp.trim()) || (p.photoUrl && p.photoUrl.trim()) || (p.notes && p.notes.trim()));
+}
+
+function ProofMiniBadges({ order }: { order: Order }) {
+  const p = order.proofOfDelivery;
+  const hasOtp = Boolean(p?.otp && p.otp.trim());
+  const hasPhoto = Boolean(p?.photoUrl && p.photoUrl.trim());
+  const hasNotes = Boolean(p?.notes && p.notes.trim());
+
+  if (order.status !== 'delivered') return null;
+
+  if (!orderHasProof(order)) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border bg-red-50 text-red-700 border-red-200">
+        <AlertCircle className="w-3.5 h-3.5" />
+        Proof missing
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      {hasOtp ? (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
+          <Check className="w-3.5 h-3.5" />
+          OTP
+        </span>
+      ) : null}
+      {hasPhoto ? (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
+          <Check className="w-3.5 h-3.5" />
+          Photo
+        </span>
+      ) : null}
+      {hasNotes ? (
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
+          <Check className="w-3.5 h-3.5" />
+          Notes
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 interface Seller {
@@ -266,6 +321,92 @@ function OrderDetailModal({
               )}
             </div>
           </div>
+
+          {/* Proof of delivery */}
+          {order.status === 'delivered' ? (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" />
+                Proof of delivery
+              </h3>
+              {!orderHasProof(order) ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-700" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">
+                      Proof missing
+                    </p>
+                    <p className="text-xs text-red-700 mt-0.5">
+                      This order is delivered but has no OTP/photo/notes recorded.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  {order.proofOfDelivery?.submittedAt ? (
+                    <p className="text-xs text-gray-600">
+                      Submitted:{' '}
+                      {new Date(
+                        order.proofOfDelivery.submittedAt
+                      ).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {order.proofOfDelivery?.otp ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">
+                        OTP
+                      </p>
+                      <p className="font-mono text-gray-900">
+                        {order.proofOfDelivery.otp}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(order.proofOfDelivery?.otp || '');
+                        toast.success('OTP copied');
+                      }}
+                      className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-white"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ) : null}
+                {order.proofOfDelivery?.notes ? (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase">
+                      Notes
+                    </p>
+                    <p className="text-sm text-gray-800">
+                      {order.proofOfDelivery.notes}
+                    </p>
+                  </div>
+                ) : null}
+                {order.proofOfDelivery?.photoUrl ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 uppercase">
+                      Photo
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={order.proofOfDelivery.photoUrl}
+                      alt="Proof of delivery"
+                      className="w-full max-h-72 object-cover rounded-lg border border-gray-200"
+                    />
+                    <a
+                      href={order.proofOfDelivery.photoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      Open full image
+                    </a>
+                  </div>
+                ) : null}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* Delivery address & map */}
           <div>
@@ -933,7 +1074,10 @@ export default function LiveSuppliesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(o.status)}
+                      <div className="flex flex-col gap-2">
+                        {getStatusBadge(o.status)}
+                        <ProofMiniBadges order={o} />
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {new Date(o.createdAt).toLocaleDateString()}{' '}

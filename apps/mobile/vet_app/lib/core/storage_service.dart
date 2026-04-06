@@ -44,4 +44,13 @@ class StorageService {
   Future<String?> getActivePartnerRole() async {
     return await _storage.read(key: AppConstants.partnerRoleKey);
   }
+
+  /// Generic cached JSON payloads (offline-friendly lists).
+  Future<void> setCache(String key, String value) async {
+    await _storage.write(key: 'cache:$key', value: value);
+  }
+
+  Future<String?> getCache(String key) async {
+    return await _storage.read(key: 'cache:$key');
+  }
 }

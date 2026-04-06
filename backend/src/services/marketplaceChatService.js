@@ -3,6 +3,7 @@ const MarketplaceConversation = require('../models/MarketplaceConversation');
 const MarketplaceMessage = require('../models/MarketplaceMessage');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const CareBooking = require('../models/CareBooking');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../utils/fcm');
@@ -60,6 +61,7 @@ function isOrderDeliveryChatActive(order) {
   if (!order || !order.assignedRider) return false;
   const st = order.status;
   if (st === 'pending') return false;
+  if (st === 'returned' || st === 'refunded' || st === 'cancelled') return false;
   if (st === 'delivered') {
     const ref = order.deliveredAt || order.updatedAt;
     if (!ref) return false;
@@ -302,7 +304,12 @@ async function appendMessageAndNotify({
       productId: payload.productId,
       productName: payload.productName,
       timestamp: payload.timestamp,
-      threadType: convDoc.type === 'DELIVERY' ? 'delivery' : 'seller',
+      threadType:
+        convDoc.type === 'DELIVERY'
+          ? 'delivery'
+          : convDoc.type === 'CARE'
+            ? 'care'
+            : 'seller',
     });
   }
 
@@ -346,11 +353,57 @@ async function appendMessageAndNotify({
       senderName,
       preview,
       conversationId: String(conversationId),
-      threadType: convDoc.type === 'DELIVERY' ? 'delivery' : 'seller',
+      threadType:
+        convDoc.type === 'DELIVERY'
+          ? 'delivery'
+          : convDoc.type === 'CARE'
+            ? 'care'
+            : 'seller',
     });
   }
 
   return msg;
+}
+
+async function ensureCareConversationForBooking(bookingId, userId) {
+  const booking = await CareBooking.findById(bookingId)
+    .populate('hostelId', 'ownerId name')
+    .populate('userId', 'name profilePicture')
+    .lean();
+  if (!booking) {
+    const err = new Error('Booking not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const uid = String(userId || '');
+  const hostelOwnerId = booking.hostelId?.ownerId ? String(booking.hostelId.ownerId) : '';
+  const assignedPartnerId = booking.assignedPartner ? String(booking.assignedPartner) : '';
+  const isAllowed = uid && (uid === hostelOwnerId || (assignedPartnerId && uid === assignedPartnerId));
+  if (!isAllowed) {
+    const err = new Error('Not allowed to open this care thread');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const customerId = booking.userId?._id || booking.userId;
+  const partnerId = hostelOwnerId || uid;
+  let conv = await MarketplaceConversation.findOne({
+    type: 'CARE',
+    careBooking: booking._id,
+  });
+  if (!conv) {
+    conv = await MarketplaceConversation.create({
+      type: 'CARE',
+      customer: customerId,
+      partner: partnerId,
+      careBooking: booking._id,
+      lastMessageAt: new Date(),
+    });
+  } else {
+    conv.lastMessageAt = new Date();
+    await conv.save();
+  }
+  return conv;
 }
 
 module.exports = {
@@ -358,6 +411,7 @@ module.exports = {
   conversationRoom,
   ensureSellerConversation,
   ensureDeliveryConversationForOrder,
+  ensureCareConversationForBooking,
   setDeliveryConversationExpiry,
   loadConversationForUser,
   canSendInConversation,

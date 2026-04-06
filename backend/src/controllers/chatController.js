@@ -11,7 +11,14 @@ const {
   canVetChatWithOwner,
 } = require('../utils/vetChatEligibility');
 const { getIO } = require('../sockets/socketStore');
-const { bumpUnread, vetDirectKey, getSummaryForUser } = require('../services/chatUnreadService');
+const {
+  bumpUnread,
+  clearUnread,
+  setUnread,
+  convKey,
+  vetDirectKey,
+  getSummaryForUser,
+} = require('../services/chatUnreadService');
 const logger = require('../utils/logger');
 const { lookupUserByEmailWithStats } = require('../services/supportUserLookupService');
 const {
@@ -222,6 +229,34 @@ const getUnreadSummary = asyncHandler(async (req, res) => {
   res.json({ success: true, data: summary });
 });
 
+/** POST /api/v1/chats/unread/clear  Body: { threadKey? conversationId? } */
+const clearUnreadForThread = asyncHandler(async (req, res) => {
+  const { threadKey, conversationId } = req.body || {};
+  const key = threadKey ? String(threadKey) : conversationId ? convKey(String(conversationId)) : '';
+  if (!key) {
+    res.status(400);
+    throw new Error('threadKey or conversationId is required');
+  }
+  const { getIO } = require('../sockets/socketStore');
+  const io = typeof getIO === 'function' ? getIO() : null;
+  const total = await clearUnread(io, req.user._id, key);
+  res.json({ success: true, data: { totalUnread: total, cleared: key } });
+});
+
+/** POST /api/v1/chats/unread/mark  Body: { threadKey? conversationId?, count? } */
+const markUnreadForThread = asyncHandler(async (req, res) => {
+  const { threadKey, conversationId, count } = req.body || {};
+  const key = threadKey ? String(threadKey) : conversationId ? convKey(String(conversationId)) : '';
+  if (!key) {
+    res.status(400);
+    throw new Error('threadKey or conversationId is required');
+  }
+  const { getIO } = require('../sockets/socketStore');
+  const io = typeof getIO === 'function' ? getIO() : null;
+  const total = await setUnread(io, req.user._id, key, Math.max(Number(count) || 1, 1));
+  res.json({ success: true, data: { totalUnread: total, marked: key } });
+});
+
 module.exports = {
   getMyVetsForChat,
   getMyPatientsForChat,
@@ -230,4 +265,6 @@ module.exports = {
   findUserByEmail,
   getChatHistory,
   getUnreadSummary,
+  clearUnreadForThread,
+  markUnreadForThread,
 };

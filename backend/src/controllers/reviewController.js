@@ -1,7 +1,9 @@
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Hostel = require('../models/Hostel');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 
 /**
  * Recalculate and update rating + reviewCount for a hostel or product
@@ -84,6 +86,31 @@ const createReview = asyncHandler(async (req, res) => {
     if (!product) {
       res.status(404);
       throw new Error('Product not found');
+    }
+    const orderId = req.body.orderId;
+    if (!orderId || !mongoose.Types.ObjectId.isValid(String(orderId))) {
+      res.status(400);
+      throw new Error('orderId is required to review a shop product (only after a delivered order)');
+    }
+    const order = await Order.findById(orderId).lean();
+    if (!order) {
+      res.status(404);
+      throw new Error('Order not found');
+    }
+    if (String(order.user) !== String(userId)) {
+      res.status(403);
+      throw new Error('You can only review products from your own orders');
+    }
+    if (order.status !== 'delivered') {
+      res.status(400);
+      throw new Error('You can leave a review only after the order is delivered');
+    }
+    const hasLine = (order.items || []).some(
+      (it) => String(it.product) === String(targetId)
+    );
+    if (!hasLine) {
+      res.status(400);
+      throw new Error('This product was not part of that order');
     }
   }
 

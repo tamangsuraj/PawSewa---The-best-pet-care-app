@@ -417,6 +417,37 @@ class ApiClient {
     return await _dio.get('/orders/my');
   }
 
+  /// JSON invoice for print/share (owner, seller, or admin).
+  Future<Response> getOrderInvoice(String orderId) async {
+    return await _dio.get('/orders/$orderId/invoice');
+  }
+
+  /// Product review after delivery — [orderId] must be a delivered order containing the product.
+  Future<Response> createProductReview({
+    required String targetId,
+    required String orderId,
+    required int rating,
+    String comment = '',
+  }) async {
+    return await _dio.post(
+      '/reviews',
+      data: {
+        'targetType': 'product',
+        'targetId': targetId,
+        'orderId': orderId,
+        'rating': rating,
+        'comment': comment,
+      },
+    );
+  }
+
+  Future<Response> getMyProductReview(String productId) async {
+    return await _dio.get(
+      '/reviews/my',
+      queryParameters: {'targetType': 'product', 'targetId': productId},
+    );
+  }
+
   // Marketplace chat (seller + delivery)
   Future<Response> getMarketplaceInbox() async {
     return await _dio.get('/marketplace-chat/inbox');

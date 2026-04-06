@@ -18,6 +18,8 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _bookings = [];
+  DateTime _day = DateTime.now();
+  bool _agendaMode = true;
 
   Future<void> _load() async {
     setState(() {
@@ -25,7 +27,12 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
       _error = null;
     });
     try {
-      final r = await _api.getIncomingBookings();
+      final from = DateTime(_day.year, _day.month, _day.day).subtract(const Duration(days: 7));
+      final to = DateTime(_day.year, _day.month, _day.day).add(const Duration(days: 14));
+      final r = await _api.getOwnerCalendar(
+        from: '${from.year}-${from.month.toString().padLeft(2, '0')}-${from.day.toString().padLeft(2, '0')}',
+        to: '${to.year}-${to.month.toString().padLeft(2, '0')}-${to.day.toString().padLeft(2, '0')}',
+      );
       final body = r.data;
       final list = (body is Map && body['success'] == true && body['data'] is List)
           ? (body['data'] as List)
@@ -60,6 +67,18 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
     _load();
   }
 
+  Future<void> _pickDay() async {
+    final picked = await showDatePicker(
+      context: context,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: _day,
+    );
+    if (picked == null) return;
+    setState(() => _day = picked);
+    await _load();
+  }
+
   DateTime? _parseDate(dynamic v) {
     if (v == null) return null;
     if (v is DateTime) return v;
@@ -84,10 +103,38 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final selectedStart = DateTime(_day.year, _day.month, _day.day);
+    final selectedEnd = selectedStart.add(const Duration(days: 1));
+    final todays = _bookings.where((b) {
+      final ci = _parseDate(b['checkIn'] ?? b['startDate']);
+      final co = _parseDate(b['checkOut'] ?? b['endDate']);
+      if (ci == null || co == null) return false;
+      return ci.isBefore(selectedEnd) && co.isAfter(selectedStart);
+    }).toList();
+    final checkIns = todays.where((b) {
+      final ci = _parseDate(b['checkIn'] ?? b['startDate']);
+      return ci != null && DateTime(ci.year, ci.month, ci.day) == selectedStart;
+    }).length;
+    final checkOuts = todays.where((b) {
+      final co = _parseDate(b['checkOut'] ?? b['endDate']);
+      return co != null && DateTime(co.year, co.month, co.day) == selectedStart;
+    }).length;
+    final visible = _agendaMode ? _bookings : todays;
+
     return PartnerScaffold(
       title: 'Facility calendar',
       subtitle: 'Upcoming check‑ins and check‑outs',
       actions: [
+        IconButton(
+          tooltip: 'Pick day',
+          onPressed: _pickDay,
+          icon: const Icon(Icons.calendar_month_rounded),
+        ),
+        IconButton(
+          tooltip: _agendaMode ? 'Day view' : 'Agenda view',
+          onPressed: () => setState(() => _agendaMode = !_agendaMode),
+          icon: Icon(_agendaMode ? Icons.view_day_rounded : Icons.view_agenda_rounded),
+        ),
         IconButton(
           tooltip: 'Refresh',
           onPressed: _loading ? null : _load,
@@ -124,11 +171,27 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
                             child: ListView.builder(
                               padding:
                                   const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                              itemCount: _bookings.length,
+                              itemCount: visible.length + 1,
                               itemBuilder: (context, i) {
-                                final b = _bookings[i];
-                                final pet = b['pet'];
-                                final user = b['user'];
+                                if (i == 0) {
+                                  return Card(
+                                    child: ListTile(
+                                      leading: Icon(Icons.today_rounded, color: primary),
+                                      title: Text(_fmtDay(selectedStart)),
+                                      subtitle: Text(
+                                        _agendaMode
+                                            ? 'Agenda range loaded · Today: ${todays.length} staying · Check-ins: $checkIns · Check-outs: $checkOuts'
+                                            : 'Occupancy: ${todays.length} · Check-ins: $checkIns · Check-outs: $checkOuts',
+                                      ),
+                                      trailing: const Icon(Icons.edit_calendar_rounded),
+                                      onTap: _pickDay,
+                                    ),
+                                  );
+                                }
+
+                                final b = visible[i - 1];
+                                final pet = b['petId'] ?? b['pet'];
+                                final user = b['userId'] ?? b['user'];
                                 final petName = pet is Map
                                     ? (pet['name']?.toString() ?? 'Pet')
                                     : 'Pet';

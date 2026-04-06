@@ -6,6 +6,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  batchUpdateProductStock,
   getProducts,
   getProductById,
   getCategories,
@@ -21,6 +22,7 @@ router.get('/categories', getCategories);
 // Admin management endpoints
 router.post('/categories', protect, adminOrShopOwner, uploadCategoryImage.single('image'), createCategory);
 router.post('/products', protect, adminOrShopOwner, uploadProductImages.array('images', 5), createProduct);
+router.patch('/products/batch-stock', protect, adminOrShopOwner, batchUpdateProductStock);
 router.patch('/products/:id', protect, adminOrShopOwner, uploadProductImages.array('images', 5), updateProduct);
 router.delete('/products/:id', protect, adminOrShopOwner, deleteProduct);
 

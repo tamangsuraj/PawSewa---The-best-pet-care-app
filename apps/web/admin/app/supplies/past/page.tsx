@@ -20,6 +20,12 @@ interface Order {
   paymentStatus?: string;
   deliveryLocation?: { address: string };
   assignedRider?: { _id: string; name?: string };
+  proofOfDelivery?: {
+    otp?: string;
+    photoUrl?: string;
+    notes?: string;
+    submittedAt?: string | null;
+  };
   createdAt: string;
 }
 
@@ -64,6 +70,7 @@ export default function PastSuppliesPage() {
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [selectedProof, setSelectedProof] = useState<Order | null>(null);
 
   const handleSearch = () => setAppliedSearch(search.trim());
 
@@ -248,6 +255,9 @@ export default function PastSuppliesPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Proof
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -300,12 +310,112 @@ export default function PastSuppliesPage() {
                       minute: '2-digit',
                     })}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {order.proofOfDelivery?.otp ||
+                    order.proofOfDelivery?.photoUrl ||
+                    order.proofOfDelivery?.notes ? (
+                      <button
+                        onClick={() => setSelectedProof(order)}
+                        className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-white text-gray-700"
+                      >
+                        View
+                      </button>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {selectedProof ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Proof for #{selectedProof._id.slice(-6)}
+                </h2>
+                {selectedProof.proofOfDelivery?.submittedAt ? (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Submitted{' '}
+                    {new Date(
+                      selectedProof.proofOfDelivery.submittedAt
+                    ).toLocaleString()}
+                  </p>
+                ) : null}
+              </div>
+              <button
+                onClick={() => setSelectedProof(null)}
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                aria-label="Close"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {selectedProof.proofOfDelivery?.otp ? (
+                <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase">
+                      OTP
+                    </p>
+                    <p className="font-mono text-gray-900">
+                      {selectedProof.proofOfDelivery.otp}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        selectedProof.proofOfDelivery?.otp || ''
+                      );
+                    }}
+                    className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-white"
+                  >
+                    Copy
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedProof.proofOfDelivery?.notes ? (
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">
+                    Notes
+                  </p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {selectedProof.proofOfDelivery.notes}
+                  </p>
+                </div>
+              ) : null}
+
+              {selectedProof.proofOfDelivery?.photoUrl ? (
+                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase">
+                    Photo
+                  </p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={selectedProof.proofOfDelivery.photoUrl}
+                    alt="Proof of delivery"
+                    className="w-full max-h-80 object-cover rounded-lg border border-gray-200"
+                  />
+                  <a
+                    href={selectedProof.proofOfDelivery.photoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                  >
+                    Open full image
+                  </a>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

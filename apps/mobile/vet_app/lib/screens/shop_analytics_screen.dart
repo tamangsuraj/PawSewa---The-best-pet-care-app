@@ -22,6 +22,11 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
   int _lowStockCount = 0;
   int _assignedOrders = 0;
   int _pendingConfirmations = 0;
+  double _revenue = 0;
+  int _ordersDelivered = 0;
+  double _conversionPercent = 0;
+  List<Map<String, dynamic>> _bestSellers = [];
+  List<Map<String, dynamic>> _closeReasons = [];
 
   Future<void> _load() async {
     setState(() {
@@ -31,6 +36,7 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
     try {
       final productsResp = await _api.getProducts();
       final ordersResp = await _api.getSellerAssignedOrders();
+      final analyticsResp = await _api.getSellerShopAnalytics();
 
       final products = (productsResp.data is Map)
           ? ((productsResp.data as Map)['data'] as List<dynamic>? ?? [])
@@ -40,6 +46,12 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
               (ordersResp.data as Map)['data'] is List)
           ? ((ordersResp.data as Map)['data'] as List).cast<dynamic>()
           : <dynamic>[];
+
+      Map<String, dynamic>? analytics;
+      if (analyticsResp.data is Map && (analyticsResp.data as Map)['success'] == true) {
+        final d = (analyticsResp.data as Map)['data'];
+        if (d is Map) analytics = Map<String, dynamic>.from(d);
+      }
 
       int low = 0;
       for (final p in products) {
@@ -52,9 +64,19 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
 
       int pending = 0;
       for (final o in orders) {
-        if (o is Map) {
-          final confirmed = o['sellerConfirmed'] == true;
-          if (!confirmed) pending += 1;
+        if (o is Map && o['sellerConfirmedAt'] == null) pending += 1;
+      }
+
+      final best = <Map<String, dynamic>>[];
+      if (analytics != null && analytics['bestSellers'] is List) {
+        for (final e in analytics['bestSellers'] as List) {
+          if (e is Map) best.add(Map<String, dynamic>.from(e));
+        }
+      }
+      final reasons = <Map<String, dynamic>>[];
+      if (analytics != null && analytics['cancelledOrClosedByReason'] is List) {
+        for (final e in analytics['cancelledOrClosedByReason'] as List) {
+          if (e is Map) reasons.add(Map<String, dynamic>.from(e));
         }
       }
 
@@ -64,6 +86,11 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
         _lowStockCount = low;
         _assignedOrders = orders.length;
         _pendingConfirmations = pending;
+        _revenue = (analytics?['revenue'] as num?)?.toDouble() ?? 0;
+        _ordersDelivered = (analytics?['ordersDelivered'] as num?)?.toInt() ?? 0;
+        _conversionPercent = (analytics?['conversionRatePercent'] as num?)?.toDouble() ?? 0;
+        _bestSellers = best;
+        _closeReasons = reasons;
         _loading = false;
       });
     } on DioException catch (e) {
@@ -151,21 +178,69 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
                             icon: Icons.checklist_rounded,
                             highlight: _pendingConfirmations > 0,
                           ),
-                          const SizedBox(height: 16),
-                          Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Text(
-                                'This dashboard is computed from your live inventory + assigned orders. For deeper reports (sales over time), we can add a dedicated backend endpoint later without changing the UI.',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: const Color(AppConstants.inkColor)
-                                          .withValues(alpha: 0.7),
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.35,
+                          const SizedBox(height: 12),
+                          _MetricCard(
+                            title: 'Revenue (delivered)',
+                            value: 'NPR ${_revenue.toStringAsFixed(0)}',
+                            subtitle: '$_ordersDelivered delivered orders assigned to you',
+                            icon: Icons.payments_rounded,
+                          ),
+                          const SizedBox(height: 12),
+                          _MetricCard(
+                            title: 'Conversion',
+                            value: '${_conversionPercent.toStringAsFixed(1)}%',
+                            subtitle: 'Delivered ÷ all assigned orders',
+                            icon: Icons.trending_up_rounded,
+                          ),
+                          if (_bestSellers.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            Text(
+                              'Best sellers',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(AppConstants.inkColor),
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            ..._bestSellers.take(5).map(
+                                  (b) => Card(
+                                    child: ListTile(
+                                      leading: const Icon(Icons.star_rounded),
+                                      title: Text(b['name']?.toString() ?? 'Product'),
+                                      subtitle: Text(
+                                        '${b['unitsSold'] ?? 0} sold · NPR ${(b['revenue'] as num?)?.toStringAsFixed(0) ?? '0'}',
+                                      ),
                                     ),
+                                  ),
+                                ),
+                          ],
+                          if (_closeReasons.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            Text(
+                              'Returns / refunds / cancel reasons',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(AppConstants.inkColor),
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            ..._closeReasons.map(
+                              (c) => Card(
+                                child: ListTile(
+                                  dense: true,
+                                  title: Text(
+                                    () {
+                                      final r = c['reason']?.toString() ?? '';
+                                      return r.isEmpty ? '(no reason)' : r;
+                                    }(),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: Text('×${c['count'] ?? 0}'),
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
           ),

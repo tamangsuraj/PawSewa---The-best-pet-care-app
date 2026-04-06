@@ -234,6 +234,173 @@ const respondToBooking = asyncHandler(async (req, res) => {
   });
 });
 
+async function assertFacilityAccessOrThrow({ bookingId, user }) {
+  const booking = await CareBooking.findById(bookingId)
+    .populate('hostelId', 'ownerId name serviceType')
+    .populate('petId', 'name breed age photoUrl')
+    .populate('userId', 'name email phone profilePicture')
+    .lean();
+  if (!booking) {
+    const err = new Error('Booking not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  const uid = String(user?._id || '');
+  const isAdmin = user?.role === 'admin';
+  const hostelOwnerId = booking.hostelId?.ownerId ? String(booking.hostelId.ownerId) : '';
+  const assignedPartnerId = booking.assignedPartner ? String(booking.assignedPartner) : '';
+  const ok = isAdmin || uid === hostelOwnerId || (assignedPartnerId && uid === assignedPartnerId);
+  if (!ok) {
+    const err = new Error('Not authorized to manage this booking');
+    err.statusCode = 403;
+    throw err;
+  }
+  return booking;
+}
+
+/**
+ * @desc    Facility: update private notes for a booking
+ * @route   PATCH /api/v1/care-bookings/:id/facility-notes
+ * @access  Private / hostel_owner (and assignedPartner/admin)
+ */
+const updateFacilityNotes = asyncHandler(async (req, res) => {
+  const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
+  const booking = await CareBooking.findById(bookingLean._id);
+  const notes = req.body?.notes != null ? String(req.body.notes).trim().slice(0, 2000) : '';
+  booking.facilityNotes = notes;
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  res.json({ success: true, message: 'Notes updated', data: booking });
+});
+
+/**
+ * @desc    Facility: add an extra charge
+ * @route   POST /api/v1/care-bookings/:id/extra-charges
+ * @access  Private / hostel_owner (and assignedPartner/admin)
+ * Body: { label, amount }
+ */
+const addExtraCharge = asyncHandler(async (req, res) => {
+  const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
+  const label = req.body?.label != null ? String(req.body.label).trim().slice(0, 120) : '';
+  const amount = Number(req.body?.amount);
+  if (!label || !Number.isFinite(amount) || amount < 0) {
+    return res.status(400).json({ success: false, message: 'label and non-negative amount are required' });
+  }
+  const booking = await CareBooking.findById(bookingLean._id);
+  booking.extraCharges.push({ label, amount, createdBy: req.user?._id || null });
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  res.status(201).json({ success: true, message: 'Charge added', data: booking });
+});
+
+/**
+ * @desc    Facility: set intake details + checklist/feed schedule (merge)
+ * @route   PATCH /api/v1/care-bookings/:id/intake
+ * @access  Private / hostel_owner (and assignedPartner/admin)
+ */
+const updateIntake = asyncHandler(async (req, res) => {
+  const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
+  const booking = await CareBooking.findById(bookingLean._id);
+  booking.intake = booking.intake || {};
+  const { vaccination, diet, temperament, checklist, feedingSchedule } = req.body || {};
+  if (vaccination !== undefined) booking.intake.vaccination = String(vaccination).trim().slice(0, 200);
+  if (diet !== undefined) booking.intake.diet = String(diet).trim().slice(0, 500);
+  if (temperament !== undefined) booking.intake.temperament = String(temperament).trim().slice(0, 200);
+  if (Array.isArray(checklist)) {
+    booking.intake.checklist = checklist
+      .filter((c) => c && typeof c === 'object')
+      .slice(0, 40)
+      .map((c) => ({
+        key: String(c.key || c.label || '').trim().slice(0, 80) || 'item',
+        label: String(c.label || c.key || '').trim().slice(0, 120) || 'Item',
+        done: Boolean(c.done),
+      }));
+  }
+  if (Array.isArray(feedingSchedule)) {
+    booking.intake.feedingSchedule = feedingSchedule
+      .filter((f) => f && typeof f === 'object' && String(f.time || '').trim())
+      .slice(0, 30)
+      .map((f) => ({
+        time: String(f.time).trim().slice(0, 16),
+        food: String(f.food || '').trim().slice(0, 120),
+        notes: String(f.notes || '').trim().slice(0, 300),
+      }));
+  }
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  res.json({ success: true, message: 'Intake updated', data: booking });
+});
+
+/**
+ * @desc    Facility: add incident log entry
+ * @route   POST /api/v1/care-bookings/:id/incidents
+ * @access  Private / hostel_owner (and assignedPartner/admin)
+ * Body: { title, notes?, severity? }
+ */
+const addIncident = asyncHandler(async (req, res) => {
+  const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
+  const title = req.body?.title != null ? String(req.body.title).trim().slice(0, 120) : '';
+  if (!title) {
+    return res.status(400).json({ success: false, message: 'title is required' });
+  }
+  const notes = req.body?.notes != null ? String(req.body.notes).trim().slice(0, 1000) : '';
+  const severityRaw = (req.body?.severity || 'low').toString().toLowerCase();
+  const severity = ['low', 'medium', 'high'].includes(severityRaw) ? severityRaw : 'low';
+  const booking = await CareBooking.findById(bookingLean._id);
+  booking.intake = booking.intake || {};
+  booking.intake.incidents = booking.intake.incidents || [];
+  booking.intake.incidents.push({ title, notes, severity, createdBy: req.user?._id || null });
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  res.status(201).json({ success: true, message: 'Incident logged', data: booking });
+});
+
+/**
+ * @desc    Facility: mark booking completed
+ * @route   PATCH /api/v1/care-bookings/:id/complete
+ * @access  Private / hostel_owner (and assignedPartner/admin)
+ */
+const markBookingCompleted = asyncHandler(async (req, res) => {
+  const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
+  const booking = await CareBooking.findById(bookingLean._id);
+  booking.status = 'completed';
+  booking.completedAt = new Date();
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  res.json({ success: true, message: 'Marked completed', data: booking });
+});
+
+/**
+ * @desc    Facility: upcoming agenda + check-ins/outs in range
+ * @route   GET /api/v1/care-bookings/owner/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD
+ * @access  Private / hostel_owner
+ */
+const getOwnerCalendar = asyncHandler(async (req, res) => {
+  const from = req.query.from ? new Date(String(req.query.from)) : null;
+  const to = req.query.to ? new Date(String(req.query.to)) : null;
+  if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+    return res.status(400).json({ success: false, message: 'from and to are required (YYYY-MM-DD)' });
+  }
+  const end = new Date(to);
+  end.setHours(23, 59, 59, 999);
+
+  const hostels = await Hostel.find({ ownerId: req.user._id }).select('_id name').lean();
+  const hostelIds = hostels.map((h) => h._id);
+  const bookings = await CareBooking.find({
+    hostelId: { $in: hostelIds },
+    checkIn: { $lte: end },
+    checkOut: { $gte: from },
+    status: { $in: ['pending', 'paid', 'accepted', 'completed'] },
+  })
+    .populate('hostelId', 'name serviceType')
+    .populate('petId', 'name breed age photoUrl')
+    .populate('userId', 'name email phone profilePicture')
+    .sort({ checkIn: 1 })
+    .lean();
+
+  res.json({ success: true, data: bookings });
+});
+
 /**
  * @desc    Initiate Khalti payment for care booking
  * @route   POST /api/v1/care-bookings/:id/pay
@@ -312,4 +479,10 @@ module.exports = {
   respondToBooking,
   initiateCareBookingPayment,
   adminAssignCarePartner,
+  getOwnerCalendar,
+  updateFacilityNotes,
+  addExtraCharge,
+  updateIntake,
+  addIncident,
+  markBookingCompleted,
 };

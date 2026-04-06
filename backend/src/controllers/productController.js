@@ -14,6 +14,32 @@ const {
   recommendationTierForProduct,
 } = require('../utils/productPersonalization');
 
+function parseVariantsFromBody(body) {
+  if (!body || body.variants === undefined) return undefined;
+  let raw = body.variants;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!Array.isArray(raw)) return null;
+  const out = [];
+  for (const v of raw) {
+    if (!v || typeof v !== 'object') continue;
+    const name = String(v.name || '').trim().slice(0, 80);
+    if (!name) continue;
+    const price = Number(v.price);
+    const stockQuantity = Number(v.stockQuantity);
+    const sku = String(v.sku || '').trim().slice(0, 64);
+    if (Number.isNaN(price) || price < 0) continue;
+    if (Number.isNaN(stockQuantity) || stockQuantity < 0) continue;
+    out.push({ name, price, stockQuantity, sku });
+  }
+  return out;
+}
+
 // Admin: POST /api/v1/categories
 // Body (multipart): name (string, required), image (file, optional)
 const createCategory = asyncHandler(async (req, res) => {
@@ -162,6 +188,15 @@ const createProduct = asyncHandler(async (req, res) => {
   const tags = parseTagsFromBody(req.body.tags);
   const petTypes = targetPetsToPetTypes(targetPets);
 
+  let variantsField = [];
+  if (req.body?.variants !== undefined) {
+    const parsed = parseVariantsFromBody(req.body);
+    if (parsed === null) {
+      return res.status(400).json({ success: false, message: 'Invalid variants JSON' });
+    }
+    variantsField = parsed;
+  }
+
   if (!name || !price || !stockQuantity || !category) {
     return res.status(400).json({
       success: false,
@@ -236,6 +271,7 @@ const createProduct = asyncHandler(async (req, res) => {
     targetPets,
     tags,
     petTypes,
+    variants: variantsField,
     isAvailable:
       typeof isAvailable === 'string'
         ? isAvailable === 'true'
@@ -342,6 +378,13 @@ const updateProduct = asyncHandler(async (req, res) => {
   }
   if (req.body?.tags !== undefined) {
     product.tags = parseTagsFromBody(req.body.tags);
+  }
+  if (req.body?.variants !== undefined) {
+    const parsed = parseVariantsFromBody(req.body);
+    if (parsed === null) {
+      return res.status(400).json({ success: false, message: 'Invalid variants JSON' });
+    }
+    product.variants = parsed;
   }
 
   if (Array.isArray(req.files) && req.files.length > 0) {
@@ -651,11 +694,55 @@ const getCategories = asyncHandler(async (req, res) => {
   }
 });
 
+// PATCH /api/v1/products/batch-stock  Body: { updates: [{ productId, stockQuantity }] }
+const batchUpdateProductStock = asyncHandler(async (req, res) => {
+  const { updates } = req.body || {};
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ success: false, message: 'updates (array) is required' });
+  }
+  if (updates.length > 120) {
+    return res.status(400).json({ success: false, message: 'Too many updates in one request' });
+  }
+  const uid = req.user?._id;
+  const isShop = req.user?.role === 'shop_owner';
+  const results = [];
+  for (const row of updates) {
+    const id = row.productId || row.id;
+    const sq = Number(row.stockQuantity);
+    if (!id || !mongoose.Types.ObjectId.isValid(String(id)) || Number.isNaN(sq) || sq < 0) {
+      results.push({ productId: id, ok: false, error: 'invalid' });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const p = await Product.findById(id);
+    if (!p) {
+      results.push({ productId: id, ok: false, error: 'not_found' });
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    if (isShop) {
+      if (p.seller && String(p.seller) !== String(uid)) {
+        results.push({ productId: id, ok: false, error: 'forbidden' });
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      if (!p.seller) p.seller = uid;
+    }
+    p.stockQuantity = sq;
+    // eslint-disable-next-line no-await-in-loop
+    await p.save();
+    results.push({ productId: id, ok: true });
+  }
+  res.json({ success: true, data: results });
+});
+
 module.exports = {
   createCategory,
   createProduct,
   updateProduct,
   deleteProduct,
+  batchUpdateProductStock,
   getProducts,
   getProductById,
   getCategories,

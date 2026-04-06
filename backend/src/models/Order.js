@@ -66,8 +66,36 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'processing', 'out_for_delivery', 'delivered'],
+      enum: [
+        'pending',
+        'processing',
+        'packed',
+        'out_for_delivery',
+        'delivered',
+        'returned',
+        'refunded',
+        'cancelled',
+      ],
       default: 'pending',
+    },
+    /** Seller / carrier tracking reference (optional). */
+    trackingNumber: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: 200,
+    },
+    /** When seller marked items packed (ready for rider pickup). */
+    packedAt: {
+      type: Date,
+      default: null,
+    },
+    /** Set when order is returned, refunded, or cancelled (for analytics). */
+    fulfillmentCloseReason: {
+      type: String,
+      trim: true,
+      default: '',
+      maxlength: 500,
     },
     /** Workflow label for admin / analytics / sockets (derived on save). */
     assignmentStatus: {
@@ -124,6 +152,14 @@ const orderSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    /** Rider proof-of-delivery: OTP/photo/notes recorded at delivery time. */
+    proofOfDelivery: {
+      otp: { type: String, trim: true, default: '' },
+      photoUrl: { type: String, trim: true, default: '' },
+      notes: { type: String, trim: true, default: '' },
+      submittedAt: { type: Date, default: null },
+      submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    },
   },
   {
     timestamps: true,
@@ -153,14 +189,20 @@ orderSchema.pre('save', function () {
   const statusMap = {
     pending: 'Pending',
     processing: 'Assigned',
+    packed: 'Assigned',
     out_for_delivery: 'PickedUp',
     delivered: 'Delivered',
+    returned: 'Delivered',
+    refunded: 'Delivered',
+    cancelled: 'Pending',
   };
   if (this.status) this.deliveryStatus = statusMap[this.status] || 'Pending';
 
   const st = this.status;
   if (st === 'delivered') {
     this.assignmentStatus = 'DELIVERED';
+  } else if (st === 'returned' || st === 'refunded' || st === 'cancelled') {
+    this.assignmentStatus = 'NONE';
   } else if (st === 'out_for_delivery') {
     this.assignmentStatus = 'OUT_FOR_DELIVERY';
   } else if (this.assignedRider) {

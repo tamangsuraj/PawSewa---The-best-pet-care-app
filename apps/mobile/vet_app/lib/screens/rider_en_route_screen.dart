@@ -9,9 +9,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/location_service.dart';
+import 'rider_proof_of_delivery_screen.dart';
 
 /// Full-screen en-route view after rider taps "On the way": map, distance,
 /// directions link, call customer, order total & payment info, Mark delivered.
@@ -26,7 +26,6 @@ class RiderEnRouteScreen extends StatefulWidget {
 
 class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   final MapController _mapController = MapController();
-  final ApiClient _apiClient = ApiClient();
   final LocationService _locationService = LocationService();
 
   LatLng? _customerLatLng;
@@ -199,50 +198,13 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   Future<void> _markDelivered() async {
     final id = widget.order['_id']?.toString();
     if (id == null) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Mark as delivered?', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-        content: Text(
-          'Confirm that this order has been delivered to the customer.',
-          style: GoogleFonts.outfit(fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: GoogleFonts.outfit()),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.green),
-            child: Text('Yes, delivered', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-          ),
-        ],
+    final ok = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => RiderProofOfDeliveryScreen(order: Map<String, dynamic>.from(widget.order)),
       ),
     );
-    if (confirmed != true || !mounted) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _updatingOrderId = id);
-    try {
-      await _apiClient.updateOrderStatus(orderId: id, status: 'delivered');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Order marked as delivered'),
-          backgroundColor: Colors.green,
-        ),
-      );
+    if (ok == true && mounted) {
       Navigator.of(context).pop(true);
-    } catch (_) {
-      if (mounted) {
-        setState(() => _updatingOrderId = null);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to update status'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 

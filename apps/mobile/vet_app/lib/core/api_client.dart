@@ -345,6 +345,22 @@ class ApiClient {
     );
   }
 
+  Future<Response> deliverOrderWithProof({
+    required String orderId,
+    String? otp,
+    String? photoUrl,
+    String? notes,
+  }) async {
+    return await _dio.patch(
+      '/orders/$orderId/deliver',
+      data: <String, dynamic>{
+        if (otp != null && otp.trim().isNotEmpty) 'otp': otp.trim(),
+        if (photoUrl != null && photoUrl.trim().isNotEmpty) 'photoUrl': photoUrl.trim(),
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+      },
+    );
+  }
+
   /// Shop owner: orders assigned by admin for fulfillment.
   Future<Response> getSellerAssignedOrders() async {
     return await _dio.get('/orders/seller/assigned');
@@ -353,6 +369,29 @@ class ApiClient {
   /// Shop owner: confirm items in stock before rider pickup.
   Future<Response> confirmSellerOrderStock(String orderId) async {
     return await _dio.patch('/orders/$orderId/seller-confirm');
+  }
+
+  Future<Response> sellerMarkPacked(String orderId) async {
+    return await _dio.patch('/orders/$orderId/seller-pack');
+  }
+
+  Future<Response> sellerSetOrderTracking(String orderId, String trackingNumber) async {
+    return await _dio.patch(
+      '/orders/$orderId/seller-tracking',
+      data: <String, dynamic>{'trackingNumber': trackingNumber},
+    );
+  }
+
+  Future<Response> getOrderInvoice(String orderId) async {
+    return await _dio.get('/orders/$orderId/invoice');
+  }
+
+  Future<Response> getSellerShopAnalytics() async {
+    return await _dio.get('/orders/seller/analytics');
+  }
+
+  Future<Response> batchUpdateProductStock(List<Map<String, dynamic>> updates) async {
+    return await _dio.patch('/products/batch-stock', data: <String, dynamic>{'updates': updates});
   }
 
   /// Get vet/care earnings (payments received from pet owners for completed services).
@@ -373,8 +412,52 @@ class ApiClient {
     return await _dio.get('/care-bookings/incoming');
   }
 
+  Future<Response> getOwnerCalendar({required String from, required String to}) async {
+    return await _dio.get('/care-bookings/owner/calendar', queryParameters: {'from': from, 'to': to});
+  }
+
   Future<Response> respondToBooking(String bookingId, {required bool accept}) async {
     return await _dio.patch('/care-bookings/$bookingId/respond', data: {'accept': accept});
+  }
+
+  Future<Response> updateBookingFacilityNotes(String bookingId, String notes) async {
+    return await _dio.patch('/care-bookings/$bookingId/facility-notes', data: {'notes': notes});
+  }
+
+  Future<Response> addBookingExtraCharge({
+    required String bookingId,
+    required String label,
+    required double amount,
+  }) async {
+    return await _dio.post('/care-bookings/$bookingId/extra-charges', data: {'label': label, 'amount': amount});
+  }
+
+  Future<Response> updateBookingIntake(String bookingId, Map<String, dynamic> payload) async {
+    return await _dio.patch('/care-bookings/$bookingId/intake', data: payload);
+  }
+
+  Future<Response> addBookingIncident({
+    required String bookingId,
+    required String title,
+    String notes = '',
+    String severity = 'low',
+  }) async {
+    return await _dio.post(
+      '/care-bookings/$bookingId/incidents',
+      data: {'title': title, 'notes': notes, 'severity': severity},
+    );
+  }
+
+  Future<Response> markBookingCompleted(String bookingId) async {
+    return await _dio.patch('/care-bookings/$bookingId/complete');
+  }
+
+  Future<Response> getCareStaffTasks({required String date}) async {
+    return await _dio.get('/care-staff-tasks', queryParameters: {'date': date});
+  }
+
+  Future<Response> putCareStaffTasks({required String date, required List<Map<String, dynamic>> tasks}) async {
+    return await _dio.put('/care-staff-tasks', queryParameters: {'date': date}, data: {'tasks': tasks});
   }
 
   Future<Response> getSubscriptionPlans() async {
@@ -406,6 +489,14 @@ class ApiClient {
   // Marketplace chat (seller + rider)
   Future<Response> getSellerMarketplaceInbox() async {
     return await _dio.get('/marketplace-chat/seller/inbox');
+  }
+
+  Future<Response> getCareMarketplaceInbox() async {
+    return await _dio.get('/marketplace-chat/care/inbox');
+  }
+
+  Future<Response> openCareMarketplaceChat(String bookingId) async {
+    return await _dio.post('/marketplace-chat/care/open', data: {'bookingId': bookingId});
   }
 
   Future<Response> getRiderMarketplaceInbox() async {
@@ -456,6 +547,21 @@ class ApiClient {
   /// Owners whose pets this vet has treated (eligible for vet–owner chat).
   Future<Response> getChatsMyPatients() async {
     return await _dio.get('/chats/my-patients');
+  }
+
+  Future<Response> clearUnreadThread({String? threadKey, String? conversationId}) async {
+    return await _dio.post('/chats/unread/clear', data: {
+      if (threadKey != null && threadKey.isNotEmpty) 'threadKey': threadKey,
+      if (conversationId != null && conversationId.isNotEmpty) 'conversationId': conversationId,
+    });
+  }
+
+  Future<Response> markUnreadThread({String? threadKey, String? conversationId, int count = 1}) async {
+    return await _dio.post('/chats/unread/mark', data: {
+      if (threadKey != null && threadKey.isNotEmpty) 'threadKey': threadKey,
+      if (conversationId != null && conversationId.isNotEmpty) 'conversationId': conversationId,
+      'count': count,
+    });
   }
 
   Future<Response> getVetDirectMessages({

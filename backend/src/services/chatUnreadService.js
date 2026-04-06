@@ -106,6 +106,32 @@ async function clearUnread(io, userId, threadKey) {
   }
 }
 
+async function setUnread(io, userId, threadKey, count) {
+  if (!userId || !threadKey) return 0;
+  const uid = String(userId);
+  const n = Math.max(Number(count) || 0, 0);
+  try {
+    const doc = await loadOrCreate(uid);
+    const threads = normalizeThreads(doc.threads);
+    if (n <= 0) {
+      delete threads[threadKey];
+    } else {
+      threads[threadKey] = n;
+    }
+    doc.threads = threads;
+    doc.markModified('threads');
+    await doc.save();
+    const totalUnread = sumThreads(threads);
+    if (io) {
+      io.to(`user:${uid}`).emit('unread_sync', { totalUnread, updatedChatId: threadKey });
+    }
+    return totalUnread;
+  } catch (e) {
+    logger.warn('[chatUnread] setUnread', e?.message);
+    return 0;
+  }
+}
+
 async function getSummaryForUser(userId) {
   const doc = await ChatUnreadState.findOne({ user: String(userId) }).lean();
   const threads = normalizeThreads(doc?.threads);
@@ -177,6 +203,7 @@ module.exports = {
   vetDirectKey,
   bumpUnread,
   clearUnread,
+  setUnread,
   getSummaryForUser,
   bumpSupportInbound,
   bumpSupportOutbound,

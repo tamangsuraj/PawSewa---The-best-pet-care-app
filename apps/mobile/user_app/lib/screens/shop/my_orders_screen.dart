@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
@@ -152,12 +153,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       case MyOrdersListMode.activeOnly:
         return _orders.where((o) {
           final s = o['status']?.toString() ?? 'pending';
-          return s != 'delivered';
+          return s != 'delivered' &&
+              s != 'returned' &&
+              s != 'refunded' &&
+              s != 'cancelled';
         }).toList();
       case MyOrdersListMode.historyOnly:
         return _orders.where((o) {
           final s = o['status']?.toString() ?? '';
-          return s == 'delivered';
+          return s == 'delivered' ||
+              s == 'returned' ||
+              s == 'refunded' ||
+              s == 'cancelled';
         }).toList();
     }
   }
@@ -281,6 +288,345 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   }
 }
 
+String? _productIdFromOrderItem(dynamic e) {
+  if (e is! Map) return null;
+  final p = e['product'];
+  if (p is Map) return p['_id']?.toString();
+  if (p is String && p.isNotEmpty) return p;
+  return null;
+}
+
+Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> order) async {
+  final id = order['_id']?.toString();
+  if (id == null) return;
+  final status = order['status']?.toString() ?? '';
+  final primary = const Color(AppConstants.primaryColor);
+  final items = order['items'] as List<dynamic>? ?? [];
+  String? firstProductId;
+  for (final e in items) {
+    firstProductId = _productIdFromOrderItem(e);
+    if (firstProductId != null) break;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (ctx) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + MediaQuery.paddingOf(ctx).bottom),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Order #${id.length >= 6 ? id.substring(id.length - 6) : id}',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Status: ${_OrderCard.statusLabel(status)}',
+                style: GoogleFonts.outfit(color: Colors.grey.shade700),
+              ),
+              if ((order['trackingNumber']?.toString() ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Tracking: ${order['trackingNumber']}',
+                  style: GoogleFonts.outfit(fontSize: 13),
+                ),
+              ],
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    final r = await ApiClient().getOrderInvoice(id);
+                    final body = r.data;
+                    if (body is Map && body['data'] != null) {
+                      await Clipboard.setData(
+                        ClipboardData(text: const JsonEncoder.withIndent('  ').convert(body['data'])),
+                      );
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(ctx).showSnackBar(
+                          const SnackBar(content: Text('Invoice copied — paste to share or print')),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text('Could not load invoice: $e')),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.copy_rounded),
+                label: Text('Copy invoice (JSON)', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 10),
+              if (order['assignedRider'] != null &&
+                  (order['status']?.toString() ?? '') != 'pending')
+                FilledButton.tonalIcon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final storage = StorageService();
+                    if (!await storage.isLoggedIn()) return;
+                    try {
+                      final r = await ApiClient().getDeliveryChatByOrder(id);
+                      final body = r.data;
+                      if (body is Map && body['success'] == true && body['data'] is Map) {
+                        final conv = body['data'] as Map<String, dynamic>;
+                        final cid = conv['_id']?.toString();
+                        final partner = conv['partner'];
+                        final name =
+                            partner is Map ? (partner['name']?.toString() ?? 'Rider') : 'Rider';
+                        if (context.mounted && cid != null) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MarketplaceThreadScreen(
+                                conversationId: cid,
+                                threadType: 'DELIVERY',
+                                peerName: name,
+                                peerSubtitle: 'Your order',
+                                highContrast: true,
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              e is DioException && e.response?.data is Map
+                                  ? (e.response!.data as Map)['message']?.toString() ?? 'Chat unavailable'
+                                  : 'Chat unavailable',
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.delivery_dining_rounded, size: 20),
+                  label: Text('Chat with rider', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                  style: FilledButton.styleFrom(
+                    foregroundColor: primary,
+                    backgroundColor: primary.withValues(alpha: 0.12),
+                  ),
+                ),
+              if (order['assignedRider'] != null &&
+                  (order['status']?.toString() ?? '') != 'pending')
+                const SizedBox(height: 10),
+              if (firstProductId != null)
+                FilledButton.tonalIcon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    final storage = StorageService();
+                    if (!await storage.isLoggedIn()) return;
+                    try {
+                      final r = await ApiClient().openSellerMarketplaceChat(firstProductId!);
+                      final body = r.data;
+                      if (body is Map && body['success'] == true && body['data'] is Map) {
+                        final conv = body['data'] as Map<String, dynamic>;
+                        final cid = conv['_id']?.toString();
+                        final partner = conv['partner'];
+                        final name =
+                            partner is Map ? (partner['name']?.toString() ?? 'Seller') : 'Seller';
+                        if (context.mounted && cid != null) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MarketplaceThreadScreen(
+                                conversationId: cid,
+                                threadType: 'SELLER',
+                                peerName: name,
+                                peerSubtitle: 'Shop',
+                                highContrast: true,
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              e is DioException && e.response?.data is Map
+                                  ? (e.response!.data as Map)['message']?.toString() ??
+                                        'Chat unavailable'
+                                  : 'Chat unavailable',
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.storefront_outlined, size: 20),
+                  label: Text('Message seller', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                  style: FilledButton.styleFrom(
+                    foregroundColor: primary,
+                    backgroundColor: primary.withValues(alpha: 0.12),
+                  ),
+                ),
+              if (status == 'delivered' && items.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Rate products',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 8),
+                ...items.map((e) {
+                  if (e is! Map) return const SizedBox.shrink();
+                  final pid = _productIdFromOrderItem(e);
+                  final name = e['name']?.toString() ?? 'Product';
+                  if (pid == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await _rateDeliveredProduct(context, orderId: id, productId: pid, productName: name);
+                      },
+                      child: Text('Rate: $name', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                    ),
+                  );
+                }),
+              ],
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Future<void> _rateDeliveredProduct(
+  BuildContext context, {
+  required String orderId,
+  required String productId,
+  required String productName,
+}) async {
+  final api = ApiClient();
+  try {
+    final existing = await api.getMyProductReview(productId);
+    final body = existing.data;
+    Map<String, dynamic>? existingReview;
+    if (body is Map && body['data'] is Map) {
+      existingReview = Map<String, dynamic>.from(body['data'] as Map);
+    }
+    if (!context.mounted) return;
+    var chosenRating = (existingReview?['rating'] as num?)?.toInt().clamp(1, 5) ?? 5;
+    final commentCtrl = TextEditingController(text: existingReview?['comment']?.toString() ?? '');
+    final isUpdate = existingReview != null && existingReview['_id'] != null;
+
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSt) {
+            return AlertDialog(
+              title: Text(productName, style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isUpdate ? 'Update your review' : 'Rate this product',
+                    style: GoogleFonts.outfit(fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: List.generate(5, (i) {
+                      final n = i + 1;
+                      return IconButton(
+                        onPressed: () {
+                          chosenRating = n;
+                          setSt(() {});
+                        },
+                        icon: Icon(
+                          n <= chosenRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: n <= chosenRating ? Colors.amber.shade700 : Colors.grey,
+                          size: 32,
+                        ),
+                      );
+                    }),
+                  ),
+                  TextField(
+                    controller: commentCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Comment (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: Text(isUpdate ? 'Update' : 'Submit'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (submitted != true) {
+      commentCtrl.dispose();
+      return;
+    }
+    final comment = commentCtrl.text.trim();
+    commentCtrl.dispose();
+    if (!context.mounted) return;
+
+    final er = existingReview;
+    if (er != null && er['_id'] != null) {
+      await api.dio.patch(
+        '/reviews/${er['_id']}',
+        data: {'rating': chosenRating, 'comment': comment},
+      );
+    } else {
+      await api.createProductReview(
+        targetId: productId,
+        orderId: orderId,
+        rating: chosenRating,
+        comment: comment,
+      );
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Thanks for your review')));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Failed'
+                : 'Failed to save review',
+          ),
+        ),
+      );
+    }
+  }
+}
+
 class _OrderCard extends StatelessWidget {
   const _OrderCard({super.key, required this.order, this.highlight = false});
 
@@ -291,13 +637,21 @@ class _OrderCard extends StatelessWidget {
   static String statusLabel(String raw) {
     switch (raw) {
       case 'pending':
-        return 'Pending';
+        return 'New';
       case 'processing':
-        return 'Processing';
+        return 'Preparing';
+      case 'packed':
+        return 'Packed';
       case 'out_for_delivery':
-        return 'On the way';
+        return 'Dispatched';
       case 'delivered':
         return 'Delivered';
+      case 'returned':
+        return 'Returned';
+      case 'refunded':
+        return 'Refunded';
+      case 'cancelled':
+        return 'Cancelled';
       default:
         return raw.replaceAll('_', ' ').split(' ').map((e) => e.isNotEmpty ? '${e[0].toUpperCase()}${e.substring(1)}' : '').join(' ');
     }
@@ -384,7 +738,10 @@ class _OrderCard extends StatelessWidget {
       ),
       elevation: highlight ? 2 : 0,
       color: highlight ? primary.withValues(alpha: 0.04) : Colors.white,
-      child: Padding(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _showShopOrderSheet(context, order),
+        child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,6 +845,7 @@ class _OrderCard extends StatelessWidget {
               ),
             ],
           ],
+        ),
         ),
       ),
     );

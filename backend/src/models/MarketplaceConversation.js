@@ -8,7 +8,7 @@ const marketplaceConversationSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['SUPPORT', 'SELLER', 'DELIVERY'],
+      enum: ['SUPPORT', 'SELLER', 'DELIVERY', 'CARE'],
       required: true,
     },
     customer: {
@@ -25,6 +25,11 @@ const marketplaceConversationSchema = new mongoose.Schema(
     order: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
+      default: null,
+    },
+    careBooking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CareBooking',
       default: null,
     },
     lastProduct: {
@@ -60,6 +65,10 @@ marketplaceConversationSchema.index(
 marketplaceConversationSchema.index(
   { type: 1, order: 1 },
   { unique: true, partialFilterExpression: { type: 'DELIVERY', order: { $type: 'objectId' } } }
+);
+marketplaceConversationSchema.index(
+  { type: 1, careBooking: 1 },
+  { unique: true, partialFilterExpression: { type: 'CARE', careBooking: { $type: 'objectId' } } }
 );
 marketplaceConversationSchema.index({ partner: 1, updatedAt: -1 });
 marketplaceConversationSchema.index({ customer: 1, updatedAt: -1 });

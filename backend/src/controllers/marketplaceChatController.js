@@ -3,9 +3,11 @@ const mongoose = require('mongoose');
 const MarketplaceConversation = require('../models/MarketplaceConversation');
 const MarketplaceMessage = require('../models/MarketplaceMessage');
 const Order = require('../models/Order');
+const CareBooking = require('../models/CareBooking');
 const {
   ensureSellerConversation,
   ensureDeliveryConversationForOrder,
+  ensureCareConversationForBooking,
   loadConversationForUser,
   appendMessageAndNotify,
   isDeliveryThreadVisible,
@@ -43,6 +45,7 @@ const getCustomerInbox = asyncHandler(async (req, res) => {
 
   const sellers = [];
   const delivery = [];
+  const care = [];
   let support = null;
   for (const conv of list) {
     const ord = conv.order;
@@ -61,6 +64,8 @@ const getCustomerInbox = asyncHandler(async (req, res) => {
       if (isDeliveryThreadVisible(conv, ord)) {
         delivery.push(serializeConversation(conv, ord));
       }
+    } else if (conv.type === 'CARE') {
+      care.push(serializeConversation(conv, null));
     }
   }
 
@@ -70,6 +75,7 @@ const getCustomerInbox = asyncHandler(async (req, res) => {
       support,
       sellers,
       delivery,
+      care,
     },
   });
 });
@@ -103,6 +109,45 @@ const getRiderInbox = asyncHandler(async (req, res) => {
     success: true,
     data: visible.map((c) => serializeConversation(c, c.order)),
   });
+});
+
+/** GET /api/v1/marketplace-chat/care/inbox */
+const getCareInbox = asyncHandler(async (req, res) => {
+  const uid = req.user._id;
+  const list = await MarketplaceConversation.find({ type: 'CARE', partner: uid })
+    .populate('customer', 'name profilePicture phone')
+    .populate('careBooking')
+    .sort({ lastMessageAt: -1, updatedAt: -1 })
+    .lean();
+
+  res.json({ success: true, data: list.map((c) => serializeConversation(c, null)) });
+});
+
+/** POST /api/v1/marketplace-chat/care/open { bookingId } */
+const openCareThread = asyncHandler(async (req, res) => {
+  const { bookingId } = req.body || {};
+  if (!bookingId || !mongoose.Types.ObjectId.isValid(bookingId)) {
+    return res.status(400).json({ success: false, message: 'bookingId is required' });
+  }
+  const booking = await CareBooking.findById(bookingId).populate('hostelId', 'ownerId').lean();
+  if (!booking) {
+    return res.status(404).json({ success: false, message: 'Booking not found' });
+  }
+  const hostelOwnerId = booking.hostelId?.ownerId ? String(booking.hostelId.ownerId) : '';
+  const uid = String(req.user._id);
+  const assignedPartnerId = booking.assignedPartner ? String(booking.assignedPartner) : '';
+  const ok = uid === hostelOwnerId || (assignedPartnerId && uid === assignedPartnerId) || req.user.role === 'admin';
+  if (!ok) {
+    return res.status(403).json({ success: false, message: 'Not allowed' });
+  }
+
+  const conv = await ensureCareConversationForBooking(bookingId, req.user._id);
+  const populated = await MarketplaceConversation.findById(conv._id)
+    .populate('customer', 'name profilePicture phone')
+    .populate('partner', 'name profilePicture role')
+    .populate('careBooking')
+    .lean();
+  res.json({ success: true, data: populated });
 });
 
 /** POST /api/v1/marketplace-chat/seller/open { productId } */
@@ -250,6 +295,8 @@ module.exports = {
   getCustomerInbox,
   getSellerInbox,
   getRiderInbox,
+  getCareInbox,
+  openCareThread,
   openSellerThread,
   getOrCreateDeliveryByOrder,
   getRiderDeliveryByOrder,
