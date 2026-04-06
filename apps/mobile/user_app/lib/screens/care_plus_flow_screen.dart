@@ -7,6 +7,7 @@ import 'package:latlong2/latlong.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/layout_utils.dart';
+import '../services/geocoding_service.dart';
 
 class CarePlusFlowScreen extends StatefulWidget {
   const CarePlusFlowScreen({super.key});
@@ -17,6 +18,7 @@ class CarePlusFlowScreen extends StatefulWidget {
 
 class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
   final _apiClient = ApiClient();
+  final _geocoding = GeocodingService();
 
   int _currentStep = 0;
   List<dynamic> _pets = [];
@@ -32,6 +34,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
   final LatLng _mapCenter = const LatLng(27.7172, 85.3240);
   LatLng? _selectedLatLng;
   String? _selectedAddress;
+  bool _resolvingAddress = false;
 
   bool _submitting = false;
 
@@ -156,7 +159,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Care+ request created in draft. Next, integrate payment flow.',
+              'Care+ request submitted successfully.',
               style: GoogleFonts.outfit(),
             ),
             backgroundColor: Colors.green,
@@ -526,7 +529,10 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                 onTap: (tapPosition, point) {
                   setState(() {
                     _selectedLatLng = point;
+                  _selectedAddress = null;
+                  _resolvingAddress = true;
                   });
+                _reverseGeocode(point);
                 },
               ),
               children: [
@@ -554,12 +560,36 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          _selectedAddress ??
-              'Tap the map to place the pin, then we will use reverse geocoding to fetch address (TODO).',
+          _resolvingAddress
+              ? 'Fetching address…'
+              : (_selectedAddress ?? 'Tap the map to place the pin.'),
           style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]),
         ),
       ],
     );
+  }
+
+  Future<void> _reverseGeocode(LatLng point) async {
+    try {
+      final name = await _geocoding.reverse(
+        lat: point.latitude,
+        lng: point.longitude,
+      );
+      if (!mounted) return;
+      setState(() {
+        _selectedAddress = (name != null && name.trim().isNotEmpty)
+            ? name.trim()
+            : 'Pinned location (${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)})';
+        _resolvingAddress = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _selectedAddress =
+            'Pinned location (${point.latitude.toStringAsFixed(5)}, ${point.longitude.toStringAsFixed(5)})';
+        _resolvingAddress = false;
+      });
+    }
   }
 
   Widget _buildReviewStep() {
@@ -599,7 +629,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'On next iteration, this will open Khalti / eSewa checkout and only mark as Pending Review after successful payment.',
+            'After submitting, track status from your Requests screen.',
             style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[600]),
           ),
         ],

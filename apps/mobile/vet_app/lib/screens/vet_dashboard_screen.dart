@@ -24,6 +24,11 @@ import 'partner_support_chat_screen.dart';
 import 'notifications_screen.dart';
 import 'partner_placeholder_screen.dart';
 import 'clinic_queue_screen.dart';
+import 'rider_live_map_screen.dart';
+import 'rider_history_screen.dart';
+import 'shop_analytics_screen.dart';
+import 'care_calendar_screen.dart';
+import 'care_pet_records_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
@@ -1801,64 +1806,41 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PartnerPlaceholderScreen(
-                                  title: 'Live operations map',
-                                  bodyText:
-                                      'Your position updates the Admin live map when location sharing is enabled. Finish deliveries from Current deliveries.',
-                                  showLiveMapPreview: true,
-                                ),
+                                builder: (_) => const RiderLiveMapScreen(),
                               ),
                             );
                           } else if (route == 'shop_analytics') {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PartnerPlaceholderScreen(
-                                  title: 'Shop analytics',
-                                  bodyText:
-                                      'Sales and conversion reports will appear here. Inventory and inquiries are available from Quick actions.',
-                                ),
+                                builder: (_) => const ShopAnalyticsScreen(),
                               ),
                             );
                           } else if (route == 'care_calendar') {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PartnerPlaceholderScreen(
-                                  title: 'Facility calendar',
-                                  bodyText:
-                                      'Facility schedule and blackout dates. Sync with My business bookings is planned.',
-                                ),
+                                builder: (_) => const CareCalendarScreen(),
                               ),
                             );
                           } else if (route == 'care_pet_records') {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PartnerPlaceholderScreen(
-                                  title: 'Pet records',
-                                  bodyText:
-                                      'Per-guest intake and stay notes for hostel and training stays. Link to full vet records is planned.',
-                                ),
+                                builder: (_) => const CarePetRecordsScreen(),
                               ),
                             );
                           } else if (route == 'rider_history') {
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PartnerPlaceholderScreen(
-                                  title: 'Delivery history',
-                                  bodyText:
-                                      'Use Current deliveries and mark orders Delivered to build your history. Export and date filters are planned.',
-                                ),
+                                builder: (_) => const RiderHistoryScreen(),
                               ),
                             );
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Feature coming soon!'),
-                              ),
-                            );
+                            // No dead actions in production; if we ever hit this branch,
+                            // reload user data to refresh role actions list.
+                            await _loadUserData();
                           }
                         },
                       ),

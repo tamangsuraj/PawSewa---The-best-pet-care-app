@@ -249,7 +249,7 @@ class MedicalReportDetailScreen extends StatelessWidget {
               _sectionLabel('ATTACHMENTS'),
               const SizedBox(height: 12),
               SizedBox(
-                height: 96,
+                height: 112,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: attachments.length,
@@ -259,51 +259,13 @@ class MedicalReportDetailScreen extends StatelessWidget {
                     final url = _str(a['url']);
                     final label = _str(a['label']);
                     if (url.isEmpty) {
-                      return const SizedBox.shrink();
+                      return const SizedBox(width: 0);
                     }
-                    final img = _looksLikeImageUrl(url);
-                    return Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () {
-                          _openUrl(context, url);
-                        },
-                        child: SizedBox(
-                          width: 96,
-                          height: 96,
-                          child: img
-                              ? CachedNetworkImage(
-                                  imageUrl: url,
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, _) => const Center(
-                                    child: SizedBox(
-                                      width: 22,
-                                      height: 22,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, _) => Icon(Icons.insert_drive_file_rounded, color: Colors.grey[500], size: 36),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.description_outlined, color: Colors.grey[600], size: 32),
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-                                      child: Text(
-                                        label.isEmpty ? 'Open' : label,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.outfit(fontSize: 11, color: _primary, fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
+                    return _AttachmentTile(
+                      url: url,
+                      label: label,
+                      looksLikeImageUrl: _looksLikeImageUrl,
+                      onOpen: () => _openUrl(context, url),
                     );
                   },
                 ),
@@ -363,6 +325,147 @@ class MedicalReportDetailScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AttachmentTile extends StatelessWidget {
+  const _AttachmentTile({
+    required this.url,
+    required this.label,
+    required this.looksLikeImageUrl,
+    required this.onOpen,
+  });
+
+  final String url;
+  final String label;
+  final bool Function(String) looksLikeImageUrl;
+  final VoidCallback onOpen;
+
+  static const Color _primary = Color(AppConstants.primaryColor);
+
+  String _ext(String u) {
+    final lowered = u.toLowerCase();
+    final q = lowered.indexOf('?');
+    final cleaned = q >= 0 ? lowered.substring(0, q) : lowered;
+    final dot = cleaned.lastIndexOf('.');
+    if (dot < 0 || dot == cleaned.length - 1) return '';
+    final ext = cleaned.substring(dot + 1);
+    if (ext.length > 6) return '';
+    return ext;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isImage = looksLikeImageUrl(url);
+    final ext = _ext(url);
+    final badgeText = isImage ? 'IMAGE' : (ext.isNotEmpty ? ext.toUpperCase() : 'FILE');
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpen,
+        child: SizedBox(
+          width: 168,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: isImage
+                          ? CachedNetworkImage(
+                              imageUrl: url,
+                              fit: BoxFit.cover,
+                              placeholder: (context, _) => const Center(
+                                child: SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
+                                ),
+                              ),
+                              errorWidget: (context, url, _) => Container(
+                                color: const Color(0xFFF3F4F6),
+                                child: Icon(Icons.insert_drive_file_rounded, color: Colors.grey[500], size: 36),
+                              ),
+                            )
+                          : Container(
+                              color: const Color(0xFFF3F4F6),
+                              child: Icon(Icons.description_outlined, color: Colors.grey[700], size: 34),
+                            ),
+                    ),
+                    Positioned(
+                      left: 10,
+                      top: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: _primary.withValues(alpha: 0.14)),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: GoogleFonts.outfit(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.25,
+                            color: _primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _primary.withValues(alpha: 0.14)),
+                        ),
+                        child: Icon(Icons.open_in_new_rounded, color: _primary.withValues(alpha: 0.9), size: 18),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.10),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Text(
+                  label.trim().isEmpty ? 'Open attachment' : label.trim(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF111827),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

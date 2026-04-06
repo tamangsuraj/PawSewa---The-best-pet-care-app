@@ -12,6 +12,9 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/layout_utils.dart';
 import '../services/socket_service.dart';
+import '../widgets/premium_empty_state.dart';
+import '../widgets/premium_shimmer.dart';
+import '../widgets/premium_info_chip.dart';
 import 'services/services_screen.dart';
 import 'service_request_tracking_screen.dart';
 
@@ -325,18 +328,15 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
         ),
       ),
       body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(
-                    color: Color(AppConstants.primaryColor),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading your appointments…',
-                    style: GoogleFonts.outfit(color: Colors.grey[700]),
-                  ),
+          ? PremiumShimmer(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: const [
+                  SkeletonBox(height: 44, width: double.infinity, radius: 16),
+                  SizedBox(height: 14),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
                 ],
               ),
             )
@@ -354,40 +354,19 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
   }
 
   Widget _buildErrorState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_rounded, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: GoogleFonts.outfit(color: Colors.grey[700]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadRequests,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(
-                'Retry',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(AppConstants.primaryColor),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 14,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
+    return PremiumEmptyState(
+      title: 'Couldn’t load appointments',
+      body: _error!,
+      icon: Icons.cloud_off_rounded,
+      primaryAction: FilledButton.icon(
+        onPressed: _loadRequests,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(AppConstants.primaryColor),
+        ),
+        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+        label: Text(
+          'Retry',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -441,82 +420,25 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
       subtitle = 'Upcoming appointments will appear here.';
     }
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: LayoutUtils.bentoCardDecoration(context),
-              child: Column(
-                children: [
-                  Icon(
-                    isHistory
-                        ? Icons.history_rounded
-                        : Icons.calendar_today_rounded,
-                    size: 72,
-                    color: const Color(
-                      AppConstants.primaryColor,
-                    ).withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    title,
-                    style: GoogleFonts.outfit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey[800],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                      child: ElevatedButton.icon(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ServicesScreen(),
-                          ),
-                        ).then((_) => _loadRequests());
-                      },
-                      icon: const Icon(Icons.add_rounded),
-                      label: Text(
-                        'Book Now',
-                        style: GoogleFonts.outfit(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(AppConstants.primaryColor),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    return PremiumEmptyState(
+      title: title,
+      body: subtitle,
+      icon: isHistory ? Icons.history_rounded : Icons.calendar_today_rounded,
+      primaryAction: FilledButton.icon(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ServicesScreen()),
+          ).then((_) => _loadRequests());
+        },
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(AppConstants.primaryColor),
+        ),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(
+          'Book Now',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -783,12 +705,22 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
   ) {
     final loc = request['location'] as Map<String, dynamic>?;
     if (loc == null || loc['coordinates'] == null) {
-      return const SizedBox.shrink();
+      return const PremiumInfoChip(
+        icon: Icons.location_off_rounded,
+        title: 'Location not provided',
+        body: 'This request has no pinned location, so the map preview is hidden.',
+      );
     }
     final coords = loc['coordinates'] as Map<String, dynamic>;
     final lat = (coords['lat'] as num?)?.toDouble();
     final lng = (coords['lng'] as num?)?.toDouble();
-    if (lat == null || lng == null) return const SizedBox.shrink();
+    if (lat == null || lng == null) {
+      return const PremiumInfoChip(
+        icon: Icons.location_off_rounded,
+        title: 'Location unavailable',
+        body: 'We couldn’t parse coordinates for this request yet.',
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(

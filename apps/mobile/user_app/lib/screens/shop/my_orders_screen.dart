@@ -10,6 +10,8 @@ import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../messages/marketplace_thread_screen.dart';
+import '../../widgets/premium_empty_state.dart';
+import '../../widgets/premium_shimmer.dart';
 
 /// How to filter the owner’s shop orders in the list.
 enum MyOrdersListMode {
@@ -194,82 +196,67 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
+          ? PremiumShimmer(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                children: const [
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                ],
+              ),
+            )
           : _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _error!,
-                      style: GoogleFonts.outfit(color: Colors.red[700]),
-                      textAlign: TextAlign.center,
+              ? PremiumEmptyState(
+                  title: 'Couldn’t load orders',
+                  body: _error!,
+                  icon: Icons.wifi_off_rounded,
+                  primaryAction: FilledButton.icon(
+                    onPressed: _load,
+                    style: FilledButton.styleFrom(backgroundColor: _primary),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    label: Text(
+                      'Retry',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(height: 16),
-                    TextButton.icon(
-                      onPressed: _load,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                      style: TextButton.styleFrom(foregroundColor: _primary),
-                    ),
-                  ],
-                ),
-              ),
-            )
+                  ),
+                )
           : _orders.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.receipt_long_rounded,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No orders yet',
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+              ? PremiumEmptyState(
+                  title: 'No orders yet',
+                  body:
+                      'When you place an order from the Shop, it will appear here with live status updates.',
+                  icon: Icons.receipt_long_rounded,
+                  primaryAction: FilledButton.icon(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(backgroundColor: _primary),
+                    icon: const Icon(Icons.shopping_bag_rounded, color: Colors.white),
+                    label: Text(
+                      'Back to shop',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your shop orders will appear here.',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            )
+                )
           : visible.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    widget.listMode == MyOrdersListMode.activeOnly
-                        ? 'No active orders'
-                        : 'No completed orders yet',
-                    style: GoogleFonts.outfit(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+              ? PremiumEmptyState(
+                  title: widget.listMode == MyOrdersListMode.activeOnly
+                      ? 'No active orders'
+                      : 'No completed orders yet',
+                  body: widget.listMode == MyOrdersListMode.activeOnly
+                      ? 'Once an order is confirmed, you’ll see it here until it’s delivered.'
+                      : 'Delivered orders will be listed here as your history.',
+                  icon: Icons.inventory_2_outlined,
+                  primaryAction: FilledButton.icon(
+                    onPressed: _load,
+                    style: FilledButton.styleFrom(backgroundColor: _primary),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    label: Text(
+                      'Refresh',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                     ),
                   ),
-                ],
-              ),
-            )
+                )
           : RefreshIndicator(
               onRefresh: _load,
               color: _primary,

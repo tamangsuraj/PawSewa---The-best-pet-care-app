@@ -21,6 +21,9 @@ import '../cart/delivery_pin_screen.dart';
 import '../messages/marketplace_thread_screen.dart';
 import '../../core/storage_service.dart';
 import '../../widgets/editorial_canvas.dart';
+import '../../widgets/premium_empty_state.dart';
+import '../../widgets/premium_shimmer.dart';
+import '../../widgets/premium_info_chip.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -977,73 +980,66 @@ class _ShopScreenState extends State<ShopScreen> {
                     ),
                     SliverToBoxAdapter(child: _buildSectionTitle()),
                     _loading
-                        ? const SliverFillRemaining(
-                            child: Center(
-                              child: CircularProgressIndicator(
-                                color: Color(AppConstants.primaryColor),
+                        ? SliverFillRemaining(
+                            child: PremiumShimmer(
+                              child: ListView(
+                                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                                children: const [
+                                  SkeletonBox(height: 18, width: 220, radius: 10),
+                                  SizedBox(height: 12),
+                                  SkeletonBox(height: 14, width: 300, radius: 10),
+                                  SizedBox(height: 18),
+                                  SkeletonListTile(),
+                                  SkeletonListTile(),
+                                  SkeletonListTile(),
+                                  SkeletonListTile(),
+                                ],
                               ),
                             ),
                           )
                         : _error != null
                         ? SliverFillRemaining(
-                            child: Center(
-                              child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _error!,
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.red[700],
-                                        fontSize: 14,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 20),
-                                    FilledButton.icon(
-                                      onPressed: () {
-                                        setState(() => _error = null);
-                                        _loadInitial();
-                                      },
-                                      icon: const Icon(Icons.refresh, size: 20),
-                                      label: const Text('Retry'),
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          AppConstants.primaryColor,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_lastErrorWasConnection) ...[
-                                      const SizedBox(height: 12),
-                                      TextButton.icon(
-                                        onPressed: _showSetServerUrlDialog,
-                                        icon: const Icon(
-                                          Icons.settings_ethernet,
-                                          size: 18,
-                                        ),
-                                        label: const Text('Set server URL'),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: const Color(
-                                            AppConstants.primaryColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
+                            child: PremiumEmptyState(
+                              title: 'Shop is unavailable',
+                              body: _error!,
+                              icon: Icons.wifi_off_rounded,
+                              primaryAction: FilledButton.icon(
+                                onPressed: () {
+                                  setState(() => _error = null);
+                                  _loadInitial();
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(AppConstants.primaryColor),
+                                ),
+                                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                                label: Text(
+                                  'Retry',
+                                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                                 ),
                               ),
+                              secondaryAction: _lastErrorWasConnection
+                                  ? OutlinedButton.icon(
+                                      onPressed: _showSetServerUrlDialog,
+                                      icon: const Icon(Icons.settings_ethernet_rounded),
+                                      label: Text(
+                                        'Set server URL',
+                                        style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor:
+                                            const Color(AppConstants.primaryColor),
+                                      ),
+                                    )
+                                  : null,
                             ),
                           )
                         : _products.isEmpty
-                        ? SliverFillRemaining(
-                            child: Center(
-                              child: Text(
-                                'No products found.',
-                                style: GoogleFonts.outfit(
-                                  color: Colors.grey[600],
-                                ),
-                              ),
+                        ? const SliverFillRemaining(
+                            child: PremiumEmptyState(
+                              title: 'No products yet',
+                              body:
+                                  'Try a different category or clear filters. Products will appear here as sellers add inventory.',
+                              icon: Icons.inventory_2_outlined,
                             ),
                           )
                         : Builder(
@@ -3036,7 +3032,31 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         cart.deliveryLng != null &&
         cart.deliveryAddress != null &&
         cart.deliveryAddress!.isNotEmpty;
-    if (!hasCoords) return const SizedBox.shrink();
+    if (!hasCoords) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: PremiumInfoChip(
+          icon: Icons.location_on_outlined,
+          title: 'Set a delivery location',
+          body:
+              'Add an address pin so the rider can deliver precisely. You can set it during checkout.',
+          action: TextButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Open checkout to set a pin.')),
+              );
+            },
+            child: Text(
+              'How?',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w800,
+                color: const Color(AppConstants.primaryColor),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -4184,20 +4204,14 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   WebViewController? _khaltiWebController;
   String? _error;
 
+  // Only show methods that are fully supported end-to-end in this build.
   static const List<Map<String, String>> _localMethods = [
     {'id': 'Cash on Delivery', 'name': 'Cash on Delivery'},
     {'id': 'Fonepay', 'name': 'Fonepay'},
-    {'id': 'eSewa', 'name': 'E-Sewa'},
-    {'id': 'Connect IPS', 'name': 'Connect IPS'},
     {'id': 'Khalti', 'name': 'Khalti'},
-    {'id': 'Credit/Debit Card', 'name': 'Credit/Debit Card'},
-    {'id': 'Nepal Pay', 'name': 'Nepal Pay'},
   ];
 
-  static const List<Map<String, String>> _internationalMethods = [
-    {'id': 'PayPal', 'name': 'PayPal'},
-    {'id': 'International Card', 'name': 'Credit/Debit Card'},
-  ];
+  static const List<Map<String, String>> _internationalMethods = [];
 
   /// Asset path for payment method logo, or null to use fallback icon.
   String? _assetPathFor(String id) {
@@ -4206,19 +4220,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         return 'assets/cash.png';
       case 'fonepay':
         return 'assets/fonepay.webp';
-      case 'esewa':
-        return 'assets/esewa.png';
-      case 'connect ips':
-        return 'assets/connectIPS.png';
       case 'khalti':
         return 'assets/khalti.png';
-      case 'credit/debit card':
-      case 'international card':
-        return 'assets/credit.png';
-      case 'nepal pay':
-        return 'assets/nepalpay.png';
-      case 'paypal':
-        return 'assets/paypal.png';
       default:
         return null;
     }
@@ -4228,19 +4231,10 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     switch (id.toLowerCase()) {
       case 'cash on delivery':
         return Icons.money;
-      case 'paypal':
-        return Icons.payment;
       case 'khalti':
-      case 'esewa':
-      case 'nepal pay':
         return Icons.account_balance_wallet;
       case 'fonepay':
         return Icons.phone_android;
-      case 'connect ips':
-        return Icons.account_balance;
-      case 'credit/debit card':
-      case 'international card':
-        return Icons.credit_card;
       default:
         return Icons.payment;
     }
@@ -4343,16 +4337,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       } else {
         setState(() => _error = 'Could not place order. Please try again.');
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$_selected is coming soon. Please use Cash on Delivery, Fonepay, or Khalti.',
-            style: GoogleFonts.outfit(),
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
     }
   }
 
@@ -4609,28 +4593,29 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                               );
                             },
                           ),
-                          const SizedBox(height: 24),
-                          Text(
-                            'International Users',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                              color: Colors.black87,
+                          if (_internationalMethods.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            Text(
+                              'International Users',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                                color: Colors.black87,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  childAspectRatio: 0.85,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 8,
-                                ),
-                            itemCount: _internationalMethods.length,
-                            itemBuilder: (context, index) {
+                            const SizedBox(height: 16),
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    childAspectRatio: 0.85,
+                                    crossAxisSpacing: 8,
+                                    mainAxisSpacing: 8,
+                                  ),
+                              itemCount: _internationalMethods.length,
+                              itemBuilder: (context, index) {
                               final m = _internationalMethods[index];
                               final isSelected = _selected == m['id'];
                               return GestureDetector(
@@ -4713,7 +4698,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                                 ),
                               );
                             },
-                          ),
+                            ),
+                          ],
                           const SizedBox(height: 100),
                         ],
                       ),

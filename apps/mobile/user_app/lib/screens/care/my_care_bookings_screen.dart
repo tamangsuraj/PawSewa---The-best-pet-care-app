@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../widgets/premium_empty_state.dart';
+import '../../widgets/premium_shimmer.dart';
+import '../../widgets/premium_info_chip.dart';
 
 /// How to filter hostel / care bookings from the drawer.
 enum MyCareBookingsListMode {
@@ -124,14 +127,31 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
         color: brown,
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: brown))
+            ? PremiumShimmer(
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                  children: const [
+                    SkeletonListTile(),
+                    SkeletonListTile(),
+                    SkeletonListTile(),
+                  ],
+                ),
+              )
             : _error != null
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!, textAlign: TextAlign.center, style: GoogleFonts.outfit()),
+                  PremiumEmptyState(
+                    title: 'Couldn’t load bookings',
+                    body: _error!,
+                    icon: Icons.wifi_off_rounded,
+                    primaryAction: FilledButton.icon(
+                      onPressed: _load,
+                      style: FilledButton.styleFrom(backgroundColor: brown),
+                      icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                      label: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
                   ),
                 ],
               )
@@ -140,19 +160,10 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const SizedBox(height: 48),
-                  Icon(Icons.home_work_outlined, size: 56, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No care centre bookings yet',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Book from Pet Care+ on your home dashboard.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
+                  const PremiumEmptyState(
+                    title: 'No care centre bookings yet',
+                    body: 'Book from Pet Care+ to reserve stays, grooming, or training.',
+                    icon: Icons.home_work_outlined,
                   ),
                 ],
               )
@@ -161,19 +172,10 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const SizedBox(height: 48),
-                  Icon(Icons.history_rounded, size: 56, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No past bookings',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Completed, cancelled, or rejected stays appear here.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
+                  const PremiumEmptyState(
+                    title: 'No past bookings',
+                    body: 'Completed, cancelled, or rejected stays appear here.',
+                    icon: Icons.history_rounded,
                   ),
                 ],
               )
@@ -184,7 +186,7 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                 itemBuilder: (context, i) {
                   final raw = visible[i];
                   if (raw is! Map) {
-                    return const SizedBox.shrink();
+                    return const SizedBox(height: 0);
                   }
                   final m = Map<String, dynamic>.from(raw);
                   final status = m['status']?.toString() ?? '—';
@@ -194,20 +196,192 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                     title = hostel['name']?.toString() ?? title;
                   }
                   final created = m['createdAt']?.toString();
-                  return Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    elevation: 0.5,
-                    child: ListTile(
-                      title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                        [status, if (created != null) created.split('T').first].join(' · '),
-                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
+                  final pet = m['pet'];
+                  String petName = '';
+                  if (pet is Map) {
+                    petName = pet['name']?.toString() ?? '';
+                  }
+                  final checkIn = m['checkIn']?.toString();
+                  final checkOut = m['checkOut']?.toString();
+                  String dateLine = '';
+                  if (checkIn != null && checkIn.contains('T')) {
+                    dateLine = checkIn.split('T').first;
+                  } else if (created != null && created.contains('T')) {
+                    dateLine = created.split('T').first;
+                  }
+
+                  final statusColor = switch (status.toLowerCase()) {
+                    'pending' => Colors.orange.shade700,
+                    'accepted' => const Color(AppConstants.accentColor),
+                    'confirmed' => const Color(AppConstants.accentColor),
+                    'completed' => Colors.green.shade700,
+                    'cancelled' => Colors.red.shade700,
+                    'rejected' => Colors.red.shade700,
+                    _ => Colors.grey.shade700,
+                  };
+
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: brown.withValues(alpha: 0.10)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 14,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: brown.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(
+                                  Icons.home_work_rounded,
+                                  color: brown,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                        color: const Color(AppConstants.inkColor),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      petName.isNotEmpty
+                                          ? 'Pet: $petName'
+                                          : 'Care booking',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.outfit(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12.5,
+                                        color: const Color(AppConstants.inkColor)
+                                            .withValues(alpha: 0.65),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: statusColor.withValues(alpha: 0.22),
+                                  ),
+                                ),
+                                child: Text(
+                                  status.toUpperCase(),
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.02,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (dateLine.isNotEmpty)
+                                _Chip(
+                                  icon: Icons.calendar_today_rounded,
+                                  text: dateLine,
+                                ),
+                              if (checkOut != null && checkOut.contains('T'))
+                                _Chip(
+                                  icon: Icons.event_available_rounded,
+                                  text: 'Out: ${checkOut.split('T').first}',
+                                ),
+                              _Chip(
+                                icon: Icons.receipt_long_rounded,
+                                text: widget.listMode == MyCareBookingsListMode.historyOnly
+                                    ? 'History'
+                                    : 'Active',
+                              ),
+                            ],
+                          ),
+                          if (hostel is! Map) ...[
+                            const SizedBox(height: 10),
+                            const PremiumInfoChip(
+                              icon: Icons.info_outline_rounded,
+                              title: 'Details limited',
+                              body:
+                                  'Some booking details are still syncing. Pull to refresh in a moment.',
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   );
                 },
               ),
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(AppConstants.sandColor).withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: primary.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: primary.withValues(alpha: 0.85)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: GoogleFonts.outfit(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(AppConstants.inkColor)
+                  .withValues(alpha: 0.78),
+            ),
+          ),
+        ],
       ),
     );
   }

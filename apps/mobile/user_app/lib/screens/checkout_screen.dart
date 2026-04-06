@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../widgets/editorial_canvas.dart';
+import 'bank_transfer_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final String serviceRequestId;
@@ -155,11 +156,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               onTap: _isLoading
                   ? null
                   : () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Bank transfer flow not implemented yet.',
-                            style: GoogleFonts.outfit(),
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BankTransferScreen(
+                            amount: widget.amount,
+                            referenceId: widget.serviceRequestId,
                           ),
                         ),
                       );

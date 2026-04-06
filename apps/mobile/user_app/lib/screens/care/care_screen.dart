@@ -7,6 +7,8 @@ import '../../core/constants.dart';
 import 'care_all_services_screen.dart';
 import 'hostel_detail_screen.dart';
 import 'pet_care_service_card.dart';
+import '../../widgets/premium_empty_state.dart';
+import '../../widgets/premium_shimmer.dart';
 
 /// Pet Care+ hub (care centres, daycare, grooming, etc.).
 ///
@@ -355,11 +357,40 @@ class _CareScreenState extends State<CareScreen> {
           if (filtered.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                source.isEmpty
-                    ? 'No listings in this category yet.'
-                    : 'No services match your search.',
-                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: primary.withValues(alpha: 0.10)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(Icons.search_off_rounded, color: primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        source.isEmpty
+                            ? 'No listings in this category yet.'
+                            : 'No services match your search.',
+                        style: GoogleFonts.outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(AppConstants.inkColor)
+                              .withValues(alpha: 0.70),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else
@@ -408,21 +439,36 @@ class _CareScreenState extends State<CareScreen> {
             ),
             if (_error != null)
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      Text(_error!, style: GoogleFonts.outfit(color: Colors.grey[700])),
-                      const SizedBox(height: 8),
-                      TextButton(onPressed: _loadHostels, child: const Text('Retry')),
-                    ],
+                child: PremiumEmptyState(
+                  title: 'Couldn’t load care centers',
+                  body: _error!,
+                  icon: Icons.wifi_off_rounded,
+                  primaryAction: FilledButton.icon(
+                    onPressed: _loadHostels,
+                    style: FilledButton.styleFrom(backgroundColor: primary),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    label: Text(
+                      'Retry',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
               )
             else if (_loading)
-              const SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+              SliverFillRemaining(
+                child: PremiumShimmer(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                    children: const [
+                      SkeletonBox(height: 16, width: 220, radius: 10),
+                      SizedBox(height: 12),
+                      SkeletonListTile(),
+                      SkeletonListTile(),
+                      SkeletonBox(height: 16, width: 260, radius: 10),
+                      SizedBox(height: 12),
+                      SkeletonListTile(),
+                    ],
+                  ),
                 ),
               )
             else

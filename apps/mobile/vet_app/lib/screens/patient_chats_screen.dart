@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import 'vet_direct_owner_chat_screen.dart';
+import '../widgets/partner_scaffold.dart';
 
 /// Inbox: pet owners the vet has treated (shared history) — opens 1:1 vet–owner chat.
 class PatientChatsScreen extends StatefulWidget {
@@ -59,89 +60,51 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Patient Chats',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+    final primary = Theme.of(context).colorScheme.primary;
+    return PartnerScaffold(
+      title: 'Patient chats',
+      subtitle: 'Owners you’ve treated (1:1)',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: _loading ? null : _load,
+          icon: const Icon(Icons.refresh_rounded),
         ),
-        backgroundColor: const Color(AppConstants.primaryColor),
-        foregroundColor: Colors.white,
-      ),
+      ],
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CircularProgressIndicator(color: primary))
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_error!, textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
+              ? PartnerEmptyState(
+                  title: 'Couldn’t load chats',
+                  body: _error!,
+                  icon: Icons.wifi_off_rounded,
+                  primaryAction: OutlinedButton.icon(
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Retry'),
                   ),
                 )
               : _owners.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'No patient chats yet. Chats unlock after you complete a visit or add visit notes for an owner\'s pet.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(color: Colors.grey[700]),
-                        ),
-                      ),
+                  ? const PartnerEmptyState(
+                      title: 'No chats yet',
+                      body:
+                          'Chats unlock after completing a visit or saving visit notes for an owner’s pet.',
+                      icon: Icons.chat_bubble_outline_rounded,
                     )
                   : RefreshIndicator(
+                      color: primary,
                       onRefresh: _load,
                       child: ListView.separated(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
                         itemCount: _owners.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, i) {
                           final o = _owners[i];
                           final id = o['_id']?.toString() ?? '';
                           final name = o['name']?.toString() ?? 'Pet owner';
                           final pic = o['profilePicture']?.toString();
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: const Color(
-                                AppConstants.primaryColor,
-                              ).withValues(alpha: 0.12),
-                              backgroundImage: pic != null && pic.isNotEmpty
-                                  ? NetworkImage(pic)
-                                  : null,
-                              child: pic == null || pic.isEmpty
-                                  ? Text(
-                                      name.isNotEmpty
-                                          ? name[0].toUpperCase()
-                                          : '?',
-                                      style: const TextStyle(
-                                        color: Color(AppConstants.primaryColor),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            title: Text(
-                              name,
-                              style: GoogleFonts.outfit(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'Tap to open chat',
-                              style: GoogleFonts.outfit(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(20),
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
@@ -152,6 +115,69 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
                                 ),
                               );
                             },
+                            child: Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 22,
+                                      backgroundColor: primary.withValues(alpha: 0.12),
+                                      backgroundImage: pic != null && pic.isNotEmpty
+                                          ? NetworkImage(pic)
+                                          : null,
+                                      child: pic == null || pic.isEmpty
+                                          ? Text(
+                                              name.isNotEmpty
+                                                  ? name[0].toUpperCase()
+                                                  : '?',
+                                              style: TextStyle(
+                                                color: primary,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 15,
+                                              color: const Color(AppConstants.inkColor),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            'Open chat · send updates, prescriptions, follow‑ups',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.outfit(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: const Color(AppConstants.inkColor)
+                                                  .withValues(alpha: 0.62),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: const Color(AppConstants.inkColor)
+                                          .withValues(alpha: 0.45),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           );
                         },
                       ),

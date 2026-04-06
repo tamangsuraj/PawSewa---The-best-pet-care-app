@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../widgets/premium_empty_state.dart';
+import '../../widgets/premium_shimmer.dart';
 
 /// Filters [GET /care/my-requests] by broad Care+ category.
 enum CareRequestsKind { grooming, training }
@@ -122,14 +124,31 @@ class _MyCareRequestsScreenState extends State<MyCareRequestsScreen> {
         color: brown,
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: brown))
+            ? PremiumShimmer(
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                  children: const [
+                    SkeletonListTile(),
+                    SkeletonListTile(),
+                    SkeletonListTile(),
+                  ],
+                ),
+              )
             : _error != null
             ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(_error!, textAlign: TextAlign.center, style: GoogleFonts.outfit()),
+                  PremiumEmptyState(
+                    title: 'Couldn’t load history',
+                    body: _error!,
+                    icon: Icons.wifi_off_rounded,
+                    primaryAction: FilledButton.icon(
+                      onPressed: _load,
+                      style: FilledButton.styleFrom(backgroundColor: brown),
+                      icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                      label: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
                   ),
                 ],
               )
@@ -138,19 +157,12 @@ class _MyCareRequestsScreenState extends State<MyCareRequestsScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 children: [
-                  const SizedBox(height: 48),
-                  Icon(Icons.spa_outlined, size: 56, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No entries yet',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your Care+ requests will appear here after you book.',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
+                  PremiumEmptyState(
+                    title: 'No entries yet',
+                    body: widget.kind == CareRequestsKind.grooming
+                        ? 'Book grooming/bathing from Pet Care+ to see history here.'
+                        : 'Book training from Pet Care+ to see history here.',
+                    icon: Icons.spa_outlined,
                   ),
                 ],
               )
@@ -161,7 +173,7 @@ class _MyCareRequestsScreenState extends State<MyCareRequestsScreen> {
                 itemBuilder: (context, i) {
                   final raw = _items[i];
                   if (raw is! Map) {
-                    return const SizedBox.shrink();
+                    return const SizedBox(height: 0);
                   }
                   final m = Map<String, dynamic>.from(raw);
                   final st = m['status']?.toString() ?? '—';

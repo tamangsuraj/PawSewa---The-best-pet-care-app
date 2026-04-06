@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
-import '../core/constants.dart';
 import '../widgets/editorial_canvas.dart';
+import '../widgets/partner_scaffold.dart';
 
 /// Wallet / Earnings screen for vets and care staff.
 /// Displays payments received from pet owners for completed services.
@@ -58,82 +58,42 @@ class _EarningsScreenState extends State<EarningsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
+    final primary = Theme.of(context).colorScheme.primary;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Earnings',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            color: Colors.white,
-          ),
+    return PartnerScaffold(
+      title: 'Earnings',
+      subtitle: 'Payments received from pet owners',
+      actions: [
+        IconButton(
+          tooltip: 'Refresh',
+          icon: const Icon(Icons.refresh_rounded),
+          onPressed: _loading ? null : _loadEarnings,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _loading ? null : _loadEarnings,
-            color: Colors.white,
-          ),
-        ],
-      ),
+      ],
       body: Stack(
         clipBehavior: Clip.none,
         children: [
           const EditorialBodyBackdrop(),
           Positioned.fill(
             child: _loading
-                ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(AppConstants.primaryColor),
-              ),
-            )
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline_rounded,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        FilledButton.icon(
+                ? Center(child: CircularProgressIndicator(color: primary))
+                : _error != null
+                    ? PartnerEmptyState(
+                        title: 'Couldn’t load earnings',
+                        body: _error!,
+                        icon: Icons.account_balance_wallet_rounded,
+                        primaryAction: OutlinedButton.icon(
                           onPressed: _loadEarnings,
-                          icon: const Icon(Icons.refresh_rounded, size: 20),
+                          icon: const Icon(Icons.refresh_rounded),
                           label: const Text('Retry'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: primary,
-                            foregroundColor: Colors.white,
-                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadEarnings,
-                  color: primary,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadEarnings,
+                        color: primary,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                          children: [
                       // Summary card
                       Container(
                         width: double.infinity,
@@ -233,9 +193,9 @@ class _EarningsScreenState extends State<EarningsScreen> {
                         )
                       else
                         ..._transactions.map((t) => _buildTransactionCard(t, primary)),
-                    ],
-                  ),
-                ),
+                          ],
+                        ),
+                      ),
           ),
         ],
       ),

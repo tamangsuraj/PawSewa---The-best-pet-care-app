@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../models/pet.dart';
 import '../../services/pet_service.dart';
+import '../../widgets/premium_empty_state.dart';
+import '../../widgets/premium_shimmer.dart';
 import '../book_service_screen.dart';
 import 'medical_report_detail_screen.dart';
 
@@ -180,7 +182,20 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
+          ? PremiumShimmer(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                children: const [
+                  SkeletonBox(height: 18, width: 180, radius: 8),
+                  SizedBox(height: 12),
+                  SkeletonBox(height: 110, radius: 16),
+                  SizedBox(height: 14),
+                  SkeletonBox(height: 110, radius: 16),
+                  SizedBox(height: 14),
+                  SkeletonBox(height: 110, radius: 16),
+                ],
+              ),
+            )
           : _error != null
           ? _buildError()
           : _records.isEmpty
@@ -222,20 +237,24 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
   Widget _buildError() {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(24),
       children: [
-        SizedBox(height: MediaQuery.sizeOf(context).height * 0.25),
-        Icon(Icons.cloud_off_outlined, size: 56, color: Colors.grey[400]),
-        const SizedBox(height: 12),
-        Text(
-          _error ?? 'Error',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.outfit(color: Colors.grey[700]),
-        ),
-        const SizedBox(height: 16),
-        Center(
-          child: TextButton(
+        SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
+        PremiumEmptyState(
+          title: 'Couldn’t load medical history',
+          body: _error ?? 'Please check your connection and try again.',
+          icon: Icons.cloud_off_outlined,
+          primaryAction: ElevatedButton.icon(
             onPressed: _load,
-            child: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: _primary)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -245,38 +264,15 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
   Widget _buildEmpty() {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 32),
+      padding: const EdgeInsets.all(24),
       children: [
-        SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
-        Icon(
-          Icons.medical_information_outlined,
-          size: 88,
-          color: Colors.grey[400],
-        ),
-        const SizedBox(height: 20),
-        Text(
-          'No medical history yet',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.outfit(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: _primary,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'When your vet completes visits and adds clinical notes, they will appear here for ${widget.pet.name}.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.outfit(
-            fontSize: 14,
-            height: 1.45,
-            color: Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
+        SizedBox(height: MediaQuery.sizeOf(context).height * 0.10),
+        PremiumEmptyState(
+          title: 'No medical history yet',
+          body:
+              'When your vet completes visits and adds clinical notes, they’ll appear here for ${widget.pet.name}.',
+          icon: Icons.medical_information_outlined,
+          primaryAction: ElevatedButton(
             onPressed: () {
               Navigator.push(
                 context,
@@ -288,19 +284,22 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: _primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
               elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            child: Text(
-              'Book first checkup',
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Text('Book first checkup', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+          secondaryAction: OutlinedButton.icon(
+            onPressed: _load,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _primary,
+              side: const BorderSide(color: _primary),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text('Refresh', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -334,13 +333,24 @@ class _MedicalRecordCard extends StatelessWidget {
     final appt = str(record['appointmentNumber']);
     final doctor = str(record['doctorName']);
     final date = parseDate(record['date']);
-    final subtitle = date != null
-        ? '${DateFormat('MMM d, yyyy').format(date)} • $doctor'
-        : doctor;
+    final dateText = date != null ? DateFormat('MMM d, yyyy').format(date) : '';
 
     final diagnosis = str(record['diagnosis']);
     final prescribed = str(record['prescribed']);
     final badges = badgeList(record);
+
+    final vitals = record['vitals'];
+    double? weightKg;
+    double? temp;
+    int? hr;
+    if (vitals is Map) {
+      final w = vitals['weightKg'];
+      if (w is num) weightKg = w.toDouble();
+      final t = vitals['temperatureC'];
+      if (t is num) temp = t.toDouble();
+      final h = vitals['heartRateBpm'];
+      if (h is num) hr = h.round();
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -388,16 +398,22 @@ class _MedicalRecordCard extends StatelessWidget {
               ],
             ],
           ),
-          if (subtitle.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (dateText.isNotEmpty)
+                _MetaChip(icon: Icons.calendar_today_rounded, text: dateText),
+              if (doctor.trim().isNotEmpty)
+                _MetaChip(icon: Icons.person_rounded, text: doctor),
+              if (weightKg != null)
+                _MetaChip(icon: Icons.monitor_weight_outlined, text: '${weightKg.toStringAsFixed(1)} kg'),
+              if (temp != null)
+                _MetaChip(icon: Icons.thermostat_rounded, text: '${temp.toStringAsFixed(1)} °C'),
+              if (hr != null) _MetaChip(icon: Icons.favorite_rounded, text: '$hr bpm'),
+            ],
+          ),
           const SizedBox(height: 16),
           Text(
             'DIAGNOSIS',
@@ -459,6 +475,46 @@ class _MedicalRecordCard extends StatelessWidget {
                   letterSpacing: 0.65,
                   fontSize: 12,
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+  static const Color _primary = Color(AppConstants.primaryColor);
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = const Color(AppConstants.secondaryColor).withValues(alpha: 0.55);
+    final ink = const Color(AppConstants.inkColor).withValues(alpha: 0.78);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _primary.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: _primary.withValues(alpha: 0.85)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: ink,
               ),
             ),
           ),

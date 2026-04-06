@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import 'service_task_detail_screen.dart';
+import '../widgets/editorial_canvas.dart';
+import '../widgets/partner_scaffold.dart';
 
 /// Today's assigned service requests — open task, call owner, add clinical entry (syncs to owner medical history).
 class ClinicQueueScreen extends StatefulWidget {
@@ -223,186 +225,195 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const brown = Color(AppConstants.primaryColor);
-    const cream = Color(AppConstants.secondaryColor);
-
-    return Scaffold(
-      backgroundColor: cream,
-      appBar: AppBar(
-        title: Text(
-          'Clinic queue',
-          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white),
+    final primary = Theme.of(context).colorScheme.primary;
+    return PartnerScaffold(
+      title: 'Clinic queue',
+      subtitle: 'Today’s assigned visits',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded),
+          onPressed: _load,
+          tooltip: 'Refresh',
         ),
-        backgroundColor: brown,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _load,
-            tooltip: 'Refresh',
+      ],
+      body: Stack(
+        children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: _loading
+                ? Center(child: CircularProgressIndicator(color: primary))
+                : _error != null
+                    ? PartnerEmptyState(
+                        title: 'Couldn’t load queue',
+                        body: _error!,
+                        icon: Icons.wifi_off_rounded,
+                        primaryAction: OutlinedButton.icon(
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Retry'),
+                        ),
+                      )
+                    : _tasks.isEmpty
+                        ? const PartnerEmptyState(
+                            title: 'No assigned visits',
+                            body:
+                                'When owners book and Admin assigns you a visit, it will appear here.',
+                            icon: Icons.fact_check_rounded,
+                          )
+                        : RefreshIndicator(
+                            color: primary,
+                            onRefresh: _load,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                              itemCount: _tasks.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, i) {
+                                final task = _tasks[i];
+                                final pet = task['pet'] is Map
+                                    ? task['pet'] as Map<String, dynamic>
+                                    : <String, dynamic>{};
+                                final user = task['user'] is Map
+                                    ? task['user'] as Map<String, dynamic>
+                                    : <String, dynamic>{};
+                                final petName = pet['name']?.toString() ?? 'Pet';
+                                final ownerPhone = user['phone']?.toString();
+                                final st = task['status']?.toString() ?? '';
+                                final svc = (task['serviceType']?.toString() ?? 'Visit')
+                                    .replaceAll('_', ' ')
+                                    .trim();
+                                final when = task['scheduledTime'] ?? task['preferredDate'];
+                                String whenLine = '';
+                                if (when != null) {
+                                  final dt = DateTime.tryParse(when.toString());
+                                  if (dt != null) {
+                                    whenLine =
+                                        '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                                  }
+                                }
+
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(20),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => ServiceTaskDetailScreen(
+                                          task: Map<String, dynamic>.from(task),
+                                        ),
+                                      ),
+                                    ).then((_) => _load());
+                                  },
+                                  child: Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 46,
+                                            height: 46,
+                                            decoration: BoxDecoration(
+                                              color: primary.withValues(alpha: 0.10),
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            child: Icon(Icons.pets_rounded, color: primary),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        petName,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                        style: GoogleFonts.outfit(
+                                                          fontSize: 15,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: const Color(AppConstants.inkColor),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (st.isNotEmpty)
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 10,
+                                                          vertical: 6,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: const Color(AppConstants.sandColor)
+                                                              .withValues(alpha: 0.95),
+                                                          borderRadius: BorderRadius.circular(999),
+                                                          border: Border.all(
+                                                            color: primary.withValues(alpha: 0.10),
+                                                          ),
+                                                        ),
+                                                        child: Text(
+                                                          st,
+                                                          style: GoogleFonts.outfit(
+                                                            fontSize: 11,
+                                                            fontWeight: FontWeight.w800,
+                                                            color: const Color(AppConstants.inkColor)
+                                                                .withValues(alpha: 0.75),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  svc,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: const Color(AppConstants.inkColor)
+                                                        .withValues(alpha: 0.62),
+                                                  ),
+                                                ),
+                                                if (whenLine.isNotEmpty) ...[
+                                                  const SizedBox(height: 3),
+                                                  Text(
+                                                    whenLine,
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: const Color(AppConstants.inkColor)
+                                                          .withValues(alpha: 0.55),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            onPressed: () => _callOwner(ownerPhone),
+                                            icon: const Icon(Icons.phone_rounded),
+                                            color: primary,
+                                            tooltip: 'Call owner',
+                                          ),
+                                          IconButton(
+                                            onPressed: () => _showClinicalDialog(task),
+                                            icon: const Icon(Icons.medical_information_outlined),
+                                            color: primary,
+                                            tooltip: 'Add clinical entry',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: brown))
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(_error!, style: GoogleFonts.outfit()),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: _load,
-                          style: FilledButton.styleFrom(backgroundColor: brown),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : _tasks.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No assigned visits yet.',
-                        style: GoogleFonts.outfit(fontSize: 16, color: Colors.grey.shade700),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      color: brown,
-                      onRefresh: _load,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _tasks.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, i) {
-                          final task = _tasks[i];
-                          final pet = task['pet'] is Map
-                              ? task['pet'] as Map<String, dynamic>
-                              : <String, dynamic>{};
-                          final user = task['user'] is Map
-                              ? task['user'] as Map<String, dynamic>
-                              : <String, dynamic>{};
-                          final petName = pet['name']?.toString() ?? 'Pet';
-                          final ownerPhone = user['phone']?.toString();
-                          final st = task['status']?.toString() ?? '';
-                          final svc = task['serviceType']?.toString() ?? 'Visit';
-                          final when =
-                              task['scheduledTime'] ?? task['preferredDate'];
-                          String whenLine = '';
-                          if (when != null) {
-                            final dt = DateTime.tryParse(when.toString());
-                            if (dt != null) {
-                              whenLine =
-                                  '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-                            }
-                          }
-
-                          return Material(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            elevation: 0.5,
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          petName,
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: brown.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          st,
-                                          style: GoogleFonts.outfit(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: brown,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    svc,
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 13,
-                                      color: Colors.grey.shade700,
-                                    ),
-                                  ),
-                                  if (whenLine.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      whenLine,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute<void>(
-                                                builder: (_) => ServiceTaskDetailScreen(
-                                                  task: Map<String, dynamic>.from(task),
-                                                ),
-                                              ),
-                                            ).then((_) => _load());
-                                          },
-                                          icon: const Icon(Icons.map_rounded, size: 18),
-                                          label: Text(
-                                            'Task',
-                                            style: GoogleFonts.outfit(fontSize: 13),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      IconButton(
-                                        onPressed: () => _callOwner(ownerPhone),
-                                        icon: const Icon(Icons.phone_rounded),
-                                        color: brown,
-                                        tooltip: 'Call owner',
-                                      ),
-                                      IconButton(
-                                        onPressed: () => _showClinicalDialog(task),
-                                        icon: const Icon(Icons.medical_information_outlined),
-                                        color: brown,
-                                        tooltip: 'Add clinical entry',
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
     );
   }
 }

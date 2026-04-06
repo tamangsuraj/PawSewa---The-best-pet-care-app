@@ -7,6 +7,7 @@ import '../cart/saved_addresses_service.dart';
 import 'cart/delivery_pin_screen.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/premium_info_chip.dart';
 import 'add_pet_screen.dart';
 
 class RequestAssistanceScreen extends StatefulWidget {
@@ -616,7 +617,15 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                           ],
                         );
                       }
-                      return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: PremiumInfoChip(
+                          icon: Icons.bookmark_add_outlined,
+                          title: 'No saved addresses yet',
+                          body:
+                              'Save an address once and reuse it for faster requests and deliveries.',
+                        ),
+                      );
                     },
                   ),
                   OutlinedButton.icon(

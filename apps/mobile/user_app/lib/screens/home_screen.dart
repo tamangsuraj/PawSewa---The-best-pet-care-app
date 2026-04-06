@@ -10,6 +10,7 @@ import '../cart/cart_service.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../models/pet.dart';
+import '../widgets/premium_info_chip.dart';
 import 'book_service_screen.dart';
 import 'request_assistance_screen.dart';
 import 'shop/my_orders_screen.dart';
@@ -225,7 +226,25 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   Widget _buildPetSwitcher(BuildContext context) {
     if (widget.pets.isEmpty) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: PremiumInfoChip(
+          icon: Icons.pets_rounded,
+          title: 'Add your first pet to personalize PawSewa',
+          body:
+              'Your pet profile unlocks smarter recommendations, medical history, and faster bookings.',
+          action: TextButton(
+            onPressed: () => widget.onOpenServicesTab(1),
+            child: Text(
+              'Add pet',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w800,
+                color: const Color(AppConstants.primaryColor),
+              ),
+            ),
+          ),
+        ),
+      );
     }
     return SizedBox(
       height: 88,
@@ -587,7 +606,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget _buildHealthAlert(BuildContext context) {
     final alerts = _healthAlerts;
     if (alerts.isEmpty) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: PremiumInfoChip(
+          icon: Icons.health_and_safety_rounded,
+          title: 'No health alerts',
+          body: 'We’ll show reminders here when it’s time for checkups or vaccines.',
+        ),
+      );
     }
     Map<String, dynamic>? pick;
     for (final a in alerts) {
@@ -788,7 +814,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget _buildLiveMap(BuildContext context) {
     final ld = _liveDelivery;
     if (ld == null) {
-      return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: PremiumInfoChip(
+          icon: Icons.local_shipping_rounded,
+          title: 'No live delivery right now',
+          body: 'When you have an active shop order, rider location will appear here.',
+          action: TextButton(
+            onPressed: widget.onOpenShopTab,
+            child: Text(
+              'Shop',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w800,
+                color: const Color(AppConstants.primaryColor),
+              ),
+            ),
+          ),
+        ),
+      );
     }
 
     final centerRaw = ld['mapCenter'];

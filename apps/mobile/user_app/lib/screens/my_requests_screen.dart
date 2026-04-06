@@ -8,6 +8,8 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/layout_utils.dart';
 import '../services/socket_service.dart';
+import '../widgets/premium_empty_state.dart';
+import '../widgets/premium_shimmer.dart';
 import 'services/services_screen.dart';
 import 'service_request_tracking_screen.dart';
 
@@ -154,16 +156,17 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
         ],
       ),
       body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading your requests…',
-                    style: GoogleFonts.outfit(color: Colors.grey[700]),
-                  ),
+          ? PremiumShimmer(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                children: const [
+                  SkeletonBox(height: 96, width: double.infinity, radius: 20),
+                  SizedBox(height: 16),
+                  SkeletonBox(height: 38, width: double.infinity, radius: 16),
+                  SizedBox(height: 16),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
+                  SkeletonListTile(),
                 ],
               ),
             )
@@ -193,32 +196,18 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }
 
   Widget _buildError() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_off_rounded, size: 64, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              _error!,
-              style: GoogleFonts.outfit(color: Colors.grey[700]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadAll,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(AppConstants.primaryColor),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
+    const primary = Color(AppConstants.primaryColor);
+    return PremiumEmptyState(
+      title: 'Couldn’t load requests',
+      body: _error!,
+      icon: Icons.cloud_off_rounded,
+      primaryAction: FilledButton.icon(
+        onPressed: _loadAll,
+        style: FilledButton.styleFrom(backgroundColor: primary),
+        icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+        label: Text(
+          'Retry',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -300,46 +289,26 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }
 
   Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            Icon(
-              Icons.assignment_outlined,
-              size: 72,
-              color: const Color(AppConstants.primaryColor).withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              _filterStatus == 'all' ? 'No requests yet' : 'No ${_filterStatus.replaceAll('_', ' ')} requests',
-              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Use Request Assistance or Book Appointment to create one. They all appear here and in admin Live Cases.',
-              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ServicesScreen()),
-                ).then((_) => _loadAll());
-              },
-              icon: const Icon(Icons.add_rounded),
-              label: Text('Request assistance or book', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(AppConstants.primaryColor),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
+    const primary = Color(AppConstants.primaryColor);
+    return PremiumEmptyState(
+      title: _filterStatus == 'all'
+          ? 'No requests yet'
+          : 'No ${_filterStatus.replaceAll('_', ' ')} requests',
+      body:
+          'Use Request Assistance or Book Appointment to create one. Everything appears here and in Admin Live Cases.',
+      icon: Icons.assignment_outlined,
+      primaryAction: FilledButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ServicesScreen()),
+          ).then((_) => _loadAll());
+        },
+        style: FilledButton.styleFrom(backgroundColor: primary),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(
+          'Create a request',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
         ),
       ),
     );

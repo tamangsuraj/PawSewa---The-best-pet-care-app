@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/premium_empty_state.dart';
+import '../widgets/premium_shimmer.dart';
 
 const double _arrivalRadiusMeters = 150;
 const double _metersPerMinuteDriving = 400; // rough
@@ -157,32 +159,43 @@ class _ServiceRequestTrackingScreenState
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(AppConstants.primaryColor),
+          ? PremiumShimmer(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: const [
+                  SkeletonBox(height: 260, width: double.infinity, radius: 18),
+                  SizedBox(height: 12),
+                  SkeletonBox(height: 86, width: double.infinity, radius: 18),
+                ],
               ),
             )
           : _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _error!,
-                  style: GoogleFonts.outfit(color: Colors.red),
-                  textAlign: TextAlign.center,
+          ? PremiumEmptyState(
+              title: 'Tracking unavailable',
+              body: _error!,
+              icon: Icons.wifi_off_rounded,
+              primaryAction: FilledButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _loading = true;
+                    _error = null;
+                  });
+                  _loadLiveData();
+                },
+                style: FilledButton.styleFrom(backgroundColor: themeColor),
+                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                label: Text(
+                  'Retry',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
                 ),
               ),
             )
           : _customerLocation == null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'This request does not have a valid location.',
-                  style: GoogleFonts.outfit(color: Colors.grey[700]),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+          ? const PremiumEmptyState(
+              title: 'No location found',
+              body:
+                  'This request doesn’t have a valid pinned location, so live tracking can’t be shown.',
+              icon: Icons.location_off_rounded,
             )
           : Column(
               children: [

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
+import '../../widgets/premium_empty_state.dart';
 import 'hostel_detail_screen.dart';
 import 'pet_care_service_card.dart';
 
@@ -87,11 +88,11 @@ class CareAllServicesScreen extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
       body: items.isEmpty
-          ? Center(
-              child: Text(
-                'No services in this category yet.',
-                style: GoogleFonts.outfit(color: Colors.grey[600]),
-              ),
+          ? const PremiumEmptyState(
+              title: 'Nothing here yet',
+              body:
+                  'This category doesn’t have listings yet. Try another category from Pet Care+.',
+              icon: Icons.storefront_outlined,
             )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),

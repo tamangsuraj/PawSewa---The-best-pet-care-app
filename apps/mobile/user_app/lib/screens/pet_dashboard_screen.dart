@@ -25,10 +25,13 @@ import 'care/my_care_requests_screen.dart';
 import 'messages/messages_hub_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
-import 'drawer_placeholder_screen.dart';
 import 'owner_profile_screen.dart';
 import 'home_screen.dart';
 import 'notifications_screen.dart';
+import 'support/contact_us_screen.dart';
+import 'support/faq_screen.dart';
+import 'support/rate_feedback_screen.dart';
+import 'settings_screen.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../services/notification_unread_notify_service.dart';
@@ -770,11 +773,18 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     ],
                   ),
                   _drawerUtilityTile(
+                    icon: Icons.tune_rounded,
+                    label: 'Settings',
+                    onTap: () {
+                      _closeDrawerAndPush(const SettingsScreen());
+                    },
+                  ),
+                  _drawerUtilityTile(
                     icon: Icons.phone_in_talk_outlined,
                     label: 'Contact Us',
                     onTap: () {
                       _closeDrawerAndPush(
-                        const DrawerPlaceholderScreen(title: 'Contact Us'),
+                        const ContactUsScreen(),
                       );
                     },
                   ),
@@ -783,7 +793,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     label: 'Notifications',
                     onTap: () {
                       _closeDrawerAndPush(
-                        const DrawerPlaceholderScreen(title: 'Notifications'),
+                        const NotificationsScreen(),
                       );
                     },
                   ),
@@ -792,7 +802,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     label: 'FAQs',
                     onTap: () {
                       _closeDrawerAndPush(
-                        const DrawerPlaceholderScreen(title: 'FAQs'),
+                        const FaqScreen(),
                       );
                     },
                   ),
@@ -801,7 +811,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     label: 'Rate our app',
                     onTap: () {
                       _closeDrawerAndPush(
-                        const DrawerPlaceholderScreen(title: 'Rate our app'),
+                        const RateFeedbackScreen(),
                       );
                     },
                   ),
