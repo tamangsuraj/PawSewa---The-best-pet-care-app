@@ -7,6 +7,7 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
+import '../widgets/partner_scaffold.dart';
 
 class MyBusinessScreen extends StatefulWidget {
   const MyBusinessScreen({super.key});
@@ -181,42 +182,75 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(
-          'My Business',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+    final primary = Theme.of(context).colorScheme.primary;
+    return PartnerScaffold(
+      title: 'Care Center',
+      subtitle: 'Billing, services, and bookings',
+      actions: [
+        IconButton(
+          tooltip: 'Support',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Support chat is in the top bar on Home')),
+            );
+          },
+          icon: const Icon(Icons.support_agent_rounded),
         ),
-        backgroundColor: _primary,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          labelStyle: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'Billing'),
-            Tab(text: 'My Services'),
-            Tab(text: 'Bookings'),
-          ],
-        ),
-      ),
+      ],
       body: Stack(
         clipBehavior: Clip.none,
         children: [
           const EditorialBodyBackdrop(),
           Positioned.fill(
-            child: TabBarView(
-              controller: _tabController,
+            child: Column(
               children: [
-                _buildBillingTab(),
-                _buildServicesTab(),
-                _buildBookingsTab(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: primary.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: TabBar(
+                      controller: _tabController,
+                      indicator: BoxDecoration(
+                        color: primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      dividerColor: Colors.transparent,
+                      labelColor: const Color(AppConstants.inkColor),
+                      unselectedLabelColor:
+                          const Color(AppConstants.inkColor).withValues(alpha: 0.6),
+                      labelStyle: GoogleFonts.outfit(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      unselectedLabelStyle: GoogleFonts.outfit(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      tabs: const [
+                        Tab(text: 'Billing'),
+                        Tab(text: 'My Services'),
+                        Tab(text: 'Bookings'),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildBillingTab(),
+                      _buildServicesTab(),
+                      _buildBookingsTab(),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
