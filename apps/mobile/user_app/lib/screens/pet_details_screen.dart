@@ -80,7 +80,46 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert, color: _primary),
-            onPressed: () {},
+            onPressed: () {
+              showModalBottomSheet<void>(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                builder: (ctx) {
+                  return SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.refresh_rounded, color: _primary),
+                          title: Text('Refresh', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _loadSummary();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.info_outline_rounded, color: _primary),
+                          title: Text('About this profile', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Clinical summary from PawSewa. Edit pet from My Pets or contact support.',
+                                  style: GoogleFonts.outfit(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
@@ -134,6 +173,89 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openMedicalHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => MedicalHistoryScreen(pet: widget.pet),
+      ),
+    );
+  }
+
+  void _showUpcomingTasksSheet(Map<String, dynamic> summary) {
+    final raw = summary['reminders'];
+    final list = <Map<String, dynamic>>[];
+    if (raw is List) {
+      for (final e in raw) {
+        if (e is Map) {
+          list.add(Map<String, dynamic>.from(e));
+        }
+      }
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.35,
+          maxChildSize: 0.92,
+          expand: false,
+          builder: (_, scrollController) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Text(
+                    'Upcoming tasks',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: _primary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: list.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No reminders yet',
+                            style: GoogleFonts.outfit(color: Colors.grey.shade600),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: scrollController,
+                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 24),
+                          itemCount: list.length,
+                          itemBuilder: (context, i) {
+                            final r = list[i];
+                            return ListTile(
+                              leading: Icon(Icons.event_note_rounded, color: _primary.withValues(alpha: 0.85)),
+                              title: Text(
+                                r['title']?.toString() ?? 'Reminder',
+                                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(
+                                r['dueDate']?.toString() ?? '',
+                                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey.shade700),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -323,7 +445,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: _openMedicalHistory,
                 child: Text(
                   'See All',
                   style: GoogleFonts.outfit(
@@ -421,7 +543,9 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  _showUpcomingTasksSheet(s);
+                },
                 child: Text(
                   'See All',
                   style: GoogleFonts.outfit(

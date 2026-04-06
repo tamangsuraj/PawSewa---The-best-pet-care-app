@@ -12,6 +12,7 @@ const {
   getConnectionUri,
   getMongooseConnectionOptions,
   getConfiguredDbName,
+  withExplicitDatabasePathInUri,
 } = require('../src/config/db');
 
 function ts() {
@@ -25,12 +26,13 @@ function log(level, ...args) {
 }
 
 async function run() {
-  const uri = getConnectionUri();
+  const rawUri = getConnectionUri();
   const logicalDb = getConfiguredDbName();
+  const uri = withExplicitDatabasePathInUri(rawUri, logicalDb);
   log('INFO', 'Configured logical database (dbName):', logicalDb);
   log('INFO', 'Connecting to MongoDB...');
 
-  await mongoose.connect(uri, getMongooseConnectionOptions(uri));
+  await mongoose.connect(uri, getMongooseConnectionOptions(rawUri));
 
   log('SUCCESS', 'Connected. Active db:', mongoose.connection.db?.databaseName || 'unknown');
 

@@ -4,6 +4,7 @@ const generateToken = require('../utils/generateToken');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../utils/sendEmail');
 const asyncHandler = require('express-async-handler');
 const logger = require('../utils/logger');
+const { recordStaffLocationPulse } = require('../utils/staffLiveLocation');
 
 function isStoredPasswordHashed(stored) {
   if (stored == null || typeof stored !== 'string') return false;
@@ -276,6 +277,12 @@ const updateMyLiveLocation = asyncHandler(async (req, res) => {
   };
 
   await user.save();
+
+  try {
+    await recordStaffLocationPulse(user, lat, lng);
+  } catch (e) {
+    logger.warn('StaffLocation pulse failed:', e.message);
+  }
 
   // Emit staff_moved to each request room where this staff is assigned
   const io = require('../sockets/socketStore').getIO();

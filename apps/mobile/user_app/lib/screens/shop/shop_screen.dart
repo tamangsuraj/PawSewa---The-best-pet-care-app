@@ -1414,6 +1414,12 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
     const primary = Color(AppConstants.primaryColor);
     const accent = Color(AppConstants.accentColor);
 
+    void openOrders() {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const MyOrdersScreen()),
+      );
+    }
+
     final slides = [
       _PromoSlide(
         gradient: const LinearGradient(
@@ -1424,6 +1430,7 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
         icon: Icons.local_shipping_rounded,
         title: 'Free delivery',
         subtitle: 'On orders above Rs. ${kFreeDeliveryAbove.toInt()}',
+        onTap: openOrders,
       ),
       _PromoSlide(
         gradient: LinearGradient(
@@ -1434,6 +1441,7 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
         icon: Icons.schedule_rounded,
         title: 'Delivering within a day',
         subtitle: '10:00 AM – 5:00 PM • Rs. ${kDeliveryFee.toInt()} delivery',
+        onTap: openOrders,
       ),
       _PromoSlide(
         gradient: LinearGradient(
@@ -1444,6 +1452,7 @@ class _ShopPromoBannerState extends State<_ShopPromoBanner> {
         icon: Icons.pets_rounded,
         title: 'Best for your pet',
         subtitle: 'Quality food & care products',
+        onTap: openOrders,
       ),
     ];
 
@@ -1496,12 +1505,14 @@ class _PromoSlide extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback onTap;
 
   const _PromoSlide({
     required this.gradient,
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.onTap,
   });
 
   @override
@@ -1521,7 +1532,7 @@ class _PromoSlide extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),

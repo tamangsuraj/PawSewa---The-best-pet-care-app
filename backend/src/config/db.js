@@ -3,6 +3,12 @@ const logger = require('../utils/logger');
 
 const EXPECTED_DB_NAME = 'pawsewa_chat';
 
+/** High-visibility boot line (requested for debugging split-brain / wrong DB). */
+mongoose.connection.on('open', () => {
+  console.log('🚀 LIVE DB IDENTIFIED:', mongoose.connection.name);
+  console.log('📍 HOST:', mongoose.connection.host);
+});
+
 mongoose.connection.on('open', async () => {
   try {
     const conn = mongoose.connection;
@@ -38,11 +44,37 @@ function getConfiguredDbName() {
 }
 
 /**
- * Base MongoDB connection string (cluster / host). Path segment in the URI is ignored when
- * connecting via Mongoose because we pass `dbName` explicitly (single source of truth).
+ * Base MongoDB connection string from env (cluster / host). May omit a database path.
  */
 function getConnectionUri() {
   return process.env.MONGO_URI || 'mongodb://localhost:27017';
+}
+
+/**
+ * Ensures the URI contains an explicit database path using DB_NAME when the URI has no
+ * path (or only a trailing slash). Prevents drivers/tools from assuming `test`.
+ * If the URI path disagrees with DB_NAME, we warn; Mongoose still uses `dbName` option.
+ */
+function withExplicitDatabasePathInUri(rawUri, logicalDbName) {
+  const qIndex = rawUri.indexOf('?');
+  const query = qIndex >= 0 ? rawUri.slice(qIndex) : '';
+  const left = qIndex >= 0 ? rawUri.slice(0, qIndex) : rawUri;
+  const hostSlashMatch = left.match(/^(mongodb(?:\+srv)?:\/\/[^/]+)(\/?.*)?$/i);
+  if (!hostSlashMatch) {
+    return rawUri;
+  }
+  const afterHost = hostSlashMatch[2] || '';
+  const pathOnly = afterHost.replace(/^\//, '').split('/')[0];
+  if (!pathOnly) {
+    const base = left.replace(/\/$/, '');
+    return `${base}/${logicalDbName}${query}`;
+  }
+  if (pathOnly !== logicalDbName) {
+    console.warn(
+      `[MongoDB] MONGO_URI database path "${pathOnly}" differs from DB_NAME "${logicalDbName}". Using DB_NAME via Mongoose dbName option.`,
+    );
+  }
+  return rawUri;
 }
 
 /**
@@ -64,8 +96,10 @@ const connectDB = async (retries = 3) => {
     process.exit(1);
   }
 
-  const uri = getConnectionUri();
-  const opts = getMongooseConnectionOptions(uri);
+  const rawUri = getConnectionUri();
+  const logicalDb = getConfiguredDbName();
+  const uri = withExplicitDatabasePathInUri(rawUri, logicalDb);
+  const opts = getMongooseConnectionOptions(rawUri);
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {
       await mongoose.connect(uri, opts);
@@ -88,5 +122,6 @@ const connectDB = async (retries = 3) => {
 
 module.exports = connectDB;
 module.exports.getConnectionUri = getConnectionUri;
+module.exports.withExplicitDatabasePathInUri = withExplicitDatabasePathInUri;
 module.exports.getConfiguredDbName = getConfiguredDbName;
 module.exports.getMongooseConnectionOptions = getMongooseConnectionOptions;

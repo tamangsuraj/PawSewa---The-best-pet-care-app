@@ -2,6 +2,8 @@ const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const Pet = require('../models/Pet');
 const ServiceRequest = require('../models/ServiceRequest');
+const User = require('../models/User');
+const Notification = require('../models/Notification');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
 const { generatePetRemindersV1 } = require('../utils/reminderEngine');
@@ -430,10 +432,63 @@ const getPetMedicalHistory = asyncHandler(async (req, res) => {
       };
     });
 
+    const petAug = await Pet.findById(petId)
+      .populate('linkedVetVisits.veterinarian', 'name')
+      .select('linkedVetVisits')
+      .lean();
+
+    const vetLinkedRecords = [];
+    const linked = (petAug && petAug.linkedVetVisits) || [];
+    for (let i = 0; i < linked.length; i += 1) {
+      const v = linked[i];
+      const vet = v.veterinarian;
+      let doctorName = 'Your veterinary team';
+      if (vet && typeof vet === 'object' && vet.name) {
+        const n = String(vet.name).trim();
+        doctorName = n.toLowerCase().startsWith('dr.') ? n : `Dr. ${n}`;
+      }
+      const summary = (v.summary && String(v.summary).trim()) || 'Clinical update recorded.';
+      const visitDate = v.recordedAt || new Date();
+      const idStr = v._id ? v._id.toString() : `lv-${i}`;
+      vetLinkedRecords.push({
+        id: `linked-${idStr}`,
+        serviceRequestId: null,
+        appointmentNumber: 'CLINIC',
+        title: 'Veterinary clinical record',
+        date: visitDate,
+        doctorName,
+        diagnosis: summary,
+        prescribed:
+          'Prescription and full notes may be attached to the service visit or provided at discharge.',
+        status: 'completed',
+        completedAt: visitDate,
+        scheduledTime: null,
+        prescriptionUrl: null,
+        attachments: [],
+        internalNotes: '',
+        vitals: {
+          weightKg: pet.weight != null ? Number(pet.weight) : null,
+          temperatureC: null,
+          heartRateBpm: null,
+        },
+        serviceType: 'clinical_entry',
+        badges: [],
+      });
+    }
+
+    const merged = [...records, ...vetLinkedRecords].sort((a, b) => {
+      const ta = new Date(a.date).getTime();
+      const tb = new Date(b.date).getTime();
+      if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+      if (Number.isNaN(ta)) return 1;
+      if (Number.isNaN(tb)) return -1;
+      return tb - ta;
+    });
+
     res.status(200).json({
       success: true,
-      count: records.length,
-      data: records,
+      count: merged.length,
+      data: merged,
       pet: {
         name: pet.name,
         nextVaccinationDate: pet.nextVaccinationDate || null,
@@ -448,6 +503,84 @@ const getPetMedicalHistory = asyncHandler(async (req, res) => {
       error: error.message,
     });
   }
+});
+
+/**
+ * @desc    Veterinarian adds diagnosis / prescription (shows in owner medical timeline + notifications).
+ * @route   POST /api/v1/pets/:id/clinical-entry
+ * @access  Private / veterinarian or admin
+ */
+const addVetClinicalEntry = asyncHandler(async (req, res) => {
+  const petId = req.params?.id;
+  if (!petId || !mongoose.Types.ObjectId.isValid(petId)) {
+    return res.status(400).json({ success: false, message: 'Valid pet id required' });
+  }
+
+  const { diagnosis, prescription, notes, serviceRequestId } = req.body || {};
+  const dx = diagnosis != null ? String(diagnosis).trim() : '';
+  if (!dx) {
+    return res.status(400).json({ success: false, message: 'diagnosis is required' });
+  }
+
+  const pet = await Pet.findById(petId);
+  if (!pet) {
+    return res.status(404).json({ success: false, message: 'Pet not found' });
+  }
+
+  const role = String(req.user?.role || '').toLowerCase();
+  if (role !== 'admin') {
+    const q = { pet: petId, assignedStaff: req.user._id };
+    if (serviceRequestId && mongoose.Types.ObjectId.isValid(String(serviceRequestId))) {
+      q._id = serviceRequestId;
+    }
+    const ok = await ServiceRequest.exists(q);
+    if (!ok) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be assigned to this pet via a service request to add clinical entries.',
+      });
+    }
+  }
+
+  const vet = await User.findById(req.user._id).select('name');
+  const vetName = (vet && vet.name && String(vet.name).trim()) || 'Your veterinarian';
+  const rx = prescription != null ? String(prescription).trim() : '';
+  const nt = notes != null ? String(notes).trim() : '';
+  const line = `[PawSewa Clinical] ${new Date().toISOString()} | ${vetName} | Diagnosis: ${dx} | Rx: ${rx}${
+    nt ? ` | Notes: ${nt}` : ''
+  }`;
+
+  if (!Array.isArray(pet.medicalHistory)) {
+    pet.medicalHistory = [];
+  }
+  pet.medicalHistory.push(line);
+  if (!Array.isArray(pet.linkedVetVisits)) {
+    pet.linkedVetVisits = [];
+  }
+  pet.linkedVetVisits.push({
+    veterinarian: req.user._id,
+    summary: dx.slice(0, 500),
+    recordedAt: new Date(),
+  });
+  pet.lastVetVisit = new Date();
+  await pet.save();
+
+  try {
+    await Notification.create({
+      user: pet.owner,
+      title: 'New vet clinical record',
+      message: `${vetName} added a clinical update for ${pet.name}.`,
+      type: 'system',
+    });
+  } catch (e) {
+    logger.warn('Clinical entry saved but notification failed:', e.message);
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Clinical entry saved',
+    data: { petId: pet._id },
+  });
 });
 
 const getPetHealthSummary = asyncHandler(async (req, res) => {
@@ -769,6 +902,7 @@ module.exports = {
   getPetById,
   getPetHealthSummary,
   getPetMedicalHistory,
+  addVetClinicalEntry,
   updatePet,
   deletePet,
   adminCreatePetForCustomer,

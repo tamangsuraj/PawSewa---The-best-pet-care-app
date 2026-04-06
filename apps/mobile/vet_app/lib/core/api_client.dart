@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'api_config.dart';
+import 'app_navigator.dart';
 import 'storage_service.dart';
 
 class ApiClient {
@@ -76,7 +78,7 @@ class ApiClient {
 
           return handler.next(response);
         },
-        onError: (error, handler) {
+        onError: (error, handler) async {
           // Log error
           _log('[API] *** DioException ***:');
           _log('[API] uri: ${error.requestOptions.uri}');
@@ -100,6 +102,38 @@ class ApiClient {
             _log('[API] Response Text:\n[API] ${error.response!.data}');
           }
           _log('[API]');
+
+          if (error.response?.statusCode == 401) {
+            final p = error.requestOptions.path;
+            final isAuthAttempt =
+                p.contains('login') ||
+                p.contains('register') ||
+                p.contains('verify-otp') ||
+                p.contains('google');
+            if (!isAuthAttempt) {
+              await _storage.clearAll();
+              final nav = appNavigatorKey.currentState;
+              if (nav != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final n = appNavigatorKey.currentState;
+                  if (n != null) {
+                    n.pushNamedAndRemoveUntil('/login', (_) => false);
+                  }
+                });
+              }
+            }
+          }
+
+          if (error.type == DioExceptionType.connectionError) {
+            final friendly = DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: error.type,
+              error:
+                  'You appear to be offline or the server is unreachable. Check your connection and try again.',
+            );
+            return handler.next(friendly);
+          }
 
           return handler.next(error);
         },
@@ -138,6 +172,21 @@ class ApiClient {
   // Update staff professional profile (Veterinarian)
   Future<Response> updateStaffProfile(Map<String, dynamic> data) async {
     return await _dio.put('/users/staff/profile', data: data);
+  }
+
+  Future<Response> getMyNotifications({int limit = 50, int skip = 0}) async {
+    return await _dio.get(
+      '/notifications/me',
+      queryParameters: {'limit': limit, 'skip': skip},
+    );
+  }
+
+  Future<Response> markNotificationRead(String id) async {
+    return await _dio.patch('/notifications/$id/read');
+  }
+
+  Future<Response> markAllNotificationsRead() async {
+    return await _dio.patch('/notifications/read-all');
   }
 
   // Get my assigned cases (Veterinarian)
@@ -194,6 +243,26 @@ class ApiClient {
     return await _dio.patch(
       '/users/me/location',
       data: {'lat': lat, 'lng': lng},
+    );
+  }
+
+  /// Veterinarian clinical note → owner `Medical History` + bell notification.
+  Future<Response> postPetClinicalEntry({
+    required String petId,
+    required String diagnosis,
+    String? prescription,
+    String? notes,
+    String? serviceRequestId,
+  }) async {
+    return await _dio.post(
+      '/pets/$petId/clinical-entry',
+      data: <String, dynamic>{
+        'diagnosis': diagnosis,
+        if (prescription != null && prescription.isNotEmpty) 'prescription': prescription,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (serviceRequestId != null && serviceRequestId.isNotEmpty)
+          'serviceRequestId': serviceRequestId,
+      },
     );
   }
 

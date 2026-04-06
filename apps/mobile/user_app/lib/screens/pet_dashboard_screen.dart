@@ -14,10 +14,8 @@ import '../core/constants.dart';
 import '../core/storage_service.dart';
 import '../models/pet.dart';
 import '../services/pet_service.dart';
-import '../widgets/pet_card.dart';
 import 'login_screen.dart';
 import 'add_pet_screen.dart';
-import 'request_assistance_screen.dart';
 import 'my_requests_screen.dart';
 import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
@@ -28,6 +26,8 @@ import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'drawer_placeholder_screen.dart';
 import 'owner_profile_screen.dart';
+import 'home_screen.dart';
+import 'notifications_screen.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../services/push_notification_service.dart';
@@ -57,6 +57,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
 
   /// Sub-tab for [ServicesScreen] (0 Upcoming … 3 Clinics). Reset when opening Services from the bottom bar.
   int _servicesInitialTab = 0;
+
+  /// Selected pet on Home tab (drives `GET /pets/home-dashboard/:petId`).
+  int _homePetIndex = 0;
 
   @override
   void initState() {
@@ -174,6 +177,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       setState(() {
         _pets = pets;
         _isLoading = false;
+        if (_homePetIndex >= _pets.length) {
+          _homePetIndex = 0;
+        }
       });
     } catch (e) {
       setState(() {
@@ -230,6 +236,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   Expanded(
                     child: Text(
                       pet.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -408,6 +416,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           Expanded(
             child: Text(
               value,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
                 color: const Color(AppConstants.accentColor),
               ),
@@ -853,270 +863,215 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   }
 
   Widget _buildHomeBody() {
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final padding = (MediaQuery.sizeOf(context).width * 0.055).clamp(
-            12.0,
-            28.0,
-          );
-          return RefreshIndicator(
-            onRefresh: _loadPets,
-            color: const Color(AppConstants.primaryColor),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Welcome card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(AppConstants.primaryColor),
-                          const Color(AppConstants.accentColor),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(
-                            AppConstants.primaryColor,
-                          ).withValues(alpha: 77 / 255),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.pets,
-                            color: Colors.white,
-                            size: 32,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Welcome Back!',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
-                              Text(
-                                _userName,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
+    return CustomerHomeScreen(
+      pets: _pets,
+      homePetIndex: _homePetIndex,
+      onHomePetIndexChanged: (int i) {
+        setState(() {
+          _homePetIndex = i;
+        });
+      },
+      onShowPetDetails: _showPetDetails,
+      isLoadingPets: _isLoading,
+      onRefreshPets: _loadPets,
+      onOpenServicesTab: (int tab) {
+        setState(() {
+          _servicesInitialTab = tab;
+          _currentIndex = 1;
+        });
+      },
+      onOpenShopTab: () {
+        setState(() {
+          _currentIndex = 2;
+        });
+      },
+      onOpenCareTab: () {
+        setState(() {
+          _currentIndex = 4;
+        });
+      },
+    );
+  }
 
-                  // Quick actions
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const RequestAssistanceScreen(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade600,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.medical_services,
-                                color: Colors.white,
-                              ),
-                              label: Text(
-                                'Request Assistance',
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const MyRequestsScreen(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(
-                                  AppConstants.primaryColor,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(
-                                Icons.assignment,
-                                color: Colors.white,
-                              ),
-                              label: Text(
-                                'My Requests',
-                                style: GoogleFonts.outfit(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Pets section header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'My Pets',
-                          style: GoogleFonts.outfit(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(AppConstants.accentColor),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${_pets.length} ${_pets.length == 1 ? 'Pet' : 'Pets'}',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Pets list / empty state
-                  _isLoading
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(32.0),
-                            child: CircularProgressIndicator(
-                              color: Color(AppConstants.primaryColor),
-                            ),
-                          ),
-                        )
-                      : _pets.isEmpty
-                      ? Container(
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.pets,
-                                size: 64,
-                                color: Color(AppConstants.primaryColor),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No Pets Yet',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(AppConstants.accentColor),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add your first pet to get started!',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _pets.length,
-                          itemBuilder: (context, index) {
-                            final pet = _pets[index];
-                            return PetCard(
-                              pet: pet,
-                              onTap: () => _showPetDetails(pet),
-                            );
-                          },
-                        ),
-                ],
+  PreferredSizeWidget _homeShellAppBar(BuildContext context) {
+    return AppBar(
+      automaticallyImplyLeading: false,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      toolbarHeight: kToolbarHeight,
+      flexibleSpace: SafeArea(
+        bottom: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.menu, size: 22),
+              color: Colors.black87,
+              onPressed: () {
+                _shellScaffoldKey.currentState?.openDrawer();
+              },
+              tooltip: 'Menu',
+            ),
+            const Expanded(
+              child: Center(
+                child: PawSewaBrandLogo(height: 28),
               ),
             ),
+            IconButton(
+              icon: const Icon(Icons.notifications_none_rounded, size: 22),
+              color: Colors.black87,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
+                );
+              },
+              tooltip: 'Notifications',
+            ),
+            Consumer<ChatUnreadNotifyService>(
+              builder: (context, unread, _) {
+                final c = unread.totalUnread;
+                final btn = IconButton(
+                  icon: Icon(
+                    _currentIndex == 3
+                        ? Icons.chat_bubble
+                        : Icons.chat_bubble_outline,
+                    color: _currentIndex == 3
+                        ? const Color(AppConstants.primaryColor)
+                        : Colors.grey[700],
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _currentIndex = 3;
+                    });
+                  },
+                  tooltip: 'Messages',
+                );
+                if (c <= 0) {
+                  return btn;
+                }
+                return Badge.count(
+                  count: c > 99 ? 99 : c,
+                  child: btn,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _standardShellAppBar(BuildContext context) {
+    return AppBar(
+      centerTitle: false,
+      leading: Builder(
+        builder: (BuildContext ctx) {
+          return IconButton(
+            icon: const Icon(Icons.menu, size: 22),
+            onPressed: () {
+              Scaffold.of(ctx).openDrawer();
+            },
+            color: Colors.black87,
           );
         },
       ),
+      title: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const PawSewaBrandLogo(height: 26),
+            const SizedBox(width: 10),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: math.max(120, MediaQuery.sizeOf(context).width * 0.38),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    AppConstants.appName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    _titleForIndex(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(AppConstants.primaryColor),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      backgroundColor: Colors.white,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      iconTheme: const IconThemeData(color: Colors.black87),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.notifications_none_rounded, size: 22),
+          color: Colors.black87,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const NotificationsScreen(),
+              ),
+            );
+          },
+          tooltip: 'Notifications',
+        ),
+        Consumer<ChatUnreadNotifyService>(
+          builder: (context, unread, _) {
+            final c = unread.totalUnread;
+            final btn = IconButton(
+              icon: Icon(
+                _currentIndex == 3
+                    ? Icons.chat_bubble
+                    : Icons.chat_bubble_outline,
+                color: _currentIndex == 3
+                    ? const Color(AppConstants.primaryColor)
+                    : Colors.grey[700],
+                size: 20,
+              ),
+              onPressed: () {
+                setState(() {
+                  _currentIndex = 3;
+                });
+              },
+              tooltip: 'Messages',
+            );
+            if (c <= 0) {
+              return btn;
+            }
+            return Badge.count(
+              count: c > 99 ? 99 : c,
+              child: btn,
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -1129,6 +1084,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   Widget _buildBottomNavBar() {
     const primary = Color(AppConstants.primaryColor);
     const iconSize = 20.0;
+    final barW = MediaQuery.sizeOf(context).width;
+    final showAllLabels = barW >= 380;
+    final labelSize = barW < 340 ? 8.0 : 9.0;
     return Container(
       decoration: const BoxDecoration(color: Colors.white),
       child: SafeArea(
@@ -1155,14 +1113,14 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
             selectedItemColor: primary,
             unselectedItemColor: Colors.grey[600],
             selectedLabelStyle: GoogleFonts.outfit(
-              fontSize: 9,
+              fontSize: labelSize,
               fontWeight: FontWeight.w600,
             ),
             unselectedLabelStyle: GoogleFonts.outfit(
-              fontSize: 9,
+              fontSize: labelSize,
               fontWeight: FontWeight.w500,
             ),
-            showUnselectedLabels: true,
+            showUnselectedLabels: showAllLabels,
             items: [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home_outlined, size: iconSize),
@@ -1210,88 +1168,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           ? const Color(0xFFF8F9FA)
           : const Color(AppConstants.secondaryColor),
       drawer: _buildDrawer(context),
-      appBar: AppBar(
-        centerTitle: false,
-        leading: Builder(
-          builder: (BuildContext ctx) {
-            return IconButton(
-              icon: const Icon(Icons.menu, size: 22),
-              onPressed: () {
-                Scaffold.of(ctx).openDrawer();
-              },
-              color: Colors.black87,
-            );
-          },
-        ),
-        title: Row(
-          children: [
-            const PawSewaBrandLogo(height: 26),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    AppConstants.appName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    _titleForIndex(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.outfit(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(AppConstants.primaryColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        actions: [
-          Consumer<ChatUnreadNotifyService>(
-            builder: (context, unread, _) {
-              final c = unread.totalUnread;
-              final btn = IconButton(
-                icon: Icon(
-                  _currentIndex == 3
-                      ? Icons.chat_bubble
-                      : Icons.chat_bubble_outline,
-                  color: _currentIndex == 3
-                      ? const Color(AppConstants.primaryColor)
-                      : Colors.grey[700],
-                  size: 20,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _currentIndex = 3;
-                  });
-                },
-                tooltip: 'Messages',
-              );
-              if (c <= 0) return btn;
-              return Badge.count(
-                count: c > 99 ? 99 : c,
-                child: btn,
-              );
-            },
-          ),
-        ],
-      ),
+      appBar: _currentIndex == 0
+          ? _homeShellAppBar(context)
+          : _standardShellAppBar(context),
       body: Stack(
         clipBehavior: Clip.none,
         children: [

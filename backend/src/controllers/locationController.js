@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
-const StaffLocation = require('../models/StaffLocation');
 const User = require('../models/User');
+const { recordStaffLocationPulse } = require('../utils/staffLiveLocation');
 
 /**
  * @desc    Update staff live location with 1-minute TTL cache
@@ -26,19 +26,18 @@ const updateStaffLocation = asyncHandler(async (req, res) => {
     throw new Error('User not found');
   }
 
-  // Persist a short-lived location record for admin map tracking
-  await StaffLocation.create({
-    staff: user._id,
-    role: user.role,
-    coordinates: { lat, lng },
-  });
-
   // Also update the long-lived liveLocation field on the user document
   user.liveLocation = {
     coordinates: { lat, lng },
     updatedAt: new Date(),
   };
   await user.save();
+
+  try {
+    await recordStaffLocationPulse(user, lat, lng);
+  } catch (_) {
+    /* non-fatal */
+  }
 
   res.json({
     success: true,

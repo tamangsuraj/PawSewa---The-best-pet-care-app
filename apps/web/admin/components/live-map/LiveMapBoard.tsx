@@ -249,6 +249,7 @@ export default function LiveMapBoard() {
     socket.on('order:assigned_rider', bump);
     socket.on('care_booking:update', bump);
     socket.on('care_booking:new', bump);
+    socket.on('staff:location', bump);
     socket.on('live_map:tick', onTick);
     return () => {
       socket.off('orderUpdate', bump);
@@ -258,6 +259,7 @@ export default function LiveMapBoard() {
       socket.off('order:assigned_rider', bump);
       socket.off('care_booking:update', bump);
       socket.off('care_booking:new', bump);
+      socket.off('staff:location', bump);
       socket.off('live_map:tick', onTick);
     };
   }, [load]);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +50,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   List<double> _dailyEarnings = List.filled(7, 0);
   List<Map<String, dynamic>> _transactions = [];
   String? _riderId;
+  Timer? _liveMapPulseTimer;
 
   void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
     if (event != 'job:available' &&
@@ -74,12 +77,42 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     _loadCurrentLocationForDistance();
     SocketService.instance.connect();
     SocketService.instance.addShopOrderListener(_onShopOrderSocket);
+    _liveMapPulseTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      unawaited(_pushRiderLocationForLiveMap());
+    });
   }
 
   @override
   void dispose() {
+    _liveMapPulseTimer?.cancel();
     SocketService.instance.removeShopOrderListener(_onShopOrderSocket);
     super.dispose();
+  }
+
+  /// Pushes GPS to backend → StaffLocation → Admin Live Map while rider has active deliveries.
+  Future<void> _pushRiderLocationForLiveMap() async {
+    if (!mounted) {
+      return;
+    }
+    final hasActive = _orders.any((o) {
+      final s = (o['status'] ?? '').toString().toLowerCase();
+      return s == 'processing' || s == 'out_for_delivery';
+    });
+    if (!hasActive) {
+      return;
+    }
+    try {
+      final ok = await LocationService().ensureLocationPermission(context);
+      if (!ok || !mounted) {
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      await _apiClient.updateMyLiveLocation(lat: pos.latitude, lng: pos.longitude);
+    } catch (_) {
+      /* non-fatal */
+    }
   }
 
   Future<void> _loadCurrentLocationForDistance() async {

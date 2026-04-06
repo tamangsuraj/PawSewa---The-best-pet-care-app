@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'api_config.dart';
+import 'app_navigator.dart';
 import 'storage_service.dart';
 
 /// Extract API `message` from JSON object or JSON string body (some proxies return strings).
@@ -92,8 +94,35 @@ class ApiClient {
         onError: (error, handler) async {
           // Handle 401 Unauthorized - token expired or invalid
           if (error.response?.statusCode == 401) {
-            await _storage.clearAll();
-            // You can add navigation to login here if needed
+            final p = error.requestOptions.path;
+            final isAuthAttempt =
+                p.contains('login') ||
+                p.contains('register') ||
+                p.contains('verify-otp') ||
+                p.contains('google');
+            if (!isAuthAttempt) {
+              await _storage.clearAll();
+              final nav = appNavigatorKey.currentState;
+              if (nav != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  final n = appNavigatorKey.currentState;
+                  if (n != null) {
+                    n.pushNamedAndRemoveUntil('/login', (_) => false);
+                  }
+                });
+              }
+            }
+          }
+
+          if (error.type == DioExceptionType.connectionError) {
+            final friendly = DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: error.type,
+              error:
+                  'You appear to be offline or the server is unreachable. Check your connection and try again.',
+            );
+            return handler.next(friendly);
           }
 
           // For timeouts, 5xx, or bad response with no useful message, use a friendly error
@@ -138,7 +167,7 @@ class ApiClient {
                   'Request timed out. Please check your connection and try again.';
             } else if (error.type == DioExceptionType.connectionError) {
               message =
-                  'Cannot reach the server. Check your internet connection.';
+                  'You appear to be offline or the server is unreachable. Check your connection and try again.';
             }
             final friendly = DioException(
               requestOptions: error.requestOptions,
@@ -239,6 +268,30 @@ class ApiClient {
   /// GET /pets/:id/health-summary — pet + age, visit_days_ago for dashboard
   Future<Response> getPetHealthSummary(String petId) async {
     return await _dio.get('/pets/$petId/health-summary');
+  }
+
+  /// Aggregated customer home: banner, health alerts, `products`, live delivery map pins.
+  Future<Response> getHomeDashboard(String petId) async {
+    return await _dio.get('/pets/home-dashboard/$petId');
+  }
+
+  /// In-app notifications (`notifications` collection).
+  Future<Response> getMyNotifications({int limit = 50, int skip = 0}) async {
+    return await _dio.get(
+      '/notifications/me',
+      queryParameters: {
+        'limit': limit,
+        'skip': skip,
+      },
+    );
+  }
+
+  Future<Response> markNotificationRead(String id) async {
+    return await _dio.patch('/notifications/$id/read');
+  }
+
+  Future<Response> markAllNotificationsRead() async {
+    return await _dio.patch('/notifications/read-all');
   }
 
   // Create case (request assistance) — same keys as website: petId, issueDescription, location (string)

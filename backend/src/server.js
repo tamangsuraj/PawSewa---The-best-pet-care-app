@@ -53,6 +53,7 @@ const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const ecosystemRoutes = require('./routes/ecosystemRoutes');
 const { scanAndNotifyReminders24h } = require('./utils/reminderNotifier');
 
 // Models (for startup sync logs and routes)
@@ -162,6 +163,9 @@ app.use((req, res, next) => {
 // Global rate limit for all API routes
 app.use('/api/v1', generalApiLimiter);
 
+const dbRequestContext = require('./middleware/dbRequestContext');
+app.use('/api/v1', dbRequestContext);
+
 const apiLogMiddleware = require('./middleware/apiLogMiddleware');
 app.use(apiLogMiddleware);
 
@@ -213,6 +217,7 @@ app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/reminders', reminderRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/ecosystem', ecosystemRoutes);
 app.use('/api/v1', productRoutes);
 app.use('/api/v1', shopRecommendationRoutes);
 

@@ -21,6 +21,9 @@ import 'earnings_screen.dart';
 import 'my_business_screen.dart';
 import 'patient_chats_screen.dart';
 import 'partner_support_chat_screen.dart';
+import 'notifications_screen.dart';
+import 'partner_placeholder_screen.dart';
+import 'clinic_queue_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
@@ -852,6 +855,20 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'badge': _newAssignmentsCount,
           },
           {
+            'icon': Icons.queue_rounded,
+            'title': 'Clinic queue',
+            'subtitle': 'Today\'s walk-ins and scheduled visits',
+            'route': 'clinic_queue',
+            'badge': 0,
+          },
+          {
+            'icon': Icons.medical_information_outlined,
+            'title': 'Medical history',
+            'subtitle': 'Upload visit notes and lab files',
+            'route': 'medical_history',
+            'badge': 0,
+          },
+          {
             'icon': Icons.forum_outlined,
             'title': 'Patient Chats',
             'subtitle': 'Message pet owners you\'ve treated',
@@ -902,7 +919,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.analytics,
             'title': 'View Analytics',
             'subtitle': 'Check sales reports',
-            'route': null,
+            'route': 'shop_analytics',
             'badge': 0,
           },
         ];
@@ -910,23 +927,23 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return [
           {
             'icon': Icons.add_circle,
-            'title': 'New Booking',
-            'subtitle': 'Add a new booking',
-            'route': null,
+            'title': 'New booking',
+            'subtitle': 'Open My business for manual entry',
+            'route': 'my_business',
             'badge': 0,
           },
           {
             'icon': Icons.calendar_month,
-            'title': 'View Calendar',
-            'subtitle': 'Check facility schedule',
-            'route': null,
+            'title': 'Facility calendar',
+            'subtitle': 'Schedule overview',
+            'route': 'care_calendar',
             'badge': 0,
           },
           {
             'icon': Icons.pets,
-            'title': 'Pet Records',
-            'subtitle': 'View pet information',
-            'route': null,
+            'title': 'Pet records',
+            'subtitle': 'Per-stay intake and notes',
+            'route': 'care_pet_records',
             'badge': 0,
           },
           {
@@ -954,24 +971,24 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       case 'rider':
         return [
           {
-            'icon': Icons.list,
-            'title': 'My delivery orders',
-            'subtitle': 'Update status: Processing → On the way → Delivered',
+            'icon': Icons.local_shipping_outlined,
+            'title': 'Current deliveries',
+            'subtitle': 'Processing → On the way → Delivered',
             'route': 'rider_deliveries',
             'badge': 0,
           },
           {
             'icon': Icons.map,
-            'title': 'View Map',
-            'subtitle': 'See delivery locations',
-            'route': null,
+            'title': 'Live route map',
+            'subtitle': 'Aligns with Admin live operations',
+            'route': 'rider_live_map',
             'badge': 0,
           },
           {
             'icon': Icons.history,
-            'title': 'Delivery History',
-            'subtitle': 'View completed deliveries',
-            'route': 'rider_deliveries',
+            'title': 'Delivery history',
+            'subtitle': 'Completed drops archive',
+            'route': 'rider_history',
             'badge': 0,
           },
         ];
@@ -1020,6 +1037,17 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               backgroundColor: const Color(AppConstants.primaryColor),
               elevation: 0,
               actions: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+                  tooltip: 'Notifications',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                ),
                 Consumer<ChatUnreadNotifyService>(
                   builder: (context, unread, _) {
                     final c = unread.totalUnread;
@@ -1715,6 +1743,76 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const MyBusinessScreen(),
+                              ),
+                            );
+                          } else if (route == 'clinic_queue') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const ClinicQueueScreen(),
+                              ),
+                            );
+                          } else if (route == 'medical_history') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MedicalHistoryRecordsScreen(),
+                              ),
+                            );
+                          } else if (route == 'rider_live_map') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PartnerPlaceholderScreen(
+                                  title: 'Live operations map',
+                                  bodyText:
+                                      'Your position updates the Admin live map when location sharing is enabled. Finish deliveries from Current deliveries.',
+                                  showLiveMapPreview: true,
+                                ),
+                              ),
+                            );
+                          } else if (route == 'shop_analytics') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PartnerPlaceholderScreen(
+                                  title: 'Shop analytics',
+                                  bodyText:
+                                      'Sales and conversion reports will appear here. Inventory and inquiries are available from Quick actions.',
+                                ),
+                              ),
+                            );
+                          } else if (route == 'care_calendar') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PartnerPlaceholderScreen(
+                                  title: 'Facility calendar',
+                                  bodyText:
+                                      'Facility schedule and blackout dates. Sync with My business bookings is planned.',
+                                ),
+                              ),
+                            );
+                          } else if (route == 'care_pet_records') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PartnerPlaceholderScreen(
+                                  title: 'Pet records',
+                                  bodyText:
+                                      'Per-guest intake and stay notes for hostel and training stays. Link to full vet records is planned.',
+                                ),
+                              ),
+                            );
+                          } else if (route == 'rider_history') {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PartnerPlaceholderScreen(
+                                  title: 'Delivery history',
+                                  bodyText:
+                                      'Use Current deliveries and mark orders Delivered to build your history. Export and date filters are planned.',
+                                ),
                               ),
                             );
                           } else {

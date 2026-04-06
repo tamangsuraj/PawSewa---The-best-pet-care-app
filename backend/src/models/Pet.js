@@ -160,6 +160,7 @@ const petSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    /** Fixed collection `pets` on the active DB (use DB_NAME=pawsewa_chat → pawsewa_chat.pets). */
     collection: 'pets',
   }
 );
@@ -201,6 +202,15 @@ petSchema.pre('save', async function setPawIdIfMissing() {
   const error = new Error('Could not generate a unique PawID. Please try again.');
   error.statusCode = 500;
   throw error;
+});
+
+/** Set LOG_DB_SAVE=true in .env to log each pet write (database name + collection). */
+petSchema.post('save', function logPetSave(doc) {
+  if (process.env.LOG_DB_SAVE === 'true') {
+    const db = mongoose.connection?.db?.databaseName || mongoose.connection?.name || '?';
+    // eslint-disable-next-line no-console
+    console.log('[DB_SAVE]', db, 'pets', doc._id?.toString?.());
+  }
 });
 
 module.exports = mongoose.model('Pet', petSchema);

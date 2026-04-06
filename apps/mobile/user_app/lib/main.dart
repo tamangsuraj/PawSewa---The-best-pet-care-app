@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/api_client.dart';
 import 'core/api_config.dart';
+import 'core/app_navigator.dart';
 import 'core/storage_service.dart';
 import 'core/constants.dart';
 import 'theme/pawsewa_theme.dart';
@@ -70,10 +71,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: PawsewaTheme.light(),
       home: const SplashScreen(),
+      routes: <String, WidgetBuilder>{
+        '/login': (_) => const LoginScreen(),
+      },
     );
   }
 }
