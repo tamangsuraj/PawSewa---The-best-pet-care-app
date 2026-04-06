@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 
-const EXPECTED_DB_NAME = 'pawsewa_chat';
+const EXPECTED_DB_NAME = 'pawsewa_core';
 
 /** High-visibility boot line (requested for debugging split-brain / wrong DB). */
 mongoose.connection.on('open', () => {
@@ -23,31 +23,52 @@ mongoose.connection.on('open', async () => {
     console.log(`[MongoDB] Collections (${collectionNames.length}):`, collectionNames.join(', '));
 
     if (conn.name !== EXPECTED_DB_NAME) {
-      console.warn('⚠️ WARNING: You are not connected to pawsewa_chat!');
+      console.warn(`⚠️ WARNING: You are not connected to ${EXPECTED_DB_NAME}!`);
     }
   } catch (err) {
     console.error('[MongoDB] open listener error:', err.message);
   }
 });
 
-/**
- * Active logical database name. Must be set in .env — no silent fallback (avoids split-brain vs Compass / other clients).
- */
 function getConfiguredDbName() {
-  const n = process.env.DB_NAME;
-  if (n == null || String(n).trim() === '') {
-    throw new Error(
-      'DB_NAME is required in backend/.env (e.g. DB_NAME=pawsewa_chat). Set it explicitly; no default database name is applied.',
-    );
+  // STRICT POLICY: One logical database only.
+  // If unset or different, pin it to pawsewa_core automatically.
+  const n = (process.env.DB_NAME || '').trim();
+  if (!n || n !== EXPECTED_DB_NAME) {
+    process.env.DB_NAME = EXPECTED_DB_NAME;
+    return EXPECTED_DB_NAME;
   }
-  return String(n).trim();
+  return n;
 }
 
 /**
  * Base MongoDB connection string from env (cluster / host). May omit a database path.
  */
 function getConnectionUri() {
-  return process.env.MONGO_URI || 'mongodb://localhost:27017';
+  /**
+   * STRICT POLICY: Always use MongoDB Atlas Pawsewa-Cluster. Do not use local MongoDB for development or production.
+   */
+  const uri = (process.env.MONGO_URI || '').trim();
+  if (!uri) {
+    throw new Error(
+      'MONGO_URI is required in backend/.env and must be the Atlas SRV string (mongodb+srv://...). Local MongoDB is forbidden.',
+    );
+  }
+  const lower = uri.toLowerCase();
+  if (lower.includes('localhost') || lower.includes('127.0.0.1')) {
+    // ANSI red high-visibility fatal line.
+    // eslint-disable-next-line no-console
+    console.error(
+      '\x1b[31m[FATAL ERROR]: LOCAL DATABASE DETECTED. SYSTEM HALTED. ONLY MONGODB ATLAS PAWSEWA-CLUSTER IS PERMITTED.\x1b[0m'
+    );
+    throw new Error('Local MongoDB detected in MONGO_URI.');
+  }
+  if (!uri.startsWith('mongodb+srv://')) {
+    throw new Error(
+      `MONGO_URI must be a mongodb+srv:// Atlas URI. Refusing to start with: ${uri.slice(0, 32)}...`,
+    );
+  }
+  return uri;
 }
 
 /**
@@ -89,13 +110,6 @@ function getMongooseConnectionOptions(uri) {
 }
 
 const connectDB = async (retries = 3) => {
-  if (process.env.DB_NAME == null || String(process.env.DB_NAME).trim() === '') {
-    console.error(
-      '[DB STATUS] FATAL: DB_NAME is not set in .env. Refusing to start (prevents accidental use of MongoDB default database).',
-    );
-    process.exit(1);
-  }
-
   const rawUri = getConnectionUri();
   const logicalDb = getConfiguredDbName();
   const uri = withExplicitDatabasePathInUri(rawUri, logicalDb);

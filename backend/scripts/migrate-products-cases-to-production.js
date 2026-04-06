@@ -47,7 +47,10 @@ function normalizeCaseStatus(s) {
 }
 
 function getBaseUri() {
-  let uri = process.env.MONGO_URI || 'mongodb://localhost:27017/pawsewa_dev';
+  let uri = process.env.MONGO_URI;
+  if (!uri || !String(uri).trim().startsWith('mongodb+srv://')) {
+    throw new Error('MONGO_URI is required and must be the Atlas SRV string (mongodb+srv://...).');
+  }
   if (uri.includes('?')) {
     uri = uri.replace(/\/[^/?]*\?/, '/?');
   } else {

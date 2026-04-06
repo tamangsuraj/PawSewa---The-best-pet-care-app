@@ -35,7 +35,7 @@ export function WebGoogleSignInButton({ onError, clearOtherErrors }: Props) {
         const displayName =
           googleUser.name?.trim() || googleUser.email?.split('@')[0] || 'User';
 
-        const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+        const base = process.env.NEXT_PUBLIC_API_URL || '';
         const response = await axios.post(`${base}/auth/google`, {
           googleToken: tokenResponse.access_token,
           email: googleUser.email,

@@ -145,6 +145,8 @@ class SocketService {
           'senderId': map['senderId'],
           'receiverId': map['receiverId'],
           'text': map['text'] ?? map['content'],
+          'mediaUrl': map['mediaUrl'],
+          'mediaType': map['mediaType'],
           'timestamp': map['timestamp'],
         };
         if (tt == 'support') {
@@ -158,6 +160,8 @@ class SocketService {
               'messageId': normalized['messageId'],
               'senderId': normalized['senderId'],
               'text': normalized['text'],
+              'mediaUrl': normalized['mediaUrl'],
+              'mediaType': normalized['mediaType'],
               'timestamp': normalized['timestamp'],
             });
           }
@@ -324,15 +328,30 @@ class SocketService {
   void sendCustomerCareMessage(
     String conversationId,
     String text,
-    void Function(dynamic) callback,
-  ) {
+    void Function(dynamic) callback, {
+    String? mediaUrl,
+    String? mediaType,
+  }) {
     if (_socket == null || !_socket!.connected) {
       callback({'success': false, 'message': 'Not connected'});
       return;
     }
+    final hasText = text.trim().isNotEmpty;
+    final mUrl = mediaUrl?.trim() ?? '';
+    final hasMedia =
+        mUrl.isNotEmpty && (mediaType == 'image' || mediaType == 'video');
+    if (!hasText && !hasMedia) {
+      callback({'success': false, 'message': 'Empty message'});
+      return;
+    }
     _socket!.emitWithAck(
       'send_message',
-      {'conversationId': conversationId, 'text': text},
+      {
+        'conversationId': conversationId,
+        if (hasText) 'text': text,
+        if (hasMedia) 'mediaUrl': mUrl,
+        if (hasMedia) 'mediaType': mediaType,
+      },
       ack: (response) {
         callback(response is Map ? response : {'success': false});
       },
@@ -391,18 +410,30 @@ class SocketService {
     String conversationId,
     String text, {
     String? productId,
+    String? mediaUrl,
+    String? mediaType,
     void Function(dynamic)? callback,
   }) {
     if (_socket == null || !_socket!.connected) {
       callback?.call({'success': false, 'message': 'Not connected'});
       return;
     }
+    final hasText = text.trim().isNotEmpty;
+    final mUrl = mediaUrl?.trim() ?? '';
+    final hasMedia =
+        mUrl.isNotEmpty && (mediaType == 'image' || mediaType == 'video');
+    if (!hasText && !hasMedia) {
+      callback?.call({'success': false, 'message': 'Empty message'});
+      return;
+    }
     _socket!.emitWithAck(
       'send_message',
       {
         'conversationId': conversationId,
-        'text': text,
+        if (hasText) 'text': text,
         if (productId != null && productId.isNotEmpty) 'productId': productId,
+        if (hasMedia) 'mediaUrl': mUrl,
+        if (hasMedia) 'mediaType': mediaType,
       },
       ack: (response) {
         callback?.call(response is Map ? response : {'success': false});

@@ -9,7 +9,7 @@
  *
  * Environment:
  *   SOURCE_DB - Source database name (required, pass via terminal)
- *   MONGO_URI - Connection string base (e.g. mongodb://localhost:27017/)
+ *   MONGO_URI - Atlas SRV base (mongodb+srv://...)
  *   DB_NAME   - Destination database name (default: pawsewa_production)
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
@@ -57,7 +57,11 @@ function log(level, msg) {
 }
 
 async function run() {
-  const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/';
+  const MONGO_URI = process.env.MONGO_URI;
+  if (!MONGO_URI || !String(MONGO_URI).trim().startsWith('mongodb+srv://')) {
+    console.error('[ERROR] MONGO_URI is required and must be the Atlas SRV string (mongodb+srv://...).');
+    process.exit(1);
+  }
   const { base } = parseMongoUri(MONGO_URI.endsWith('/') ? MONGO_URI : MONGO_URI + '/');
   const sourceUri = base + SOURCE_DB;
   const targetUri = base + DB_NAME;

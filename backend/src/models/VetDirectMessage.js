@@ -27,14 +27,36 @@ const vetDirectMessageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 4000,
+      default: '',
+    },
+    mediaUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    mediaType: {
+      type: String,
+      enum: ['', 'image', 'video'],
+      default: '',
     },
   },
   { timestamps: true }
 );
 
 vetDirectMessageSchema.index({ roomId: 1, createdAt: 1 });
+
+vetDirectMessageSchema.pre('validate', function validateTextOrMedia(next) {
+  const t = (this.text || '').trim();
+  const hasMedia =
+    this.mediaUrl &&
+    String(this.mediaUrl).trim() &&
+    (this.mediaType === 'image' || this.mediaType === 'video');
+  if (!t && !hasMedia) {
+    this.invalidate('text', 'Message must include text or media');
+  }
+  next();
+});
 
 module.exports = mongoose.model('VetDirectMessage', vetDirectMessageSchema);

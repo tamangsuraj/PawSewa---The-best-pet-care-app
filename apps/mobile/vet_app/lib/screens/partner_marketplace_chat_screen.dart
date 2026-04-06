@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../widgets/editorial_canvas.dart';
+import '../widgets/chat_media_inline.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
@@ -49,6 +52,9 @@ class _PartnerMarketplaceChatScreenState
   Timer? _typingDebounce;
   Timer? _typingHide;
   ChatUnreadNotifyService? _unreadNotify;
+  bool _uploading = false;
+  double? _uploadProgress;
+  final _picker = ImagePicker();
 
   @override
   void didChangeDependencies() {
@@ -105,6 +111,8 @@ class _PartnerMarketplaceChatScreenState
             : mid,
         'sender': {'_id': data['senderId']},
         'content': data['text'],
+        'mediaUrl': data['mediaUrl'],
+        'mediaType': data['mediaType'],
         'createdAt': data['timestamp'],
       });
     });
@@ -151,28 +159,55 @@ class _PartnerMarketplaceChatScreenState
   Future<void> _send() async {
     final t = _text.text.trim();
     if (t.isEmpty) return;
-    _socket.setMarketplaceTyping(widget.conversationId, false);
-    _text.clear();
+    await _sendPayload(text: t);
+  }
 
-    void restore() => _text.text = t;
+  Future<void> _sendPayload({
+    required String text,
+    String? mediaUrl,
+    String? mediaType,
+  }) async {
+    if (text.isEmpty && (mediaUrl == null || mediaUrl.isEmpty)) {
+      return;
+    }
+    _socket.setMarketplaceTyping(widget.conversationId, false);
+    final saved = _text.text;
+    void restore() => _text.text = saved;
 
     if (_socket.isConnected) {
       _socket.sendMarketplaceMessage(
         widget.conversationId,
-        t,
+        text,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
         callback: (ack) {
           final ok = ack is Map && ack['success'] == true;
-          if (!ok && mounted) _fallbackHttp(t, restore);
+          if (ok) {
+            if (mounted) _text.clear();
+          } else if (mounted) {
+            unawaited(_fallbackHttp(text, restore, mediaUrl: mediaUrl, mediaType: mediaType));
+          }
         },
       );
     } else {
-      await _fallbackHttp(t, restore);
+      await _fallbackHttp(text, restore, mediaUrl: mediaUrl, mediaType: mediaType);
     }
   }
 
-  Future<void> _fallbackHttp(String t, void Function() restore) async {
+  Future<void> _fallbackHttp(
+    String t,
+    void Function() restore, {
+    String? mediaUrl,
+    String? mediaType,
+  }) async {
     try {
-      await _api.postMarketplaceMessage(widget.conversationId, text: t);
+      await _api.postMarketplaceMessage(
+        widget.conversationId,
+        text: t,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+      );
+      if (mounted) _text.clear();
       await _loadMessages(silent: true);
     } catch (_) {
       restore();
@@ -180,6 +215,95 @@ class _PartnerMarketplaceChatScreenState
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Send failed')));
+      }
+    }
+  }
+
+  Future<void> _showAttachmentOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Photo from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_pickAndUploadImage(ImageSource.gallery));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Video from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_pickAndUploadVideo(ImageSource.gallery));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final x = await _picker.pickImage(source: source, imageQuality: 88);
+    if (x == null) return;
+    final bytes = await x.readAsBytes();
+    final name = x.path.split(RegExp(r'[/\\]')).last;
+    await _uploadBytes(bytes, name.isNotEmpty ? name : 'photo.jpg');
+  }
+
+  Future<void> _pickAndUploadVideo(ImageSource source) async {
+    final x = await _picker.pickVideo(source: source);
+    if (x == null) return;
+    final bytes = await x.readAsBytes();
+    final name = x.path.split(RegExp(r'[/\\]')).last;
+    await _uploadBytes(bytes, name.isNotEmpty ? name : 'clip.mp4');
+  }
+
+  Future<void> _uploadBytes(Uint8List bytes, String filename) async {
+    if (!mounted) return;
+    setState(() {
+      _uploading = true;
+      _uploadProgress = 0;
+    });
+    try {
+      final res = await _api.uploadChatMedia(
+        bytes,
+        filename: filename,
+        onSendProgress: (sent, total) {
+          if (!mounted || total <= 0) return;
+          setState(() => _uploadProgress = sent / total);
+        },
+      );
+      final body = res.data;
+      if (body is! Map || body['success'] != true) {
+        throw Exception('upload failed');
+      }
+      final data = body['data'];
+      if (data is! Map) throw Exception('upload failed');
+      final url = data['url']?.toString();
+      final mt = data['mediaType']?.toString();
+      if (url == null || url.isEmpty || (mt != 'image' && mt != 'video')) {
+        throw Exception('bad upload response');
+      }
+      final caption = _text.text.trim();
+      await _sendPayload(text: caption, mediaUrl: url, mediaType: mt);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not upload media')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _uploadProgress = null;
+        });
       }
     }
   }
@@ -269,6 +393,13 @@ class _PartnerMarketplaceChatScreenState
               )
             : Column(
                 children: [
+                  if (_uploading)
+                    LinearProgressIndicator(
+                      value: _uploadProgress,
+                      minHeight: 3,
+                      backgroundColor:
+                          widget.highContrast ? Colors.grey.shade800 : null,
+                    ),
                   if (_typingRemote)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -290,6 +421,8 @@ class _PartnerMarketplaceChatScreenState
                             : sender?.toString();
                         final mine = _myUserId != null && sid == _myUserId;
                         final content = m['content']?.toString() ?? '';
+                        final mediaUrl = m['mediaUrl']?.toString();
+                        final mediaType = m['mediaType']?.toString();
                         final pn = m['productName']?.toString();
                         final bubbleMine = widget.highContrast
                             ? Colors.orange.shade800
@@ -335,13 +468,30 @@ class _PartnerMarketplaceChatScreenState
                                                 : primary),
                                     ),
                                   ),
-                                Text(
-                                  content,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 14,
-                                    color: textCol,
+                                if (mediaUrl != null &&
+                                    mediaUrl.isNotEmpty &&
+                                    (mediaType == 'image' || mediaType == 'video'))
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: ChatMediaInline(
+                                      mediaUrl: mediaUrl,
+                                      mediaType: mediaType!,
+                                      onTapImage: mediaType == 'image'
+                                          ? () => openChatImageFullscreen(
+                                                context,
+                                                mediaUrl,
+                                              )
+                                          : null,
+                                    ),
                                   ),
-                                ),
+                                if (content.isNotEmpty)
+                                  Text(
+                                    content,
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 14,
+                                      color: textCol,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -353,6 +503,14 @@ class _PartnerMarketplaceChatScreenState
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     child: Row(
                       children: [
+                        IconButton(
+                          onPressed: _uploading ? null : _showAttachmentOptions,
+                          icon: Icon(
+                            Icons.attach_file_rounded,
+                            color: widget.highContrast ? Colors.white70 : primary,
+                          ),
+                          tooltip: 'Attach photo or video',
+                        ),
                         Expanded(
                           child: TextField(
                             controller: _text,

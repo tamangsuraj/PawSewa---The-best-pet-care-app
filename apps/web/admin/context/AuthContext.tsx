@@ -27,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Backend health check and auth verification on mount
   useEffect(() => {
-    const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1').replace(/\/$/, '');
+    const baseUrl = String(process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
     const healthUrl = `${baseUrl}/health`;
 
     const checkHealth = async () => {

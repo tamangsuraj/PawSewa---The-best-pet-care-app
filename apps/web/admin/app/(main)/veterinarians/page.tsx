@@ -30,7 +30,7 @@ export default function VeterinariansPage() {
     fetchVets();
   }, []);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
 
   const fetchVets = async () => {
     try {

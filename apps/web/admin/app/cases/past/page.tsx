@@ -11,7 +11,7 @@ import {
   Search,
 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 interface CaseItem {
   _id: string;
@@ -137,7 +137,11 @@ export default function PastCasesPage() {
       );
       setItems(merged);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load past cases');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Failed to load past cases');
       setItems([]);
     } finally {
       setLoading(false);

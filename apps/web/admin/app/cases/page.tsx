@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const SOCKET_BASE = API_BASE.replace(/\/api\/v1\/?$/, '');
 
 interface CaseItem {

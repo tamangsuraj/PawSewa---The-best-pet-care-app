@@ -37,7 +37,7 @@ export default function RequestAssistancePage() {
         return;
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await axios.get(`${apiBase}/pets/my-pets`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -89,7 +89,7 @@ export default function RequestAssistancePage() {
     try {
       const token = localStorage.getItem('token');
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await axios.post(
         `${apiBase}/cases`,
         {

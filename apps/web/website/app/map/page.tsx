@@ -62,7 +62,7 @@ export default function NearbyVetsMapPage() {
     setErr('');
     try {
       const base =
-        process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+        process.env.NEXT_PUBLIC_API_URL || '';
       const resp = await axios.get<{ success?: boolean; data?: unknown[] }>(
         `${base}/vets/public`
       );

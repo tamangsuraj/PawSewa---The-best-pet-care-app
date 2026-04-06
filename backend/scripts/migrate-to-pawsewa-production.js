@@ -7,7 +7,7 @@
  *   node scripts/migrate-to-pawsewa-production.js
  *
  * Environment:
- *   MONGO_URI - Connection string (e.g. mongodb://localhost:27017/pawsewa)
+ *   MONGO_URI - Atlas SRV connection string (mongodb+srv://...)
  *   SOURCE_DB - Source database name (default: from MONGO_URI)
  *   TARGET_DB - Target database name (default: pawsewa_production)
  */
@@ -54,7 +54,11 @@ function parseMongoUri(uri) {
 }
 
 async function run() {
-  const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/pawsewa';
+  const MONGO_URI = process.env.MONGO_URI;
+  if (!MONGO_URI || !String(MONGO_URI).trim().startsWith('mongodb+srv://')) {
+    console.error('[Migration] MONGO_URI is required and must be the Atlas SRV string (mongodb+srv://...).');
+    process.exit(1);
+  }
   const TARGET_DB = process.env.TARGET_DB || 'pawsewa_production';
   const { base, db: defaultDb } = parseMongoUri(MONGO_URI);
   const SOURCE_DB = process.env.SOURCE_DB || defaultDb || 'pawsewa';

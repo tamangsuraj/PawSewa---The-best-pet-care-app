@@ -191,16 +191,34 @@ function toClientConversationShape(doc) {
  * @param {import('mongoose').Document} conversation — MarketplaceConversation (type SUPPORT)
  * @param {import('socket.io').Server|null} io
  */
+function previewFromMessage({ trimmedText, mediaUrl, mediaType }) {
+  if (trimmedText) {
+    return trimmedText.length > 220 ? `${trimmedText.slice(0, 217)}...` : trimmedText;
+  }
+  if (mediaUrl && mediaType === 'video') return '📹 Video';
+  if (mediaUrl && mediaType === 'image') return '📷 Photo';
+  return '';
+}
+
 async function appendMessageAndNotify({
   conversation,
   senderId,
   text,
+  mediaUrl: mediaUrlRaw,
+  mediaType: mediaTypeRaw,
   io,
   skipPush = false,
 }) {
   const trimmed = (text || '').trim();
-  if (!trimmed) {
-    const err = new Error('Message text is required');
+  const mediaUrl =
+    typeof mediaUrlRaw === 'string' && mediaUrlRaw.trim().startsWith('http')
+      ? mediaUrlRaw.trim().slice(0, 2000)
+      : '';
+  const mediaType =
+    mediaTypeRaw === 'image' || mediaTypeRaw === 'video' ? mediaTypeRaw : '';
+  const hasMedia = Boolean(mediaUrl && mediaType);
+  if (!trimmed && !hasMedia) {
+    const err = new Error('Message text or media is required');
     err.statusCode = 400;
     throw err;
   }
@@ -234,6 +252,8 @@ async function appendMessageAndNotify({
     sender: senderId,
     receiver: receiverId,
     content: trimmed.slice(0, 4000),
+    mediaUrl: hasMedia ? mediaUrl : '',
+    mediaType: hasMedia ? mediaType : '',
     senderRole: sender?.role || '',
     receiverRole: receiverUser?.role || '',
   });
@@ -243,12 +263,20 @@ async function appendMessageAndNotify({
     { $set: { updatedAt: new Date(), lastMessageAt: new Date() } }
   ).exec();
 
+  const previewText = previewFromMessage({
+    trimmedText: trimmed,
+    mediaUrl: msg.mediaUrl,
+    mediaType: msg.mediaType,
+  });
+
   const payload = {
     conversationId: conversation._id.toString(),
     messageId: msg._id.toString(),
     senderId: sid,
     receiverId: receiverId.toString(),
     text: msg.content,
+    mediaUrl: msg.mediaUrl || '',
+    mediaType: msg.mediaType || '',
     timestamp: (msg.createdAt || new Date()).toISOString(),
     senderRole: msg.senderRole || sender?.role || '',
   };
@@ -263,6 +291,8 @@ async function appendMessageAndNotify({
       receiverId: payload.receiverId,
       content: payload.text,
       text: payload.text,
+      mediaUrl: payload.mediaUrl,
+      mediaType: payload.mediaType,
       timestamp: payload.timestamp,
       threadType: 'support',
       senderRole: payload.senderRole,
@@ -272,7 +302,7 @@ async function appendMessageAndNotify({
     io.to('admin_room').emit('support_inbox_bump', {
       conversationId: conversation._id.toString(),
       lastMessageAt: payload.timestamp,
-      lastMessagePreview: trimmed.slice(0, 220),
+      lastMessagePreview: previewText.slice(0, 220),
       customerId: custPop?._id?.toString(),
       customerName: custPop?.name || 'User',
       customerEmail: custPop?.email || '',
@@ -281,16 +311,16 @@ async function appendMessageAndNotify({
 
     const senderLabel = (sender?.name || 'Someone').trim();
     if (senderIsCustomer) {
-      await bumpSupportInbound(io, conversation, senderLabel, trimmed);
+      await bumpSupportInbound(io, conversation, senderLabel, previewText);
     } else {
-      await bumpSupportOutbound(io, custId, senderLabel, trimmed, conversation._id);
+      await bumpSupportOutbound(io, custId, senderLabel, previewText, conversation._id);
     }
   }
 
   const fromAdmin = senderIsAdmin;
   if (fromAdmin && !skipPush) {
     const preview =
-      trimmed.length > 200 ? `${trimmed.slice(0, 197)}...` : trimmed;
+      previewText.length > 200 ? `${previewText.slice(0, 197)}...` : previewText;
     await sendMulticastToUser(conversation.customer, {
       title: 'Customer Care',
       body: preview,

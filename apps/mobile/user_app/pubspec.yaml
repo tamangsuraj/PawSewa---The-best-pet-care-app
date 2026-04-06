@@ -50,6 +50,7 @@ dependencies:
   
   # Image Picker
   image_picker: ^1.0.7
+  video_player: ^2.9.5
   
   # HTTP Multipart
   http: ^1.2.0

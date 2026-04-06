@@ -7,6 +7,7 @@ const {
   postVetDirectMessage,
   getUnreadSummary,
 } = require('../controllers/chatController');
+const { upload, postChatUpload } = require('../controllers/chatUploadController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.get('/unread-summary', protect, getUnreadSummary);
@@ -14,5 +15,6 @@ router.get('/my-vets', protect, authorize('pet_owner'), getMyVetsForChat);
 router.get('/my-patients', protect, authorize('veterinarian'), getMyPatientsForChat);
 router.get('/vet-direct/messages', protect, getVetDirectMessages);
 router.post('/vet-direct/messages', protect, postVetDirectMessage);
+router.post('/upload', protect, upload.single('file'), postChatUpload);
 
 module.exports = router;

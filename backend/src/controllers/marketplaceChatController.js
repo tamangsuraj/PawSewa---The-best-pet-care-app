@@ -204,12 +204,14 @@ const getMessages = asyncHandler(async (req, res) => {
 /** POST /api/v1/marketplace-chat/conversations/:id/messages { text, productId? } */
 const postMessage = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { text, productId } = req.body || {};
+  const { text, productId, mediaUrl, mediaType } = req.body || {};
   const io = getIO();
   const msg = await appendMessageAndNotify({
     conversationId: id,
     senderId: req.user._id,
     text,
+    mediaUrl,
+    mediaType,
     productId,
     io,
   });

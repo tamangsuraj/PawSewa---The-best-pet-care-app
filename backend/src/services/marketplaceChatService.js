@@ -185,10 +185,34 @@ function canSendInConversation(convLean, userId) {
 /**
  * Persist message, socket emit, FCM to other party.
  */
-async function appendMessageAndNotify({ conversationId, senderId, text, productId, io }) {
+function previewFromMessage({ trimmedText, mediaUrl, mediaType }) {
+  if (trimmedText) {
+    return trimmedText.length > 120 ? `${trimmedText.slice(0, 117)}...` : trimmedText;
+  }
+  if (mediaUrl && mediaType === 'video') return '📹 Video';
+  if (mediaUrl && mediaType === 'image') return '📷 Photo';
+  return '';
+}
+
+async function appendMessageAndNotify({
+  conversationId,
+  senderId,
+  text,
+  mediaUrl: mediaUrlRaw,
+  mediaType: mediaTypeRaw,
+  productId,
+  io,
+}) {
   const trimmed = (text || '').trim();
-  if (!trimmed) {
-    const err = new Error('Message text is required');
+  const mediaUrl =
+    typeof mediaUrlRaw === 'string' && mediaUrlRaw.trim().startsWith('http')
+      ? mediaUrlRaw.trim().slice(0, 2000)
+      : '';
+  const mediaType =
+    mediaTypeRaw === 'image' || mediaTypeRaw === 'video' ? mediaTypeRaw : '';
+  const hasMedia = Boolean(mediaUrl && mediaType);
+  if (!trimmed && !hasMedia) {
+    const err = new Error('Message text or media is required');
     err.statusCode = 400;
     throw err;
   }
@@ -232,6 +256,8 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
     sender: senderId,
     receiver: null,
     content: trimmed.slice(0, 4000),
+    mediaUrl: hasMedia ? mediaUrl : '',
+    mediaType: hasMedia ? mediaType : '',
     product: prodRef,
     productName: prodName,
   });
@@ -239,11 +265,19 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
   convDoc.lastMessageAt = new Date();
   await convDoc.save();
 
+  const preview = previewFromMessage({
+    trimmedText: trimmed,
+    mediaUrl: msg.mediaUrl,
+    mediaType: msg.mediaType,
+  });
+
   const payload = {
     conversationId: String(conversationId),
     messageId: msg._id.toString(),
     senderId: String(senderId),
     text: msg.content,
+    mediaUrl: msg.mediaUrl || '',
+    mediaType: msg.mediaType || '',
     productId: prodRef ? String(prodRef) : null,
     productName: prodName,
     timestamp: (msg.createdAt || new Date()).toISOString(),
@@ -263,6 +297,8 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
       receiverId,
       content: payload.text,
       text: payload.text,
+      mediaUrl: payload.mediaUrl,
+      mediaType: payload.mediaType,
       productId: payload.productId,
       productName: payload.productName,
       timestamp: payload.timestamp,
@@ -274,8 +310,6 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
 
   const sender = await User.findById(senderId).select('name role').lean();
   const senderName = (sender?.name || 'Someone').trim();
-
-  const preview = trimmed.length > 120 ? `${trimmed.slice(0, 117)}...` : trimmed;
 
   let title = 'PawSewa';
   let body = preview;
@@ -310,7 +344,7 @@ async function appendMessageAndNotify({ conversationId, senderId, text, productI
   if (io && receiverId && String(receiverId) !== String(senderId)) {
     await bumpUnread(io, receiverId, convKey(conversationId), {
       senderName,
-      preview: trimmed,
+      preview,
       conversationId: String(conversationId),
       threadType: convDoc.type === 'DELIVERY' ? 'delivery' : 'seller',
     });

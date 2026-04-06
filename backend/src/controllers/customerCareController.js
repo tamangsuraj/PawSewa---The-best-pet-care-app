@@ -170,7 +170,7 @@ const getMessages = asyncHandler(async (req, res) => {
  * @route POST /api/v1/customer-care/conversations/:id/messages
  */
 const postMessage = asyncHandler(async (req, res) => {
-  const { text } = req.body || {};
+  const { text, mediaUrl, mediaType } = req.body || {};
   const conv = await MarketplaceConversation.findById(req.params.id);
   assertSupportConv(conv);
 
@@ -189,6 +189,8 @@ const postMessage = asyncHandler(async (req, res) => {
     conversation: conv,
     senderId: req.user._id,
     text,
+    mediaUrl,
+    mediaType,
     io,
   });
 
@@ -199,6 +201,8 @@ const postMessage = asyncHandler(async (req, res) => {
       senderId: msg.sender,
       receiverId: msg.receiver,
       text: msg.content,
+      mediaUrl: msg.mediaUrl || '',
+      mediaType: msg.mediaType || '',
       timestamp: msg.createdAt,
       senderRole: msg.senderRole,
       receiverRole: msg.receiverRole,

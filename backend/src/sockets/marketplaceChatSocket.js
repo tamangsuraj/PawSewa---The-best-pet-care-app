@@ -50,8 +50,14 @@ function registerMarketplaceChatSocket(io) {
     });
 
     socket.on('send_marketplace_message', async (payload, callback) => {
-      const { conversationId, text, productId } = payload || {};
-      if (!conversationId || typeof text !== 'string') {
+      const { conversationId, text, productId, mediaUrl, mediaType } = payload || {};
+      const textStr = typeof text === 'string' ? text : '';
+      const hasText = textStr.trim().length > 0;
+      const hasMedia =
+        typeof mediaUrl === 'string' &&
+        mediaUrl.trim().startsWith('http') &&
+        (mediaType === 'image' || mediaType === 'video');
+      if (!conversationId || (!hasText && !hasMedia)) {
         callback?.({ success: false, message: 'Invalid payload' });
         return;
       }
@@ -65,7 +71,9 @@ function registerMarketplaceChatSocket(io) {
         await appendMessageAndNotify({
           conversationId,
           senderId: userId,
-          text,
+          text: textStr,
+          mediaUrl: hasMedia ? mediaUrl.trim() : undefined,
+          mediaType: hasMedia ? mediaType : undefined,
           productId:
             productId && mongoose.Types.ObjectId.isValid(productId) ? productId : undefined,
           io: ioServer,

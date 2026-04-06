@@ -72,8 +72,13 @@ function registerVetDirectSocket(io) {
       const ownerId = payload?.ownerId;
       const vetId = payload?.vetId;
       const text = typeof payload?.text === 'string' ? payload.text.trim() : '';
-      if (!ownerId || !vetId || !text) {
-        callback?.({ success: false, message: 'ownerId, vetId, and text required' });
+      const mediaUrl = typeof payload?.mediaUrl === 'string' ? payload.mediaUrl.trim() : '';
+      const mediaType = payload?.mediaType;
+      const hasText = text.length > 0;
+      const hasMedia =
+        mediaUrl.startsWith('http') && (mediaType === 'image' || mediaType === 'video');
+      if (!ownerId || !vetId || (!hasText && !hasMedia)) {
+        callback?.({ success: false, message: 'ownerId, vetId, and text or media required' });
         return;
       }
 
@@ -104,7 +109,9 @@ function registerVetDirectSocket(io) {
           ownerUser: ownerId,
           vetUser: vetId,
           sender: me._id,
-          text,
+          text: hasText ? text : '',
+          mediaUrl: hasMedia ? mediaUrl.slice(0, 2000) : '',
+          mediaType: hasMedia ? mediaType : '',
         });
 
         const emitPayload = {
@@ -113,7 +120,9 @@ function registerVetDirectSocket(io) {
           vetId: String(vetId),
           messageId: msg._id.toString(),
           sender: me._id.toString(),
-          text,
+          text: msg.text,
+          mediaUrl: msg.mediaUrl || '',
+          mediaType: msg.mediaType || '',
           timestamp: msg.createdAt || new Date(),
         };
 
@@ -122,9 +131,12 @@ function registerVetDirectSocket(io) {
         const recipientId =
           uid === String(ownerId) ? String(vetId) : String(ownerId);
         if (recipientId && recipientId !== uid) {
+          const preview =
+            text ||
+            (hasMedia && mediaType === 'video' ? '📹 Video' : hasMedia ? '📷 Photo' : '');
           await bumpUnread(io, recipientId, vetDirectKey(ownerId, vetId), {
             senderName: (me.name || 'Someone').trim(),
-            preview: text,
+            preview,
             ownerId: String(ownerId),
             vetId: String(vetId),
             threadType: 'vetdirect',

@@ -48,7 +48,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
   const fetchVet = useCallback(async () => {
     try {
       setLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await axios.get(`${apiBase}/vets/public/${vetId}`);
       if (response.data.success) {
         setVet(response.data.data);

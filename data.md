@@ -42,10 +42,10 @@ MongoDB Compass is a GUI to view and edit the database. PawSewa uses **MongoDB**
 ### Step 2: Connect to the Database
 1. In the **New Connection** screen, paste this URI:
    ```
-   mongodb://localhost:27017
+   mongodb+srv://admin:<db_password>@pawsewa-cluster.h9kzdwx.mongodb.net/?appName=Pawsewa-Cluster
    ```
 2. Click **Connect**.
-3. If MongoDB is running (via `npm run dev` in the backend), the connection will succeed.
+3. Ensure your IP is allowed in Atlas Network Access and your `admin` password is correct.
 
 ### Step 3: Find the PawSewa Database
 1. In the left sidebar, find the database (often named `pawsewa` or similar).
@@ -182,7 +182,7 @@ This project was built using **AI-assisted “vibe coding”**. Patterns and dat
 | Backend API    | `http://localhost:3000/api/v1` |
 | Website        | `http://localhost:3001`    |
 | Admin Panel    | `http://localhost:3002` (or configured port) |
-| MongoDB        | `mongodb://localhost:27017` |
+| MongoDB        | `mongodb+srv://admin:<db_password>@pawsewa-cluster.h9kzdwx.mongodb.net/?appName=Pawsewa-Cluster` |
 
 ---
 

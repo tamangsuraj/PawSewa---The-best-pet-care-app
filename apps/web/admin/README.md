@@ -8,7 +8,7 @@ This is the PawSewa Admin Panel (Next.js).
    node scripts/createAdmin.js
    ```
    Default credentials: **admin@pawsewa.com** / **admin123**. The script uses the same `MONGO_URI` and `DB_NAME` as the backend.
-3. **Optional:** Copy `apps/web/admin/.env.local.example` to `apps/web/admin/.env.local` and set `NEXT_PUBLIC_API_URL` if your backend is not at `http://localhost:3000/api/v1`.
+3. **Required:** Copy `apps/web/admin/.env.local.example` to `apps/web/admin/.env.local` and set `NEXT_PUBLIC_API_URL` to your backend base URL (ngrok/deployed). Local MongoDB is not supported.
 
 ## Getting Started
 

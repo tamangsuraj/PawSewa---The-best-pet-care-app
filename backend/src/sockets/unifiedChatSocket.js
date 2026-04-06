@@ -33,8 +33,14 @@ function threadTypeFromConvType(t) {
  * Marketplace / Customer Care branch for `send_message` (disambiguated from service-request chat).
  */
 async function handleUnifiedSendMessage(socket, io, payload, callback) {
-  const { conversationId, text, productId } = payload || {};
-  if (!conversationId || typeof text !== 'string') {
+  const { conversationId, text, productId, mediaUrl, mediaType } = payload || {};
+  const textStr = typeof text === 'string' ? text : '';
+  const hasText = textStr.trim().length > 0;
+  const hasMedia =
+    typeof mediaUrl === 'string' &&
+    mediaUrl.trim().startsWith('http') &&
+    (mediaType === 'image' || mediaType === 'video');
+  if (!conversationId || (!hasText && !hasMedia)) {
     callback?.({ success: false, message: 'Invalid payload' });
     return;
   }
@@ -62,14 +68,18 @@ async function handleUnifiedSendMessage(socket, io, payload, callback) {
       await careAppend({
         conversation: conv,
         senderId: userId,
-        text,
+        text: textStr,
+        mediaUrl: hasMedia ? mediaUrl.trim() : undefined,
+        mediaType: hasMedia ? mediaType : undefined,
         io: ioServer,
       });
     } else {
       await mpAppend({
         conversationId,
         senderId: userId,
-        text,
+        text: textStr,
+        mediaUrl: hasMedia ? mediaUrl.trim() : undefined,
+        mediaType: hasMedia ? mediaType : undefined,
         productId:
           productId && mongoose.Types.ObjectId.isValid(productId) ? productId : undefined,
         io: ioServer,

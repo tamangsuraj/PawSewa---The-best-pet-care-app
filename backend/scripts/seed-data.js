@@ -1,5 +1,5 @@
 /**
- * Pilot seed for pawsewa_chat: pets (Spoidy + 2), care listings with active subscriptions,
+ * Pilot seed for pawsewa_chat: 5 pets, 5+ care centre listings with active subscriptions,
  * shop catalog (10 products), and veterinarian profiles.
  *
  * Requires: backend/.env with MONGO_URI + DB_NAME (e.g. pawsewa_chat).
@@ -165,6 +165,26 @@ async function seedPets(ownerId) {
       age: 1,
       weight: 1.2,
       photoUrl: IMG('photo-1585110396000-c9ffd4e4b308'),
+      medicalConditions: '',
+    },
+    {
+      name: 'Buddy',
+      species: 'Dog',
+      breed: 'Beagle',
+      gender: 'Male',
+      age: 4,
+      weight: 12,
+      photoUrl: IMG('photo-1543466835-00a7907e9de1'),
+      medicalConditions: '',
+    },
+    {
+      name: 'Milo',
+      species: 'Cat',
+      breed: 'Persian',
+      gender: 'Male',
+      age: 5,
+      weight: 5.2,
+      photoUrl: IMG('photo-1574158622682-e40e69881006'),
       medicalConditions: '',
     },
   ];

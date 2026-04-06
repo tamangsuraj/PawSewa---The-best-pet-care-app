@@ -7,7 +7,7 @@ export default function TestLoginPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string>('');
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
 
   const testBackendConnection = async () => {
     try {

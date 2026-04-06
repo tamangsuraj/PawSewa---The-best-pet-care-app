@@ -21,9 +21,19 @@ const marketplaceMessageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: true,
       trim: true,
       maxlength: 4000,
+      default: '',
+    },
+    mediaUrl: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    mediaType: {
+      type: String,
+      enum: ['', 'image', 'video'],
+      default: '',
     },
     product: {
       type: mongoose.Schema.Types.ObjectId,
@@ -51,5 +61,17 @@ const marketplaceMessageSchema = new mongoose.Schema(
 );
 
 marketplaceMessageSchema.index({ conversation: 1, createdAt: 1 });
+
+marketplaceMessageSchema.pre('validate', function validateContentOrMedia(next) {
+  const text = (this.content || '').trim();
+  const hasMedia =
+    this.mediaUrl &&
+    String(this.mediaUrl).trim() &&
+    (this.mediaType === 'image' || this.mediaType === 'video');
+  if (!text && !hasMedia) {
+    this.invalidate('content', 'Message must include text or media');
+  }
+  next();
+});
 
 module.exports = mongoose.model('MarketplaceMessage', marketplaceMessageSchema);

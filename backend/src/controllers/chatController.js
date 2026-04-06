@@ -99,6 +99,8 @@ const getVetDirectMessages = asyncHandler(async (req, res) => {
         _id: m._id,
         sender: m.sender,
         text: m.text,
+        mediaUrl: m.mediaUrl || '',
+        mediaType: m.mediaType || '',
         createdAt: m.createdAt,
       })),
     },
@@ -110,11 +112,14 @@ const getVetDirectMessages = asyncHandler(async (req, res) => {
  * body: { ownerId, vetId, text }
  */
 const postVetDirectMessage = asyncHandler(async (req, res) => {
-  const { ownerId, vetId, text } = req.body || {};
+  const { ownerId, vetId, text, mediaUrl, mediaType } = req.body || {};
   const trimmed = typeof text === 'string' ? text.trim() : '';
-  if (!ownerId || !vetId || !trimmed) {
+  const mUrl = typeof mediaUrl === 'string' && mediaUrl.trim().startsWith('http') ? mediaUrl.trim() : '';
+  const mType = mediaType === 'image' || mediaType === 'video' ? mediaType : '';
+  const hasMedia = Boolean(mUrl && mType);
+  if (!ownerId || !vetId || (!trimmed && !hasMedia)) {
     res.status(400);
-    throw new Error('ownerId, vetId, and text are required');
+    throw new Error('ownerId, vetId, and text or media are required');
   }
 
   const uid = req.user._id.toString();
@@ -139,6 +144,8 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
     vetUser: vetId,
     sender: req.user._id,
     text: trimmed,
+    mediaUrl: hasMedia ? mUrl.slice(0, 2000) : '',
+    mediaType: hasMedia ? mType : '',
   });
 
   const payload = {
@@ -147,7 +154,9 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
     vetId: String(vetId),
     messageId: msg._id.toString(),
     sender: req.user._id.toString(),
-    text: trimmed,
+    text: msg.text,
+    mediaUrl: msg.mediaUrl || '',
+    mediaType: msg.mediaType || '',
     timestamp: msg.createdAt || new Date(),
   };
 
@@ -157,10 +166,13 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
   }
 
   const recipientId = uid === String(ownerId) ? String(vetId) : String(ownerId);
+  const preview =
+    trimmed ||
+    (hasMedia && mType === 'video' ? '📹 Video' : hasMedia ? '📷 Photo' : '');
   if (io && recipientId && recipientId !== uid) {
     await bumpUnread(io, recipientId, vetDirectKey(ownerId, vetId), {
       senderName: (req.user.name || 'Someone').trim(),
-      preview: trimmed,
+      preview,
       ownerId: String(ownerId),
       vetId: String(vetId),
       threadType: 'vetdirect',
@@ -177,6 +189,8 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
       _id: msg._id,
       sender: msg.sender,
       text: msg.text,
+      mediaUrl: msg.mediaUrl || '',
+      mediaType: msg.mediaType || '',
       createdAt: msg.createdAt,
     },
   });

@@ -28,8 +28,8 @@ class ApiClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 30),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -392,15 +392,34 @@ class ApiClient {
 
   Future<Response> postMarketplaceMessage(
     String conversationId, {
-    required String text,
+    String text = '',
     String? productId,
+    String? mediaUrl,
+    String? mediaType,
   }) async {
     return await _dio.post(
       '/marketplace-chat/conversations/$conversationId/messages',
       data: {
-        'text': text,
+        if (text.isNotEmpty) 'text': text,
         if (productId != null && productId.isNotEmpty) 'productId': productId,
+        if (mediaUrl != null && mediaUrl.isNotEmpty) 'mediaUrl': mediaUrl,
+        if (mediaType != null && mediaType.isNotEmpty) 'mediaType': mediaType,
       },
+    );
+  }
+
+  Future<Response> uploadChatMedia(
+    Uint8List bytes, {
+    required String filename,
+    void Function(int sent, int total)? onSendProgress,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    return _dio.post(
+      '/chat/upload',
+      data: formData,
+      onSendProgress: onSendProgress,
     );
   }
 

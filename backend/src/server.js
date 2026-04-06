@@ -95,6 +95,8 @@ const { startLiveMapSimulation } = require('./services/liveMapSimulation');
 const customerCareRoutes = require('./routes/customerCareRoutes');
 const marketplaceChatRoutes = require('./routes/marketplaceChatRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const { upload: chatUploadMulter, postChatUpload } = require('./controllers/chatUploadController');
+const { protect: protectJwt } = require('./middleware/authMiddleware');
 
 io.use(socketAuthMiddleware);
 
@@ -201,6 +203,8 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/customer-care', customerCareRoutes);
 app.use('/api/v1/marketplace-chat', marketplaceChatRoutes);
 app.use('/api/v1/chats', chatRoutes);
+// Alias (documented): POST /api/v1/chat/upload — same handler as POST /api/v1/chats/upload
+app.post('/api/v1/chat/upload', protectJwt, chatUploadMulter.single('file'), postChatUpload);
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/service-requests', serviceRequestRoutes);
 app.use('/api/v1/admin', adminRoutes);

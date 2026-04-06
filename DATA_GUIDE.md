@@ -51,7 +51,7 @@ Set the following in `backend/.env`:
 DB_NAME=pawsewa_production
 ```
 
-The application will connect to the unified database. MongoDB Compass connection URI typically includes the database name (e.g. `mongodb://localhost:27017/pawsewa_production`).
+The application will connect to the unified database on MongoDB Atlas Pawsewa-Cluster. MongoDB Compass connection URI typically uses the SRV form (e.g. `mongodb+srv://admin:<db_password>@pawsewa-cluster.h9kzdwx.mongodb.net/?appName=Pawsewa-Cluster`).
 
 ### Global environment lock (universal BASE_URL)
 
@@ -457,13 +457,13 @@ MongoDB Compass is a GUI to view and edit MongoDB data. Use it to inspect and va
 2. For local MongoDB:
 
    ```
-   mongodb://localhost:27017
+   mongodb+srv://admin:<db_password>@pawsewa-cluster.h9kzdwx.mongodb.net/?appName=Pawsewa-Cluster
    ```
 
 3. To open the unified database directly:
 
    ```
-   mongodb://localhost:27017/pawsewa_production
+   mongodb+srv://admin:<db_password>@pawsewa-cluster.h9kzdwx.mongodb.net/?appName=Pawsewa-Cluster
    ```
 
 4. Click **Connect**. If MongoDB is not running, start it (or start the backend with `npm run dev` if it starts MongoDB). Adjust the host/port if your MongoDB runs elsewhere (e.g. Atlas).
@@ -627,8 +627,8 @@ The Vet App (Rider flow) uses **url_launcher** to open external map apps.
 | Backend API     | `http://localhost:3000/api/v1`   |
 | Website         | `http://localhost:3001`          |
 | Admin Panel     | `http://localhost:3002`          |
-| MongoDB (local) | `mongodb://localhost:27017`      |
-| pawsewa_production | `mongodb://localhost:27017/pawsewa_production` |
+| MongoDB Atlas (Pawsewa-Cluster) | `mongodb+srv://admin:<db_password>@pawsewa-cluster.h9kzdwx.mongodb.net/?appName=Pawsewa-Cluster` |
+| Database name | `pawsewa_core` |
 
 ---
 

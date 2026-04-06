@@ -111,9 +111,15 @@ function registerChatHandler(io) {
         return handleUnifiedSendMessage(socket, io, payload, callback);
       }
 
-      const { requestId, text, timestamp } = payload || {};
-      if (!requestId || typeof text !== 'string' || !text.trim()) {
-        callback?.({ success: false, message: 'Missing requestId or text' });
+      const { requestId, text, timestamp, mediaUrl, mediaType } = payload || {};
+      const textStr = typeof text === 'string' ? text : '';
+      const hasText = textStr.trim().length > 0;
+      const hasMedia =
+        typeof mediaUrl === 'string' &&
+        mediaUrl.trim().startsWith('http') &&
+        (mediaType === 'image' || mediaType === 'video');
+      if (!requestId || (!hasText && !hasMedia)) {
+        callback?.({ success: false, message: 'Missing requestId or message content' });
         return;
       }
 
@@ -160,7 +166,9 @@ function registerChatHandler(io) {
         const msg = await ServiceRequestMessage.create({
           serviceRequest: requestId,
           sender: userId,
-          content: text.trim(),
+          content: hasText ? textStr.trim() : '',
+          mediaUrl: hasMedia ? mediaUrl.trim().slice(0, 2000) : '',
+          mediaType: hasMedia ? mediaType : '',
         });
 
         const room = ROOM_PREFIX + requestId;
@@ -169,6 +177,8 @@ function registerChatHandler(io) {
           messageId: msg._id.toString(),
           sender: userId.toString(),
           text: msg.content,
+          mediaUrl: msg.mediaUrl || '',
+          mediaType: msg.mediaType || '',
           timestamp: msg.createdAt || new Date(),
         };
         io.to(room).emit('new_message', emitPayload);
@@ -186,9 +196,12 @@ function registerChatHandler(io) {
           const senderLean = await User.findById(userId).select('name').lean();
           const ioServer = getIO();
           if (ioServer) {
+            const preview =
+              textStr.trim() ||
+              (hasMedia && mediaType === 'video' ? '📹 Video' : hasMedia ? '📷 Photo' : '');
             await bumpUnread(ioServer, recipientForUnread, requestKey(requestId), {
               senderName: (senderLean?.name || 'Someone').trim(),
-              preview: text.trim(),
+              preview,
               requestId: String(requestId),
               threadType: 'request',
             });
@@ -204,7 +217,7 @@ function registerChatHandler(io) {
             if (senderStr === requesterId && staffId) {
               const body =
                 (text || '').trim().slice(0, 200) ||
-                'A customer sent a new message.';
+                (hasMedia ? 'Sent a photo or video' : 'A customer sent a new message.');
               await sendMulticastToUser(staffId, {
                 title: 'Customer message',
                 body,
@@ -218,7 +231,9 @@ function registerChatHandler(io) {
 
             if (senderStr !== requesterId && requesterId) {
               if (!adminSender && !isVet) return;
-              const body = (text || '').trim().slice(0, 200) || 'New message.';
+              const body =
+                (text || '').trim().slice(0, 200) ||
+                (hasMedia ? 'Sent a photo or video' : 'New message.');
               let title = 'Customer Care';
               if (isVet) {
                 title =

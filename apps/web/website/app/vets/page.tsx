@@ -32,7 +32,7 @@ export default function VetDirectoryPage() {
   const fetchVets = async () => {
     try {
       setLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await axios.get(`${apiBase}/vets/public`);
       if (response.data.success) {
         setVets(response.data.data);

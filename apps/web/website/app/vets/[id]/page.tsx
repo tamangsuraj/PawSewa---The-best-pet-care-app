@@ -22,7 +22,7 @@ export const revalidate = 10;
 // Generate static params for all vets at build time
 export async function generateStaticParams() {
   try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
     const response = await axios.get(`${apiBase}/vets/public`);
     const vets = response.data.data || [];
     
@@ -38,7 +38,7 @@ export async function generateStaticParams() {
 // Generate metadata for SEO
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
     const response = await axios.get(`${apiBase}/vets/public/${params.id}`);
     const vet: Vet = response.data.data;
 

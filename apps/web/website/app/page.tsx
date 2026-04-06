@@ -87,7 +87,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+    const base = process.env.NEXT_PUBLIC_API_URL || '';
     (async () => {
       try {
         const v = await axios.get(`${base}/vets/public`);
@@ -113,7 +113,7 @@ export default function HomePage() {
     (async () => {
       try {
         const token = localStorage.getItem('token');
-        const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+        const base = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await axios.get(`${base}/service-requests/my/requests`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });

@@ -53,6 +53,8 @@ dependencies:
   
   # Image Picker
   image_picker: ^1.0.7
+  video_player: ^2.9.5
+  cached_network_image: ^3.3.1
   
   # HTTP for Cloudinary upload
   http: ^1.2.0

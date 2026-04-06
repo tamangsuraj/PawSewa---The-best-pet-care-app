@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -11,6 +13,7 @@ import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/chat_unread_notify_service.dart';
+import '../../widgets/chat_media_inline.dart';
 
 class MarketplaceThreadScreen extends StatefulWidget {
   const MarketplaceThreadScreen({
@@ -51,6 +54,9 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
   Timer? _typingHide;
   bool _sentFirstWithProduct = false;
   ChatUnreadNotifyService? _unreadNotify;
+  bool _uploading = false;
+  double? _uploadProgress;
+  final _picker = ImagePicker();
 
   @override
   void didChangeDependencies() {
@@ -141,6 +147,8 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
             : mid,
         'sender': {'_id': data['senderId']},
         'content': data['text'],
+        'mediaUrl': data['mediaUrl'],
+        'mediaType': data['mediaType'],
         'createdAt': data['timestamp'],
       });
     });
@@ -187,6 +195,17 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
   Future<void> _send() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
+    await _sendPayload(text: text);
+  }
+
+  Future<void> _sendPayload({
+    required String text,
+    String? mediaUrl,
+    String? mediaType,
+  }) async {
+    if (text.isEmpty && (mediaUrl == null || mediaUrl.isEmpty)) {
+      return;
+    }
     _socket.setMarketplaceTyping(widget.conversationId, false);
 
     String? productId;
@@ -200,26 +219,35 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         widget.conversationId,
         text,
         productId: productId,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
         callback: (ack) {
           final ok = ack is Map && ack['success'] == true;
           if (ok) {
             if (mounted) setState(() => _textController.clear());
           } else if (mounted) {
-            _fallbackHttp(text, productId);
+            unawaited(_fallbackHttp(text, productId, mediaUrl: mediaUrl, mediaType: mediaType));
           }
         },
       );
     } else {
-      await _fallbackHttp(text, productId);
+      await _fallbackHttp(text, productId, mediaUrl: mediaUrl, mediaType: mediaType);
     }
   }
 
-  Future<void> _fallbackHttp(String text, String? productId) async {
+  Future<void> _fallbackHttp(
+    String text,
+    String? productId, {
+    String? mediaUrl,
+    String? mediaType,
+  }) async {
     try {
       await _api.postMarketplaceMessage(
         widget.conversationId,
         text: text,
         productId: productId,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
       );
       if (mounted) setState(() => _textController.clear());
       await _loadMessages();
@@ -228,6 +256,95 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Message could not be sent')),
         );
+      }
+    }
+  }
+
+  Future<void> _showAttachmentOptions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Photo from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_pickAndUploadImage(ImageSource.gallery));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam_outlined),
+              title: const Text('Video from gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                unawaited(_pickAndUploadVideo(ImageSource.gallery));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    final x = await _picker.pickImage(source: source, imageQuality: 88);
+    if (x == null) return;
+    final bytes = await x.readAsBytes();
+    final name = x.path.split(RegExp(r'[/\\]')).last;
+    await _uploadBytes(bytes, name.isNotEmpty ? name : 'photo.jpg');
+  }
+
+  Future<void> _pickAndUploadVideo(ImageSource source) async {
+    final x = await _picker.pickVideo(source: source);
+    if (x == null) return;
+    final bytes = await x.readAsBytes();
+    final name = x.path.split(RegExp(r'[/\\]')).last;
+    await _uploadBytes(bytes, name.isNotEmpty ? name : 'clip.mp4');
+  }
+
+  Future<void> _uploadBytes(Uint8List bytes, String filename) async {
+    if (!mounted) return;
+    setState(() {
+      _uploading = true;
+      _uploadProgress = 0;
+    });
+    try {
+      final res = await _api.uploadChatMedia(
+        bytes,
+        filename: filename,
+        onSendProgress: (sent, total) {
+          if (!mounted || total <= 0) return;
+          setState(() => _uploadProgress = sent / total);
+        },
+      );
+      final body = res.data;
+      if (body is! Map || body['success'] != true) {
+        throw Exception('upload failed');
+      }
+      final data = body['data'];
+      if (data is! Map) throw Exception('upload failed');
+      final url = data['url']?.toString();
+      final mt = data['mediaType']?.toString();
+      if (url == null || url.isEmpty || (mt != 'image' && mt != 'video')) {
+        throw Exception('bad upload response');
+      }
+      final caption = _textController.text.trim();
+      await _sendPayload(text: caption, mediaUrl: url, mediaType: mt);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not upload media. Check Cloudinary config on the server.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _uploadProgress = null;
+        });
       }
     }
   }
@@ -342,6 +459,8 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                           m['content']?.toString() ??
                           m['text']?.toString() ??
                           '';
+                      final mediaUrl = m['mediaUrl']?.toString();
+                      final mediaType = m['mediaType']?.toString();
                       final pn = m['productName']?.toString();
                       return Align(
                         alignment: mine
@@ -377,17 +496,34 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                                     ),
                                   ),
                                 ),
-                              Text(
-                                content,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  color: mine
-                                      ? Colors.white
-                                      : (widget.highContrast
-                                            ? Colors.white
-                                            : Colors.black87),
+                              if (mediaUrl != null &&
+                                  mediaUrl.isNotEmpty &&
+                                  (mediaType == 'image' || mediaType == 'video'))
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: ChatMediaInline(
+                                    mediaUrl: mediaUrl,
+                                    mediaType: mediaType!,
+                                    onTapImage: mediaType == 'image'
+                                        ? () => openChatImageFullscreen(
+                                              context,
+                                              mediaUrl,
+                                            )
+                                        : null,
+                                  ),
                                 ),
-                              ),
+                              if (content.isNotEmpty)
+                                Text(
+                                  content,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    color: mine
+                                        ? Colors.white
+                                        : (widget.highContrast
+                                              ? Colors.white
+                                              : Colors.black87),
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -395,6 +531,12 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                     },
                   ),
                 ),
+                if (_uploading)
+                  LinearProgressIndicator(
+                    value: _uploadProgress,
+                    minHeight: 3,
+                    backgroundColor: widget.highContrast ? Colors.grey.shade800 : null,
+                  ),
                 Material(
                   color: bg,
                   child: Padding(
@@ -402,6 +544,14 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
+                        IconButton(
+                          onPressed: _uploading ? null : _showAttachmentOptions,
+                          icon: Icon(
+                            Icons.attach_file_rounded,
+                            color: widget.highContrast ? Colors.white70 : primary,
+                          ),
+                          tooltip: 'Attach photo or video',
+                        ),
                         Expanded(
                           child: TextField(
                             controller: _textController,

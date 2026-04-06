@@ -123,7 +123,7 @@ export default function CustomerDetailPage() {
       }
 
       // Admin creates pet for this user
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
       const response = await axios.post(
         `${apiBase}/pets/admin/${params.id}`,
         submitData,
