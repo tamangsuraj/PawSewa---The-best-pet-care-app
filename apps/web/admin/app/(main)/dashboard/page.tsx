@@ -102,8 +102,17 @@ export default function DashboardPage() {
         if (response.data.success && Array.isArray(response.data.data)) {
           setRecentOrders(response.data.data);
         }
-      } catch {
-        toast.error('Failed to load recent orders');
+      } catch (e: unknown) {
+        const msg =
+          e && typeof e === 'object' && 'response' in e
+            ? String((e as { response?: { data?: { message?: string }; status?: number } }).response?.data?.message || '')
+            : '';
+        const status = (e as { response?: { status?: number } })?.response?.status;
+        if (status === 401) {
+          toast.error('Session expired — sign in again.');
+        } else {
+          toast.error(msg || 'Failed to load recent orders');
+        }
       } finally {
         setOrdersLoading(false);
       }

@@ -39,6 +39,7 @@ const locationRoutes = require('./routes/locationRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const careRoutes = require('./routes/careRoutes');
 const hostelRoutes = require('./routes/hostelRoutes');
+const { getHostels } = require('./controllers/hostelController');
 const trainingRoutes = require('./routes/trainingRoutes');
 const centerRoutes = require('./routes/centerRoutes');
 const careBookingRoutes = require('./routes/careBookingRoutes');
@@ -53,6 +54,7 @@ const promoCodeRoutes = require('./routes/promoCodeRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const callRoutes = require('./routes/callRoutes');
 const ecosystemRoutes = require('./routes/ecosystemRoutes');
 const { scanAndNotifyReminders24h } = require('./utils/reminderNotifier');
 
@@ -85,6 +87,7 @@ const { registerChatHandler } = require('./sockets/chatHandler');
 const { registerCustomerCareSocket } = require('./sockets/customerCareSocket');
 const { registerMarketplaceChatSocket } = require('./sockets/marketplaceChatSocket');
 const { registerVetDirectSocket } = require('./sockets/vetDirectSocket');
+const { registerCallSignaling } = require('./sockets/callSignalingSocket');
 const { registerUnifiedChatSocket } = require('./sockets/unifiedChatSocket');
 const { presenceConnect, presenceDisconnect } = require('./sockets/presenceStore');
 const { setIO } = require('./sockets/socketStore');
@@ -118,6 +121,7 @@ registerCustomerCareSocket(io);
 registerMarketplaceChatSocket(io);
 registerUnifiedChatSocket(io);
 registerVetDirectSocket(io);
+registerCallSignaling(io);
 setIO(io);
 
 // ============================================
@@ -204,6 +208,8 @@ app.use('/api/v1/location', locationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/care', careRoutes);
 app.use('/api/v1/hostels', hostelRoutes);
+// Alias for clients that call GET /care-centers (same handler as /hostels).
+app.get('/api/v1/care-centers', getHostels);
 app.use('/api/v1/trainings', trainingRoutes);
 app.use('/api/v1/centers', centerRoutes);
 app.use('/api/v1/care-bookings', careBookingRoutes);
@@ -217,6 +223,7 @@ app.use('/api/v1/appointments', appointmentRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/reminders', reminderRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/calls', callRoutes);
 app.use('/api/v1/ecosystem', ecosystemRoutes);
 app.use('/api/v1', productRoutes);
 app.use('/api/v1', shopRecommendationRoutes);
@@ -327,6 +334,24 @@ tryAllowWindowsFirewall();
 
 async function start() {
   await connectDB();
+  try {
+    const { resolveCareAdminId } = require('./services/customerCareService');
+    const ccAdmin = await resolveCareAdminId();
+    if (ccAdmin) {
+      logger.success('[Customer Care] Admin partner resolved:', String(ccAdmin));
+      if (!(process.env.CUSTOMER_CARE_ADMIN_ID || '').trim()) {
+        logger.info(
+          '[Customer Care] Optional: set CUSTOMER_CARE_ADMIN_ID in .env to pin this user, or run npm run sync:customer-care-admin.'
+        );
+      }
+    } else {
+      logger.warn(
+        '[Customer Care] No admin user found — support inbox for pet owners stays disabled until you create an admin or set CUSTOMER_CARE_ADMIN_ID.'
+      );
+    }
+  } catch (e) {
+    logger.warn('[Customer Care] Startup check failed:', e?.message || String(e));
+  }
   if (isFirebaseAdminConfigured()) {
     initFirebaseAdmin();
   } else {
@@ -363,6 +388,17 @@ async function start() {
   const activeCasesCount = await Case.countDocuments({ status: { $nin: ['completed', 'cancelled'] } });
   logger.info('Live Cases Sync:', activeCasesCount, 'active cases found.');
   logger.success('Hostels and Grooming centers mapped for all 4 platforms.');
+
+  server.on('error', (err) => {
+    if (err && err.code === 'EADDRINUSE') {
+      logger.error(`Port ${PORT} is already in use (EADDRINUSE). Another PawSewa backend or app is listening.`);
+      logger.info('Fix: from backend folder run  npm run free-port  then  npm run dev');
+      logger.info('Or use another port:  set PORT=3001  (Windows) /  PORT=3001 npm run dev  (macOS/Linux)');
+      process.exit(1);
+    }
+    logger.error('HTTP server error:', err.message || String(err));
+    process.exit(1);
+  });
 
   server.listen(PORT, '0.0.0.0', () => {
     logger.info('Starting PawSewa Backend Server.');

@@ -14,14 +14,30 @@ const createAdmin = async () => {
     await mongoose.connect(uri, getMongooseConnectionOptions(uri));
     console.log('[SUCCESS] Connected to MongoDB:', mongoose.connection.db?.databaseName || 'unknown');
 
-    // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'admin@pawsewa.com' });
-    
-    if (existingAdmin) {
-      console.log('⚠️  Admin user already exists!');
-      console.log('Email:', existingAdmin.email);
-      console.log('Name:', existingAdmin.name);
+    const anyAdmin = await User.findOne({
+      $or: [
+        { role: 'admin' },
+        { role: 'ADMIN' },
+        { role: 'Admin' },
+        { role: { $regex: /^admin$/i } },
+      ],
+    })
+      .select('email name role')
+      .lean();
+
+    if (anyAdmin) {
+      console.log('✅ An admin user already exists in the database.');
+      console.log('   Email:', anyAdmin.email);
+      console.log('   Name:', anyAdmin.name);
+      console.log('   Role:', anyAdmin.role);
+      console.log('\n   Run: npm run sync:customer-care-admin  (writes CUSTOMER_CARE_ADMIN_ID to .env)');
       process.exit(0);
+    }
+
+    const existingEmail = await User.findOne({ email: 'admin@pawsewa.com' });
+    if (existingEmail) {
+      console.log('⚠️  admin@pawsewa.com exists but role is not admin. Update role in DB or use another admin account.');
+      process.exit(1);
     }
 
     // Create admin user

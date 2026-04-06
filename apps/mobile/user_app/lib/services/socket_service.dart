@@ -28,6 +28,9 @@ class SocketService {
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
   final List<void Function(Map<String, dynamic>)?> _orderUpdateListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _incomingCallListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _callAnsweredListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _callEndedListeners = [];
 
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
@@ -204,6 +207,33 @@ class SocketService {
         final map = _toMap(data);
         if (map != null) {
           for (final cb in _orderUpdateListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('incoming_call', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _incomingCallListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('call_answered', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _callAnsweredListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('call_ended', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _callEndedListeners) {
             cb?.call(map);
           }
         }
@@ -600,5 +630,101 @@ class SocketService {
 
   void removeOrderUpdateListener(void Function(Map<String, dynamic>) listener) {
     _orderUpdateListeners.remove(listener);
+  }
+
+  void emitMakeCall({
+    required String toUserId,
+    required String channelName,
+    required String callType,
+    String callerName = '',
+    String? appointmentId,
+    String? careBookingId,
+    void Function(dynamic)? callback,
+  }) {
+    if (_socket == null || !_socket!.connected) {
+      callback?.call({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'make_call',
+      {
+        'toUserId': toUserId,
+        'channelName': channelName,
+        'callType': callType,
+        'callerName': callerName,
+        if (appointmentId != null && appointmentId.isNotEmpty)
+          'appointmentId': appointmentId,
+        if (careBookingId != null && careBookingId.isNotEmpty)
+          'careBookingId': careBookingId,
+      },
+      ack: (response) {
+        callback?.call(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void emitAnswerCall({
+    required String toUserId,
+    required String channelName,
+    void Function(dynamic)? callback,
+  }) {
+    if (_socket == null || !_socket!.connected) {
+      callback?.call({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'answer_call',
+      {'toUserId': toUserId, 'channelName': channelName},
+      ack: (response) {
+        callback?.call(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void emitHangUp({
+    required String toUserId,
+    required String channelName,
+    int durationSeconds = 0,
+    void Function(dynamic)? callback,
+  }) {
+    if (_socket == null || !_socket!.connected) {
+      callback?.call({'success': false, 'message': 'Not connected'});
+      return;
+    }
+    _socket!.emitWithAck(
+      'hang_up',
+      {
+        'toUserId': toUserId,
+        'channelName': channelName,
+        'durationSeconds': durationSeconds,
+      },
+      ack: (response) {
+        callback?.call(response is Map ? response : {'success': false});
+      },
+    );
+  }
+
+  void addIncomingCallListener(void Function(Map<String, dynamic>) listener) {
+    _incomingCallListeners.add(listener);
+  }
+
+  void removeIncomingCallListener(void Function(Map<String, dynamic>) listener) {
+    _incomingCallListeners.remove(listener);
+  }
+
+  void addCallAnsweredListener(void Function(Map<String, dynamic>) listener) {
+    _callAnsweredListeners.add(listener);
+  }
+
+  void removeCallAnsweredListener(void Function(Map<String, dynamic>) listener) {
+    _callAnsweredListeners.remove(listener);
+  }
+
+  void addCallEndedListener(void Function(Map<String, dynamic>) listener) {
+    _callEndedListeners.add(listener);
+  }
+
+  void removeCallEndedListener(void Function(Map<String, dynamic>) listener) {
+    _callEndedListeners.remove(listener);
   }
 }

@@ -566,7 +566,7 @@ class ApiClient {
     final query = serviceType != null && serviceType.isNotEmpty
         ? '?serviceType=$serviceType'
         : '';
-    return await _dio.get('/hostels$query');
+    return await _dio.get('/care-centers$query');
   }
 
   Future<Response> getHostelById(String hostelId) async {
@@ -626,5 +626,24 @@ class ApiClient {
       '/chats/vet-direct/messages',
       data: {'ownerId': ownerId, 'vetId': vetId, 'text': text},
     );
+  }
+
+  /// Agora RTC token (channelName from vet-direct helper or appointment id).
+  Future<Response> getAgoraRtcToken({
+    required String channelName,
+    int? uid,
+  }) async {
+    return await _dio.get(
+      '/calls/token',
+      queryParameters: {
+        'channelName': channelName,
+        ...?uid != null ? {'uid': uid} : null,
+      },
+    );
+  }
+
+  /// Persist call duration for admin / care booking analytics.
+  Future<Response> postCallLog(Map<String, dynamic> body) async {
+    return await _dio.post('/calls/log', data: body);
   }
 }

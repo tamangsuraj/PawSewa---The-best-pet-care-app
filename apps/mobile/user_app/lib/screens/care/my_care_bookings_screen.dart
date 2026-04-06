@@ -144,7 +144,7 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                   Icon(Icons.home_work_outlined, size: 56, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
-                    'No hostel or care bookings yet',
+                    'No care centre bookings yet',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w600),
                   ),

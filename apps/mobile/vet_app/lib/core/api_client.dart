@@ -441,4 +441,21 @@ class ApiClient {
       data: {'text': text},
     );
   }
+
+  Future<Response> getAgoraRtcToken({
+    required String channelName,
+    int? uid,
+  }) async {
+    return await _dio.get(
+      '/calls/token',
+      queryParameters: {
+        'channelName': channelName,
+        ...?uid != null ? {'uid': uid} : null,
+      },
+    );
+  }
+
+  Future<Response> postCallLog(Map<String, dynamic> body) async {
+    return await _dio.post('/calls/log', data: body);
+  }
 }

@@ -16,6 +16,7 @@ import 'widgets/pawsewa_logo_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/vet_dashboard_screen.dart';
 import 'services/chat_unread_notify_service.dart';
+import 'services/ongoing_call_service.dart';
 
 Future<void> _logHealthCheck() async {
   try {
@@ -59,6 +60,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ChatUnreadNotifyService()),
+        ChangeNotifierProvider(create: (_) => OngoingCallService()),
       ],
       child: const MyApp(),
     ),

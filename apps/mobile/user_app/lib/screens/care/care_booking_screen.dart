@@ -661,7 +661,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           const SizedBox(height: 12),
           const SizedBox(height: 24),
           Text(
-            'Hostel Policies',
+            'Care policies',
             style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
           ),
           const SizedBox(height: 8),
@@ -718,7 +718,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                 )
               : const Icon(Icons.calendar_today, size: 18),
           label: Text(
-            'Confirm Hostel Booking  Rs. ${total.toStringAsFixed(0)}',
+            'Confirm booking  Rs. ${total.toStringAsFixed(0)}',
             style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15),
           ),
           style: ElevatedButton.styleFrom(

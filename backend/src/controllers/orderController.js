@@ -4,6 +4,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const Notification = require('../models/Notification');
 const { broadcastShopOrder } = require('../services/orderSocketNotify');
 const {
   ensureDeliveryConversationForOrder,
@@ -133,6 +134,18 @@ const createOrder = asyncHandler(async (req, res) => {
   logger.info('New Order Received: ID', order._id.toString());
 
   await broadcastShopOrder(order._id, 'new_order');
+
+  try {
+    await Notification.create({
+      user: userId,
+      title: 'Order received',
+      message: `We received your order with ${orderItems.length} item(s). Total NPR ${total}. Track it in My Orders.`,
+      type: 'system',
+      isRead: false,
+    });
+  } catch (e) {
+    logger.warn('Order in-app notification skipped:', e?.message || String(e));
+  }
 
   res.status(201).json({ success: true, data: order });
 });

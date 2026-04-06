@@ -104,21 +104,33 @@ export default function PastCasesPage() {
       }
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [casesCompleted, casesCancelled, reqCompleted, reqCancelled] = await Promise.all([
+      const results = await Promise.allSettled([
         axios.get<{ success: boolean; data?: CaseItem[] }>(`${API_BASE}/cases?status=completed`, { headers }),
         axios.get<{ success: boolean; data?: CaseItem[] }>(`${API_BASE}/cases?status=cancelled`, { headers }),
         axios.get<{ success: boolean; data?: ServiceRequestItem[] }>(`${API_BASE}/service-requests?status=completed`, { headers }),
         axios.get<{ success: boolean; data?: ServiceRequestItem[] }>(`${API_BASE}/service-requests?status=cancelled`, { headers }),
       ]);
 
+      const pick = <T,>(i: number): T[] => {
+        const r = results[i];
+        if (r.status !== 'fulfilled') return [];
+        const d = r.value.data;
+        return (d?.data as T[]) || [];
+      };
+
       const casesData: CaseItem[] = [
-        ...(casesCompleted.data?.data || []).map((c) => ({ ...c, type: 'assistance' as const })),
-        ...(casesCancelled.data?.data || []).map((c) => ({ ...c, type: 'assistance' as const })),
+        ...pick<CaseItem>(0).map((c) => ({ ...c, type: 'assistance' as const })),
+        ...pick<CaseItem>(1).map((c) => ({ ...c, type: 'assistance' as const })),
       ];
       const requestsData: ServiceRequestItem[] = [
-        ...(reqCompleted.data?.data || []).map((r) => ({ ...r, type: 'appointment' as const })),
-        ...(reqCancelled.data?.data || []).map((r) => ({ ...r, type: 'appointment' as const })),
+        ...pick<ServiceRequestItem>(2).map((r) => ({ ...r, type: 'appointment' as const })),
+        ...pick<ServiceRequestItem>(3).map((r) => ({ ...r, type: 'appointment' as const })),
       ];
+
+      const failed = results.filter((r) => r.status === 'rejected');
+      if (failed.length === results.length) {
+        throw new Error('All past-case API requests failed. Check admin token and NEXT_PUBLIC_API_URL.');
+      }
 
       const merged: PastCaseRow[] = [...casesData, ...requestsData].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

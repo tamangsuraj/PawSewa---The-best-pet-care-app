@@ -31,19 +31,26 @@ function isAdminRole(role) {
 }
 
 async function resolveCareAdminId() {
-  const envId = process.env.CUSTOMER_CARE_ADMIN_ID;
+  const envId = (process.env.CUSTOMER_CARE_ADMIN_ID || '').trim();
   if (envId && mongoose.Types.ObjectId.isValid(envId)) {
-    const u = await User.findById(envId).select('_id role');
+    const u = await User.findById(envId).select('_id role').lean();
     if (u && isAdminRole(u.role)) return u._id;
     logger.warn(
       'Chat Engine: CUSTOMER_CARE_ADMIN_ID is set but user missing or not admin; falling back to first admin.'
     );
   }
-  const admin = await User.findOne({ role: { $in: ['admin', 'ADMIN'] } })
+  let admin = await User.findOne({ role: { $in: ['admin', 'ADMIN', 'Admin'] } })
     .select('_id')
     .sort({ createdAt: 1 })
     .lean();
-  return admin?._id || null;
+  if (admin?._id) return admin._id;
+  // Legacy / odd casing in older documents
+  admin = await User.findOne({ role: { $regex: /^admin$/i } })
+    .select('_id role')
+    .sort({ createdAt: 1 })
+    .lean();
+  if (admin?._id && isAdminRole(admin.role)) return admin._id;
+  return null;
 }
 
 /**
@@ -115,8 +122,9 @@ async function migrateLegacyCustomerCareThread(legacyConv) {
 /**
  * Idempotent: ensure SUPPORT conversation (+ welcome) or migrate legacy.
  */
-async function ensureDefaultCustomerCareConversation(customerUserId) {
-  const careAdminId = await resolveCareAdminId();
+async function ensureDefaultCustomerCareConversation(customerUserId, precomputedCareAdminId = null) {
+  const careAdminId =
+    precomputedCareAdminId != null ? precomputedCareAdminId : await resolveCareAdminId();
   if (!careAdminId) {
     logger.warn(
       'Chat Engine: No Customer Care admin (set CUSTOMER_CARE_ADMIN_ID or seed an admin); skipping default conversation.'

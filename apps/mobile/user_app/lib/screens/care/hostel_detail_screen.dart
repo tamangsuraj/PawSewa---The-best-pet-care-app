@@ -230,7 +230,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                   if (schedule.isNotEmpty && serviceType == 'Hostel') ...[
                     const SizedBox(height: 20),
                     Text(
-                      'Hostel Schedule',
+                      'Daily schedule',
                       style: GoogleFonts.outfit(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

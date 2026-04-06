@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
+import '../services/notification_unread_notify_service.dart';
 import '../core/constants.dart';
 
 /// Live alerts from `pawsewa_chat.notifications` via `GET /notifications/me`.
@@ -50,11 +52,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               }
             }
           }
+          final u = unread is int ? unread : int.tryParse('$unread') ?? 0;
           setState(() {
             _items = list;
-            _unreadCount = unread is int ? unread : int.tryParse('$unread') ?? 0;
+            _unreadCount = u;
             _loading = false;
           });
+          if (mounted) {
+            context.read<NotificationUnreadNotifyService>().setUnread(u);
+          }
           return;
         }
       }
@@ -88,6 +94,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _api.markAllNotificationsRead();
       if (mounted) {
         await _load();
+        if (!mounted) {
+          return;
+        }
+        context.read<NotificationUnreadNotifyService>().setUnread(0);
       }
     } catch (_) {
       if (mounted) {
@@ -116,6 +126,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           _unreadCount -= 1;
         }
       });
+      context.read<NotificationUnreadNotifyService>().setUnread(_unreadCount);
     }
   }
 

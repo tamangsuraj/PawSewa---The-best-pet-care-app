@@ -21,6 +21,7 @@ import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
 import 'shop/my_orders_screen.dart';
 import 'care/my_care_bookings_screen.dart';
+import 'care/my_care_requests_screen.dart';
 import 'messages/messages_hub_screen.dart';
 import 'care/care_screen.dart';
 import 'my_pets/my_pets_screen.dart';
@@ -30,7 +31,9 @@ import 'home_screen.dart';
 import 'notifications_screen.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
+import '../services/notification_unread_notify_service.dart';
 import '../services/push_notification_service.dart';
+import '../services/ongoing_call_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
 
@@ -67,6 +70,12 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadUserData();
     _loadPets();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(context.read<NotificationUnreadNotifyService>().refreshFromApi());
+    });
   }
 
   @override
@@ -79,6 +88,9 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(PushNotificationService.instance.syncTokenIfLoggedIn());
+      if (mounted) {
+        unawaited(context.read<NotificationUnreadNotifyService>().refreshFromApi());
+      }
     }
   }
 
@@ -454,6 +466,15 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     Navigator.pop(context);
   }
 
+  /// Opens [ServicesScreen] with sub-tab `index` (0–3). Closes the drawer when open.
+  void _goToServicesTab(int index) {
+    setState(() {
+      _servicesInitialTab = index.clamp(0, 3);
+      _currentIndex = 1;
+    });
+    Navigator.pop(context);
+  }
+
   void _closeDrawerAndPush(Widget screen) {
     Navigator.pop(context);
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -639,7 +660,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         label: 'Home',
                         active: _currentIndex == 1,
                         onTap: () {
-                          _goToTab(1);
+                          _goToServicesTab(0);
                         },
                       ),
                       _drawerSubItem(
@@ -663,12 +684,60 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     shape: const Border(),
                     collapsedShape: const Border(),
                     leading: Icon(
+                      Icons.design_services_outlined,
+                      color: _primaryBrown,
+                      size: 22,
+                    ),
+                    title: Text(
+                      'Care centre requests',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _primaryBrown,
+                      ),
+                    ),
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+                    childrenPadding: EdgeInsets.zero,
+                    children: [
+                      _drawerSubItem(
+                        icon: Icons.content_cut_outlined,
+                        label: 'Grooming requests',
+                        active: false,
+                        onTap: () {
+                          _closeDrawerAndPush(
+                            const MyCareRequestsScreen(
+                              kind: CareRequestsKind.grooming,
+                            ),
+                          );
+                        },
+                      ),
+                      _drawerSubItem(
+                        icon: Icons.school_outlined,
+                        label: 'Training requests',
+                        active: false,
+                        onTap: () {
+                          _closeDrawerAndPush(
+                            const MyCareRequestsScreen(
+                              kind: CareRequestsKind.training,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 1, thickness: 1, color: _drawerDivider),
+                  ExpansionTile(
+                    iconColor: _primaryBrown,
+                    collapsedIconColor: _primaryBrown,
+                    shape: const Border(),
+                    collapsedShape: const Border(),
+                    leading: Icon(
                       Icons.cottage_outlined,
                       color: _primaryBrown,
                       size: 22,
                     ),
                     title: Text(
-                      'Pet Hostel',
+                      'Care centres',
                       style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -919,18 +988,63 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 child: PawSewaBrandLogo(height: 28),
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.notifications_none_rounded, size: 22),
-              color: Colors.black87,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => const NotificationsScreen(),
-                  ),
+            Consumer2<NotificationUnreadNotifyService, OngoingCallService>(
+              builder: (context, nUnread, ongoing, _) {
+                final bell = Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_none_rounded, size: 22),
+                      color: Colors.black87,
+                      onPressed: () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const NotificationsScreen(),
+                          ),
+                        );
+                        if (context.mounted) {
+                          unawaited(nUnread.refreshFromApi());
+                        }
+                      },
+                      tooltip: 'Notifications',
+                    ),
+                    if (ongoing.active)
+                      Positioned(
+                        right: 2,
+                        top: 4,
+                        child: IgnorePointer(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'LIVE',
+                              style: GoogleFonts.outfit(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+                final c = nUnread.unreadCount;
+                if (c <= 0) {
+                  return bell;
+                }
+                return Badge.count(
+                  count: c > 99 ? 99 : c,
+                  child: bell,
                 );
               },
-              tooltip: 'Notifications',
             ),
             Consumer<ChatUnreadNotifyService>(
               builder: (context, unread, _) {
@@ -1029,18 +1143,63 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       surfaceTintColor: Colors.transparent,
       iconTheme: const IconThemeData(color: Colors.black87),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, size: 22),
-          color: Colors.black87,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (_) => const NotificationsScreen(),
-              ),
+        Consumer2<NotificationUnreadNotifyService, OngoingCallService>(
+          builder: (context, nUnread, ongoing, _) {
+            final bell = Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_none_rounded, size: 22),
+                  color: Colors.black87,
+                  onPressed: () async {
+                    await Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                    if (context.mounted) {
+                      unawaited(nUnread.refreshFromApi());
+                    }
+                  },
+                  tooltip: 'Notifications',
+                ),
+                if (ongoing.active)
+                  Positioned(
+                    right: 2,
+                    top: 4,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'LIVE',
+                          style: GoogleFonts.outfit(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+            final c = nUnread.unreadCount;
+            if (c <= 0) {
+              return bell;
+            }
+            return Badge.count(
+              count: c > 99 ? 99 : c,
+              child: bell,
             );
           },
-          tooltip: 'Notifications',
         ),
         Consumer<ChatUnreadNotifyService>(
           builder: (context, unread, _) {

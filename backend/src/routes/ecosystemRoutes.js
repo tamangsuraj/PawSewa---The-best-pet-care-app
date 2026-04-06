@@ -32,7 +32,7 @@ router.get('/modules', (req, res) => {
           code: 'CCBS',
           name: 'Care Centre Booking',
           description: 'Hostel / grooming / training bookings + owner respond',
-          api: ['/api/v1/care-bookings', '/api/v1/hostels', '/api/v1/trainings'],
+          api: ['/api/v1/care-bookings', '/api/v1/hostels', '/api/v1/care-centers', '/api/v1/trainings'],
         },
         {
           code: 'MVM',

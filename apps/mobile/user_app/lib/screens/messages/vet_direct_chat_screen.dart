@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -9,8 +10,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../core/pawsewa_call_channel.dart';
+import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/chat_unread_notify_service.dart';
+import '../../widgets/messaging_call_bar.dart';
+import 'agora_vet_direct_call_screen.dart';
 
 /// 1:1 chat with a vet (room id: ownerUserId_vetUserId).
 class VetDirectChatScreen extends StatefulWidget {
@@ -36,6 +41,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
   String get _vetId => widget.vet['_id']?.toString() ?? '';
   String get _vetName => widget.vet['name']?.toString() ?? 'Vet';
   String? _pic;
+  String _myName = 'You';
 
   bool _loading = true;
   String? _error;
@@ -59,11 +65,97 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
   }
 
   Future<void> _bootstrap() async {
+    await _loadMyName();
     await _loadMessages();
     await _socket.connect();
     _socket.addVetDirectMessageListener(_onMsg);
     _socket.addVetDirectTypingListener(_onTyping);
+    _socket.addIncomingCallListener(_onIncomingCall);
     _joinWhenReady();
+  }
+
+  Future<void> _loadMyName() async {
+    final raw = await StorageService().getUser();
+    if (raw == null) return;
+    try {
+      final m = jsonDecode(raw) as Map<String, dynamic>;
+      final n = m['name']?.toString();
+      if (n != null && n.isNotEmpty && mounted) {
+        setState(() => _myName = n);
+      }
+    } catch (_) {}
+  }
+
+  void _onIncomingCall(Map<String, dynamic> data) {
+    final ch = data['channelName']?.toString() ?? '';
+    if (ch != vetDirectRtcChannel(widget.ownerId, _vetId)) return;
+    final fromId = data['fromUserId']?.toString() ?? '';
+    if (fromId.isEmpty) return;
+    final video = data['callType']?.toString() == 'video';
+    final callerName = data['callerName']?.toString() ?? 'Caller';
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(video ? 'Incoming video call' : 'Incoming call'),
+        content: Text('$callerName is calling…'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _socket.emitHangUp(
+                toUserId: fromId,
+                channelName: ch,
+                durationSeconds: 0,
+              );
+            },
+            child: const Text('Decline'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _socket.emitAnswerCall(toUserId: fromId, channelName: ch);
+              if (!mounted) return;
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  fullscreenDialog: true,
+                  builder: (_) => AgoraVetDirectCallScreen(
+                    channelName: ch,
+                    myUserId: widget.ownerId,
+                    peerUserId: fromId,
+                    peerName: callerName,
+                    localDisplayName: _myName,
+                    video: video,
+                    iAmCaller: false,
+                    answerAlreadySent: true,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Accept'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _placeCall(bool video) async {
+    final ch = vetDirectRtcChannel(widget.ownerId, _vetId);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => AgoraVetDirectCallScreen(
+          channelName: ch,
+          myUserId: widget.ownerId,
+          peerUserId: _vetId,
+          peerName: _vetName,
+          localDisplayName: _myName,
+          video: video,
+          iAmCaller: true,
+        ),
+      ),
+    );
   }
 
   Future<void> _joinWhenReady() async {
@@ -255,6 +347,7 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
     _typingHide?.cancel();
     _socket.removeVetDirectMessageListener(_onMsg);
     _socket.removeVetDirectTypingListener(_onTyping);
+    _socket.removeIncomingCallListener(_onIncomingCall);
     _socket.setVetDirectTyping(
       ownerId: widget.ownerId,
       vetId: _vetId,
@@ -302,6 +395,17 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
         foregroundColor: Colors.white,
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 8),
+            child: Center(
+              child: MessagingCallBar(
+                onAudio: () => unawaited(_placeCall(false)),
+                onVideo: () => unawaited(_placeCall(true)),
+              ),
+            ),
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

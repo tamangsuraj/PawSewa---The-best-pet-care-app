@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "tunnel": "ngrok http 3000",
+    "free-port": "node scripts/free-port.js",
+    "dev:fresh": "node scripts/free-port.js && node src/server.js",
+    "tunnel": "ngrok http 3000 --pooling-enabled",
+    "tunnel:restart": "node scripts/ngrok-restart.js",
     "migrate:production": "node src/scripts/migrateToProduction.js",
     "sync:production": "node scripts/syncToProduction.js",
     "seed:care": "node scripts/seed-hostels-trainings-centers.js",
@@ -14,6 +17,10 @@
     "seed:master-user": "node src/seeders/masterUserSeeder.js",
     "seed:resync": "node src/seeders/masterUserSeeder.js && node src/seeders/serviceSeeder.js",
     "seed:products": "node src/seeders/productSeeder.js",
+    "seed:data": "node scripts/seed-data.js",
+    "sync:customer-care-admin": "node scripts/sync-customer-care-admin-env.js",
+    "populate:pawsewa": "node scripts/populate_pawsewa.js",
+    "reset:admin-password": "node scripts/reset-super-admin.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:pilot": "node scripts/pilot-e2e-smoke.js"
   },
@@ -21,6 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "agora-token": "^2.0.5",
     "axios": "^1.13.5",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.9.0",

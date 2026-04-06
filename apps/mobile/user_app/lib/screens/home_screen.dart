@@ -471,7 +471,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               ),
               _quickOrb(
                 context,
-                label: 'Hostel',
+                label: 'Care centres',
                 bg: const Color(0xFFFFF3E0),
                 icon: Icons.bed_rounded,
                 iconColor: const Color(0xFF8D6E63),

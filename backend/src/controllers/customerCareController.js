@@ -24,10 +24,22 @@ function assertSupportConv(conv) {
  * @route GET /api/v1/customer-care/mine
  */
 const getMine = asyncHandler(async (req, res) => {
-  const conv = await ensureDefaultCustomerCareConversation(req.user._id);
+  const careAdminId = await resolveCareAdminId();
+  if (!careAdminId) {
+    res.status(503);
+    throw new Error(
+      'Customer Care is not configured: no user with role admin was found. Create an admin (e.g. node scripts/createAdmin.js), run npm run sync:customer-care-admin, or set CUSTOMER_CARE_ADMIN_ID in backend/.env.'
+    );
+  }
+  if (String(careAdminId) === String(req.user._id)) {
+    res.status(403);
+    throw new Error('Customer Care chat is only available for pet owners.');
+  }
+
+  const conv = await ensureDefaultCustomerCareConversation(req.user._id, careAdminId);
   if (!conv) {
     res.status(503);
-    throw new Error('Customer Care is not configured. Ask an administrator to set CUSTOMER_CARE_ADMIN_ID.');
+    throw new Error('Could not open Customer Care. Please try again or contact support.');
   }
 
   const populated = await MarketplaceConversation.findById(conv._id)

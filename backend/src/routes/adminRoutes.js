@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 
 const { assignServiceRequest } = require('../controllers/serviceRequestController');
@@ -22,6 +23,7 @@ const {
 } = require('../services/customerCareService');
 const { formatRoleLabel } = require('../utils/roleLabels');
 const { findUserByEmail } = require('../controllers/chatController');
+const CallSession = require('../models/CallSession');
 
 const DISPATCH_RIDER_ROLES = ['rider'];
 const DISPATCH_SELLER_ROLES = ['shop_owner'];
@@ -466,6 +468,30 @@ router.get('/payment-gateway-status', protect, authorize('admin'), (req, res) =>
       },
     },
   });
+});
+
+// Agora call logs (linked to appointment / care booking when provided by clients)
+router.get('/call-sessions', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { appointmentId, careBookingId, limit } = req.query;
+    const q = {};
+    if (appointmentId && mongoose.Types.ObjectId.isValid(String(appointmentId))) {
+      q.appointment = appointmentId;
+    }
+    if (careBookingId && mongoose.Types.ObjectId.isValid(String(careBookingId))) {
+      q.careBooking = careBookingId;
+    }
+    const lim = Math.min(100, Math.max(1, parseInt(String(limit || '40'), 10) || 40));
+    const rows = await CallSession.find(q)
+      .sort({ createdAt: -1 })
+      .limit(lim)
+      .populate('caller', 'name email')
+      .populate('callee', 'name email')
+      .lean();
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    next(e);
+  }
 });
 
 module.exports = router;

@@ -64,6 +64,10 @@
 		</array>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>PawSewa uses your precise location at checkout so riders can navigate to your door.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>PawSewa uses the microphone for voice and video calls with your vet.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>PawSewa uses the camera for video calls with your vet.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>

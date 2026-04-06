@@ -122,6 +122,14 @@ const createCareBooking = asyncHandler(async (req, res) => {
     careBooking: booking._id,
   });
 
+  await Notification.create({
+    user: req.user._id,
+    title: 'Care booking submitted',
+    message: `We sent your request for ${hostel.name}. You will get another alert when it is accepted or if payment is required.`,
+    type: 'care_booking',
+    careBooking: booking._id,
+  });
+
   await broadcastCareBooking(booking._id, 'new');
 
   res.status(201).json({

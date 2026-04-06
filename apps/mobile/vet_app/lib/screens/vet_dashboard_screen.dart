@@ -30,6 +30,7 @@ import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
+import '../services/ongoing_call_service.dart';
 
 class VetDashboardScreen extends StatefulWidget {
   const VetDashboardScreen({super.key});
@@ -1037,14 +1038,51 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
               backgroundColor: const Color(AppConstants.primaryColor),
               elevation: 0,
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-                  tooltip: 'Notifications',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const NotificationsScreen(),
-                      ),
+                Consumer<OngoingCallService>(
+                  builder: (context, ongoing, _) {
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                          ),
+                          tooltip: 'Notifications',
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        if (ongoing.active)
+                          Positioned(
+                            right: 4,
+                            top: 6,
+                            child: IgnorePointer(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'LIVE',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),

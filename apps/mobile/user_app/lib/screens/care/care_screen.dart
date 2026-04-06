@@ -8,7 +8,7 @@ import 'care_all_services_screen.dart';
 import 'hostel_detail_screen.dart';
 import 'pet_care_service_card.dart';
 
-/// Pet Care+ hub (hostels, daycare, grooming, etc.).
+/// Pet Care+ hub (care centres, daycare, grooming, etc.).
 ///
 /// This widget is a **root tab body** inside the customer dashboard scaffold.
 /// The app bar (drawer, PawSewa title, “Pet Care+” subtitle, messages) lives on
@@ -16,7 +16,7 @@ import 'pet_care_service_card.dart';
 ///
 /// Backend serviceType -> section header (reference layout order).
 const List<Map<String, String>> _sectionConfig = [
-  {'type': 'Hostel', 'header': 'Book a Pet Hostel'},
+  {'type': 'Hostel', 'header': 'Care centres (boarding & stays)'},
   {'type': 'Daycare', 'header': 'Daycare Facilities'},
   {'type': 'Grooming', 'header': 'Grooming Facilities'},
   {'type': 'Spa', 'header': 'Spa Services'},

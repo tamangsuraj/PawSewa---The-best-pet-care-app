@@ -11,7 +11,9 @@ import 'core/constants.dart';
 import 'theme/pawsewa_theme.dart';
 import 'services/socket_service.dart';
 import 'services/chat_unread_notify_service.dart';
+import 'services/notification_unread_notify_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/ongoing_call_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
 import 'widgets/pawsewa_brand_logo.dart';
@@ -59,6 +61,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CartService()),
         ChangeNotifierProvider(create: (_) => savedAddresses),
         ChangeNotifierProvider(create: (_) => ChatUnreadNotifyService()),
+        ChangeNotifierProvider(create: (_) => NotificationUnreadNotifyService()),
+        ChangeNotifierProvider(create: (_) => OngoingCallService()),
       ],
       child: const MyApp(),
     ),
