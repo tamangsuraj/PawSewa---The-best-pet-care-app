@@ -28,11 +28,20 @@ class StorageService {
   Future<void> clearAll() async {
     await _storage.delete(key: AppConstants.tokenKey);
     await _storage.delete(key: AppConstants.userKey);
+    await _storage.delete(key: AppConstants.partnerRoleKey);
   }
 
   // Check if user is logged in
   Future<bool> isLoggedIn() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  Future<void> setActivePartnerRole(String role) async {
+    await _storage.write(key: AppConstants.partnerRoleKey, value: role);
+  }
+
+  Future<String?> getActivePartnerRole() async {
+    return await _storage.read(key: AppConstants.partnerRoleKey);
   }
 }

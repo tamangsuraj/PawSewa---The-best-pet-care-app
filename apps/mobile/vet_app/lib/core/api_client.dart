@@ -223,6 +223,8 @@ class ApiClient {
     required String status,
     String? visitNotes,
     String? reason,
+    Map<String, dynamic>? visitVitals,
+    DateTime? scheduledTime,
   }) async {
     return await _dio.patch(
       '/service-requests/status/$requestId',
@@ -231,7 +233,35 @@ class ApiClient {
         if (visitNotes != null && visitNotes.isNotEmpty)
           'visitNotes': visitNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
+        if (scheduledTime != null) 'scheduledTime': scheduledTime.toIso8601String(),
+        if (visitVitals != null) 'visitVitals': visitVitals,
       },
+    );
+  }
+
+  Future<Response> setServiceFollowUp({
+    required String requestId,
+    required DateTime scheduledTime,
+  }) async {
+    return await _dio.patch(
+      '/service-requests/$requestId/follow-up',
+      data: <String, dynamic>{'scheduledTime': scheduledTime.toIso8601String()},
+    );
+  }
+
+  Future<Response> uploadServicePrescriptionPdf(
+    String requestId,
+    Uint8List bytes, {
+    required String filename,
+    void Function(int sent, int total)? onSendProgress,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+    });
+    return _dio.post(
+      '/service-requests/$requestId/prescription/upload',
+      data: formData,
+      onSendProgress: onSendProgress,
     );
   }
 

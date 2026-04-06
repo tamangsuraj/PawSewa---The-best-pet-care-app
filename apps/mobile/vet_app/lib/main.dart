@@ -14,7 +14,7 @@ import 'services/push_notification_service.dart';
 import 'widgets/pawsewa_brand_logo.dart';
 import 'widgets/pawsewa_logo_spinner.dart';
 import 'screens/login_screen.dart';
-import 'screens/vet_dashboard_screen.dart';
+import 'screens/partner_home_screen.dart';
 import 'services/chat_unread_notify_service.dart';
 import 'services/ongoing_call_service.dart';
 
@@ -111,7 +111,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => isLoggedIn 
-              ? const VetDashboardScreen() 
+              ? const PartnerHomeScreen() 
               : const LoginScreen(),
         ),
       );

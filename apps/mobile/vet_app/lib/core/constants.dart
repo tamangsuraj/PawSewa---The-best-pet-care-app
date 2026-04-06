@@ -24,6 +24,7 @@ class AppConstants {
   // Storage Keys (Unique per app to prevent conflicts)
   static const String tokenKey = "partner_auth_token";
   static const String userKey = "partner_user_data";
+  static const String partnerRoleKey = "partner_active_role";
 
   // Brand — Deep Brown primary (unified with customer web + user_app)
   static const int primaryColor = 0xFF703418;

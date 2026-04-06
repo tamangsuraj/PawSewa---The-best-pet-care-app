@@ -16,8 +16,13 @@ const {
   getRequestMessages,
   submitReview,
   getPrescription,
+  setServiceRequestFollowUp,
 } = require('../controllers/serviceRequestController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, admin, authorize } = require('../middleware/authMiddleware');
+const {
+  uploadPrescription,
+  postPrescriptionUpload,
+} = require('../controllers/serviceRequestUploadController');
 
 // User routes
 router.post('/', protect, createServiceRequest); // Create service request
@@ -30,6 +35,14 @@ router.get('/my/tasks', protect, getMyAssignedRequests); // Alias: staff "my tas
 router.patch('/:id/start', protect, startServiceRequest); // Start request
 router.patch('/:id/complete', protect, completeServiceRequest); // Complete request
 router.patch('/status/:id', protect, updateServiceRequestStatus); // Generic status flow for staff app
+router.patch('/:id/follow-up', protect, setServiceRequestFollowUp); // Schedule follow-up time
+router.post(
+  '/:id/prescription/upload',
+  protect,
+  authorize('veterinarian', 'admin'),
+  uploadPrescription.single('file'),
+  postPrescriptionUpload
+); // Upload prescription PDF
 
 // Admin routes
 router.get('/stats', protect, admin, getServiceRequestStats); // Get statistics

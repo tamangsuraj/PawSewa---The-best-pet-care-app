@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import 'service_task_detail_screen.dart';
+import 'vet_visit_editor_screen.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 
@@ -84,10 +84,6 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
     return '';
   }
 
-  String _requestId(Map<String, dynamic> task) {
-    return task['_id']?.toString() ?? '';
-  }
-
   Future<void> _callOwner(String? phone) async {
     if (phone == null || phone.isEmpty) {
       return;
@@ -98,9 +94,8 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
     }
   }
 
-  Future<void> _showClinicalDialog(Map<String, dynamic> task) async {
+  Future<void> _openVisitEditor(Map<String, dynamic> task) async {
     final petId = _petId(task);
-    final requestId = _requestId(task);
     if (petId.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,117 +104,13 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
       }
       return;
     }
-
-    final dxCtrl = TextEditingController();
-    final rxCtrl = TextEditingController();
-    final notesCtrl = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(
-            'Clinical entry',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: dxCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Diagnosis *',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: rxCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Prescription / plan',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 2,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: GoogleFonts.outfit()),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text('Save', style: GoogleFonts.outfit()),
-            ),
-          ],
-        );
-      },
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => VetVisitEditorScreen(task: Map<String, dynamic>.from(task)),
+      ),
     );
-
-    if (ok != true || !mounted) {
-      dxCtrl.dispose();
-      rxCtrl.dispose();
-      notesCtrl.dispose();
-      return;
-    }
-
-    final diagnosis = dxCtrl.text.trim();
-    final prescription = rxCtrl.text.trim();
-    final notes = notesCtrl.text.trim();
-    dxCtrl.dispose();
-    rxCtrl.dispose();
-    notesCtrl.dispose();
-
-    if (diagnosis.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Diagnosis is required')),
-        );
-      }
-      return;
-    }
-
-    try {
-      await _api.postPetClinicalEntry(
-        petId: petId,
-        diagnosis: diagnosis,
-        prescription: prescription.isEmpty ? null : prescription,
-        notes: notes.isEmpty ? null : notes,
-        serviceRequestId: requestId.isEmpty ? null : requestId,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved — owner will see this in Medical History')),
-        );
-      }
-    } on DioException catch (e) {
-      final msg = e.response?.data is Map
-          ? (e.response!.data as Map)['message']?.toString()
-          : null;
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg ?? 'Could not save entry')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save entry')),
-        );
-      }
+    if (changed == true) {
+      _load();
     }
   }
 
@@ -398,10 +289,10 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
                                             tooltip: 'Call owner',
                                           ),
                                           IconButton(
-                                            onPressed: () => _showClinicalDialog(task),
-                                            icon: const Icon(Icons.medical_information_outlined),
+                                            onPressed: () => _openVisitEditor(task),
+                                            icon: const Icon(Icons.assignment_rounded),
                                             color: primary,
-                                            tooltip: 'Add clinical entry',
+                                            tooltip: 'Start visit',
                                           ),
                                         ],
                                       ),

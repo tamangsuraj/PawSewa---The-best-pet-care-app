@@ -597,7 +597,7 @@ const startServiceRequest = asyncHandler(async (req, res) => {
  * @access  Private (Staff)
  */
 const completeServiceRequest = asyncHandler(async (req, res) => {
-  const { notes, visitNotes } = req.body;
+  const { notes, visitNotes, visitVitals } = req.body;
 
   const request = await ServiceRequest.findById(req.params.id);
 
@@ -622,6 +622,16 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
   if (visitNotes) {
     request.visitNotes = visitNotes;
   }
+  if (visitVitals && typeof visitVitals === 'object') {
+    const w = visitVitals.weightKg;
+    const t = visitVitals.temperatureC;
+    const h = visitVitals.heartRateBpm;
+    request.visitVitals = {
+      weightKg: typeof w === 'number' && Number.isFinite(w) ? w : null,
+      temperatureC: typeof t === 'number' && Number.isFinite(t) ? t : null,
+      heartRateBpm: typeof h === 'number' && Number.isFinite(h) ? h : null,
+    };
+  }
 
   await request.save();
 
@@ -636,6 +646,20 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
 
       pet.medicalHistory = pet.medicalHistory || [];
       pet.medicalHistory.push(noteText);
+
+      // Persist vitals: update pet weight + weight history if provided.
+      const w = request.visitVitals?.weightKg;
+      if (typeof w === 'number' && Number.isFinite(w)) {
+        pet.weight = w;
+        pet.weightHistory = pet.weightHistory || [];
+        pet.weightHistory.push({ recordedAt: new Date(), weightKg: w, source: 'vet' });
+        // cap to last 96 entries to keep doc size bounded
+        if (pet.weightHistory.length > 96) {
+          pet.weightHistory = pet.weightHistory
+            .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
+            .slice(-96);
+        }
+      }
       await pet.save();
     }
   } catch (err) {
@@ -664,7 +688,7 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
  * @access  Private (Staff, Admin)
  */
 const updateServiceRequestStatus = asyncHandler(async (req, res) => {
-  const { status, visitNotes, reason } = req.body;
+  const { status, visitNotes, reason, scheduledTime, visitVitals } = req.body;
 
   if (!status) {
     res.status(400);
@@ -729,6 +753,26 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     }
   }
 
+  // Optional follow-up scheduling (doesn't change status transitions)
+  if (scheduledTime) {
+    const dt = new Date(scheduledTime);
+    if (!Number.isNaN(dt.getTime())) {
+      request.scheduledTime = dt;
+    }
+  }
+
+  // Optional vitals capture
+  if (visitVitals && typeof visitVitals === 'object') {
+    const w = visitVitals.weightKg;
+    const t = visitVitals.temperatureC;
+    const h = visitVitals.heartRateBpm;
+    request.visitVitals = {
+      weightKg: typeof w === 'number' && Number.isFinite(w) ? w : null,
+      temperatureC: typeof t === 'number' && Number.isFinite(t) ? t : null,
+      heartRateBpm: typeof h === 'number' && Number.isFinite(h) ? h : null,
+    };
+  }
+
   await request.save();
 
   // If completed, also push notes into pet medical history
@@ -742,6 +786,18 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
 
         pet.medicalHistory = pet.medicalHistory || [];
         pet.medicalHistory.push(noteText);
+
+        const w = request.visitVitals?.weightKg;
+        if (typeof w === 'number' && Number.isFinite(w)) {
+          pet.weight = w;
+          pet.weightHistory = pet.weightHistory || [];
+          pet.weightHistory.push({ recordedAt: new Date(), weightKg: w, source: 'vet' });
+          if (pet.weightHistory.length > 96) {
+            pet.weightHistory = pet.weightHistory
+              .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime())
+              .slice(-96);
+          }
+        }
         await pet.save();
       }
     } catch (err) {
@@ -962,3 +1018,47 @@ module.exports = {
   submitReview,
   getPrescription,
 };
+
+/**
+ * @desc    Set follow-up time (scheduledTime) for a request (assigned staff or admin)
+ * @route   PATCH /api/v1/service-requests/:id/follow-up
+ * @access  Private (Staff/Admin)
+ */
+const setServiceRequestFollowUp = asyncHandler(async (req, res) => {
+  const { scheduledTime } = req.body || {};
+  if (!scheduledTime) {
+    res.status(400);
+    throw new Error('scheduledTime is required');
+  }
+  const dt = new Date(scheduledTime);
+  if (Number.isNaN(dt.getTime())) {
+    res.status(400);
+    throw new Error('scheduledTime must be a valid date');
+  }
+
+  const request = await ServiceRequest.findById(req.params.id);
+  if (!request) {
+    res.status(404);
+    throw new Error('Service request not found');
+  }
+
+  const uid = req.user._id.toString();
+  const isAssignedStaff = request.assignedStaff && request.assignedStaff.toString() === uid;
+  const isAdmin = req.user.role === 'admin';
+  if (!isAssignedStaff && !isAdmin) {
+    res.status(403);
+    throw new Error('Not authorized to schedule follow-up for this request');
+  }
+
+  request.scheduledTime = dt;
+  await request.save();
+
+  res.json({
+    success: true,
+    message: 'Follow-up scheduled',
+    data: { id: request._id, scheduledTime: request.scheduledTime },
+  });
+});
+
+module.exports.setServiceRequestFollowUp = setServiceRequestFollowUp;
+

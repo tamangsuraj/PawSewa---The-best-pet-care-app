@@ -102,6 +102,13 @@ const serviceRequestSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000,
     },
+    // Optional structured vitals captured during a visit (Staff).
+    // Stored on the request so the owner timeline can show it per visit.
+    visitVitals: {
+      weightKg: { type: Number, min: 0, default: null },
+      temperatureC: { type: Number, min: 0, default: null },
+      heartRateBpm: { type: Number, min: 0, default: null },
+    },
     // Owner-submitted review after completion
     review: {
       rating: { type: Number, min: 1, max: 5 },

@@ -404,11 +404,14 @@ const getPetMedicalHistory = asyncHandler(async (req, res) => {
         }
       }
 
-      const w = pet.weight != null ? Number(pet.weight) : null;
+      const rv = r.visitVitals || {};
+      const w0 = rv.weightKg != null ? Number(rv.weightKg) : (pet.weight != null ? Number(pet.weight) : null);
+      const t0 = rv.temperatureC != null ? Number(rv.temperatureC) : null;
+      const h0 = rv.heartRateBpm != null ? Number(rv.heartRateBpm) : null;
       const vitals = {
-        weightKg: Number.isFinite(w) ? w : null,
-        temperatureC: null,
-        heartRateBpm: null,
+        weightKg: Number.isFinite(w0) ? w0 : null,
+        temperatureC: Number.isFinite(t0) ? t0 : null,
+        heartRateBpm: Number.isFinite(h0) ? h0 : null,
       };
 
       return {
