@@ -10,13 +10,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-/** Brand brown — used for accents only; page stays light. */
-const brown = {
-  solid: '#5c2d12',
-  dark: '#4a2510',
-  muted: '#6b4423',
-};
-
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -26,42 +19,35 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, sendLoginOtp, verifyOtpLogin, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
-  const [otpMode, setOtpMode] = React.useState(false);
-  const [otpSent, setOtpSent] = React.useState(false);
-  const [otpCode, setOtpCode] = React.useState('');
-  const [otpBusy, setOtpBusy] = React.useState(false);
 
   const {
     register,
     handleSubmit,
-    getValues,
-    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     mode: 'onChange',
   });
 
+  // If already authenticated, redirect to dashboard (must be before any conditional returns)
   useEffect(() => {
     if (isAuthenticated) {
       router.replace('/dashboard');
     }
   }, [isAuthenticated, router]);
 
+  // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center bg-gradient-to-b from-stone-100 to-white">
+      <div className="min-h-screen flex items-center justify-center bg-[#5c2d12]">
         <div className="text-center">
-          <div
-            className="mx-auto mb-4 flex justify-center rounded-2xl border p-4 shadow-sm"
-            style={{ borderColor: `${brown.solid}33`, backgroundColor: '#fff' }}
-          >
+          <div className="mx-auto mb-4 flex justify-center rounded-xl p-3 border border-white/25 bg-transparent">
             <PawSewaLogoSpinner size={64} />
           </div>
-          <p className="text-stone-600 text-sm">Loading…</p>
+          <p className="text-white/80">Loading...</p>
         </div>
       </div>
     );
@@ -72,47 +58,9 @@ export default function LoginPage() {
     try {
       await login(values.email, values.password);
       router.replace('/dashboard');
-    } catch (err: unknown) {
+    } catch (err: any) {
       console.error('Login error:', err);
-      const msg = err instanceof Error ? err.message : 'Invalid Admin Credentials';
-      setSubmitError(msg);
-    }
-  };
-
-  const handleSendAdminOtp = async () => {
-    setSubmitError('');
-    const email = getValues('email');
-    if (!email?.trim()) {
-      setSubmitError('Enter your admin email.');
-      return;
-    }
-    setOtpBusy(true);
-    try {
-      await sendLoginOtp(email.trim());
-      setOtpSent(true);
-    } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : 'Could not send code');
-    } finally {
-      setOtpBusy(false);
-    }
-  };
-
-  const handleVerifyAdminOtp = async () => {
-    setSubmitError('');
-    const email = getValues('email')?.trim();
-    const code = otpCode.trim();
-    if (!email || code.length !== 6) {
-      setSubmitError('Enter the 6-digit code from your email.');
-      return;
-    }
-    setOtpBusy(true);
-    try {
-      await verifyOtpLogin(email, code);
-      router.replace('/dashboard');
-    } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : 'Invalid OTP');
-    } finally {
-      setOtpBusy(false);
+      setSubmitError(err.message || 'Invalid Admin Credentials');
     }
   };
 
@@ -121,216 +69,103 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center bg-gradient-to-b from-stone-100 via-white to-stone-50 p-4 sm:p-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#5c2d12] p-4">
       <div className="w-full max-w-md">
-        {/* White card + brown accents */}
-        <div
-          className="rounded-2xl bg-white p-8 shadow-xl ring-1 ring-black/5"
-          style={{ boxShadow: '0 25px 50px -12px rgba(92, 45, 18, 0.12)' }}
-        >
+        {/* Login Card - darker brown card on brown background */}
+        <div className="bg-[#4a2510] rounded-2xl shadow-2xl p-8 border border-[#6b3d1a]">
+          {/* Header */}
           <div className="text-center mb-8">
-            <div
-              className="inline-flex items-center justify-center rounded-2xl mb-5 border px-5 py-3.5 bg-stone-50/80"
-              style={{ borderColor: `${brown.solid}2e` }}
-            >
+            <div className="inline-flex items-center justify-center rounded-xl mb-4 border border-white/30 px-4 py-3 bg-transparent">
               <PawSewaLogo variant="nav" height={48} />
             </div>
-            <h1
-              className="text-3xl font-bold tracking-tight mb-2"
-              style={{ color: brown.dark }}
-            >
-              Admin Portal
-            </h1>
-            <p className="text-stone-600 text-sm sm:text-base">PawSewa Control Room</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Admin Portal</h1>
+            <p className="text-white/80">PawSewa Control Room</p>
           </div>
 
+          {/* Error Alert */}
           {submitError && (
-            <div className="mb-6 p-4 rounded-xl border border-red-200 bg-red-50 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium text-red-800">{submitError}</p>
+            <div className="mb-6 p-4 bg-red-500/20 border border-red-400/50 rounded-lg flex items-start space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-300 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-200">{submitError}</p>
+              </div>
             </div>
           )}
 
-          <form
-            onSubmit={(e) => {
-              if (otpMode) {
-                e.preventDefault();
-                return;
-              }
-              void handleSubmit(onSubmit)(e);
-            }}
-            className="space-y-5"
-          >
+          {/* Login Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             <div>
-              <label
-                htmlFor="admin-email"
-                className="block text-sm font-medium text-stone-700 mb-2"
-              >
+              <label className="block text-sm font-medium text-white mb-2">
                 Admin Email
               </label>
               <input
-                id="admin-email"
                 type="email"
                 placeholder="admin@pawsewa.com"
-                autoComplete="email"
                 {...register('email')}
-                className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#5c2d12]/25 focus:border-[#5c2d12] transition-shadow"
+                className="w-full px-4 py-3 bg-[#3d1f0d] border border-[#6b3d1a] rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50"
               />
               {errors.email && (
-                <p className="mt-1.5 text-xs text-red-600">{errors.email.message}</p>
+                <p className="mt-1 text-xs text-red-300">{errors.email.message}</p>
               )}
             </div>
 
-            {!otpMode ? (
-              <>
-                <div className="relative">
-                  <label
-                    htmlFor="admin-password"
-                    className="block text-sm font-medium text-stone-700 mb-2"
-                  >
-                    Password
-                  </label>
-                  <input
-                    id="admin-password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter admin password"
-                    autoComplete="current-password"
-                    {...register('password')}
-                    className="w-full px-4 py-3 pr-12 rounded-xl border border-stone-200 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#5c2d12]/25 focus:border-[#5c2d12]"
-                  />
-                  {errors.password && (
-                    <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-[2.375rem] text-stone-500 hover:text-stone-800 p-1 rounded-md"
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" style={{ color: brown.muted }} />
-                    ) : (
-                      <Eye className="w-5 h-5" style={{ color: brown.muted }} />
-                    )}
-                  </button>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                      <span>Authenticating…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-5 h-5" />
-                      <span>Access Control Room</span>
-                    </>
-                  )}
-                </button>
-              </>
-            ) : (
-              <div
-                className="space-y-4 rounded-xl border p-4"
-                style={{ borderColor: `${brown.solid}25`, backgroundColor: '#faf8f5' }}
+            <div className="relative">
+              <label className="block text-sm font-medium text-white mb-2">
+                Password
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter admin password"
+                {...register('password')}
+                className="w-full px-4 py-3 bg-[#3d1f0d] border border-[#6b3d1a] rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/50 pr-12"
+              />
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-300">{errors.password.message}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-11 text-white/70 hover:text-white"
               >
-                <p className="text-sm text-stone-600">
-                  A one-time code is sent to your admin email. Access Denied if the account is not role{' '}
-                  <span className="font-semibold">admin</span>.
-                </p>
-                {!otpSent ? (
-                  <button
-                    type="button"
-                    disabled={otpBusy}
-                    onClick={handleSendAdminOtp}
-                    className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
-                  >
-                    {otpBusy ? 'Sending…' : 'Send admin sign-in code'}
-                  </button>
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
                 ) : (
-                  <>
-                    <div>
-                      <label
-                        htmlFor="admin-otp"
-                        className="block text-sm font-medium text-stone-700 mb-2"
-                      >
-                        6-digit code
-                      </label>
-                      <input
-                        id="admin-otp"
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        placeholder="000000"
-                        value={otpCode}
-                        onChange={(e) =>
-                          setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                        }
-                        className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-900 tracking-widest text-center text-lg focus:outline-none focus:ring-2 focus:ring-[#5c2d12]/25 focus:border-[#5c2d12]"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      disabled={otpBusy || otpCode.length !== 6}
-                      onClick={handleVerifyAdminOtp}
-                      className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
-                    >
-                      {otpBusy ? 'Verifying…' : 'Verify & enter'}
-                    </button>
-                    <button
-                      type="button"
-                      className="w-full text-sm text-[#5c2d12] font-medium hover:underline"
-                      onClick={() => {
-                        setOtpSent(false);
-                        setOtpCode('');
-                      }}
-                    >
-                      Use a different email
-                    </button>
-                  </>
+                  <Eye className="w-5 h-5" />
                 )}
-              </div>
-            )}
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-[#703418] text-white py-3 rounded-lg font-semibold hover:bg-[#5c2c14] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 border border-white/20"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Authenticating...</span>
+                </>
+              ) : (
+                <>
+                  <Lock className="w-5 h-5" />
+                  <span>Access Control Room</span>
+                </>
+              )}
+            </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              className="text-sm font-semibold hover:underline"
-              style={{ color: brown.solid }}
-              onClick={() => {
-                setOtpMode((v) => !v);
-                setOtpSent(false);
-                setOtpCode('');
-                setSubmitError('');
-                clearErrors();
-              }}
-            >
-              {otpMode ? 'Use password instead' : 'Sign in with email code'}
-            </button>
-          </div>
-
-          <div
-            className="mt-6 p-4 rounded-xl border flex items-center justify-center gap-2 text-center"
-            style={{
-              backgroundColor: '#faf8f5',
-              borderColor: `${brown.solid}25`,
-            }}
-          >
-            <Shield className="w-4 h-4 flex-shrink-0" style={{ color: brown.solid }} />
-            <p className="text-xs text-stone-600 leading-snug">
-              Authorized personnel only — all access logged
+          {/* Security Notice */}
+          <div className="mt-6 p-4 bg-[#3d1f0d]/80 rounded-lg border border-[#6b3d1a]">
+            <p className="text-xs text-white/70 text-center flex items-center justify-center space-x-2">
+              <Shield className="w-4 h-4" />
+              <span>Authorized Personnel Only - All Access Logged</span>
             </p>
           </div>
         </div>
 
-        <p className="text-center text-stone-500 text-sm mt-8">
-          PawSewa Admin Portal © {new Date().getFullYear()}
+        {/* Footer */}
+        <p className="text-center text-white/60 text-sm mt-6">
+          PawSewa Admin Portal © 2026
         </p>
       </div>
     </div>

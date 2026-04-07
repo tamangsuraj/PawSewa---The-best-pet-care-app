@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
-const { getConnectionUri, getMongooseConnectionOptions } = require('./src/config/db');
+const { getConnectionUri } = require('./src/config/db');
 const Case = require('./src/models/Case');
 const User = require('./src/models/User');
 const Pet = require('./src/models/Pet');
@@ -8,7 +8,10 @@ const Pet = require('./src/models/Pet');
 async function createTestCase() {
   try {
     const uri = getConnectionUri();
-    await mongoose.connect(uri, getMongooseConnectionOptions(uri));
+    await mongoose.connect(uri, {
+      tls: uri.startsWith('mongodb+srv'),
+      tlsAllowInvalidCertificates: true,
+    });
 
     console.log('Connected to MongoDB');
 
