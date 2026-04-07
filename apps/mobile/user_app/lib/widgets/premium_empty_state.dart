@@ -25,11 +25,7 @@ class PremiumEmptyState extends StatelessWidget {
     const primary = Color(AppConstants.primaryColor);
     const ink = Color(AppConstants.inkColor);
 
-    final actions = <Widget>[];
-    final a = primaryAction;
-    if (a != null) actions.add(a);
-    final b = secondaryAction;
-    if (b != null) actions.add(b);
+    final actions = [primaryAction, secondaryAction].whereType<Widget>().toList();
 
     return Center(
       child: Padding(

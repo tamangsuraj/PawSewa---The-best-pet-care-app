@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -78,9 +79,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(AppConstants.primaryColor),
-              ),
+              child: PawSewaLoader(),
             )
           : _error != null
               ? Center(

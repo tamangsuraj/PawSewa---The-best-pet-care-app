@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
@@ -270,7 +271,7 @@ class _CustomerChatsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return Center(child: CircularProgressIndicator(color: primary));
+      return Center(child: const PawSewaLoader());
     }
     if (error != null) {
       return PartnerEmptyState(

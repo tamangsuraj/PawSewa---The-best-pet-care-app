@@ -7,6 +7,8 @@ import { AlertCircle, Stethoscope, PawPrint } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 
 interface Pet {
   _id: string;
@@ -120,7 +122,8 @@ export default function RequestAssistancePage() {
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-dvh items-center justify-center">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
+        <PawSewaLoader width={150} />
         <p className="text-paw-bark text-lg">Loading...</p>
       </PageShell>
     );
@@ -257,7 +260,7 @@ export default function RequestAssistancePage() {
               >
                 {submitting ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                    <PawSewaLogoSpinner size={28} className="shrink-0 [&_div]:brightness-0 [&_div]:invert" />
                     <span>Submitting...</span>
                   </>
                 ) : (

@@ -7,6 +7,8 @@ import { AlertCircle, MapPin, Stethoscope, PawPrint } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 
 const KathmanduBounds = {
   minLat: 27.55,
@@ -189,7 +191,8 @@ export default function ServiceRequestPage() {
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-dvh items-center justify-center">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
+        <PawSewaLoader width={150} />
         <p className="text-paw-bark text-xl">Loading...</p>
       </PageShell>
     );
@@ -440,7 +443,14 @@ export default function ServiceRequestPage() {
                   submitting || !isInsideKathmandu ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
-                {submitting ? 'Submitting...' : 'Submit Request'}
+                {submitting ? (
+                  <>
+                    <PawSewaLogoSpinner size={28} className="shrink-0 [&_div]:brightness-0 [&_div]:invert" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  'Submit Request'
+                )}
               </button>
             </div>
           </form>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CalendarClock, RefreshCw, Stethoscope, UserCheck } from 'lucide-react';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface AppointmentRow {
   _id: string;
@@ -125,7 +126,10 @@ export default function AppointmentsDeskPage() {
         )}
 
         {loading ? (
-          <p className="text-slate-400">Loading pending appointments…</p>
+          <div className="flex flex-col items-center gap-3 py-8 text-slate-400">
+            <PawSewaLoader width={140} />
+            <p>Loading pending appointments…</p>
+          </div>
         ) : rows.length === 0 ? (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-10 text-center text-slate-400">
             <Stethoscope className="mx-auto mb-3 h-10 w-10 text-slate-600" />

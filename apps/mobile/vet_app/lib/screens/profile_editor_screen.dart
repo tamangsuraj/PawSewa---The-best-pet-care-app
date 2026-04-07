@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/api_client.dart';
@@ -335,7 +336,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const PawSewaLoader(width: 36, center: false)
                       : Text(
                           'Save Profile',
                           style: GoogleFonts.outfit(

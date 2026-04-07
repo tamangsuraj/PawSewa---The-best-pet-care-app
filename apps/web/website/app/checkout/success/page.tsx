@@ -9,6 +9,7 @@ import { useChatHub } from '@/context/ChatHubContext';
 import api, { verifyPayment } from '@/lib/api';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,7 +72,8 @@ export default function CheckoutSuccessPage() {
 
   if (!mounted) {
     return (
-      <PageShell className="flex min-h-dvh items-center justify-center">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
+        <PawSewaLoader width={150} />
         <p className="text-paw-bark/60">Loading…</p>
       </PageShell>
     );

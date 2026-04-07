@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
+import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 
 type Props = {
   onError: (message: string) => void;
@@ -77,7 +78,7 @@ export function WebGoogleSignInButton({ onError, clearOtherErrors }: Props) {
       className="flex w-full items-center justify-center gap-3 rounded-full border-2 border-[#703418]/20 bg-white/90 px-4 py-3.5 shadow-sm transition-all hover:border-[#703418]/35 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#703418] focus-visible:ring-offset-2 disabled:opacity-50"
     >
       {loading ? (
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#703418] border-t-transparent" />
+        <PawSewaLogoSpinner size={22} className="shrink-0" />
       ) : (
         <Image
           src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"

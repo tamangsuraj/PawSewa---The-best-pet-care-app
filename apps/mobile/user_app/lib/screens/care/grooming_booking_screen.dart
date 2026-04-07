@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
@@ -282,7 +283,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
           _sectionTitle('SELECT PET'),
           const SizedBox(height: 8),
           if (_loadingPets)
-            const Center(child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)))
+            const Center(child: PawSewaLoader())
           else if (_pets.isEmpty)
             _emptyHint('Add a pet from My Pets first.')
           else
@@ -608,7 +609,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: _creating
-              ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(height: 24, width: 24, child: PawSewaLoader(width: 36, center: false))
               : Text('Confirm & Pay with Khalti', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
         ),
             const SizedBox(height: 10),
@@ -677,7 +678,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
         ),
         child: ElevatedButton.icon(
           onPressed: _paying ? null : _payWithKhalti,
-          icon: _paying ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.payment, size: 18),
+          icon: _paying ? const SizedBox(width: 20, height: 20, child: PawSewaLoader(width: 36, center: false)) : const Icon(Icons.payment, size: 18),
           label: Text('Confirm Grooming Appointment  Rs. ${total.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
           style: ElevatedButton.styleFrom(
             backgroundColor: primary,

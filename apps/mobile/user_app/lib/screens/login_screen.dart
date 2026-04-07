@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../core/api_config.dart';
@@ -569,7 +570,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const PawSewaLoader(width: 36, center: false)
                             : Text(
                                 'Login',
                                 style: GoogleFonts.outfit(
@@ -617,7 +618,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const PawSewaLoader(width: 36, center: false)
                             : Text(
                                 _codeSent ? 'Verify & sign in' : 'Send sign-in code',
                                 style: GoogleFonts.outfit(
@@ -745,7 +746,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: PawSewaLoader(width: 32, center: false),
                             )
                           : const Icon(
                               Icons.g_mobiledata,

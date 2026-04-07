@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -345,7 +346,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
 
   Widget _buildBillingTab() {
     if (_loadingSubscription) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PawSewaLoader());
     }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -547,7 +548,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
 
   Widget _buildServicesTab() {
     if (_loadingHostels) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PawSewaLoader());
     }
     if (_hostels.isEmpty) {
       return Center(
@@ -656,7 +657,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
 
   Widget _buildBookingsTab() {
     if (_loadingBookings) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PawSewaLoader());
     }
     if (_bookings.isEmpty) {
       return Center(

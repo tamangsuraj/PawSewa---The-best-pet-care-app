@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -211,9 +212,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       ),
       body: _loadingPets
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(AppConstants.primaryColor),
-              ),
+              child: PawSewaLoader(),
             )
           : _loadError != null
               ? Center(
@@ -266,10 +265,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                                 ? const SizedBox(
                                     width: 18,
                                     height: 18,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
+                                    child: PawSewaLoader(width: 36, center: false),
                                   )
                                 : Text(
                                     isLast ? 'Submit' : 'Next',

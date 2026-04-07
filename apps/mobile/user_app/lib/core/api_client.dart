@@ -87,8 +87,7 @@ class ApiClient {
           // Get token from secure storage
           final token = await _storage.getToken();
 
-          if (token != null && token.isNotEmpty) {
-            // Attach Bearer token to Authorization header
+          if (token?.isNotEmpty ?? false) {
             options.headers['Authorization'] = 'Bearer $token';
           }
 

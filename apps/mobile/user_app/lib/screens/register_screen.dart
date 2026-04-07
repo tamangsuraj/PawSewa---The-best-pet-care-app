@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import '../core/api_client.dart';
@@ -534,7 +535,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const PawSewaLoader(width: 36, center: false)
                           : Text(
                               'Create Account',
                               style: GoogleFonts.outfit(
@@ -624,7 +625,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: PawSewaLoader(width: 32, center: false),
                             )
                           : const Icon(
                               Icons.g_mobiledata,

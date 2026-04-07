@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ChevronDown, Inbox, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useChatHub, type HubThread } from '@/context/ChatHubContext';
+import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 
 export function InboxDropdown() {
   const { isAuthenticated } = useAuth();
@@ -83,7 +84,10 @@ export function InboxDropdown() {
             <span className="text-[10px] text-[#0d9488]">Socket.io · realtime</span>
           </div>
           {inboxLoading ? (
-            <p className="p-4 text-sm text-gray-500">Loading…</p>
+            <div className="flex flex-col items-center gap-2 p-6">
+              <PawSewaLogoSpinner size={48} />
+              <p className="text-sm text-gray-500">Loading…</p>
+            </div>
           ) : inboxThreads.length === 0 ? (
             <p className="p-4 text-sm text-gray-600">No threads yet. Open the chat bubble to start.</p>
           ) : (

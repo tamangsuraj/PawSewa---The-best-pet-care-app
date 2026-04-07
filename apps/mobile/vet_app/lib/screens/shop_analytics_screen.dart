@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -118,7 +119,6 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     return PartnerScaffold(
       title: 'Shop analytics',
       subtitle: 'Inventory health & fulfillment overview',
@@ -134,7 +134,7 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
           const EditorialBodyBackdrop(),
           Positioned.fill(
             child: _loading
-                ? Center(child: CircularProgressIndicator(color: primary))
+                ? Center(child: const PawSewaLoader())
                 : _error != null
                     ? PartnerEmptyState(
                         title: 'Couldn’t load analytics',

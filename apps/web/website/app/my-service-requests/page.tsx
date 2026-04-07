@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface ServiceRequest {
   _id: string;
@@ -173,9 +174,9 @@ function MyServiceRequestsPageInner() {
   if (loading) {
     return (
       <PageShell className="flex min-h-dvh items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent mb-4" />
-          <p className="text-paw-bark text-xl">Loading your appointments…</p>
+        <div className="flex flex-col items-center text-center">
+          <PawSewaLoader width={150} />
+          <p className="mt-4 text-paw-bark text-xl">Loading your appointments…</p>
         </div>
       </PageShell>
     );
@@ -327,7 +328,8 @@ export default function MyServiceRequestsPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-dvh items-center justify-center">
+        <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
+          <PawSewaLoader width={150} />
           <p className="text-paw-bark">Loading…</p>
         </PageShell>
       }

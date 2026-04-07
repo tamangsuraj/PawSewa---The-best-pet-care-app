@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:video_player/video_player.dart';
 
 /// Inline photo / video preview inside a chat bubble. Tap image to expand.
@@ -67,7 +68,7 @@ class _ChatMediaInlineState extends State<ChatMediaInline> {
                 child: SizedBox(
                   width: 28,
                   height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: PawSewaLoader(width: 32, center: false),
                 ),
               ),
             ),
@@ -113,7 +114,7 @@ class _ChatMediaInlineState extends State<ChatMediaInline> {
         placeholder: (_, _) => SizedBox(
           width: widget.maxWidth,
           height: 140,
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          child: const Center(child: PawSewaLoader(width: 32, center: false)),
         ),
         errorWidget: (_, _, _) => const Icon(Icons.broken_image_outlined),
       ),

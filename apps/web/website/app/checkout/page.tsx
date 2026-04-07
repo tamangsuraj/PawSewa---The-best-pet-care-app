@@ -17,7 +17,9 @@ import {
 import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { CheckoutPaymentSelector, type ShopPaymentMethod } from '@/components/checkout/CheckoutPaymentSelector';
 import { PageShell } from '@/components/layout/PageShell';
-import { Loader2, ChevronRight, ShoppingCart, MapPin, User, ClipboardList } from 'lucide-react';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
+import { ChevronRight, ShoppingCart, MapPin, User, ClipboardList } from 'lucide-react';
 import clsx from 'clsx';
 
 const K_FREE_DELIVERY_ABOVE = 1000;
@@ -196,8 +198,8 @@ export default function CheckoutPage() {
 
   if (authLoading || !hydrated || items.length === 0) {
     return (
-      <PageShell className="flex min-h-dvh items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#703418]" />
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-3">
+        <PawSewaLoader width={120} />
       </PageShell>
     );
   }
@@ -430,7 +432,7 @@ export default function CheckoutPage() {
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <PawSewaLogoSpinner size={32} className="shrink-0" />
                       Processing…
                     </>
                   ) : payment === 'khalti' ? (

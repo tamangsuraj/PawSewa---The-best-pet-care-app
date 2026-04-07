@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -224,7 +225,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
         elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: brown))
+          ? const Center(child: PawSewaLoader())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Form(
@@ -301,7 +302,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
                           ? const SizedBox(
                               height: 22,
                               width: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: PawSewaLoader(width: 36, center: false),
                             )
                           : Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
                     ),

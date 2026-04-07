@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -319,7 +320,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
           else
             const ColoredBox(
               color: Colors.grey,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(child: PawSewaLoader()),
             ),
 
           // Top bar
@@ -602,10 +603,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: primary,
-                                ),
+                                child: PawSewaLoader(width: 32, center: false),
                               ),
                               const SizedBox(width: 8),
                               Text(

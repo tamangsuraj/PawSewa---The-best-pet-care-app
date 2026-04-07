@@ -31,6 +31,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useChatHub } from '@/context/ChatHubContext';
 import { clsx } from 'clsx';
 import { PageShell } from '@/components/layout/PageShell';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 export type PetListItem = {
   _id: string;
@@ -650,7 +651,10 @@ export function ClinicalMyPetsDashboard({
           {activeTab === 'dashboard' && (
             <>
               {loadingHealth ? (
-                <div className="py-20 text-center text-slate-500">Loading clinical profile…</div>
+                <div className="flex flex-col items-center gap-4 py-20 text-center text-slate-500">
+                  <PawSewaLoader width={150} />
+                  <p>Loading clinical profile…</p>
+                </div>
               ) : (
                 <>
                   {/* Hero */}

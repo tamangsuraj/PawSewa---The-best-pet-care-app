@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { CheckCircle } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 function CareBookingContent() {
   const searchParams = useSearchParams();
@@ -46,7 +47,8 @@ export default function CareBookingSuccessPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-dvh items-center justify-center">
+        <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
+          <PawSewaLoader width={150} />
           <p className="text-paw-bark">Loading...</p>
         </PageShell>
       }

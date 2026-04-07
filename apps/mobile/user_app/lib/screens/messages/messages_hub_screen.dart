@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
@@ -178,7 +179,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
   Widget _buildCareList(Color primary) {
     if (_loadingMp) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+        child: PawSewaLoader(),
       );
     }
     if (_care.isEmpty) {
@@ -228,7 +229,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
   Widget _buildSellerList(Color primary) {
     if (_loadingMp) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+        child: PawSewaLoader(),
       );
     }
     if (_sellers.isEmpty) {
@@ -277,7 +278,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
   Widget _buildDeliveryList(Color primary) {
     if (_loadingMp) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+        child: PawSewaLoader(),
       );
     }
     if (_delivery.isEmpty) {

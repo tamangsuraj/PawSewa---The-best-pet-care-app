@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -137,7 +138,7 @@ class _VetClinicBookingScreenState extends State<VetClinicBookingScreen> {
         foregroundColor: Colors.white,
       ),
       body: _loadingPets
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: PawSewaLoader())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -219,7 +220,7 @@ class _VetClinicBookingScreenState extends State<VetClinicBookingScreen> {
                         ? const SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: PawSewaLoader(width: 36, center: false),
                           )
                         : Text('Submit booking', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
                   ),

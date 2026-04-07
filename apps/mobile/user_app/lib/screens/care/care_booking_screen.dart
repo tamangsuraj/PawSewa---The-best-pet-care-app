@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
@@ -255,7 +256,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           if (_loadingPets)
             const Center(child: Padding(
               padding: EdgeInsets.all(24),
-              child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+              child: PawSewaLoader(),
             ))
           else if (_pets.isEmpty)
             Container(
@@ -540,10 +541,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                   ? const SizedBox(
                       height: 24,
                       width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: PawSewaLoader(width: 36, center: false),
                     )
                   : Text(
                       'Proceed to Payment',
@@ -642,7 +640,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(AppConstants.primaryColor)),
+                    child: PawSewaLoader(width: 32, center: false),
                   )
                 : Image.asset('assets/khalti.png', height: 24, width: 24, errorBuilder: (_, _, _) => const Icon(Icons.payment)),
             label: Text(
@@ -714,7 +712,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: PawSewaLoader(width: 36, center: false),
                 )
               : const Icon(Icons.calendar_today, size: 18),
           label: Text(

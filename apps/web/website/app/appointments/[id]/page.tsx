@@ -8,6 +8,7 @@ import { ArrowLeft, MapPin, User, CreditCard, PawPrint } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 type AppointmentDetail = {
   _id: string;
@@ -65,7 +66,8 @@ export default function AppointmentDetailPage() {
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-[50vh] items-center justify-center">
+      <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+        <PawSewaLoader width={150} />
         <p className="text-paw-bark">Loading appointment…</p>
       </PageShell>
     );

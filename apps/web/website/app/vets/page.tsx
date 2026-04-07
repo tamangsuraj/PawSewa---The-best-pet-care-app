@@ -7,6 +7,7 @@ import axios from 'axios';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface Vet {
   _id: string;
@@ -149,8 +150,8 @@ export default function VetDirectoryPage() {
             </div>
 
             {loading ? (
-              <div className="py-20 text-center">
-                <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-paw-bark border-t-transparent" />
+              <div className="flex flex-col items-center py-20 text-center">
+                <PawSewaLoader width={150} />
                 <p className="mt-4 text-paw-bark/75">Loading veterinarians…</p>
               </div>
             ) : filteredVets.length === 0 ? (

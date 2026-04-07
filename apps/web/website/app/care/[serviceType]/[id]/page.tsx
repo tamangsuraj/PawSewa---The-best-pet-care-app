@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { Reviews } from '@/components/Reviews';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 const SERVICE_LABELS: Record<string, string> = {
   hostel: 'Hostel',
@@ -65,7 +66,8 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
 
   if (loading) {
     return (
-      <PageShell className="flex min-h-dvh items-center justify-center">
+      <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
+        <PawSewaLoader width={150} />
         <p className="text-paw-bark">Loading...</p>
       </PageShell>
     );

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Star, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface ReviewAuthor {
   _id: string;
@@ -258,7 +259,10 @@ export function Reviews({ targetType, targetId, averageRating = 0, reviewCount =
       )}
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading reviews...</p>
+        <div className="flex flex-col items-center gap-2 py-6">
+          <PawSewaLoader width={100} />
+          <p className="text-sm text-gray-500">Loading reviews...</p>
+        </div>
       ) : reviews.length === 0 ? (
         <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
           <p className="text-sm text-gray-600">No reviews yet. Be the first to review!</p>

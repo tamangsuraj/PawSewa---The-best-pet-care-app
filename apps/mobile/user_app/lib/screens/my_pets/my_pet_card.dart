@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants.dart';
@@ -59,10 +60,7 @@ class MyPetCard extends StatelessWidget {
                       placeholder: (_, _) => Container(
                         color: const Color(0xFFF5F5F5),
                         child: const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: _primary,
-                          ),
+                          child: PawSewaLoader(width: 32, center: false),
                         ),
                       ),
                       errorWidget: (_, _, _) => _buildPlaceholderImage(),

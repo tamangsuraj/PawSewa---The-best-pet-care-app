@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -167,7 +168,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         color: brown,
         onRefresh: _load,
         child: _loading
-            ? const Center(child: CircularProgressIndicator(color: brown))
+            ? const Center(child: PawSewaLoader())
             : _error != null
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),

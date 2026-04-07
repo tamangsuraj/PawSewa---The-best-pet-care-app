@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -780,7 +781,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
                 Expanded(
                   child: _loading
-                      ? Center(child: CircularProgressIndicator(color: primary))
+                      ? Center(child: const PawSewaLoader())
                       : _error != null
                           ? Center(
                               child: Padding(

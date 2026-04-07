@@ -1,23 +1,31 @@
 import axios from 'axios';
+import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from './apiConfig';
+
+const baseURL = getAdminApiBaseUrl();
+
+if (typeof window !== 'undefined' && !baseURL) {
+  console.error(
+    '[PawSewa Admin] NEXT_PUBLIC_API_URL is missing. Set it to your API base (e.g. http://localhost:3000/api/v1).',
+  );
+}
 
 /**
  * Admin REST client. Must target the same Node API as user_app / vet_app / website
- * (e.g. your shared ngrok URL + `/api/v1` or deployed backend URL).
- * Pets admin list: GET /pets/admin → `petController.getAllPets` → MongoDB `PawSewaDB.pets` (or DB_NAME).
+ * (e.g. ngrok URL + `/api/v1`). Default in development: http://localhost:3000/api/v1
  */
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: baseURL || undefined,
   headers: {
     'Content-Type': 'application/json',
+    ...getNgrokBrowserBypassHeaders(),
   },
 });
 
 // Request interceptor to attach JWT token and fix FormData uploads
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('admin-token');
-    
-    if (token) {
+    const token = localStorage.getItem('admin-token')?.trim();
+    if (token && token !== 'undefined' && token !== 'null') {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -26,7 +34,7 @@ api.interceptors.request.use(
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
-    
+
     return config;
   },
   (error) => {

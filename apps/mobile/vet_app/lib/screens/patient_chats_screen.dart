@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
@@ -72,7 +73,7 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
         ),
       ],
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: primary))
+          ? Center(child: const PawSewaLoader())
           : _error != null
               ? PartnerEmptyState(
                   title: 'Couldn’t load chats',

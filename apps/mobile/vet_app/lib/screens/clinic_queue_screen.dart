@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -132,7 +133,7 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
           const EditorialBodyBackdrop(),
           Positioned.fill(
             child: _loading
-                ? Center(child: CircularProgressIndicator(color: primary))
+                ? Center(child: const PawSewaLoader())
                 : _error != null
                     ? PartnerEmptyState(
                         title: 'Couldn’t load queue',

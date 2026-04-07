@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -384,7 +385,7 @@ class _AttachmentTile extends StatelessWidget {
                                 child: SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: _primary),
+                                  child: PawSewaLoader(width: 32, center: false),
                                 ),
                               ),
                               errorWidget: (context, url, _) => Container(

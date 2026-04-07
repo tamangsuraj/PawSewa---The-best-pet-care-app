@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -111,7 +112,7 @@ class OrderProofViewScreen extends StatelessWidget {
                   placeholder: (context, _) => Container(
                     color: const Color(AppConstants.sandColor),
                     child: const Center(
-                      child: CircularProgressIndicator(),
+                      child: PawSewaLoader(),
                     ),
                   ),
                   errorWidget: (context, _, _) => Container(

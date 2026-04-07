@@ -124,9 +124,20 @@ const connectDB = async (retries = 3) => {
       logger.success('System connected to:', connectedDb);
       return connectedDb;
     } catch (error) {
+      const code = error.code ?? error.codeName;
+      const reason =
+        error.reason && typeof error.reason === 'object' && error.reason.message
+          ? error.reason.message
+          : error.reason;
       logger.error(`MongoDB connection failed (attempt ${attempt}/${retries}):`, error.message);
+      if (code != null) logger.error('  driver code:', String(code));
+      if (reason != null && String(reason) !== String(error.message)) {
+        logger.error('  reason:', String(reason));
+      }
       if (attempt === retries) {
-        logger.error('Cannot connect to database. Check MONGO_URI and DB_NAME in .env.');
+        logger.error(
+          'Cannot connect to Atlas. Verify: MONGO_URI user/password, cluster host, DB_NAME=pawsewa_core, and Network Access allows your IP (or 0.0.0.0/0 for dev).',
+        );
         process.exit(1);
       }
       await new Promise((r) => setTimeout(r, 2000));

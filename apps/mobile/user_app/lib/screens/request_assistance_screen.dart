@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
 import 'package:provider/provider.dart';
@@ -256,9 +257,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
       ),
       body: _loadingPets
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(AppConstants.primaryColor),
-              ),
+              child: PawSewaLoader(),
             )
           : _loadError != null
               ? _buildErrorState()
@@ -717,10 +716,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
+                                  child: PawSewaLoader(width: 36, center: false),
                                 )
                               : const Icon(
                                   Icons.medical_services,

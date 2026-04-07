@@ -10,6 +10,7 @@ import {
 } from '@/components/my-pets/ClinicalMyPetsDashboard';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { PawPrint } from 'lucide-react';
 
 function MyPetDetailShell() {
@@ -56,7 +57,8 @@ function MyPetDetailShell() {
 
   if (authLoading || loading) {
     return (
-      <PageShell className="flex min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+      <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-4 bg-[#F5F5F5]">
+        <PawSewaLoader width={150} />
         <p className="text-slate-600">Loading your pets…</p>
       </PageShell>
     );
@@ -98,7 +100,8 @@ function MyPetDetailShell() {
 
   if (!petIdParam || !pets.some((p) => p._id === petIdParam)) {
     return (
-      <PageShell className="flex min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+      <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-3 bg-[#F5F5F5]">
+        <PawSewaLoader width={120} />
         <p className="text-slate-600">Redirecting…</p>
       </PageShell>
     );
@@ -111,7 +114,8 @@ export default function MyPetDetailPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+        <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-4 bg-[#F5F5F5]">
+          <PawSewaLoader width={150} />
           <p className="text-slate-600">Loading…</p>
         </PageShell>
       }

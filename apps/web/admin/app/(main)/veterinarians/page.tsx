@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import { UserCheck, Clock, CheckCircle, XCircle, Edit2, RefreshCw } from 'lucide-react';
 
 interface Vet {
@@ -30,15 +30,10 @@ export default function VeterinariansPage() {
     fetchVets();
   }, []);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
-
   const fetchVets = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('admin-token');
-      const response = await axios.get(`${apiBase}/users`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/users');
       
       const veterinarians = (response.data.data || []).filter(
         (user: any) => user.role === 'veterinarian' || user.role === 'VET'
@@ -63,16 +58,11 @@ export default function VeterinariansPage() {
 
     try {
       setUpdating(true);
-      const token = localStorage.getItem('admin-token');
-      
-      await axios.patch(
-        `${apiBase}/cases/vets/${editingVet._id}/shift`,
-        {
-          currentShift: newShift,
-          isAvailable: newAvailability
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+
+      await api.patch(`/cases/vets/${editingVet._id}/shift`, {
+        currentShift: newShift,
+        isAvailable: newAvailability,
+      });
 
       setEditingVet(null);
       fetchVets();

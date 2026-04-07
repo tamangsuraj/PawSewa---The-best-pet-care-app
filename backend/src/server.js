@@ -66,6 +66,8 @@ const Case = require('./models/Case');
 
 // Initialize Express application
 const app = express();
+app.set('trust proxy', 1);
+console.log('✅ Express Trust Proxy enabled for PawSewa Network');
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
@@ -340,6 +342,9 @@ tryAllowWindowsFirewall();
 
 async function start() {
   await connectDB();
+  logger.success(
+    '[Atlas] Mongoose connected — PawSewa API using cluster data (see LIVE DB IDENTIFIED / DB STATUS logs above).',
+  );
   try {
     const { resolveCareAdminId } = require('./services/customerCareService');
     const ccAdmin = await resolveCareAdminId();

@@ -18,6 +18,7 @@ import axios from 'axios';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface Vet {
   _id: string;
@@ -68,8 +69,8 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
   if (loading) {
     return (
       <PageShell className="flex min-h-dvh items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-paw-bark border-t-transparent" />
+        <div className="flex flex-col items-center text-center">
+          <PawSewaLoader width={150} />
           <p className="mt-4 text-paw-bark/70">Loading profile...</p>
         </div>
       </PageShell>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../widgets/editorial_canvas.dart';
@@ -76,7 +77,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
           const EditorialBodyBackdrop(),
           Positioned.fill(
             child: _loading
-                ? Center(child: CircularProgressIndicator(color: primary))
+                ? Center(child: const PawSewaLoader())
                 : _error != null
                     ? PartnerEmptyState(
                         title: 'Couldn’t load earnings',

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
@@ -390,7 +391,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                     ),
                   )
                 : _loading
-                ? Center(child: CircularProgressIndicator(color: primary))
+                ? Center(child: const PawSewaLoader())
                 : _error != null
                     ? PartnerEmptyState(
                         title: 'Couldn’t load records',
@@ -539,10 +540,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                                                         width: 16,
                                                         height: 16,
                                                         child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Colors.white,
-                                                        ),
+                                                            PawSewaLoader(width: 36, center: false),
                                                       )
                                                     : const Icon(
                                                         Icons.check_rounded),

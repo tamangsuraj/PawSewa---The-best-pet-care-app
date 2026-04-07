@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { X, ChevronLeft, Send } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import {
   disconnectChatSocket,
   getOrCreateChatSocket,
@@ -579,7 +580,10 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
             {view === 'list' && (
               <div className="flex-1 overflow-y-auto min-h-[200px] max-h-[320px]">
                 {loadingList ? (
-                  <p className="p-4 text-sm text-gray-600">Loading…</p>
+                  <div className="flex flex-col items-center gap-2 p-6">
+                    <PawSewaLogoSpinner size={48} />
+                    <p className="text-sm text-gray-600">Loading…</p>
+                  </div>
                 ) : threads.length === 0 ? (
                   <p className="p-4 text-sm text-gray-600">No conversations yet.</p>
                 ) : (
@@ -638,7 +642,10 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-[200px] max-h-[260px] bg-white/60">
                   {loadingThread ? (
-                    <p className="text-sm text-gray-500">Loading messages…</p>
+                    <div className="flex flex-col items-center gap-2 py-8">
+                      <PawSewaLogoSpinner size={44} />
+                      <p className="text-sm text-gray-500">Loading messages…</p>
+                    </div>
                   ) : (
                     messages.map((m) => (
                       <div

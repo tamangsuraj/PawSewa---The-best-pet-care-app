@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -459,7 +460,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                                 imageUrl: (pet['photoUrl'] ?? pet['image']).toString(),
                                 fit: BoxFit.cover,
                                 placeholder: (context, url) => const Center(
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: PawSewaLoader(width: 32, center: false),
                                 ),
                                 errorWidget: (context, url, error) => const Icon(
                                   Icons.pets,

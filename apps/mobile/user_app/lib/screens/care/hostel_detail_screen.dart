@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -106,7 +107,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                           itemBuilder: (_, i) => CachedNetworkImage(
                             imageUrl: displayImages[i],
                             fit: BoxFit.cover,
-                            placeholder: (_, _) => const Center(child: CircularProgressIndicator(color: Color(AppConstants.primaryColor))),
+                            placeholder: (_, _) => const Center(child: PawSewaLoader()),
                             errorWidget: (_, _, _) => const Icon(Icons.pets, size: 64, color: Color(AppConstants.primaryColor)),
                           ),
                         ),

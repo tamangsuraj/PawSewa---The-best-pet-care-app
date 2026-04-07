@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
@@ -366,9 +367,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
           Positioned.fill(
             child: _loading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(AppConstants.primaryColor),
-                    ),
+                    child: PawSewaLoader(),
                   )
                 : RefreshIndicator(
                     color: primary,

@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import type { PetListItem } from '@/components/my-pets/ClinicalMyPetsDashboard';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { PawPrint } from 'lucide-react';
 
 function MyPetsClinicalShell() {
@@ -50,7 +51,8 @@ function MyPetsClinicalShell() {
 
   if (authLoading || loading) {
     return (
-      <PageShell className="flex min-h-[50vh] items-center justify-center">
+      <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+        <PawSewaLoader width={150} />
         <p className="text-paw-bark">Loading your pets…</p>
       </PageShell>
     );
@@ -91,7 +93,8 @@ function MyPetsClinicalShell() {
   }
 
   return (
-    <PageShell className="flex min-h-[50vh] items-center justify-center bg-[#F5F5F5]">
+    <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-3 bg-[#F5F5F5]">
+      <PawSewaLoader width={120} />
       <p className="text-slate-600">Opening your pet dashboard…</p>
     </PageShell>
   );
@@ -101,7 +104,8 @@ export default function MyPetsPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-[50vh] items-center justify-center">
+        <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+          <PawSewaLoader width={150} />
           <p className="text-paw-bark">Loading…</p>
         </PageShell>
       }

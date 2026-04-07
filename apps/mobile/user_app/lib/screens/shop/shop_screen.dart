@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -1818,10 +1819,7 @@ class _LoadMoreCell extends StatelessWidget {
                 ? SizedBox(
                     width: 28,
                     height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: primary,
-                    ),
+                    child: PawSewaLoader(width: 32, center: false),
                   )
                 : Text(
                     'Load more',
@@ -3074,10 +3072,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: primary,
-                  ),
+                  child: PawSewaLoader(width: 32, center: false),
                 )
               else
                 Icon(
@@ -3685,9 +3680,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                                 child: SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
+                                  child: PawSewaLoader(width: 32, center: false),
                                 ),
                               )
                             : null,
@@ -4081,10 +4074,7 @@ class _PromoSheetState extends State<_PromoSheet> {
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
+                                  child: PawSewaLoader(width: 36, center: false),
                                 )
                               : const Text('APPLY'),
                         ),
@@ -4397,7 +4387,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const CircularProgressIndicator(),
+              const PawSewaLoader(),
               const SizedBox(height: 20),
               Text(
                 'Confirming payment with Khalti…',
@@ -4484,7 +4474,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               const SizedBox(height: 16),
               Expanded(
                 child: _phase == 'khalti_loading'
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const Center(child: PawSewaLoader())
                     : ListView(
                         controller: controller,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -4783,7 +4773,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   Widget _buildKhaltiWebViewPhase(Color primary) {
     final controller = _khaltiWebController;
     if (controller == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PawSewaLoader());
     }
     return Container(
       height: MediaQuery.of(context).size.height * 0.92,

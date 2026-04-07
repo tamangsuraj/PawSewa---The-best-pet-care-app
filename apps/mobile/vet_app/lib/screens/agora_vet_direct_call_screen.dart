@@ -4,6 +4,7 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -361,7 +362,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
           children: [
             if (_busy)
               const Center(
-                child: CircularProgressIndicator(color: Colors.white70),
+                child: PawSewaLoader(width: 36, center: false),
               )
             else if (widget.video && engine != null)
               showRemoteVideo

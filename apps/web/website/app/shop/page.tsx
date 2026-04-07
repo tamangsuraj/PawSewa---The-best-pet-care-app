@@ -22,6 +22,7 @@ import { PriceRangeDualSlider } from '@/components/shop/PriceRangeDualSlider';
 import { ShopFloatingCart } from '@/components/shop/ShopFloatingCart';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { PAW_DEFAULT_PRODUCT_IMAGE } from '@/lib/pawImageAssets';
 
 const PRICE_CAP = 10000;
@@ -393,21 +394,27 @@ function ShopPageInner() {
           ) : null}
 
           {loading ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-sm"
-                >
-                  <div className="aspect-[4/5] bg-[#E8E4DC]" />
-                  <div className="space-y-2 p-4">
-                    <div className="h-3 w-1/3 rounded bg-[#E8E4DC]" />
-                    <div className="h-4 w-full rounded bg-[#E8E4DC]" />
-                    <div className="h-3 w-2/3 rounded bg-[#E8E4DC]" />
+            <>
+              <div className="mb-6 flex flex-col items-center gap-1 rounded-2xl border border-[#2c241c]/10 bg-gradient-to-r from-white/90 via-[#faf8f4] to-white/90 px-4 py-3 shadow-sm sm:flex-row sm:justify-center sm:gap-3">
+                <PawSewaLoader width={72} />
+                <p className="text-sm font-medium text-[#2c241c]/75">Loading shop…</p>
+              </div>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="animate-pulse overflow-hidden rounded-2xl bg-white shadow-sm"
+                  >
+                    <div className="aspect-[4/5] bg-[#E8E4DC]" />
+                    <div className="space-y-2 p-4">
+                      <div className="h-3 w-1/3 rounded bg-[#E8E4DC]" />
+                      <div className="h-4 w-full rounded bg-[#E8E4DC]" />
+                      <div className="h-3 w-2/3 rounded bg-[#E8E4DC]" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           ) : products.length === 0 ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-[#2c241c]/20 bg-white/80 px-8 py-16 text-center shadow-sm">
               <PawPrint className="mb-4 h-14 w-14 text-[#2c241c]/25" />
@@ -558,7 +565,8 @@ export default function ShopPage() {
   return (
     <Suspense
       fallback={
-        <PageShell className="flex min-h-[50vh] items-center justify-center">
+        <PageShell className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+          <PawSewaLoader width={150} />
           <p className="text-[#2c241c]">Loading shop…</p>
         </PageShell>
       }

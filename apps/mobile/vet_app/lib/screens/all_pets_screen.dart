@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -304,7 +305,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)))
+          ? const Center(child: PawSewaLoader())
           : _error != null
               ? Center(
                   child: Column(

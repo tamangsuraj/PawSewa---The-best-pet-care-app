@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -284,7 +285,7 @@ class _RiderProofOfDeliveryScreenState extends State<RiderProofOfDeliveryScreen>
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: PawSewaLoader(width: 36, center: false),
                   )
                 : Text('Confirm delivered', style: GoogleFonts.outfit(fontWeight: FontWeight.w800)),
           ),

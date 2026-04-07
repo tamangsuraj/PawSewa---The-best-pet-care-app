@@ -78,6 +78,7 @@ dependencies:
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
   agora_rtc_engine: ^6.5.3
+  lottie: ^3.3.2
 
 dev_dependencies:
   flutter_test:
@@ -107,6 +108,7 @@ flutter:
     - assets/brand/pawsewa_logo.png
     - assets/brand/image_607767.png
     - assets/sounds/notification.mp3
+    - assets/animations/dog_running.json
 
   # Map / staff icons
   # When you add custom PNG/SVG markers, list them here, for example:

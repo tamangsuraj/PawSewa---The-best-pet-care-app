@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import {
   AlertCircle,
   CheckCircle,
@@ -10,8 +10,7 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface CaseItem {
   _id: string;
@@ -96,19 +95,22 @@ export default function PastCasesPage() {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('admin-token');
-      if (!token) {
+      const token = localStorage.getItem('admin-token')?.trim();
+      if (!token || token === 'undefined' || token === 'null') {
         setError('Not authenticated');
         setLoading(false);
         return;
       }
-      const headers = { Authorization: `Bearer ${token}` };
 
       const results = await Promise.allSettled([
-        axios.get<{ success: boolean; data?: CaseItem[] }>(`${API_BASE}/cases?status=completed`, { headers }),
-        axios.get<{ success: boolean; data?: CaseItem[] }>(`${API_BASE}/cases?status=cancelled`, { headers }),
-        axios.get<{ success: boolean; data?: ServiceRequestItem[] }>(`${API_BASE}/service-requests?status=completed`, { headers }),
-        axios.get<{ success: boolean; data?: ServiceRequestItem[] }>(`${API_BASE}/service-requests?status=cancelled`, { headers }),
+        api.get<{ success: boolean; data?: CaseItem[] }>('/cases?status=completed'),
+        api.get<{ success: boolean; data?: CaseItem[] }>('/cases?status=cancelled'),
+        api.get<{ success: boolean; data?: ServiceRequestItem[] }>(
+          '/service-requests?status=completed',
+        ),
+        api.get<{ success: boolean; data?: ServiceRequestItem[] }>(
+          '/service-requests?status=cancelled',
+        ),
       ]);
 
       const pick = <T,>(i: number): T[] => {
@@ -129,7 +131,16 @@ export default function PastCasesPage() {
 
       const failed = results.filter((r) => r.status === 'rejected');
       if (failed.length === results.length) {
-        throw new Error('All past-case API requests failed. Check admin token and NEXT_PUBLIC_API_URL.');
+        const first = failed[0];
+        const reason =
+          first && first.status === 'rejected' && first.reason && typeof first.reason === 'object'
+            ? (first.reason as { response?: { data?: { message?: string } }; message?: string })
+                .response?.data?.message ||
+              (first.reason as Error).message
+            : undefined;
+        throw new Error(
+          reason || 'All past-case API requests failed. Check admin token and NEXT_PUBLIC_API_URL.',
+        );
       }
 
       const merged: PastCaseRow[] = [...casesData, ...requestsData].sort(
@@ -270,7 +281,7 @@ export default function PastCasesPage() {
 
       {loading ? (
         <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+          <PawSewaLoader width={150} className="mx-auto" />
           <p className="mt-4 text-gray-600">Loading past cases...</p>
         </div>
       ) : filteredItems.length === 0 ? (

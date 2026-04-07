@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from '@/lib/apiConfig';
 import toast from 'react-hot-toast';
 
 interface User {
@@ -29,12 +30,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Backend health check and auth verification on mount
   useEffect(() => {
-    const baseUrl = String(process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
-    const healthUrl = `${baseUrl}/health`;
+    const baseUrl = getAdminApiBaseUrl().replace(/\/$/, '');
+    const healthUrl = baseUrl ? `${baseUrl}/health` : '';
 
     const checkHealth = async () => {
+      if (!healthUrl) return;
       try {
-        const res = await fetch(healthUrl);
+        const res = await fetch(healthUrl, { headers: getNgrokBrowserBypassHeaders() });
         const data = await res.json();
         const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
         console.log(`[${ts}] [INFO] Backend health: status=${data.status} database=${data.database} userCount=${data.userCount ?? 'n/a'}`);
@@ -46,10 +48,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkHealth();
 
     const checkAuth = async () => {
-      const savedToken = localStorage.getItem('admin-token');
+      const savedToken = localStorage.getItem('admin-token')?.trim();
       const savedUser = localStorage.getItem('admin-user');
       
-      if (savedToken && savedUser) {
+      if (
+        savedToken &&
+        savedToken !== 'undefined' &&
+        savedToken !== 'null' &&
+        savedUser
+      ) {
         try {
           const userData = JSON.parse(savedUser);
           
@@ -91,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return Promise.reject(new Error('This account does not have admin privileges.'));
         }
         
-        localStorage.setItem('admin-token', token);
+        localStorage.setItem('admin-token', String(token).trim());
         localStorage.setItem('admin-user', JSON.stringify(userData));
         setUser(userData);
         
@@ -140,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             new Error('Access Denied: This code is not for an administrator account.'),
           );
         }
-        localStorage.setItem('admin-token', token);
+        localStorage.setItem('admin-token', String(token).trim());
         localStorage.setItem('admin-user', JSON.stringify(userData));
         setUser(userData);
         toast.success(`Welcome, ${userData.name}!`);

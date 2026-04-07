@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -874,10 +875,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ? const SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: PawSewaLoader(width: 36, center: false),
                       )
                     : const Icon(Icons.check),
                 label: Text(
@@ -1022,10 +1020,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
+                        child: PawSewaLoader(width: 36, center: false),
                       )
                     : Text(
                         isLast ? 'Submit' : 'Next',
@@ -1057,9 +1052,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(AppConstants.primaryColor),
-              ),
+              child: PawSewaLoader(),
             )
           : Column(
               children: [

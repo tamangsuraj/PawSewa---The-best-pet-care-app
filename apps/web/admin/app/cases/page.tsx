@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import api from '@/lib/api';
+import { getAdminSocketUrl } from '@/lib/apiConfig';
 import {
   AlertCircle,
   CheckCircle,
@@ -14,9 +15,7 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL;
-const SOCKET_BASE = API_BASE.replace(/\/api\/v1\/?$/, '');
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface CaseItem {
   _id: string;
@@ -79,9 +78,10 @@ export default function LiveCasesPage() {
   }, [filterStatus]);
 
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin-token') : null;
-    if (!token) return;
-    const socket: Socket = io(SOCKET_BASE, {
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('admin-token')?.trim() : null;
+    if (!token || token === 'undefined' || token === 'null') return;
+    const socket: Socket = io(getAdminSocketUrl(), {
       auth: { token },
       transports: ['websocket', 'polling'],
     });
@@ -98,23 +98,22 @@ export default function LiveCasesPage() {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('admin-token');
-      if (!token) {
+      const token = localStorage.getItem('admin-token')?.trim();
+      if (!token || token === 'undefined' || token === 'null') {
         setError('Not authenticated');
         setLoading(false);
         return;
       }
-      const headers = { Authorization: `Bearer ${token}` };
 
-      const casesUrl = filterStatus === 'all' ? `${API_BASE}/cases` : `${API_BASE}/cases?status=${filterStatus}`;
-      const requestsUrl =
+      const casesPath = filterStatus === 'all' ? '/cases' : `/cases?status=${filterStatus}`;
+      const requestsPath =
         filterStatus === 'all'
-          ? `${API_BASE}/service-requests`
-          : `${API_BASE}/service-requests?status=${filterStatus}`;
+          ? '/service-requests'
+          : `/service-requests?status=${filterStatus}`;
 
       const [casesRes, requestsRes] = await Promise.all([
-        axios.get<{ success: boolean; data?: CaseItem[] }>(casesUrl, { headers }),
-        axios.get<{ success: boolean; data?: ServiceRequestItem[] }>(requestsUrl, { headers }),
+        api.get<{ success: boolean; data?: CaseItem[] }>(casesPath),
+        api.get<{ success: boolean; data?: ServiceRequestItem[] }>(requestsPath),
       ]);
 
       const casesData: CaseItem[] = (casesRes.data.data || []).map((c) => ({ ...c, type: 'assistance' as const }));
@@ -149,15 +148,11 @@ export default function LiveCasesPage() {
 
   const fetchVets = async () => {
     try {
-      const token = localStorage.getItem('admin-token');
+      const token = localStorage.getItem('admin-token')?.trim();
+      if (!token || token === 'undefined' || token === 'null') return;
       const [casesVetsRes, usersRes] = await Promise.all([
-        axios.get(`${API_BASE}/cases/vets/available`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(`${API_BASE}/users`, {
-          params: { role: 'veterinarian' },
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        api.get('/cases/vets/available'),
+        api.get('/users', { params: { role: 'veterinarian' } }),
       ]);
       const fromCases = casesVetsRes.data?.data || [];
       const fromUsers = usersRes.data?.data || usersRes.data || [];
@@ -172,17 +167,16 @@ export default function LiveCasesPage() {
 
   const handleAssign = async () => {
     if (!selectedItem || !selectedVet) return;
-    const token = localStorage.getItem('admin-token');
-    if (!token) return;
+    const token = localStorage.getItem('admin-token')?.trim();
+    if (!token || token === 'undefined' || token === 'null') return;
 
     try {
       setAssigning(true);
       if (selectedItem.type === 'assistance') {
-        await axios.patch(
-          `${API_BASE}/cases/${selectedItem._id}/assign`,
-          { vetId: selectedVet, shift: selectedShift || undefined },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await api.patch(`/cases/${selectedItem._id}/assign`, {
+          vetId: selectedVet,
+          shift: selectedShift || undefined,
+        });
         alert('Case assigned successfully!');
       } else {
         if (!scheduledTime) {
@@ -190,11 +184,10 @@ export default function LiveCasesPage() {
           setAssigning(false);
           return;
         }
-        await axios.patch(
-          `${API_BASE}/admin/requests/${selectedItem._id}/assign`,
-          { staffId: selectedVet, scheduledTime },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await api.patch(`/admin/requests/${selectedItem._id}/assign`, {
+          staffId: selectedVet,
+          scheduledTime,
+        });
         alert('Appointment assigned successfully!');
       }
       setShowAssignModal(false);
@@ -343,7 +336,7 @@ export default function LiveCasesPage() {
 
       {loading ? (
         <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          <PawSewaLoader width={150} className="mx-auto" />
           <p className="mt-4 text-gray-600">Loading live cases...</p>
         </div>
       ) : items.length === 0 ? (

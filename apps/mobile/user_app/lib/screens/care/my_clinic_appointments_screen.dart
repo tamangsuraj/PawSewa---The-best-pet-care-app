@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -125,7 +126,7 @@ class _MyClinicAppointmentsScreenState extends State<MyClinicAppointmentsScreen>
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
                   SizedBox(height: 120),
-                  Center(child: CircularProgressIndicator()),
+                  Center(child: PawSewaLoader()),
                 ],
               )
             : _error != null

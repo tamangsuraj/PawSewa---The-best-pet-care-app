@@ -6,7 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
 import { ArrowLeft, Mail, Phone, MapPin, CheckCircle, XCircle, Plus, X } from 'lucide-react';
 import Image from 'next/image';
-import axios from 'axios';
 
 interface Pet {
   _id: string;
@@ -100,8 +99,8 @@ export default function CustomerDetailPage() {
     setAddingPet(true);
 
     try {
-      const token = localStorage.getItem('admin_token');
-      if (!token) {
+      const token = localStorage.getItem('admin-token')?.trim();
+      if (!token || token === 'undefined' || token === 'null') {
         alert('Authentication required');
         return;
       }
@@ -122,18 +121,7 @@ export default function CustomerDetailPage() {
         submitData.append('photo', selectedImage);
       }
 
-      // Admin creates pet for this user
-      const apiBase = process.env.NEXT_PUBLIC_API_URL;
-      const response = await axios.post(
-        `${apiBase}/pets/admin/${params.id}`,
-        submitData,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      const response = await api.post(`/pets/admin/${params.id}`, submitData);
 
       if (response.data.success) {
         alert('Pet added successfully!');

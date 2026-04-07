@@ -7,6 +7,7 @@ import { ChevronLeft, MapPin, Star } from 'lucide-react';
 import api from '@/lib/api';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 const SERVICE_LABELS: Record<string, string> = {
   hostel: 'Hostel',
@@ -68,7 +69,10 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
       <main>
         <PageContent compact className="pb-10">
         {loading ? (
-          <div className="text-center py-12 text-paw-bark">Loading...</div>
+          <div className="flex flex-col items-center gap-4 py-12 text-paw-bark">
+            <PawSewaLoader width={150} />
+            <p>Loading...</p>
+          </div>
         ) : list.length === 0 ? (
           <div className="text-center py-12 text-gray-600">
             <p className="mb-4">No {label.toLowerCase()} listings yet.</p>

@@ -8,6 +8,7 @@ import 'leaflet/dist/leaflet.css';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((m) => m.MapContainer),
@@ -109,7 +110,10 @@ export default function NearbyVetsMapPage() {
 
       <PageContent compact className="max-w-5xl">
         {loading ? (
-          <p className="text-paw-bark/75">Loading map…</p>
+          <div className="flex min-h-[min(560px,70vh)] flex-col items-center justify-center gap-4 rounded-[1.35rem] border border-paw-bark/10 bg-paw-cream/40">
+            <PawSewaLoader width={150} />
+            <p className="text-paw-bark/75">Loading map…</p>
+          </div>
         ) : err ? (
           <div className="paw-surface-card rounded-2xl p-6 text-red-800">{err}</div>
         ) : (

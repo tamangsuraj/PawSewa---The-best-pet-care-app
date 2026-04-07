@@ -92,6 +92,7 @@ dependencies:
   firebase_messaging: ^15.1.6
   flutter_local_notifications: ^18.0.1
   agora_rtc_engine: ^6.5.3
+  lottie: ^3.3.2
 
 dev_dependencies:
   flutter_test:
@@ -129,6 +130,7 @@ flutter:
     - assets/nepalpay.png
     - assets/paypal.png
     - assets/sounds/notification.mp3
+    - assets/animations/dog_running.json
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

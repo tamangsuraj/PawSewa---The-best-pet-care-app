@@ -20,6 +20,7 @@ import {
 } from 'react-leaflet';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { MapPin, RefreshCw, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -439,8 +440,9 @@ export default function LiveMapBoard() {
       ) : (
         <div className="relative rounded-xl border border-gray-200 overflow-hidden shadow-sm bg-white h-[min(720px,calc(100vh-14rem))]">
           {loading && !data ? (
-            <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/80 text-gray-600 text-sm">
-              Loading map…
+            <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center gap-3 bg-white/80 text-gray-600 text-sm">
+              <PawSewaLoader width={140} />
+              <span>Loading map…</span>
             </div>
           ) : null}
           <MapContainer

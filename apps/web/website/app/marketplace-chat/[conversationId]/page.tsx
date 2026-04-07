@@ -8,6 +8,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageContent } from '@/components/layout/PageContent';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 export default function MarketplaceChatPage({
   params,
@@ -71,7 +72,10 @@ export default function MarketplaceChatPage({
       <PageContent flush className="min-h-0 flex-1 overflow-y-auto py-4">
       <main className="space-y-2">
         {loading ? (
-          <p className="text-gray-500 text-sm">Loading…</p>
+          <div className="flex flex-col items-center gap-3 py-8">
+            <PawSewaLoader width={120} />
+            <p className="text-sm text-gray-500">Loading…</p>
+          </div>
         ) : (
           messages.map((m) => (
             <div

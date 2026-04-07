@@ -31,6 +31,7 @@ const {
 const { formatRoleLabel } = require('../utils/roleLabels');
 const { findUserByEmail } = require('../controllers/chatController');
 const CallSession = require('../models/CallSession');
+const { normalizeRole } = require('../middleware/authMiddleware');
 
 const DISPATCH_RIDER_ROLES = ['rider'];
 const DISPATCH_SELLER_ROLES = ['shop_owner'];
@@ -56,9 +57,23 @@ router.patch('/requests/:id/assign', protect, authorize('admin'), assignServiceR
 // - All active Care+ requests (blue paw pins)
 router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
   try {
-    const [staffLocations, pendingRequests, careRequests, productOrders, careBookings, livePins] =
-      await Promise.all([
+    const [
+      staffLocations,
+      usersWithLiveLocation,
+      pendingRequests,
+      careRequests,
+      productOrders,
+      careBookings,
+      livePins,
+    ] = await Promise.all([
         StaffLocation.find({}).populate('staff', 'name role phone'),
+        User.find({
+          role: { $in: ['veterinarian', 'vet', 'VET', 'rider', 'RIDER', 'staff'] },
+          'liveLocation.coordinates.lat': { $exists: true, $ne: null },
+          'liveLocation.coordinates.lng': { $exists: true, $ne: null },
+        })
+          .select('name role phone liveLocation')
+          .lean(),
         ServiceRequest.find({
           status: { $in: ['pending', 'assigned', 'in_progress'] },
         }).select('location status serviceType assignedStaff'),
@@ -87,17 +102,44 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
         LiveLocation.find({}).sort({ category: 1, name: 1 }).lean(),
       ]);
 
+    const staffFromPins = staffLocations.map((s) => ({
+      _id: s._id,
+      staffId: s.staff?._id,
+      name: s.staff?.name,
+      role: s.role,
+      phone: s.staff?.phone,
+      coordinates: s.coordinates,
+    }));
+    const seenStaffIds = new Set(
+      staffFromPins.map((row) => (row.staffId ? String(row.staffId) : '')).filter(Boolean)
+    );
+    const staffFromUsers = [];
+    for (const u of usersWithLiveLocation) {
+      const id = u._id ? String(u._id) : '';
+      if (!id || seenStaffIds.has(id)) continue;
+      const lat = u.liveLocation?.coordinates?.lat;
+      const lng = u.liveLocation?.coordinates?.lng;
+      if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) {
+        continue;
+      }
+      const norm = normalizeRole(u.role);
+      const mapRole =
+        norm === 'rider' ? 'rider' : norm === 'veterinarian' ? 'veterinarian' : norm || 'veterinarian';
+      staffFromUsers.push({
+        _id: `user-live-${id}`,
+        staffId: u._id,
+        name: u.name,
+        role: mapRole,
+        phone: u.phone,
+        coordinates: { lat, lng },
+      });
+      seenStaffIds.add(id);
+    }
+
     res.json({
       success: true,
       data: {
-        staff: staffLocations.map((s) => ({
-          _id: s._id,
-          staffId: s.staff?._id,
-          name: s.staff?.name,
-          role: s.role,
-          phone: s.staff?.phone,
-          coordinates: s.coordinates,
-        })),
+        staff: [...staffFromPins, ...staffFromUsers],
         requests: pendingRequests
           .filter((r) => r.location && r.location.coordinates)
           .map((r) => ({

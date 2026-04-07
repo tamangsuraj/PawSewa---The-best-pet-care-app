@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -366,9 +367,7 @@ class _PartnerMarketplaceChatScreenState
 
     final mainBody = _loading
         ? Center(
-            child: CircularProgressIndicator(
-              color: widget.highContrast ? Colors.orange : primary,
-            ),
+            child: const PawSewaLoader(),
           )
         : _error != null
             ? Center(

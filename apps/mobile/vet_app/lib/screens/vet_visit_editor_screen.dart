@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -807,7 +808,7 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: PawSewaLoader(width: 32, center: false),
                         )
                       : Text('Save entry', style: GoogleFonts.outfit(fontWeight: FontWeight.w800)),
                 ),
@@ -821,7 +822,7 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: PawSewaLoader(width: 36, center: false),
                         )
                       : Text('Complete visit', style: GoogleFonts.outfit(fontWeight: FontWeight.w800)),
                 ),

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
@@ -203,10 +204,7 @@ class _RateFeedbackScreenState extends State<RateFeedbackScreen> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
+                            child: PawSewaLoader(width: 36, center: false),
                           )
                         : const Icon(Icons.send_rounded, color: Colors.white),
                     label: Text(
