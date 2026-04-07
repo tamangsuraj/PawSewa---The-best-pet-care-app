@@ -223,19 +223,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white),
         ),
       ),
-      body: Stack(
-        children: [
-          const EditorialBodyBackdrop(),
-          Positioned.fill(
-            child: _loading
-                ? const PremiumEmptyState(
-                    title: 'Loading settings',
-                    body: 'Preparing your preferences…',
-                    icon: Icons.tune_rounded,
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    children: [
+      body: SafeArea(
+        child: Stack(
+          children: [
+            const EditorialBodyBackdrop(),
+            Positioned.fill(
+              child: _loading
+                  ? const PremiumEmptyState(
+                      title: 'Loading settings',
+                      body: 'Preparing your preferences…',
+                      icon: Icons.tune_rounded,
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [
                       Card(
                         child: Padding(
                           padding: const EdgeInsets.all(14),
@@ -281,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      _Section(
+                        _Section(
                         title: 'Notifications',
                         children: [
                           _SwitchTile(
@@ -306,7 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
 
                       const SizedBox(height: 12),
-                      _Section(
+                        _Section(
                         title: 'Connection',
                         children: [
                           _ActionTile(
@@ -327,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
 
                       const SizedBox(height: 12),
-                      _Section(
+                        _Section(
                         title: 'Privacy & legal',
                         children: const [
                           _StaticTile(
@@ -344,7 +345,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
 
                       const SizedBox(height: 12),
-                      _Section(
+                        _Section(
                         title: 'Account',
                         children: [
                           _ActionTile(
@@ -368,11 +369,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onTap: _logout,
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-          ),
-        ],
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
