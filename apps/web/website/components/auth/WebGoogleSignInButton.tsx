@@ -41,6 +41,7 @@ export function WebGoogleSignInButton({ onError, clearOtherErrors }: Props) {
           email: googleUser.email,
           name: displayName,
           googleId: googleUser.sub,
+          appContext: 'customer',
         });
 
         if (response.data.success) {

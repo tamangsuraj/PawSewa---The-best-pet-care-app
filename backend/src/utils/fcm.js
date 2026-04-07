@@ -97,9 +97,26 @@ async function sendMulticastToUser(receiverId, { title, body, data = {}, senderI
   return result;
 }
 
+/**
+ * Notify every admin user with registered FCM tokens (logistics / desk alerts).
+ */
+async function sendMulticastToAdmins({ title, body, data = {} }) {
+  if (!initFcm()) return { sent: 0, failed: 0 };
+  const admins = await User.find({ role: 'admin' }).select('_id').lean();
+  let sent = 0;
+  let failed = 0;
+  for (const a of admins) {
+    const r = await sendMulticastToUser(a._id, { title, body, data });
+    sent += r.sent;
+    failed += r.failed;
+  }
+  return { sent, failed };
+}
+
 module.exports = {
   initFcm,
   isFcmConfigured,
   sendMulticastNotification,
   sendMulticastToUser,
+  sendMulticastToAdmins,
 };

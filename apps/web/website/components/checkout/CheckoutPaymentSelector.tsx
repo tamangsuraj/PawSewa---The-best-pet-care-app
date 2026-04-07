@@ -39,14 +39,14 @@ const METHODS: MethodDef[] = [
   {
     id: 'esewa',
     name: 'eSewa',
-    subtitle: 'Shop checkout via eSewa is coming soon',
+    subtitle: 'Not available on web checkout yet — use Khalti, Fonepay, or cash on delivery.',
     enabled: false,
     icon: <Wallet className="h-6 w-6" />,
   },
   {
     id: 'card',
     name: 'Credit / Debit Card',
-    subtitle: 'Same as mobile app — coming soon',
+    subtitle: 'Card capture is not enabled for web; choose another method.',
     enabled: false,
     icon: <CreditCard className="h-6 w-6" />,
   },

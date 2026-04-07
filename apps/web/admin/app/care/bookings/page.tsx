@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
-import { CalendarCheck, RefreshCw } from 'lucide-react';
+import { CalendarCheck, MessageSquare, RefreshCw, XCircle } from 'lucide-react';
 
 interface OpUser {
   _id: string;
@@ -30,7 +30,19 @@ interface CareBooking {
 }
 
 const SERVICE_TYPES = ['', 'Hostel', 'Daycare', 'Grooming', 'Training', 'Wash', 'Spa'];
-const STATUS_OPTIONS = ['', 'pending', 'paid', 'accepted', 'rejected', 'cancelled', 'completed'];
+const STATUS_OPTIONS = [
+  '',
+  'awaiting_approval',
+  'pending',
+  'paid',
+  'confirmed',
+  'accepted',
+  'checked_in',
+  'completed',
+  'declined',
+  'rejected',
+  'cancelled',
+];
 
 export default function CareBookingsPage() {
   const [bookings, setBookings] = useState<CareBooking[]>([]);
@@ -40,11 +52,28 @@ export default function CareBookingsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [carePartners, setCarePartners] = useState<OpUser[]>([]);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [allHostels, setAllHostels] = useState<{ _id: string; name?: string; serviceType?: string }[]>([]);
+  const [reassignPick, setReassignPick] = useState<Record<string, string>>({});
+  const [transcriptBookingId, setTranscriptBookingId] = useState<string | null>(null);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptData, setTranscriptData] = useState<{
+    conversation: unknown;
+    messages: Array<{ _id: string; content?: string; mediaUrl?: string; createdAt?: string; sender?: { name?: string } }>;
+  } | null>(null);
 
   const loadPartners = async () => {
     try {
       const resp = await api.get('/admin/dispatch-operators');
       setCarePartners(resp.data?.data?.carePartners ?? []);
+    } catch {
+      /* optional */
+    }
+  };
+
+  const loadAllHostels = async () => {
+    try {
+      const resp = await api.get('/admin/hostels', { params: { limit: 200, page: 1 } });
+      setAllHostels(resp.data?.data ?? []);
     } catch {
       /* optional */
     }
@@ -80,6 +109,7 @@ export default function CareBookingsPage() {
   useEffect(() => {
     void load();
     void loadPartners();
+    void loadAllHostels();
   }, [load]);
 
   useEffect(() => {
@@ -99,6 +129,50 @@ export default function CareBookingsPage() {
     };
   }, [load]);
 
+  const cancelBooking = async (bookingId: string) => {
+    if (!confirm('Cancel this care booking? The customer will be notified.')) return;
+    try {
+      await api.patch(`/admin/care-bookings/${bookingId}/cancel`);
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Cancel failed';
+      alert(msg);
+    }
+  };
+
+  const reassignCentre = async (bookingId: string) => {
+    const hid = reassignPick[bookingId];
+    if (!hid) {
+      alert('Select a care centre first.');
+      return;
+    }
+    if (!confirm('Move this booking to the selected centre? Chat thread partner will update.')) return;
+    try {
+      await api.patch(`/admin/care-bookings/${bookingId}/reassign-centre`, { hostelId: hid });
+      setReassignPick((p) => ({ ...p, [bookingId]: '' }));
+      await load();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Reassign failed';
+      alert(msg);
+    }
+  };
+
+  const openTranscript = async (bookingId: string) => {
+    setTranscriptBookingId(bookingId);
+    setTranscriptLoading(true);
+    setTranscriptData(null);
+    try {
+      const resp = await api.get(`/admin/care-bookings/${bookingId}/chat`);
+      setTranscriptData(resp.data?.data ?? null);
+    } catch {
+      setTranscriptData(null);
+    } finally {
+      setTranscriptLoading(false);
+    }
+  };
+
   const assignPartner = async (bookingId: string, partnerId: string) => {
     if (!partnerId) return;
     setAssigningId(bookingId);
@@ -117,10 +191,14 @@ export default function CareBookingsPage() {
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
+      awaiting_approval: 'bg-amber-100 text-amber-900 border-amber-200',
       pending: 'bg-amber-100 text-amber-800 border-amber-200',
       paid: 'bg-blue-100 text-blue-800 border-blue-200',
+      confirmed: 'bg-green-100 text-green-800 border-green-200',
       accepted: 'bg-green-100 text-green-800 border-green-200',
+      checked_in: 'bg-teal-100 text-teal-900 border-teal-200',
       completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+      declined: 'bg-red-100 text-red-800 border-red-200',
       rejected: 'bg-red-100 text-red-800 border-red-200',
       cancelled: 'bg-gray-100 text-gray-800 border-gray-200',
     };
@@ -225,6 +303,9 @@ export default function CareBookingsPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Assign professional
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Admin actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -280,6 +361,49 @@ export default function CareBookingsPage() {
                               ))}
                             </select>
                           </td>
+                          <td className="px-6 py-4 align-top min-w-[220px]">
+                            <div className="flex flex-col gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void openTranscript(b._id)}
+                                className="inline-flex items-center justify-center gap-1 text-xs font-medium text-[#703418] border border-[#703418]/40 rounded-md px-2 py-1 hover:bg-[#703418]/5"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                                Chat log
+                              </button>
+                              <select
+                                className="block w-full text-xs border border-gray-300 rounded-md px-2 py-1"
+                                value={reassignPick[b._id] ?? ''}
+                                onChange={(e) =>
+                                  setReassignPick((p) => ({ ...p, [b._id]: e.target.value }))
+                                }
+                              >
+                                <option value="">Reassign centre…</option>
+                                {allHostels.map((h) => (
+                                  <option key={h._id} value={h._id}>
+                                    {h.name ?? h._id} {h.serviceType ? `(${h.serviceType})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => void reassignCentre(b._id)}
+                                className="text-xs font-medium bg-slate-100 text-slate-800 rounded-md px-2 py-1 hover:bg-slate-200"
+                              >
+                                Apply move
+                              </button>
+                              {!['completed', 'cancelled'].includes(b.status) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void cancelBooking(b._id)}
+                                  className="inline-flex items-center justify-center gap-1 text-xs font-medium text-red-700 border border-red-200 rounded-md px-2 py-1 hover:bg-red-50"
+                                >
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  Cancel booking
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -287,6 +411,54 @@ export default function CareBookingsPage() {
                 </div>
               </div>
             )}
+      {transcriptBookingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h2 className="font-semibold text-gray-900">Care chat transcript</h2>
+              <button
+                type="button"
+                className="text-gray-500 hover:text-gray-800"
+                onClick={() => {
+                  setTranscriptBookingId(null);
+                  setTranscriptData(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4 text-sm">
+              {transcriptLoading ? (
+                <p className="text-gray-500">Loading…</p>
+              ) : !transcriptData?.conversation ? (
+                <p className="text-gray-500">No messages yet for this booking.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {transcriptData.messages.map((m) => (
+                    <li key={m._id} className="border-b border-gray-100 pb-2">
+                      <p className="text-xs text-gray-500">
+                        {(m.sender as { name?: string } | undefined)?.name ?? 'User'} ·{' '}
+                        {m.createdAt ? new Date(m.createdAt).toLocaleString() : ''}
+                      </p>
+                      {m.content ? <p className="text-gray-900 mt-1">{m.content}</p> : null}
+                      {m.mediaUrl ? (
+                        <a
+                          href={m.mediaUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#703418] text-xs underline mt-1 inline-block"
+                        >
+                          Media / photo
+                        </a>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

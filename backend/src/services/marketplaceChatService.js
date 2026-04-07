@@ -5,6 +5,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const CareBooking = require('../models/CareBooking');
 const User = require('../models/User');
+const ShopChat = require('../models/ShopChat');
 const logger = require('../utils/logger');
 const { sendMulticastToUser } = require('../utils/fcm');
 const { bumpUnread, convKey } = require('./chatUnreadService');
@@ -60,7 +61,7 @@ function logSellerRouting({ convDoc, senderId, prodRef }) {
 function isOrderDeliveryChatActive(order) {
   if (!order || !order.assignedRider) return false;
   const st = order.status;
-  if (st === 'pending') return false;
+  if (st === 'pending' || st === 'pending_confirmation') return false;
   if (st === 'returned' || st === 'refunded' || st === 'cancelled') return false;
   if (st === 'delivered') {
     const ref = order.deliveredAt || order.updatedAt;
@@ -120,6 +121,20 @@ async function ensureSellerConversation(customerId, productId) {
     conv.lastMessageAt = new Date();
     await conv.save();
   }
+
+  await ShopChat.findOneAndUpdate(
+    { conversationId: conv._id },
+    {
+      $set: {
+        shopId: sellerId,
+        customerId,
+        lastProductId: product._id,
+        lastMessageAt: conv.lastMessageAt || new Date(),
+      },
+    },
+    { upsert: true }
+  ).catch(() => {});
+
   return conv;
 }
 
@@ -326,6 +341,14 @@ async function appendMessageAndNotify({
       sender?.role === 'rider'
         ? `Rider: ${preview}`
         : `Customer message: ${preview}`;
+  } else if (convDoc.type === 'CARE') {
+    if (String(senderId) === custId) {
+      title = 'Care booking message';
+      body = `Customer: ${preview}`;
+    } else {
+      title = 'Care centre message';
+      body = `${senderName}: ${preview}`;
+    }
   } else {
     const productLabel = convDoc.lastProductName || prodName || 'your product';
     if (String(senderId) === custId) {
@@ -365,7 +388,7 @@ async function appendMessageAndNotify({
   return msg;
 }
 
-async function ensureCareConversationForBooking(bookingId, userId) {
+async function ensureCareConversationForBooking(bookingId) {
   const booking = await CareBooking.findById(bookingId)
     .populate('hostelId', 'ownerId name')
     .populate('userId', 'name profilePicture')
@@ -375,18 +398,15 @@ async function ensureCareConversationForBooking(bookingId, userId) {
     err.statusCode = 404;
     throw err;
   }
-  const uid = String(userId || '');
+
   const hostelOwnerId = booking.hostelId?.ownerId ? String(booking.hostelId.ownerId) : '';
-  const assignedPartnerId = booking.assignedPartner ? String(booking.assignedPartner) : '';
-  const isAllowed = uid && (uid === hostelOwnerId || (assignedPartnerId && uid === assignedPartnerId));
-  if (!isAllowed) {
-    const err = new Error('Not allowed to open this care thread');
-    err.statusCode = 403;
+  if (!hostelOwnerId) {
+    const err = new Error('Care centre has no owner');
+    err.statusCode = 400;
     throw err;
   }
 
   const customerId = booking.userId?._id || booking.userId;
-  const partnerId = hostelOwnerId || uid;
   let conv = await MarketplaceConversation.findOne({
     type: 'CARE',
     careBooking: booking._id,
@@ -395,11 +415,14 @@ async function ensureCareConversationForBooking(bookingId, userId) {
     conv = await MarketplaceConversation.create({
       type: 'CARE',
       customer: customerId,
-      partner: partnerId,
+      partner: hostelOwnerId,
       careBooking: booking._id,
       lastMessageAt: new Date(),
     });
   } else {
+    if (String(conv.partner) !== hostelOwnerId) {
+      conv.partner = hostelOwnerId;
+    }
     conv.lastMessageAt = new Date();
     await conv.save();
   }
@@ -419,4 +442,5 @@ module.exports = {
   isOrderDeliveryChatActive,
   isDeliveryThreadVisible,
   resolveDefaultSellerId,
+  resolveProductSellerId,
 };

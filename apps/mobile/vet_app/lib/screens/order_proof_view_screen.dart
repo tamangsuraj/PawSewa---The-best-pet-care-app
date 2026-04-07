@@ -114,7 +114,7 @@ class OrderProofViewScreen extends StatelessWidget {
                       child: CircularProgressIndicator(),
                     ),
                   ),
-                  errorWidget: (context, _, __) => Container(
+                  errorWidget: (context, _, _) => Container(
                     color: const Color(AppConstants.sandColor),
                     child: const Center(child: Icon(Icons.broken_image_rounded)),
                   ),
@@ -201,7 +201,7 @@ class _InfoRow extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+      trailing ?? const SizedBox.shrink(),
         ],
       ),
     );

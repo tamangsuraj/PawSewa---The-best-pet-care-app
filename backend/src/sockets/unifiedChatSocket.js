@@ -26,6 +26,7 @@ const {
 function threadTypeFromConvType(t) {
   if (t === 'SUPPORT') return 'support';
   if (t === 'DELIVERY') return 'delivery';
+  if (t === 'CARE') return 'care';
   return 'seller';
 }
 

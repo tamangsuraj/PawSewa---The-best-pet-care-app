@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { MessageCircle } from 'lucide-react';
 
 export default function MarketplaceChatsPage() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -13,9 +13,12 @@ export default function MarketplaceChatsPage() {
     (async () => {
       try {
         const res = await api.get('/marketplace-chat/admin/threads', { params: { limit: 80 } });
-        setRows(res.data?.data ?? []);
-      } catch (e: any) {
-        setErr(e?.response?.data?.message ?? 'Failed to load');
+        const data = res.data?.data;
+        setRows(Array.isArray(data) ? (data as Array<Record<string, unknown>>) : []);
+      } catch (e: unknown) {
+        const msg = (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message;
+        setErr(msg ?? 'Failed to load');
       } finally {
         setLoading(false);
       }
@@ -46,21 +49,37 @@ export default function MarketplaceChatsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r._id} className="border-t border-gray-100">
-                  <td className="p-3 font-medium">{r.type}</td>
-                  <td className="p-3">{r.customer?.name ?? r.customer?.email ?? '—'}</td>
-                  <td className="p-3">
-                    {r.partner?.name ?? '—'} ({r.partner?.role ?? '?'})
-                  </td>
+              {rows.map((r) => {
+                const id = String(r['_id'] ?? '');
+                const type = String(r['type'] ?? '');
+                const customer = (r['customer'] ?? null) as Record<string, unknown> | null;
+                const partner = (r['partner'] ?? null) as Record<string, unknown> | null;
+                const lastProductName = r['lastProductName'];
+                const order = r['order'];
+                const updatedAt = r['updatedAt'];
+
+                return (
+                  <tr key={id} className="border-t border-gray-100">
+                    <td className="p-3 font-medium">{type || '—'}</td>
+                    <td className="p-3">
+                      {String(customer?.['name'] ?? customer?.['email'] ?? '—')}
+                    </td>
+                    <td className="p-3">
+                      {String(partner?.['name'] ?? '—')} ({String(partner?.['role'] ?? '?')})
+                    </td>
                   <td className="p-3 max-w-xs truncate">
-                    {r.type === 'SELLER' ? r.lastProductName || '—' : r.order ? `Order ${String(r.order).slice(-6)}` : '—'}
+                    {type === 'SELLER'
+                      ? String(lastProductName ?? '—') || '—'
+                      : order
+                        ? `Order ${String(order).slice(-6)}`
+                        : '—'}
                   </td>
                   <td className="p-3 text-gray-500">
-                    {r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '—'}
+                    {updatedAt ? new Date(String(updatedAt)).toLocaleString() : '—'}
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           {rows.length === 0 && (

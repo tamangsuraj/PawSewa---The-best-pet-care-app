@@ -68,7 +68,10 @@ const navGroups: NavGroup[] = [
 const appointmentsGroup: NavGroup = {
   label: 'Appointments',
   icon: Calendar,
-  children: [{ name: 'Calendar', href: '/appointments', icon: Calendar }],
+  children: [
+    { name: 'Appointment desk', href: '/appointments-desk', icon: CalendarCheck },
+    { name: 'Calendar', href: '/appointments', icon: Calendar },
+  ],
 };
 
 const careManagementGroup: NavGroup = {

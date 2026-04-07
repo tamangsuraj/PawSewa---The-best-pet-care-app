@@ -179,7 +179,7 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
                               ),
                               Switch(
                                 value: _sharing,
-                                activeColor: const Color(AppConstants.accentColor),
+                                activeThumbColor: const Color(AppConstants.accentColor),
                                 onChanged: (v) async {
                                   setState(() => _sharing = v);
                                   if (v) {

@@ -7,10 +7,13 @@ class GoogleAuthService {
   factory GoogleAuthService() => _instance;
   GoogleAuthService._internal();
 
-  // Web application OAuth client ID (Google Cloud Console). Must match backend GOOGLE_CLIENT_ID
-  // so the ID token `aud` verifies server-side. Required for idToken on Android/iOS.
-  static const String _serverClientId =
-      '188502859936-doe0igj265poprfntbg3hkq8coo3kndu.apps.googleusercontent.com';
+  /// Web OAuth client ID (server-side token verification). Override per build:
+  /// `flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com`
+  static const String _serverClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue:
+        '188502859936-doe0igj265poprfntbg3hkq8coo3kndu.apps.googleusercontent.com',
+  );
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
@@ -51,6 +54,7 @@ class GoogleAuthService {
         'googleToken': idToken,
         'email': email,
         'name': name,
+        'appContext': 'customer',
       });
 
       if (response.data['success'] == true) {

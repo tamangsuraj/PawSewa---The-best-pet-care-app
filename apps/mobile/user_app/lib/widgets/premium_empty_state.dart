@@ -25,6 +25,12 @@ class PremiumEmptyState extends StatelessWidget {
     const primary = Color(AppConstants.primaryColor);
     const ink = Color(AppConstants.inkColor);
 
+    final actions = <Widget>[];
+    final a = primaryAction;
+    if (a != null) actions.add(a);
+    final b = secondaryAction;
+    if (b != null) actions.add(b);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -85,16 +91,13 @@ class PremiumEmptyState extends StatelessWidget {
                   color: ink.withValues(alpha: 0.68),
                 ),
               ),
-              if (primaryAction != null || secondaryAction != null) ...[
+              if (actions.isNotEmpty) ...[
                 const SizedBox(height: 14),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   alignment: WrapAlignment.center,
-                  children: [
-                    if (primaryAction != null) primaryAction!,
-                    if (secondaryAction != null) secondaryAction!,
-                  ],
+                  children: actions,
                 ),
               ],
             ],

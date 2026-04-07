@@ -869,6 +869,56 @@ const getLinkedVets = asyncHandler(async (req, res) => {
   res.json({ success: true, data: vets });
 });
 
+/**
+ * @desc    Get saved addresses for current user
+ * @route   GET /api/v1/users/me/addresses
+ * @access  Private
+ */
+const getMyAddresses = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('addresses').lean();
+  res.json({ success: true, data: user?.addresses ?? [] });
+});
+
+/**
+ * @desc    Upsert one saved address (or replace all)
+ * @route   PUT /api/v1/users/me/addresses
+ * @access  Private
+ * Body: { address?: {lat,lng,street?,landmark?,label?}, addresses?: [...] }
+ */
+const putMyAddresses = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+
+  const rawList = Array.isArray(req.body?.addresses) ? req.body.addresses : null;
+  const single = req.body?.address && typeof req.body.address === 'object' ? req.body.address : null;
+  const list = rawList || (single ? [single] : null);
+  if (!list) {
+    res.status(400);
+    throw new Error('addresses array or address object is required');
+  }
+
+  const current = Array.isArray(user.addresses) ? user.addresses.map((a) => a.toObject?.() ?? a) : [];
+  const next = [...current];
+  for (const row of list) {
+    const lat = Number(row.lat);
+    const lng = Number(row.lng);
+    const label = String(row.label || 'Saved').trim().slice(0, 40) || 'Saved';
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    const street = row.street != null ? String(row.street).trim().slice(0, 200) : '';
+    const landmark = row.landmark != null ? String(row.landmark).trim().slice(0, 200) : '';
+    const idx = next.findIndex((a) => String(a.label || '').toLowerCase() === label.toLowerCase());
+    const obj = { lat, lng, street, landmark, label };
+    if (idx >= 0) next[idx] = obj;
+    else next.unshift(obj);
+  }
+  user.addresses = next.slice(0, 10);
+  await user.save();
+  res.json({ success: true, data: user.addresses });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -879,6 +929,8 @@ module.exports = {
   registerDeviceToken,
   patchCurrentUser,
   getLinkedVets,
+  getMyAddresses,
+  putMyAddresses,
   getAllUsers,
   deleteUser,
   updateUserRole,

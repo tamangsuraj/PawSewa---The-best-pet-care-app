@@ -20,6 +20,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
   late final TabController _tabController;
   final _api = ApiClient();
 
+  List<Map<String, dynamic>> _care = [];
   List<Map<String, dynamic>> _sellers = [];
   List<Map<String, dynamic>> _delivery = [];
   bool _loadingMp = false;
@@ -27,7 +28,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTab);
     _loadMarketplace();
   }
@@ -47,10 +48,14 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
       final body = r.data;
       if (body is Map && body['success'] == true && body['data'] is Map) {
         final d = body['data'] as Map;
+        final c = d['care'];
         final s = d['sellers'];
         final del = d['delivery'];
         if (!mounted) return;
         setState(() {
+          _care = c is List
+              ? c.map((e) => Map<String, dynamic>.from(e as Map)).toList()
+              : [];
           _sellers = s is List
               ? s.map((e) => Map<String, dynamic>.from(e as Map)).toList()
               : [];
@@ -80,6 +85,31 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
           peerName: name,
           peerSubtitle: productName.isNotEmpty ? 'Re: $productName' : null,
           productIdForFirstMessage: null,
+        ),
+      ),
+    ).then((_) => _loadMarketplace());
+  }
+
+  void _openCareCentreThread(Map<String, dynamic> row) {
+    final id = row['_id']?.toString();
+    if (id == null) return;
+    final partner = row['partner'];
+    final name = partner is Map ? (partner['name']?.toString() ?? 'Care centre') : 'Care centre';
+    final booking = row['careBooking'];
+    String? sub;
+    if (booking is Map) {
+      final st = booking['status']?.toString() ?? '';
+      sub = st.isNotEmpty ? 'Booking: $st' : 'Care booking chat';
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MarketplaceThreadScreen(
+          conversationId: id,
+          threadType: 'CARE',
+          peerName: name,
+          peerSubtitle: sub,
+          productIdForFirstMessage: null,
+          highContrast: true,
         ),
       ),
     ).then((_) => _loadMarketplace());
@@ -124,6 +154,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
             indicatorColor: primary,
             tabs: const [
               Tab(text: 'Support'),
+              Tab(text: 'Care'),
               Tab(text: 'Sellers'),
               Tab(text: 'Delivery'),
             ],
@@ -134,12 +165,63 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
             index: _tabController.index,
             children: [
               const MessagesScreen(),
+              _buildCareList(primary),
               _buildSellerList(primary),
               _buildDeliveryList(primary),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCareList(Color primary) {
+    if (_loadingMp) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+      );
+    }
+    if (_care.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'No care centre chats yet.\nAfter you book Pet Care+, open chat from My Care Bookings.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(color: Colors.grey[700]),
+          ),
+        ),
+      );
+    }
+    return RefreshIndicator(
+      color: primary,
+      onRefresh: _loadMarketplace,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _care.length,
+        itemBuilder: (context, i) {
+          final row = _care[i];
+          final partner = row['partner'];
+          final name = partner is Map ? (partner['name']?.toString() ?? 'Care centre') : 'Care centre';
+          final booking = row['careBooking'];
+          String sub = 'Care booking';
+          if (booking is Map) {
+            final st = booking['status']?.toString() ?? '';
+            if (st.isNotEmpty) sub = 'Status: $st';
+          }
+          return Card(
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: primary.withValues(alpha: 0.15),
+                child: Icon(Icons.home_work_rounded, color: primary),
+              ),
+              title: Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              subtitle: Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis),
+              onTap: () => _openCareCentreThread(row),
+            ),
+          );
+        },
+      ),
     );
   }
 

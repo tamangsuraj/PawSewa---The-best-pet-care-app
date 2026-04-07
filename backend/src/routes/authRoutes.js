@@ -2,10 +2,18 @@ const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const { OAuth2Client } = require('google-auth-library');
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const generateToken = require('../utils/generateToken');
 const { loginUser } = require('../controllers/userController');
+const {
+  sendLoginOtp,
+  verifyLoginOtp,
+  normalizeRoleForResponse,
+  assertContextForExistingUser,
+} = require('../controllers/authOtpController');
 const { authLimiter } = require('../middleware/rateLimiters');
+
+const PARTNER_GOOGLE_SIGNUP_ROLES = new Set(['shop_owner', 'rider', 'veterinarian']);
 
 /**
  * Default OAuth client IDs for PawSewa user_app (Firebase project pawsewa-25997).
@@ -108,13 +116,19 @@ async function resolveGoogleIdentity(googleToken) {
 // @access  Public (rate-limited)
 router.post('/login', authLimiter, loginUser);
 
+// Passwordless email OTP (single source of truth with MongoDB users collection)
+router.post('/send-otp', authLimiter, sendLoginOtp);
+router.post('/verify-otp', authLimiter, verifyLoginOtp);
+
 // Google OAuth login
 // @route   POST /api/v1/auth/google
 // @desc    Google OAuth authentication
 // @access  Public
 router.post('/google', async (req, res) => {
   try {
-    const { googleToken, email, name, googleId } = req.body;
+    const { googleToken, email, name, googleId, appContext: rawCtx, partnerRole: pr } = req.body;
+    const appContext = ['customer', 'partner', 'admin'].includes(rawCtx) ? rawCtx : 'customer';
+    const partnerRoleRequested = (pr || 'shop_owner').toString().toLowerCase().trim();
 
     if (!googleToken) {
       return res.status(400).json({
@@ -153,14 +167,11 @@ router.post('/google', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Google token email mismatch' });
     }
 
-    // Optional: only enforce when client sends the same subject as the token (some SDKs use a different id field).
     if (googleId && identity.sub && String(googleId).trim() && String(googleId) !== identity.sub) {
       return res.status(401).json({ success: false, message: 'Google account mismatch' });
     }
 
     const verifiedName = identity.name || (name || '').toString().trim() || identity.email.split('@')[0];
-
-    console.log(`[INFO] Google OAuth handshake complete for user ${identity.email}.`);
 
     const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     let user = await User.findOne({
@@ -168,12 +179,15 @@ router.post('/google', async (req, res) => {
     });
 
     if (user) {
-      // User exists - just issue JWT
-      const token = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '30d' }
-      );
+      try {
+        assertContextForExistingUser(user, appContext);
+      } catch (e) {
+        const code = e.statusCode || 403;
+        return res.status(code).json({ success: false, message: e.message });
+      }
+
+      const token = generateToken(user._id);
+      const roleOut = normalizeRoleForResponse(user.role) || user.role;
 
       return res.status(200).json({
         success: true,
@@ -184,8 +198,9 @@ router.post('/google', async (req, res) => {
             _id: user._id,
             name: user.name,
             email: user.email,
-            role: user.role,
+            role: roleOut,
             phone: user.phone,
+            profilePicture: user.profilePicture || null,
             location: user.location,
             isVerified: user.isVerified,
           },
@@ -193,23 +208,36 @@ router.post('/google', async (req, res) => {
       });
     }
 
-    // User doesn't exist - create new account
+    if (appContext === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message:
+          'Access Denied: Admin accounts cannot be created with Google. Sign in with your admin email and password, or use a code from an existing admin account.',
+      });
+    }
+
+    let newRole = 'pet_owner';
+    if (appContext === 'partner') {
+      if (!PARTNER_GOOGLE_SIGNUP_ROLES.has(partnerRoleRequested)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid partnerRole for Google sign-up. Use: ${[...PARTNER_GOOGLE_SIGNUP_ROLES].join(', ')}`,
+        });
+      }
+      newRole = partnerRoleRequested;
+    }
+
     user = await User.create({
       name: verifiedName,
       email: identity.email,
-      password: `google_${googleId || identity.sub || Date.now()}_${Math.random().toString(36)}`, // Random password for Google users
-      role: 'pet_owner',
-      isVerified: true, // Google accounts are pre-verified
+      password: `google_${googleId || identity.sub || Date.now()}_${Math.random().toString(36)}`,
+      role: newRole,
+      isVerified: true,
     });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
+    const token = generateToken(user._id);
+    const roleOut = normalizeRoleForResponse(user.role) || user.role;
 
-    // Return 200 so the mobile client doesn't treat it as an error path.
     res.status(200).json({
       success: true,
       message: 'Account created successfully',
@@ -219,8 +247,9 @@ router.post('/google', async (req, res) => {
           _id: user._id,
           name: user.name,
           email: user.email,
-          role: user.role,
+          role: roleOut,
           phone: user.phone,
+          profilePicture: user.profilePicture || null,
           location: user.location,
           isVerified: user.isVerified,
         },

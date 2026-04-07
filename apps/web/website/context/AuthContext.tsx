@@ -18,6 +18,10 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** Passwordless sign-in — POST /auth/send-otp with customer context. */
+  sendLoginOtp: (email: string) => Promise<void>;
+  /** Passwordless sign-in — POST /auth/verify-otp; persists session like password login. */
+  verifyOtpLogin: (email: string, otp: string) => Promise<void>;
   loginWithToken: (userData: any) => void;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
@@ -96,6 +100,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const sendLoginOtp = async (email: string) => {
+    try {
+      await api.post('/auth/send-otp', { email, appContext: 'customer' });
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Could not send sign-in code');
+    }
+  };
+
+  const verifyOtpLogin = async (email: string, otp: string) => {
+    try {
+      const response = await api.post('/auth/verify-otp', {
+        email,
+        otp,
+        appContext: 'customer',
+      });
+      if (response.data.success) {
+        const { token: newToken, ...userData } = response.data.data;
+        if (userData.role !== 'pet_owner') {
+          throw new Error(
+            'This is the customer website. Only pet owner accounts can sign in here.',
+          );
+        }
+        setToken(newToken);
+        setUser(userData);
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+    } catch (error: any) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.startsWith('This is the customer')) throw error;
+      throw new Error(error.response?.data?.message || 'Invalid or expired code');
+    }
+  };
+
   const register = async (userData: RegisterData) => {
     try {
       const response = await api.post('/users', userData);
@@ -139,7 +177,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user && !!token;
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isAuthenticated, login, loginWithToken, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isAuthenticated,
+        login,
+        sendLoginOtp,
+        verifyOtpLogin,
+        loginWithToken,
+        register,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

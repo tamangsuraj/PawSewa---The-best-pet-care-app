@@ -1,12 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../../cart/cart_service.dart';
+import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../services/geocoding_service.dart';
 import '../../widgets/editorial_canvas.dart';
 
 /// One place result from Nominatim search.
@@ -25,8 +28,14 @@ class _PlaceResult {
 class DeliveryPinScreen extends StatefulWidget {
   /// When true, pops with the address string (for appointments). When false, sets CartService (shop checkout).
   final bool returnAddress;
+  /// When true (and returnAddress==true), pops with `{ lat, lng, address }` map.
+  final bool returnLocationPayload;
 
-  const DeliveryPinScreen({super.key, this.returnAddress = false});
+  const DeliveryPinScreen({
+    super.key,
+    this.returnAddress = false,
+    this.returnLocationPayload = false,
+  });
 
   @override
   State<DeliveryPinScreen> createState() => _DeliveryPinScreenState();
@@ -43,8 +52,12 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
   bool _loadingAddress = false;
   List<_PlaceResult> _searchResults = [];
   bool _searching = false;
+  List<Map<String, dynamic>> _saved = [];
+  bool _loadingSaved = false;
+  DateTime? _lastReverseAt;
 
   late final Dio _dio;
+  final _geo = GeocodingService();
 
   @override
   void initState() {
@@ -54,6 +67,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
         headers: const {'User-Agent': 'PawSewa Mobile App (pawsewa.app)'},
       ),
     );
+    _loadSavedAddresses();
   }
 
   @override
@@ -126,16 +140,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       _address = null;
     });
     try {
-      final resp = await _dio.get(
-        'https://nominatim.openstreetmap.org/reverse',
-        queryParameters: {
-          'format': 'jsonv2',
-          'lat': point.latitude.toString(),
-          'lon': point.longitude.toString(),
-        },
-      );
-      final data = resp.data;
-      final addr = data is Map ? data['display_name']?.toString() : null;
+      final addr = await _geo.reverse(lat: point.latitude, lng: point.longitude);
       if (mounted) {
         setState(() {
           _address = addr;
@@ -152,6 +157,78 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
     }
   }
 
+  Future<void> _loadSavedAddresses() async {
+    setState(() => _loadingSaved = true);
+    try {
+      final r = await ApiClient().getMySavedAddresses();
+      final body = r.data;
+      final list = <Map<String, dynamic>>[];
+      if (body is Map && body['success'] == true && body['data'] is List) {
+        for (final e in body['data'] as List) {
+          if (e is Map) list.add(Map<String, dynamic>.from(e));
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _saved = list;
+        _loadingSaved = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingSaved = false);
+    }
+  }
+
+  Future<void> _pinMyLocation() async {
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location services are disabled.')),
+          );
+        }
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission is required to pin your location.')),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final p = LatLng(pos.latitude, pos.longitude);
+      setState(() => _pin = p);
+      _mapController.move(p, 16);
+      await _reverseGeocode(p);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not get location: $e')),
+        );
+      }
+    }
+  }
+
+  void _onMapMove(MapCamera cam) {
+    final center = cam.center;
+    setState(() => _pin = center);
+    // Debounce reverse-geocoding so dragging feels smooth.
+    final now = DateTime.now();
+    final last = _lastReverseAt;
+    if (last != null && now.difference(last).inMilliseconds < 700) return;
+    _lastReverseAt = now;
+    _reverseGeocode(center);
+  }
+
   void _onConfirm() {
     if (_pin == null || _address == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -166,7 +243,15 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       return;
     }
     if (widget.returnAddress) {
-      Navigator.of(context).pop(_address);
+      if (widget.returnLocationPayload) {
+        Navigator.of(context).pop({
+          'lat': _pin!.latitude,
+          'lng': _pin!.longitude,
+          'address': _address!,
+        });
+      } else {
+        Navigator.of(context).pop(_address);
+      }
       return;
     }
     context.read<CartService>().setDeliveryLocation(
@@ -200,6 +285,40 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
           Positioned.fill(
             child: Column(
               children: [
+          if (_loadingSaved == false && _saved.isNotEmpty)
+            SizedBox(
+              height: 54,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                scrollDirection: Axis.horizontal,
+                itemCount: _saved.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  final a = _saved[i];
+                  final label = a['label']?.toString() ?? 'Saved';
+                  final street = a['street']?.toString() ?? '';
+                  final landmark = a['landmark']?.toString() ?? '';
+                  final lat = (a['lat'] as num?)?.toDouble();
+                  final lng = (a['lng'] as num?)?.toDouble();
+                  final addr = [street, landmark].where((s) => s.trim().isNotEmpty).join(' • ');
+                  return ActionChip(
+                    label: Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    avatar: const Icon(Icons.bookmark_rounded, size: 18, color: Color(AppConstants.primaryColor)),
+                    onPressed: (lat != null && lng != null)
+                        ? () {
+                            final p = LatLng(lat, lng);
+                            setState(() {
+                              _pin = p;
+                              _address = addr.isNotEmpty ? addr : _address;
+                            });
+                            _mapController.move(p, 16);
+                            _reverseGeocode(p);
+                          }
+                        : null,
+                  );
+                },
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
             child: TextField(
@@ -287,8 +406,14 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
               options: MapOptions(
                 initialCenter: _center,
                 initialZoom: 14,
+                onPositionChanged: (pos, hasGesture) {
+                  if (hasGesture) {
+                    _onMapMove(pos);
+                  }
+                },
                 onTap: (tap, point) {
                   setState(() => _pin = point);
+                  _mapController.move(point, _mapController.camera.zoom);
                   _reverseGeocode(point);
                 },
               ),
@@ -316,6 +441,16 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
               ],
             ),
           ),
+          Positioned(
+            right: 16,
+            bottom: 140,
+            child: FloatingActionButton(
+              heroTag: 'pin_my_location',
+              backgroundColor: Colors.white,
+              onPressed: _pinMyLocation,
+              child: const Icon(Icons.my_location_rounded, color: Color(AppConstants.primaryColor)),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -333,7 +468,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                   )
                 else
                   Text(
-                    'Tap on the map to place the delivery pin, or search above.',
+                    'Drag the map under the pin, tap on map, or use My Location.',
                     style: GoogleFonts.outfit(
                       fontSize: 13,
                       color: Colors.grey[600],

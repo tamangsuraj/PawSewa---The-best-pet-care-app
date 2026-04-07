@@ -40,6 +40,7 @@ const getCustomerInbox = asyncHandler(async (req, res) => {
     .populate('partner', 'name profilePicture role')
     .populate('order')
     .populate('lastProduct', 'name images')
+    .populate('careBooking', 'status serviceType checkIn checkOut hostelId')
     .sort({ lastMessageAt: -1, updatedAt: -1 })
     .lean();
 
@@ -135,13 +136,18 @@ const openCareThread = asyncHandler(async (req, res) => {
   }
   const hostelOwnerId = booking.hostelId?.ownerId ? String(booking.hostelId.ownerId) : '';
   const uid = String(req.user._id);
+  const customerId = String(booking.userId?._id || booking.userId || '');
   const assignedPartnerId = booking.assignedPartner ? String(booking.assignedPartner) : '';
-  const ok = uid === hostelOwnerId || (assignedPartnerId && uid === assignedPartnerId) || req.user.role === 'admin';
+  const ok =
+    uid === customerId ||
+    uid === hostelOwnerId ||
+    (assignedPartnerId && uid === assignedPartnerId) ||
+    req.user.role === 'admin';
   if (!ok) {
     return res.status(403).json({ success: false, message: 'Not allowed' });
   }
 
-  const conv = await ensureCareConversationForBooking(bookingId, req.user._id);
+  const conv = await ensureCareConversationForBooking(bookingId);
   const populated = await MarketplaceConversation.findById(conv._id)
     .populate('customer', 'name profilePicture phone')
     .populate('partner', 'name profilePicture role')
@@ -159,6 +165,34 @@ const openSellerThread = asyncHandler(async (req, res) => {
   const conv = await ensureSellerConversation(req.user._id, productId);
   const populated = await MarketplaceConversation.findById(conv._id)
     .populate('partner', 'name profilePicture role')
+    .populate('lastProduct', 'name images')
+    .lean();
+
+  res.json({ success: true, data: populated });
+});
+
+/** POST /api/v1/marketplace-chat/seller/open-from-order { orderId } — shop_owner opens buyer thread */
+const openSellerThreadFromOrder = asyncHandler(async (req, res) => {
+  const { orderId } = req.body || {};
+  if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+    return res.status(400).json({ success: false, message: 'orderId is required' });
+  }
+  const order = await Order.findById(orderId).populate('items.product', 'name images seller vendorId');
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  if (String(order.assignedSeller) !== String(req.user._id) && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'This order is not assigned to your shop' });
+  }
+  const item = (order.items || []).find((i) => i.product);
+  const pid = item?.product?._id || item?.product;
+  if (!pid) {
+    return res.status(400).json({ success: false, message: 'Order has no product lines' });
+  }
+  const conv = await ensureSellerConversation(order.user, pid);
+  const populated = await MarketplaceConversation.findById(conv._id)
+    .populate('partner', 'name profilePicture role')
+    .populate('customer', 'name profilePicture phone')
     .populate('lastProduct', 'name images')
     .lean();
 
@@ -232,7 +266,13 @@ const getRiderDeliveryByOrder = asyncHandler(async (req, res) => {
 /** GET /api/v1/marketplace-chat/conversations/:id/messages */
 const getMessages = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const conv = await loadConversationForUser(id, req.user._id);
+  const isAdmin = req.user.role === 'admin';
+  let conv = null;
+  if (isAdmin) {
+    conv = await MarketplaceConversation.findById(id).lean();
+  } else {
+    conv = await loadConversationForUser(id, req.user._id);
+  }
   if (!conv) {
     return res.status(404).json({ success: false, message: 'Conversation not found' });
   }
@@ -271,7 +311,19 @@ const postMessage = asyncHandler(async (req, res) => {
 /** GET /api/v1/marketplace-chat/conversations/:id — metadata */
 const getConversation = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const conv = await loadConversationForUser(id, req.user._id);
+  const isAdmin = req.user.role === 'admin';
+  let conv = null;
+  if (isAdmin) {
+    conv = await MarketplaceConversation.findById(id)
+      .populate('customer', 'name profilePicture')
+      .populate('partner', 'name profilePicture role')
+      .populate('order')
+      .populate('lastProduct', 'name images')
+      .populate('careBooking')
+      .lean();
+  } else {
+    conv = await loadConversationForUser(id, req.user._id);
+  }
   if (!conv) {
     return res.status(404).json({ success: false, message: 'Conversation not found' });
   }
@@ -298,6 +350,7 @@ module.exports = {
   getCareInbox,
   openCareThread,
   openSellerThread,
+  openSellerThreadFromOrder,
   getOrCreateDeliveryByOrder,
   getRiderDeliveryByOrder,
   getMessages,

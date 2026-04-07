@@ -26,13 +26,19 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, sendLoginOtp, verifyOtpLogin, isAuthenticated, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = React.useState(false);
   const [submitError, setSubmitError] = React.useState('');
+  const [otpMode, setOtpMode] = React.useState(false);
+  const [otpSent, setOtpSent] = React.useState(false);
+  const [otpCode, setOtpCode] = React.useState('');
+  const [otpBusy, setOtpBusy] = React.useState(false);
 
   const {
     register,
     handleSubmit,
+    getValues,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -73,6 +79,43 @@ export default function LoginPage() {
     }
   };
 
+  const handleSendAdminOtp = async () => {
+    setSubmitError('');
+    const email = getValues('email');
+    if (!email?.trim()) {
+      setSubmitError('Enter your admin email.');
+      return;
+    }
+    setOtpBusy(true);
+    try {
+      await sendLoginOtp(email.trim());
+      setOtpSent(true);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : 'Could not send code');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const handleVerifyAdminOtp = async () => {
+    setSubmitError('');
+    const email = getValues('email')?.trim();
+    const code = otpCode.trim();
+    if (!email || code.length !== 6) {
+      setSubmitError('Enter the 6-digit code from your email.');
+      return;
+    }
+    setOtpBusy(true);
+    try {
+      await verifyOtpLogin(email, code);
+      router.replace('/dashboard');
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : 'Invalid OTP');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
   if (isAuthenticated) {
     return null;
   }
@@ -108,7 +151,16 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <form
+            onSubmit={(e) => {
+              if (otpMode) {
+                e.preventDefault();
+                return;
+              }
+              void handleSubmit(onSubmit)(e);
+            }}
+            className="space-y-5"
+          >
             <div>
               <label
                 htmlFor="admin-email"
@@ -129,56 +181,139 @@ export default function LoginPage() {
               )}
             </div>
 
-            <div className="relative">
-              <label
-                htmlFor="admin-password"
-                className="block text-sm font-medium text-stone-700 mb-2"
-              >
-                Password
-              </label>
-              <input
-                id="admin-password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter admin password"
-                autoComplete="current-password"
-                {...register('password')}
-                className="w-full px-4 py-3 pr-12 rounded-xl border border-stone-200 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#5c2d12]/25 focus:border-[#5c2d12]"
-              />
-              {errors.password && (
-                <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-[2.375rem] text-stone-500 hover:text-stone-800 p-1 rounded-md"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" style={{ color: brown.muted }} />
-                ) : (
-                  <Eye className="w-5 h-5" style={{ color: brown.muted }} />
-                )}
-              </button>
-            </div>
+            {!otpMode ? (
+              <>
+                <div className="relative">
+                  <label
+                    htmlFor="admin-password"
+                    className="block text-sm font-medium text-stone-700 mb-2"
+                  >
+                    Password
+                  </label>
+                  <input
+                    id="admin-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter admin password"
+                    autoComplete="current-password"
+                    {...register('password')}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-stone-200 bg-white text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-[#5c2d12]/25 focus:border-[#5c2d12]"
+                  />
+                  {errors.password && (
+                    <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-[2.375rem] text-stone-500 hover:text-stone-800 p-1 rounded-md"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" style={{ color: brown.muted }} />
+                    ) : (
+                      <Eye className="w-5 h-5" style={{ color: brown.muted }} />
+                    )}
+                  </button>
+                </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                  <span>Authenticating…</span>
-                </>
-              ) : (
-                <>
-                  <Lock className="w-5 h-5" />
-                  <span>Access Control Room</span>
-                </>
-              )}
-            </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                      <span>Authenticating…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-5 h-5" />
+                      <span>Access Control Room</span>
+                    </>
+                  )}
+                </button>
+              </>
+            ) : (
+              <div
+                className="space-y-4 rounded-xl border p-4"
+                style={{ borderColor: `${brown.solid}25`, backgroundColor: '#faf8f5' }}
+              >
+                <p className="text-sm text-stone-600">
+                  A one-time code is sent to your admin email. Access Denied if the account is not role{' '}
+                  <span className="font-semibold">admin</span>.
+                </p>
+                {!otpSent ? (
+                  <button
+                    type="button"
+                    disabled={otpBusy}
+                    onClick={handleSendAdminOtp}
+                    className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {otpBusy ? 'Sending…' : 'Send admin sign-in code'}
+                  </button>
+                ) : (
+                  <>
+                    <div>
+                      <label
+                        htmlFor="admin-otp"
+                        className="block text-sm font-medium text-stone-700 mb-2"
+                      >
+                        6-digit code
+                      </label>
+                      <input
+                        id="admin-otp"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        placeholder="000000"
+                        value={otpCode}
+                        onChange={(e) =>
+                          setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                        }
+                        className="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-900 tracking-widest text-center text-lg focus:outline-none focus:ring-2 focus:ring-[#5c2d12]/25 focus:border-[#5c2d12]"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={otpBusy || otpCode.length !== 6}
+                      onClick={handleVerifyAdminOtp}
+                      className="w-full bg-[#5c2d12] hover:bg-[#4a2510] text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
+                    >
+                      {otpBusy ? 'Verifying…' : 'Verify & enter'}
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full text-sm text-[#5c2d12] font-medium hover:underline"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtpCode('');
+                      }}
+                    >
+                      Use a different email
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </form>
+
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              className="text-sm font-semibold hover:underline"
+              style={{ color: brown.solid }}
+              onClick={() => {
+                setOtpMode((v) => !v);
+                setOtpSent(false);
+                setOtpCode('');
+                setSubmitError('');
+                clearErrors();
+              }}
+            >
+              {otpMode ? 'Use password instead' : 'Sign in with email code'}
+            </button>
+          </div>
 
           <div
             className="mt-6 p-4 rounded-xl border flex items-center justify-center gap-2 text-center"

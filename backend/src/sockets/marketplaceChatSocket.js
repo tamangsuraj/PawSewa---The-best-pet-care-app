@@ -102,6 +102,7 @@ function registerMarketplaceChatSocket(io) {
       try {
         const c = await MarketplaceConversation.findById(conversationId).select('type').lean();
         if (c?.type === 'DELIVERY') threadType = 'delivery';
+        else if (c?.type === 'CARE') threadType = 'care';
       } catch (_) {
         /* ignore */
       }

@@ -7,6 +7,12 @@ const careBookingSchema = new mongoose.Schema(
       ref: 'Hostel',
       required: true,
     },
+    /** Same as hostelId — care centre / shop listing (Atlas sync). */
+    centreId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hostel',
+      default: null,
+    },
     petId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Pet',
@@ -16,6 +22,12 @@ const careBookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+    /** Same as userId — customer reference. */
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
     checkIn: {
       type: Date,
@@ -50,8 +62,19 @@ const careBookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'paid', 'accepted', 'rejected', 'cancelled', 'completed'],
-      default: 'pending',
+      enum: [
+        'awaiting_approval',
+        'confirmed',
+        'checked_in',
+        'completed',
+        'declined',
+        'pending',
+        'paid',
+        'accepted',
+        'rejected',
+        'cancelled',
+      ],
+      default: 'awaiting_approval',
     },
     paymentStatus: {
       type: String,
@@ -136,6 +159,24 @@ const careBookingSchema = new mongoose.Schema(
     packageName: { type: String, trim: true },
     addOns: { type: [String], default: [] },
     serviceDelivery: { type: String, enum: ['home_visit', 'visit_center'], trim: true },
+    /** Care logistics: self_drop (customer brings pet) or pickup (professional pickup required). */
+    logisticsType: {
+      type: String,
+      enum: ['self_drop', 'pickup'],
+      default: 'self_drop',
+    },
+    /** Pickup address (required when logisticsType === 'pickup'). */
+    pickupAddress: {
+      address: { type: String, trim: true, default: '' },
+      point: {
+        type: {
+          type: String,
+          enum: ['Point'],
+          default: 'Point',
+        },
+        coordinates: { type: [Number], default: undefined }, // [lng, lat]
+      },
+    },
     /** Admin-dispatched professional (vet / groomer / etc.) — surfaces in Partner app + sockets. */
     assignedPartner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -156,8 +197,15 @@ careBookingSchema.index({ userId: 1, status: 1 });
 careBookingSchema.index({ serviceType: 1, status: 1 });
 careBookingSchema.index({ petId: 1 });
 careBookingSchema.index({ assignedPartner: 1, status: 1 });
+careBookingSchema.index({ 'pickupAddress.point': '2dsphere' });
 
-careBookingSchema.pre('save', function syncCareAssignment() {
+careBookingSchema.pre('save', function syncCareBookingFields() {
+  if (this.hostelId && !this.centreId) {
+    this.centreId = this.hostelId;
+  }
+  if (this.userId && !this.customerId) {
+    this.customerId = this.userId;
+  }
   if (this.assignedPartner) {
     this.careAssignmentStatus = 'ASSIGNED_TO_PROFESSIONAL';
   } else {

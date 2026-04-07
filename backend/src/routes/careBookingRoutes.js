@@ -13,6 +13,7 @@ const {
   updateIntake,
   addIncident,
   markBookingCompleted,
+  notifyBookingCheckIn,
 } = require('../controllers/careBookingController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
@@ -30,6 +31,12 @@ router.get(
   getOwnerCalendar
 );
 router.patch('/:id/respond', protect, respondToBooking);
+router.patch(
+  '/:id/check-in',
+  protect,
+  authorize('hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner', 'admin'),
+  notifyBookingCheckIn
+);
 router.patch(
   '/:id/facility-notes',
   protect,

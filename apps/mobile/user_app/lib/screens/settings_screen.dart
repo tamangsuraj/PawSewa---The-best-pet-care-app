@@ -438,7 +438,7 @@ class _SwitchTile extends StatelessWidget {
           subtitle: Text(subtitle, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: ink.withValues(alpha: 0.65))),
           trailing: Switch(
             value: value,
-            activeColor: const Color(AppConstants.accentColor),
+            activeThumbColor: const Color(AppConstants.accentColor),
             onChanged: onChanged,
           ),
         ),

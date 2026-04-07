@@ -97,7 +97,11 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     }
     final hasActive = _orders.any((o) {
       final s = (o['status'] ?? '').toString().toLowerCase();
-      return s == 'processing' || s == 'packed' || s == 'out_for_delivery';
+      return s == 'processing' ||
+          s == 'packed' ||
+          s == 'ready_for_pickup' ||
+          s == 'assigned_to_rider' ||
+          s == 'out_for_delivery';
     });
     if (!hasActive) {
       return;
@@ -320,6 +324,17 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       }
     }
     if (lat == null || lng == null) {
+      final dc = order['deliveryCoordinates'] as Map<String, dynamic>?;
+      if (dc != null) {
+        final la = dc['lat'];
+        final ln = dc['lng'];
+        if (la is num && ln is num) {
+          lat = la.toDouble();
+          lng = ln.toDouble();
+        }
+      }
+    }
+    if (lat == null || lng == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -403,12 +418,18 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
   static String _statusLabel(String status) {
     switch (status) {
+      case 'pending_confirmation':
+        return 'Awaiting shop';
       case 'pending':
         return 'Pending';
       case 'processing':
         return 'Processing';
+      case 'ready_for_pickup':
+        return 'Ready (pickup)';
       case 'packed':
         return 'Packed (pickup)';
+      case 'assigned_to_rider':
+        return 'Assigned to you';
       case 'out_for_delivery':
         return 'On the way';
       case 'delivered':
@@ -420,11 +441,13 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
   static String? _nextStatus(String current) {
     switch (current) {
-      case 'pending':
-        return 'processing';
+      case 'assigned_to_rider':
+        return 'out_for_delivery';
       case 'processing':
         return 'out_for_delivery';
       case 'packed':
+        return 'out_for_delivery';
+      case 'ready_for_pickup':
         return 'out_for_delivery';
       case 'out_for_delivery':
         return 'delivered';
@@ -837,7 +860,10 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         currentLatLng: _currentLatLng,
                                         onUpdateStatus: _updateStatus,
                                         onNavigate: _navigateToDeliveryAddress,
-                                        onChatCustomer: (order['status']?.toString() ?? '') != 'pending'
+                                        onChatCustomer: !{
+                                          'pending',
+                                          'pending_confirmation',
+                                        }.contains(order['status']?.toString() ?? '')
                                             ? () => _openCustomerChat(context, order)
                                             : null,
                                         onViewReceipt: (order['status']?.toString() ?? '') == 'delivered'
@@ -1060,7 +1086,11 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if ((status == 'processing' || status == 'packed' || status == 'out_for_delivery') &&
+            if ((status == 'processing' ||
+                    status == 'packed' ||
+                    status == 'ready_for_pickup' ||
+                    status == 'assigned_to_rider' ||
+                    status == 'out_for_delivery') &&
                 customerLatLng != null) ...[
               SizedBox(
                 width: double.infinity,
@@ -1076,7 +1106,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.map_rounded, size: 20),
                   label: Text(
-                    'View on map',
+                    'Open in Google Maps',
                     style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -1147,8 +1177,11 @@ class _OrderCard extends StatelessWidget {
                 disabled: isUpdating,
                 backgroundColor:
                     next == 'delivered' ? successGreen : accent,
-                label:
-                    next == 'delivered' ? 'Swipe to Complete' : 'Swipe to Start',
+                label: next == 'delivered'
+                    ? 'Swipe — Delivered'
+                    : next == 'out_for_delivery'
+                        ? 'Swipe — Out for delivery'
+                        : 'Swipe — Update status',
                 onSwiped: () => onUpdateStatus(id, next),
                 loading: isUpdating,
               ),
@@ -1161,11 +1194,14 @@ class _OrderCard extends StatelessWidget {
 
   Color _statusColor(String status) {
     switch (status) {
+      case 'pending_confirmation':
       case 'pending':
         return Colors.orange;
       case 'processing':
-        return const Color(AppConstants.accentColor);
+      case 'ready_for_pickup':
       case 'packed':
+        return const Color(AppConstants.accentColor);
+      case 'assigned_to_rider':
         return Colors.teal;
       case 'out_for_delivery':
         return Colors.deepOrange;

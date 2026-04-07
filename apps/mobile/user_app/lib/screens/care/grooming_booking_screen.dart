@@ -8,6 +8,7 @@ import '../../core/storage_service.dart';
 import '../../models/pet.dart';
 import '../../services/pet_service.dart';
 import '../shop/khalti_payment_screen.dart';
+import '../cart/delivery_pin_screen.dart';
 
 class GroomingBookingScreen extends StatefulWidget {
   final Map<String, dynamic> hostel;
@@ -32,6 +33,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
   Pet? _selectedPet;
   Map<String, dynamic>? _selectedPackage;
   String _serviceDelivery = 'visit_center';
+  Map<String, dynamic>? _pickupLocation; // { lat, lng, address }
   final Set<String> _selectedAddOns = {};
   DateTime? _selectedDate;
   String? _selectedTimeSlot;
@@ -145,6 +147,10 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
     });
 
     try {
+      final isPickup = _serviceDelivery == 'home_visit';
+      if (isPickup && (_pickupLocation == null || _pickupLocation!['address'] == null)) {
+        throw Exception('Please select a pickup location');
+      }
       final resp = await _apiClient.createCareBooking({
         'hostelId': widget.hostel['_id'],
         'petId': _selectedPet!.id,
@@ -153,6 +159,15 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
         'packageName': _selectedPackage!['name'],
         'addOns': _selectedAddOns.toList(),
         'serviceDelivery': _serviceDelivery,
+        'logisticsType': isPickup ? 'pickup' : 'self_drop',
+        if (isPickup)
+          'pickupAddress': {
+            'address': _pickupLocation!['address'],
+            'coordinates': [
+              _pickupLocation!['lng'],
+              _pickupLocation!['lat'],
+            ],
+          },
         'paymentMethod': paymentOnline ? 'online' : 'cash_on_delivery',
       });
 
@@ -328,11 +343,62 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              _deliveryCard('home_visit', 'Home Visit', 'Groomer comes to your location', Icons.home),
+              _deliveryCard('home_visit', 'Request Pickup', 'We’ll pick up your pet from your location', Icons.local_taxi_rounded),
               const SizedBox(width: 12),
-              _deliveryCard('visit_center', 'Visit Center', 'Visit our care center', Icons.store),
+              _deliveryCard('visit_center', 'Self-Drop', 'You bring your pet to the center', Icons.store_rounded),
             ],
           ),
+          if (_serviceDelivery == 'home_visit') ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pickup address',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: primary),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _pickupLocation?['address']?.toString() ?? 'No pickup location selected yet.',
+                    style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final result = await Navigator.of(context).push<Map<String, dynamic>>(
+                          MaterialPageRoute(
+                            builder: (_) => const DeliveryPinScreen(
+                              returnAddress: true,
+                              returnLocationPayload: true,
+                            ),
+                          ),
+                        );
+                        if (result != null && mounted) {
+                          setState(() => _pickupLocation = result);
+                        }
+                      },
+                      icon: const Icon(Icons.my_location_rounded),
+                      label: Text('Pick pickup location', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: primary,
+                        side: const BorderSide(color: primary),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           _sectionTitle('ADD-ONS'),
           const SizedBox(height: 12),

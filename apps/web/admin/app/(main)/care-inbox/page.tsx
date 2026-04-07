@@ -62,8 +62,10 @@ export default function CareInboxPage() {
       });
       const data = resp.data?.data ?? [];
       setItems(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load Care+ inbox');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
+      setError(msg || 'Failed to load Care+ inbox');
     } finally {
       setLoading(false);
     }
@@ -103,8 +105,10 @@ export default function CareInboxPage() {
       setSelected(null);
       await loadInbox();
       alert('Care+ request assigned successfully');
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign care provider');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
+      alert(msg || 'Failed to assign care provider');
     } finally {
       setAssigning(false);
     }

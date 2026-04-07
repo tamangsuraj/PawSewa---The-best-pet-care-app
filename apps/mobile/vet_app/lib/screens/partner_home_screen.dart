@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/constants.dart';
+import '../core/partner_role.dart';
 import '../core/storage_service.dart';
 import '../widgets/partner_scaffold.dart';
 import 'clinic_queue_screen.dart';
@@ -15,20 +16,16 @@ import 'rider_delivery_orders_screen.dart';
 import 'rider_live_map_screen.dart';
 import 'rider_history_screen.dart';
 import 'seller_inquiries_screen.dart';
+import 'seller_new_orders_screen.dart';
 import 'shop_inventory_screen.dart';
 import 'shop_analytics_screen.dart';
+import 'vet_clinic_assignments_screen.dart';
 import 'care_calendar_screen.dart';
 import 'care_pet_records_screen.dart';
 import 'care_staff_tasks_screen.dart';
+import 'unified_inbox_screen.dart';
 import 'my_business_screen.dart';
 import 'profile_editor_screen.dart';
-
-class PartnerRole {
-  static const vet = 'vet';
-  static const rider = 'rider';
-  static const seller = 'seller';
-  static const care = 'care';
-}
 
 class PartnerHomeScreen extends StatefulWidget {
   const PartnerHomeScreen({super.key});
@@ -53,34 +50,36 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   }
 
   Future<void> _hydrate() async {
-    final savedRole = await _storage.getActivePartnerRole();
     final user = await _storage.getUser();
     String name = _userName;
-    String subtitle = _userSubtitle;
+    String serverRole = '';
     if (user != null && user.trim().isNotEmpty) {
       try {
         final m = jsonDecode(user);
         if (m is Map) {
           name = (m['name'] ?? m['fullName'] ?? name).toString();
-          subtitle = (m['role'] ?? subtitle).toString();
+          serverRole = (m['role'] ?? '').toString();
         }
       } catch (_) {/* ignore */}
     }
+    final allowed = allowedPartnerPanelsForServerRole(serverRole);
+    var panel = await _storage.getActivePartnerRole();
+    if (panel == null || !allowed.contains(panel)) {
+      panel = defaultPartnerPanelForServerRole(serverRole);
+      await _storage.setActivePartnerRole(panel);
+    }
     if (!mounted) return;
     setState(() {
-      _role = (savedRole == PartnerRole.vet ||
-              savedRole == PartnerRole.rider ||
-              savedRole == PartnerRole.seller ||
-              savedRole == PartnerRole.care)
-          ? savedRole!
-          : PartnerRole.vet;
+      _role = panel!;
       _userName = name;
-      _userSubtitle = subtitle;
+      _userSubtitle = serverRole.isNotEmpty ? serverRole : _userSubtitle;
     });
   }
 
   Future<void> _setRole(String role) async {
     if (role == _role) return;
+    final allowed = allowedPartnerPanelsForServerRole(_userSubtitle);
+    if (!allowed.contains(role)) return;
     await _storage.setActivePartnerRole(role);
     if (!mounted) return;
     setState(() {
@@ -114,6 +113,8 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               roleLabel: roleLabel,
               userName: _userName,
               userSubtitle: _userSubtitle,
+              canSwitchPanel:
+                  allowedPartnerPanelsForServerRole(_userSubtitle).length > 1,
               onRoleTap: () => _showRoleSheet(context),
               onOpen: (screen) => _push(context, screen),
             ),
@@ -133,6 +134,8 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               role: _role,
               name: _userName,
               subtitle: _userSubtitle,
+              canSwitchPanel:
+                  allowedPartnerPanelsForServerRole(_userSubtitle).length > 1,
               onRoleTap: () => _showRoleSheet(context),
               onOpen: (screen) => _push(context, screen),
             ),
@@ -162,7 +165,8 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
-      builder: (_) {
+      builder: (sheetCtx) {
+        final allowed = allowedPartnerPanelsForServerRole(_userSubtitle);
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
           child: Column(
@@ -179,7 +183,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Choose your working role for this session.',
+                'Only panels that match your PawSewa account role are shown.',
                 style: GoogleFonts.outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -187,50 +191,54 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              _RoleTile(
-                selected: _role == PartnerRole.vet,
-                icon: Icons.medical_services_rounded,
-                title: 'Vet',
-                subtitle: 'Queue · visits · prescriptions · calls',
-                primary: primary,
-                onTap: () {
-                  Navigator.pop(context);
-                  _setRole(PartnerRole.vet);
-                },
-              ),
-              _RoleTile(
-                selected: _role == PartnerRole.rider,
-                icon: Icons.delivery_dining_rounded,
-                title: 'Rider',
-                subtitle: 'Jobs · live map · proof of delivery',
-                primary: primary,
-                onTap: () {
-                  Navigator.pop(context);
-                  _setRole(PartnerRole.rider);
-                },
-              ),
-              _RoleTile(
-                selected: _role == PartnerRole.seller,
-                icon: Icons.storefront_rounded,
-                title: 'Seller',
-                subtitle: 'Orders · inventory · analytics',
-                primary: primary,
-                onTap: () {
-                  Navigator.pop(context);
-                  _setRole(PartnerRole.seller);
-                },
-              ),
-              _RoleTile(
-                selected: _role == PartnerRole.care,
-                icon: Icons.home_work_rounded,
-                title: 'Care centre',
-                subtitle: 'Bookings · calendar · intake records',
-                primary: primary,
-                onTap: () {
-                  Navigator.pop(context);
-                  _setRole(PartnerRole.care);
-                },
-              ),
+              if (allowed.contains(PartnerRole.vet))
+                _RoleTile(
+                  selected: _role == PartnerRole.vet,
+                  icon: Icons.medical_services_rounded,
+                  title: 'Vet',
+                  subtitle: 'Queue · visits · prescriptions · calls',
+                  primary: primary,
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    _setRole(PartnerRole.vet);
+                  },
+                ),
+              if (allowed.contains(PartnerRole.rider))
+                _RoleTile(
+                  selected: _role == PartnerRole.rider,
+                  icon: Icons.delivery_dining_rounded,
+                  title: 'Rider',
+                  subtitle: 'Jobs · live map · proof of delivery',
+                  primary: primary,
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    _setRole(PartnerRole.rider);
+                  },
+                ),
+              if (allowed.contains(PartnerRole.seller))
+                _RoleTile(
+                  selected: _role == PartnerRole.seller,
+                  icon: Icons.storefront_rounded,
+                  title: 'Seller',
+                  subtitle: 'Orders · inventory · analytics',
+                  primary: primary,
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    _setRole(PartnerRole.seller);
+                  },
+                ),
+              if (allowed.contains(PartnerRole.care))
+                _RoleTile(
+                  selected: _role == PartnerRole.care,
+                  icon: Icons.home_work_rounded,
+                  title: 'Care centre',
+                  subtitle: 'Bookings · calendar · intake records',
+                  primary: primary,
+                  onTap: () {
+                    Navigator.pop(sheetCtx);
+                    _setRole(PartnerRole.care);
+                  },
+                ),
             ],
           ),
         );
@@ -326,6 +334,7 @@ class _RoleHome extends StatelessWidget {
     required this.roleLabel,
     required this.userName,
     required this.userSubtitle,
+    required this.canSwitchPanel,
     required this.onRoleTap,
     required this.onOpen,
   });
@@ -334,6 +343,7 @@ class _RoleHome extends StatelessWidget {
   final String roleLabel;
   final String userName;
   final String userSubtitle;
+  final bool canSwitchPanel;
   final VoidCallback onRoleTap;
   final void Function(Widget screen) onOpen;
 
@@ -343,15 +353,22 @@ class _RoleHome extends StatelessWidget {
     final ink = const Color(AppConstants.inkColor);
 
     final actions = <Widget>[
-      IconButton(
-        tooltip: 'Switch panel',
-        onPressed: onRoleTap,
-        icon: const Icon(Icons.swap_horiz_rounded),
-      ),
+      if (canSwitchPanel)
+        IconButton(
+          tooltip: 'Switch panel',
+          onPressed: onRoleTap,
+          icon: const Icon(Icons.swap_horiz_rounded),
+        ),
     ];
 
     final tiles = switch (role) {
       PartnerRole.vet => <_ActionTileModel>[
+          _ActionTileModel(
+            icon: Icons.event_note_rounded,
+            title: 'Clinic appointments',
+            subtitle: 'Admin assignments · start · complete',
+            onTap: () => onOpen(const VetClinicAssignmentsScreen()),
+          ),
           _ActionTileModel(
             icon: Icons.groups_rounded,
             title: 'Clinic queue',
@@ -660,9 +677,9 @@ class _InboxHub extends StatelessWidget {
     final tiles = <_HubTile>[
       _HubTile(
         icon: Icons.chat_bubble_rounded,
-        title: 'Chats',
-        subtitle: 'Patients, customers, and marketplace threads',
-        onTap: () => onOpen(const PatientChatsScreen()),
+        title: 'Unified inbox',
+        subtitle: 'Customer chats, support, calls, notifications',
+        onTap: () => onOpen(const UnifiedInboxScreen()),
       ),
       _HubTile(
         icon: Icons.support_agent_rounded,
@@ -717,6 +734,12 @@ class _TasksHub extends StatelessWidget {
           ),
         ],
       PartnerRole.seller => <_HubTile>[
+          _HubTile(
+            icon: Icons.receipt_long_rounded,
+            title: 'New orders',
+            subtitle: 'Confirm stock & ready for rider',
+            onTap: () => onOpen(const SellerNewOrdersScreen()),
+          ),
           _HubTile(
             icon: Icons.inventory_2_rounded,
             title: 'Inventory',
@@ -821,6 +844,7 @@ class _ProfileHub extends StatelessWidget {
     required this.role,
     required this.name,
     required this.subtitle,
+    required this.canSwitchPanel,
     required this.onRoleTap,
     required this.onOpen,
   });
@@ -828,6 +852,7 @@ class _ProfileHub extends StatelessWidget {
   final String role;
   final String name;
   final String subtitle;
+  final bool canSwitchPanel;
   final VoidCallback onRoleTap;
   final void Function(Widget screen) onOpen;
 
@@ -840,11 +865,12 @@ class _ProfileHub extends StatelessWidget {
       title: 'Profile',
       subtitle: 'Account and preferences',
       actions: [
-        IconButton(
-          tooltip: 'Switch panel',
-          onPressed: onRoleTap,
-          icon: const Icon(Icons.swap_horiz_rounded),
-        ),
+        if (canSwitchPanel)
+          IconButton(
+            tooltip: 'Switch panel',
+            onPressed: onRoleTap,
+            icon: const Icon(Icons.swap_horiz_rounded),
+          ),
       ],
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
@@ -902,12 +928,13 @@ class _ProfileHub extends StatelessWidget {
             subtitle: 'Clinic, payout, identity',
             onTap: () => onOpen(const ProfileEditorScreen()),
           ),
-          _SettingsTile(
-            icon: Icons.swap_horiz_rounded,
-            title: 'Switch panel',
-            subtitle: 'Vet / Rider / Seller / Care',
-            onTap: onRoleTap,
-          ),
+          if (canSwitchPanel)
+            _SettingsTile(
+              icon: Icons.swap_horiz_rounded,
+              title: 'Switch panel',
+              subtitle: 'Vet / Rider / Seller / Care',
+              onTap: onRoleTap,
+            ),
           _SettingsTile(
             icon: Icons.notifications_rounded,
             title: 'Notifications',
@@ -916,9 +943,9 @@ class _ProfileHub extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           PartnerEmptyState(
-            title: 'Compliance & payouts (next)',
+            title: 'Compliance & payouts',
             body:
-                'This section is ready to wire to KYC documents and bank payout details once those endpoints are available.',
+                'KYC and payout banking are coordinated with PawSewa support when you enable paid payouts on your partner account.',
             icon: Icons.verified_user_outlined,
           ),
         ],
@@ -962,7 +989,7 @@ class _HubScaffold extends StatelessWidget {
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
         itemCount: tiles.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
         itemBuilder: (context, i) {
           final t = tiles[i];
           return Material(

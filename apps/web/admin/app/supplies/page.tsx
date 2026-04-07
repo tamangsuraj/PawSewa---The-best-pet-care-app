@@ -2,16 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import 'leaflet/dist/leaflet.css';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
 import {
   AlertCircle,
   Check,
+  CheckCircle,
   Package,
   RefreshCw,
   Truck,
   MapPin,
+  MessageSquare,
   Clock,
   User,
   Mail,
@@ -49,7 +52,7 @@ interface Order {
   user?: { _id: string; name: string; email?: string; phone?: string };
   items: Array<{ name: string; price: number; quantity: number }>;
   totalAmount: number;
-  status: 'pending' | 'processing' | 'out_for_delivery' | 'delivered';
+  status: string;
   paymentStatus?: string;
   paymentMethod?: string;
   deliveryLocation?: {
@@ -153,11 +156,16 @@ interface OrdersResponse {
   pagination?: { page: number; limit: number; total: number; pages: number };
 }
 
-const ORDER_STATUSES: Order['status'][] = [
+const ORDER_STATUSES: string[] = [
+  'pending_confirmation',
   'pending',
   'processing',
+  'ready_for_pickup',
+  'packed',
+  'assigned_to_rider',
   'out_for_delivery',
   'delivered',
+  'cancelled',
 ];
 
 function OrderDetailModal({
@@ -179,9 +187,7 @@ function OrderDetailModal({
   const [selectedSellerId, setSelectedSellerId] = useState<string>(
     order.assignedSeller?._id ?? ''
   );
-  const [selectedStatus, setSelectedStatus] = useState<Order['status']>(
-    order.status
-  );
+  const [selectedStatus, setSelectedStatus] = useState<string>(order.status);
   const [assigning, setAssigning] = useState(false);
   const [assigningSeller, setAssigningSeller] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -565,9 +571,7 @@ function OrderDetailModal({
             <div className="flex flex-wrap gap-2 items-end">
               <select
                 value={selectedStatus}
-                onChange={(e) =>
-                  setSelectedStatus(e.target.value as Order['status'])
-                }
+                onChange={(e) => setSelectedStatus(e.target.value)}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary min-w-[180px]"
               >
                 {ORDER_STATUSES.map((s) => (
@@ -777,13 +781,21 @@ export default function LiveSuppliesPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
+      pending_confirmation: 'bg-amber-100 text-amber-900 border-amber-300',
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
       processing: 'bg-blue-100 text-blue-800 border-blue-300',
+      ready_for_pickup: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+      packed: 'bg-teal-100 text-teal-900 border-teal-300',
+      assigned_to_rider: 'bg-indigo-100 text-indigo-900 border-indigo-300',
       out_for_delivery: 'bg-orange-100 text-orange-800 border-orange-300',
     };
     const icons: Record<string, JSX.Element> = {
+      pending_confirmation: <Clock className="w-4 h-4" />,
       pending: <Clock className="w-4 h-4" />,
       processing: <Package className="w-4 h-4" />,
+      ready_for_pickup: <CheckCircle className="w-4 h-4" />,
+      packed: <Package className="w-4 h-4" />,
+      assigned_to_rider: <UserPlus className="w-4 h-4" />,
       out_for_delivery: <Truck className="w-4 h-4" />,
     };
     return (
@@ -798,8 +810,12 @@ export default function LiveSuppliesPage() {
     );
   };
 
-  const pendingCount = orders.filter((o) => o.status === 'pending').length;
-  const processingCount = orders.filter((o) => o.status === 'processing').length;
+  const pendingCount = orders.filter((o) =>
+    o.status === 'pending' || o.status === 'pending_confirmation'
+  ).length;
+  const readyPickupCount = orders.filter((o) =>
+    o.status === 'ready_for_pickup' || o.status === 'packed'
+  ).length;
   const outForDeliveryCount = orders.filter(
     (o) => o.status === 'out_for_delivery'
   ).length;
@@ -817,20 +833,31 @@ export default function LiveSuppliesPage() {
               their delivery app — it will then show in that rider&apos;s app only.
             </p>
           </div>
-          <button
-            onClick={loadOrders}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/supplies/shop-chats"
+              className="flex items-center gap-2 px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary/5 text-sm font-medium"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Shop chat audit
+            </Link>
+            <button
+              onClick={loadOrders}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-white border-2 border-yellow-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-yellow-700 text-sm font-medium">Pending</p>
+                <p className="text-yellow-700 text-sm font-medium">
+                  Awaiting shop
+                </p>
                 <p className="text-3xl font-bold text-yellow-800">
                   {pendingCount}
                 </p>
@@ -838,15 +865,17 @@ export default function LiveSuppliesPage() {
               <Clock className="w-10 h-10 text-yellow-500" />
             </div>
           </div>
-          <div className="bg-white border-2 border-blue-200 rounded-lg p-4">
+          <div className="bg-white border-2 border-emerald-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-700 text-sm font-medium">Processing</p>
-                <p className="text-3xl font-bold text-blue-800">
-                  {processingCount}
+                <p className="text-emerald-700 text-sm font-medium">
+                  Ready for rider (logistics desk)
+                </p>
+                <p className="text-3xl font-bold text-emerald-800">
+                  {readyPickupCount}
                 </p>
               </div>
-              <Package className="w-10 h-10 text-blue-500" />
+              <CheckCircle className="w-10 h-10 text-emerald-500" />
             </div>
           </div>
           <div className="bg-white border-2 border-orange-200 rounded-lg p-4">
@@ -864,9 +893,14 @@ export default function LiveSuppliesPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 border-b border-gray-200 bg-white rounded-t-lg px-2 pt-2">
-          {['all', 'pending', 'processing', 'out_for_delivery'].map(
-            (status) => (
+        <div className="flex flex-wrap gap-2 border-b border-gray-200 bg-white rounded-t-lg px-2 pt-2">
+          {[
+            'all',
+            'pending_confirmation',
+            'ready_for_pickup',
+            'assigned_to_rider',
+            'out_for_delivery',
+          ].map((status) => (
               <button
                 key={status}
                 onClick={() => {
@@ -880,8 +914,12 @@ export default function LiveSuppliesPage() {
                 }`}
               >
                 {status === 'all'
-                  ? 'All'
-                  : status.replace(/_/g, ' ').toUpperCase()}
+                  ? 'All live'
+                  : status === 'pending_confirmation'
+                    ? 'Awaiting shop'
+                    : status === 'ready_for_pickup'
+                      ? 'Ready (desk)'
+                      : status.replace(/_/g, ' ').toUpperCase()}
               </button>
             )
           )}

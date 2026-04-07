@@ -19,6 +19,8 @@ const {
   updateStaffProfile,
   getLinkedVets,
   updateMyLiveLocation,
+  getMyAddresses,
+  putMyAddresses,
 } = require('../controllers/userController');
 const { protect, admin, authorize } = require('../middleware/authMiddleware');
 const { authLimiter } = require('../middleware/rateLimiters');
@@ -43,6 +45,8 @@ router.put('/staff/profile', protect, updateStaffProfile);
 // Live location updates (staff / riders)
 router.patch('/me/location', protect, updateMyLiveLocation);
 router.get('/me/linked-vets', protect, authorize('pet_owner', 'customer'), getLinkedVets);
+router.get('/me/addresses', protect, getMyAddresses);
+router.put('/me/addresses', protect, putMyAddresses);
 
 // Admin routes
 router.get('/admin/stats', protect, admin, getDashboardStats);

@@ -10,7 +10,9 @@ const { broadcastShopOrder } = require('../services/orderSocketNotify');
 const {
   ensureDeliveryConversationForOrder,
   setDeliveryConversationExpiry,
+  resolveProductSellerId,
 } = require('../services/marketplaceChatService');
+const { sendMulticastToUser, sendMulticastToAdmins } = require('../utils/fcm');
 const {
   KHALTI_BASE_URL,
   KHALTI_SECRET_KEY,
@@ -88,6 +90,25 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
 
+  const sellerIds = new Set();
+  for (const p of products) {
+    const sid = await resolveProductSellerId(p);
+    if (sid) sellerIds.add(String(sid));
+  }
+  if (sellerIds.size > 1) {
+    return res.status(400).json({
+      success: false,
+      message: 'All items must be from the same shop. Split your order to checkout separately.',
+    });
+  }
+  if (sellerIds.size === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Products have no assigned shop. Please try again later or contact support.',
+    });
+  }
+  const primarySeller = [...sellerIds][0];
+
   let total = 0;
   const orderItems = items.map((i) => {
     const p = productMap.get(i.productId);
@@ -110,6 +131,9 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const order = await Order.create({
     user: userId,
+    customerId: userId,
+    assignedSeller: primarySeller,
+    shopId: primarySeller,
     items: orderItems,
     totalAmount: total,
     deliveryLocation: {
@@ -126,7 +150,7 @@ const createOrder = asyncHandler(async (req, res) => {
     },
     deliveryNotes: notes || undefined,
     paymentMethod: isCodOrFonepay ? (payMethod === 'fonepay' ? 'fonepay' : 'cod') : undefined,
-    status: 'pending',
+    status: 'pending_confirmation',
     paymentStatus: isCodOrFonepay ? 'unpaid' : 'unpaid',
   });
 
@@ -135,6 +159,21 @@ const createOrder = asyncHandler(async (req, res) => {
   logger.info('New Order Received: ID', order._id.toString());
 
   await broadcastShopOrder(order._id, 'new_order');
+  await broadcastShopOrder(order._id, 'assign_seller');
+
+  try {
+    await sendMulticastToUser(primarySeller, {
+      title: 'New shop order',
+      body: `Order #${String(order._id).slice(-6)} — confirm stock when ready.`,
+      data: {
+        type: 'shop_order',
+        orderId: String(order._id),
+        event: 'new_order',
+      },
+    });
+  } catch (e) {
+    logger.warn('FCM seller new order skipped:', e?.message || String(e));
+  }
 
   try {
     await Notification.create({
@@ -157,6 +196,7 @@ const getMyOrders = asyncHandler(async (req, res) => {
     .populate('items.product', 'name images')
     .populate('assignedRider', 'name phone profilePicture')
     .populate('assignedSeller', 'name phone')
+    .populate('shopId', 'name phone')
     .sort({ createdAt: -1 });
 
   res.json({ success: true, data: orders });
@@ -168,7 +208,17 @@ const adminGetOrders = asyncHandler(async (req, res) => {
   const { status, liveOnly, limit: limitQ, page: pageQ } = req.query;
   const filter = {};
   if (liveOnly === '1' || liveOnly === 'true') {
-    filter.status = { $in: ['pending', 'processing', 'packed', 'out_for_delivery'] };
+    filter.status = {
+      $in: [
+        'pending_confirmation',
+        'pending',
+        'processing',
+        'ready_for_pickup',
+        'packed',
+        'assigned_to_rider',
+        'out_for_delivery',
+      ],
+    };
   }
   if (status) filter.status = status;
 
@@ -244,7 +294,17 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find({
     assignedRider: riderId,
-    status: { $in: ['pending', 'processing', 'packed', 'out_for_delivery'] },
+    status: {
+      $in: [
+        'pending',
+        'pending_confirmation',
+        'processing',
+        'packed',
+        'ready_for_pickup',
+        'assigned_to_rider',
+        'out_for_delivery',
+      ],
+    },
   })
     .populate('user', 'name email phone')
     .populate('assignedSeller', 'name email phone')
@@ -254,9 +314,12 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
 });
 
 const ORDER_STATUS_VALUES = [
+  'pending_confirmation',
   'pending',
   'processing',
+  'ready_for_pickup',
   'packed',
+  'assigned_to_rider',
   'out_for_delivery',
   'delivered',
   'returned',
@@ -266,9 +329,12 @@ const ORDER_STATUS_VALUES = [
 
 function allowedStatusTransitions(current, { isAdmin, isAssignedRider }) {
   const graph = {
-    pending: ['processing', 'cancelled'],
-    processing: ['packed', 'out_for_delivery'],
-    packed: ['out_for_delivery'],
+    pending_confirmation: ['cancelled', 'pending', 'processing'],
+    pending: ['processing', 'cancelled', 'pending_confirmation', 'ready_for_pickup'],
+    processing: ['packed', 'ready_for_pickup', 'out_for_delivery', 'cancelled'],
+    ready_for_pickup: ['assigned_to_rider', 'out_for_delivery', 'cancelled'],
+    packed: ['assigned_to_rider', 'out_for_delivery', 'ready_for_pickup', 'cancelled'],
+    assigned_to_rider: ['out_for_delivery', 'cancelled'],
     out_for_delivery: ['delivered'],
     delivered: ['returned', 'refunded'],
     returned: [],
@@ -278,9 +344,10 @@ function allowedStatusTransitions(current, { isAdmin, isAssignedRider }) {
   let allowed = graph[current] || [];
   if (isAssignedRider && !isAdmin) {
     const riderOnly = {
-      pending: ['processing'],
-      processing: ['out_for_delivery'],
+      assigned_to_rider: ['out_for_delivery'],
       packed: ['out_for_delivery'],
+      processing: ['out_for_delivery'],
+      ready_for_pickup: ['out_for_delivery'],
       out_for_delivery: ['delivered'],
     };
     allowed = riderOnly[current] || [];
@@ -458,6 +525,13 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid rider' });
     }
     order.assignedRider = riderId;
+    if (
+      ['ready_for_pickup', 'packed', 'processing', 'pending_confirmation', 'pending'].includes(
+        order.status
+      )
+    ) {
+      order.status = 'assigned_to_rider';
+    }
   }
 
   if (status && ORDER_STATUS_VALUES.includes(status)) {
@@ -475,6 +549,19 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
     const plain = await Order.findById(orderId).lean();
     if (plain) await ensureDeliveryConversationForOrder(plain);
     await broadcastShopOrder(orderId, 'assign_rider');
+    try {
+      await sendMulticastToUser(order.assignedRider, {
+        title: 'New delivery task',
+        body: `Pick up order #${String(orderId).slice(-6)} for delivery.`,
+        data: {
+          type: 'rider_task',
+          orderId: String(orderId),
+          event: 'assigned',
+        },
+      });
+    } catch (e) {
+      logger.warn('FCM rider assign skipped:', e?.message || String(e));
+    }
   } else {
     await broadcastShopOrder(orderId, 'update');
   }
@@ -509,6 +596,7 @@ const assignSellerToOrder = asyncHandler(async (req, res) => {
   }
 
   order.assignedSeller = sellerId;
+  order.shopId = sellerId;
   await order.save();
 
   const updated = await Order.findById(orderId)
@@ -544,10 +632,15 @@ const confirmSellerOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  order.sellerConfirmedAt = new Date();
-  if (order.status === 'pending') {
-    order.status = 'processing';
+  if (!['pending', 'pending_confirmation'].includes(order.status)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Order is not awaiting shop confirmation',
+    });
   }
+
+  order.sellerConfirmedAt = new Date();
+  order.status = 'ready_for_pickup';
   await order.save();
 
   const updated = await Order.findById(orderId)
@@ -557,10 +650,24 @@ const confirmSellerOrder = asyncHandler(async (req, res) => {
 
   await broadcastShopOrder(orderId, 'seller_confirmed');
 
+  try {
+    await sendMulticastToAdmins({
+      title: 'Order ready for rider',
+      body: `Shop order #${String(orderId).slice(-6)} is ready — assign a rider.`,
+      data: {
+        type: 'shop_order_admin',
+        orderId: String(orderId),
+        event: 'ready_for_pickup',
+      },
+    });
+  } catch (e) {
+    logger.warn('FCM admin ready_for_pickup skipped:', e?.message || String(e));
+  }
+
   res.json({
     success: true,
     data: updated,
-    message: 'Stock confirmed',
+    message: 'Stock confirmed — ready for rider assignment',
   });
 });
 
@@ -587,10 +694,27 @@ const bulkAssignOrders = asyncHandler(async (req, res) => {
     { $set: { assignedRider: riderId } }
   );
 
-  const refreshed = await Order.find({ _id: { $in: orderIds } }).lean();
+  const refreshed = await Order.find({ _id: { $in: orderIds } });
   for (const o of refreshed) {
-    if (o.assignedRider) {
-      await ensureDeliveryConversationForOrder(o);
+    if (
+      o.assignedRider &&
+      ['ready_for_pickup', 'packed', 'processing', 'pending_confirmation', 'pending'].includes(o.status)
+    ) {
+      o.status = 'assigned_to_rider';
+      await o.save();
+    }
+    const lean = o.toObject ? o.toObject() : o;
+    if (lean.assignedRider) {
+      await ensureDeliveryConversationForOrder(lean);
+    }
+    try {
+      await sendMulticastToUser(riderId, {
+        title: 'New delivery task',
+        body: `Pick up order #${String(o._id).slice(-6)}.`,
+        data: { type: 'rider_task', orderId: String(o._id), event: 'assigned' },
+      });
+    } catch (e) {
+      logger.warn('FCM bulk rider skipped:', e?.message || String(e));
     }
   }
 
@@ -722,10 +846,10 @@ const updateMyOrderDeliveryGps = asyncHandler(async (req, res) => {
   if (order.user.toString() !== userId.toString()) {
     return res.status(403).json({ success: false, message: 'Not your order' });
   }
-  if (order.status !== 'pending') {
+  if (!['pending', 'pending_confirmation'].includes(order.status)) {
     return res.status(400).json({
       success: false,
-      message: 'Delivery GPS can only be updated while the order is pending',
+      message: 'Delivery GPS can only be updated before the shop confirms the order',
     });
   }
 
@@ -758,13 +882,19 @@ const sellerMarkPacked = asyncHandler(async (req, res) => {
   if (!order.assignedSeller || order.assignedSeller.toString() !== uid) {
     return res.status(403).json({ success: false, message: 'This order is not assigned to your shop' });
   }
+  if (order.status === 'ready_for_pickup' || order.status === 'packed') {
+    return res.status(400).json({
+      success: false,
+      message: 'Order is already ready for pickup',
+    });
+  }
   if (order.status !== 'processing') {
     return res.status(400).json({
       success: false,
-      message: 'Order must be in processing state before it can be marked packed',
+      message: 'Use Confirm stock for new orders. Mark packed is only for legacy “processing” orders.',
     });
   }
-  order.status = 'packed';
+  order.status = 'ready_for_pickup';
   order.packedAt = new Date();
   await order.save();
 

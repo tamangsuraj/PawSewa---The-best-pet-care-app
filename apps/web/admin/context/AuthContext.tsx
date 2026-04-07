@@ -16,6 +16,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  sendLoginOtp: (email: string) => Promise<void>;
+  verifyOtpLogin: (email: string, otp: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -111,6 +113,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const sendLoginOtp = async (email: string) => {
+    try {
+      await api.post('/auth/send-otp', { email, appContext: 'admin' });
+    } catch (error: any) {
+      const msg =
+        error.response?.data?.message || 'Could not send admin sign-in code';
+      toast.error(msg);
+      return Promise.reject(new Error(msg));
+    }
+  };
+
+  const verifyOtpLogin = async (email: string, otp: string) => {
+    try {
+      const response = await api.post('/auth/verify-otp', {
+        email,
+        otp,
+        appContext: 'admin',
+      });
+      if (response.data.success) {
+        const { token, ...userData } = response.data.data;
+        const isAdmin = userData.role === 'admin' || userData.role === 'ADMIN';
+        if (!isAdmin) {
+          toast.error('Access Denied: Admin only', { duration: 5000 });
+          return Promise.reject(
+            new Error('Access Denied: This code is not for an administrator account.'),
+          );
+        }
+        localStorage.setItem('admin-token', token);
+        localStorage.setItem('admin-user', JSON.stringify(userData));
+        setUser(userData);
+        toast.success(`Welcome, ${userData.name}!`);
+      }
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Invalid or expired code';
+      toast.error(msg);
+      return Promise.reject(new Error(msg));
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('admin-token');
@@ -122,7 +163,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        login,
+        sendLoginOtp,
+        verifyOtpLogin,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

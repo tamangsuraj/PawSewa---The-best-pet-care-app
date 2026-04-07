@@ -8,6 +8,7 @@ const {
   getCareInbox,
   openCareThread,
   openSellerThread,
+  openSellerThreadFromOrder,
   getOrCreateDeliveryByOrder,
   getRiderDeliveryByOrder,
   getMessages,
@@ -28,6 +29,12 @@ router.post(
   authorize('pet_owner', 'customer'),
   openSellerThread
 );
+router.post(
+  '/seller/open-from-order',
+  protect,
+  authorize('shop_owner', 'admin'),
+  openSellerThreadFromOrder
+);
 router.get(
   '/seller/inbox',
   protect,
@@ -43,7 +50,16 @@ router.get(
 router.post(
   '/care/open',
   protect,
-  authorize('hostel_owner', 'facility_owner', 'service_provider', 'groomer', 'trainer', 'admin'),
+  authorize(
+    'hostel_owner',
+    'facility_owner',
+    'service_provider',
+    'groomer',
+    'trainer',
+    'admin',
+    'pet_owner',
+    'customer'
+  ),
   openCareThread
 );
 router.get('/rider/inbox', protect, authorize('rider'), getRiderInbox);

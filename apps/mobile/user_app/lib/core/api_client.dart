@@ -219,6 +219,29 @@ class ApiClient {
     );
   }
 
+  /// Passwordless login — must match backend [POST /auth/send-otp].
+  Future<Response> sendLoginOtp(
+    String email, {
+    String appContext = 'customer',
+  }) async {
+    return await _dio.post(
+      '/auth/send-otp',
+      data: {'email': email, 'appContext': appContext},
+    );
+  }
+
+  /// Passwordless login — must match backend [POST /auth/verify-otp].
+  Future<Response> verifyLoginOtp(
+    String email,
+    String otp, {
+    String appContext = 'customer',
+  }) async {
+    return await _dio.post(
+      '/auth/verify-otp',
+      data: {'email': email, 'otp': otp, 'appContext': appContext},
+    );
+  }
+
   // Register
   Future<Response> register(Map<String, dynamic> userData) async {
     return await _dio.post('/users', data: userData);
@@ -237,6 +260,28 @@ class ApiClient {
   /// Sync FCM token to [PATCH /api/v1/users/me] (`fcmToken`).
   Future<Response> registerFcmToken(String token) async {
     return await _dio.patch('/users/me', data: {'fcmToken': token});
+  }
+
+  Future<Response> getMySavedAddresses() async {
+    return await _dio.get('/users/me/addresses');
+  }
+
+  Future<Response> putMySavedAddress({
+    required double lat,
+    required double lng,
+    required String label,
+    String street = '',
+    String landmark = '',
+  }) async {
+    return await _dio.put('/users/me/addresses', data: {
+      'address': {
+        'lat': lat,
+        'lng': lng,
+        'label': label,
+        'street': street,
+        'landmark': landmark,
+      },
+    });
   }
 
   // Generic POST method
@@ -633,6 +678,36 @@ class ApiClient {
 
   Future<Response> getMyCareBookings() async {
     return await _dio.get('/care-bookings/my');
+  }
+
+  /// Open customer ↔ care centre thread (Marketplace CARE).
+  Future<Response> openCareBookingChat(String bookingId) async {
+    return await _dio.post('/marketplace-chat/care/open', data: {'bookingId': bookingId});
+  }
+
+  /// Vet clinic flow: vaccination / checkup — POST creates `pending_admin` booking.
+  Future<Response> createClinicAppointment(Map<String, dynamic> data) async {
+    return await _dio.post('/appointments', data: data);
+  }
+
+  /// Customer or vet: list clinic appointments for the logged-in user.
+  Future<Response> getMyClinicAppointments() async {
+    return await _dio.get('/appointments/my');
+  }
+
+  /// Veterinarian only: `in_progress` | `completed` | `cancelled`.
+  Future<Response> patchClinicAppointmentStatus(
+    String appointmentId, {
+    required String status,
+    String? visitNotes,
+  }) async {
+    return await _dio.patch(
+      '/appointments/$appointmentId/status',
+      data: <String, dynamic>{
+        'status': status,
+        if (visitNotes != null && visitNotes.isNotEmpty) 'visitNotes': visitNotes,
+      },
+    );
   }
 
   Future<Response> initiateCareBookingPayment(String bookingId) async {

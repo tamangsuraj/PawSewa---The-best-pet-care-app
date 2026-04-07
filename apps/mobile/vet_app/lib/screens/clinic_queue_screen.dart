@@ -157,7 +157,7 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
                             child: ListView.separated(
                               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                               itemCount: _tasks.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, i) {
                                 final task = _tasks[i];

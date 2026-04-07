@@ -99,7 +99,7 @@ class _SellerInquiriesScreenState extends State<SellerInquiriesScreen> {
                             child: ListView.separated(
                               padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
                               itemCount: _rows.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const SizedBox(height: 10),
                               itemBuilder: (context, i) {
                                 final row = _rows[i];

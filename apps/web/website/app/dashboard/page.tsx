@@ -47,12 +47,11 @@ export default function DashboardPage() {
                 Welcome back, {user.name}
               </h1>
               <p className="text-paw-bark/70 mt-1">
-                {user.role === 'pet_owner' 
-                  ? 'Manage your pets and appointments'
+                {user.role === 'pet_owner'
+                  ? 'Manage your pets, orders, and care bookings in one place.'
                   : user.role === 'veterinarian'
-                  ? 'Customer Dashboard - Professional features coming soon'
-                  : 'Customer Dashboard View'
-                }
+                  ? 'You are signed in with a veterinarian account — use the Partner mobile app or admin tools for clinical work.'
+                  : 'Signed-in account overview'}
               </p>
             </div>
           </div>

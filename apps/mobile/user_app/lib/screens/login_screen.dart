@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
@@ -25,6 +26,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _otpController = TextEditingController();
   final _apiClient = ApiClient();
   final _storage = StorageService();
   final _googleAuth = GoogleAuthService();
@@ -33,12 +35,59 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   bool _obscurePassword = true;
+  /// Password vs email OTP sign-in.
+  bool _useEmailCode = false;
+  bool _codeSent = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _otpController.dispose();
     super.dispose();
+  }
+
+  String? _messageFromDio(Object e) {
+    if (e is DioException) {
+      final d = e.response?.data;
+      if (d is Map && d['message'] is String) return d['message'] as String;
+    }
+    return null;
+  }
+
+  Future<void> _completeCustomerLogin(Map<String, dynamic> userData) async {
+    final String role = userData['role']?.toString() ?? '';
+    final String token = userData['token']?.toString() ?? '';
+    if (token.isEmpty) return;
+
+    final String normalized =
+        (role == 'CUSTOMER' || role == 'customer') ? 'pet_owner' : role;
+    if (normalized != 'pet_owner') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unauthorized: This app is for Pet Owners only'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
+    await _storage.saveToken(token);
+    await _storage.saveUser(jsonEncode(userData));
+
+    if (mounted) {
+      await _permissionService.requestNotificationPermission(context);
+    }
+    await PushNotificationService.instance.syncTokenIfLoggedIn();
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const PetDashboardScreen()),
+      );
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -53,43 +102,14 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.data['success'] == true) {
-        final userData = response.data['data'];
-        final String role = userData['role'];
-        final String token = userData['token'];
-
-        // Role Guard: Only allow pet_owner
-        if (role != 'pet_owner') {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Unauthorized: This app is for Pet Owners only'),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 4),
-              ),
-            );
-          }
-          return;
-        }
-
-        // Save token and user data
-        await _storage.saveToken(token);
-        await _storage.saveUser(jsonEncode(userData));
-
-        // Request notification permission
-        if (mounted) {
-          await _permissionService.requestNotificationPermission(context);
-        }
-        await PushNotificationService.instance.syncTokenIfLoggedIn();
-
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const PetDashboardScreen()),
-          );
-        }
+        final userData = Map<String, dynamic>.from(
+          response.data['data'] as Map,
+        );
+        await _completeCustomerLogin(userData);
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Login failed';
+        String errorMessage = _messageFromDio(e) ?? 'Login failed';
 
         // Check if error is about unverified email
         if (e.toString().contains('verify your email') ||
@@ -113,12 +133,14 @@ class _LoginScreenState extends State<LoginScreen> {
         if (isConnectionError) {
           errorMessage =
               'Cannot connect to server. Tap "Reconnect" or set server URL below.';
-        } else if (e.toString().contains('401') ||
-            e.toString().contains('Invalid credentials')) {
+        } else if (errorMessage == 'Login failed' &&
+            (e.toString().contains('401') ||
+                e.toString().contains('Invalid credentials'))) {
           errorMessage = 'Invalid email or password';
-        } else if (e.toString().contains('404')) {
+        } else if (errorMessage == 'Login failed' &&
+            e.toString().contains('404')) {
           errorMessage = 'Server endpoint not found';
-        } else {
+        } else if (errorMessage == 'Login failed') {
           errorMessage = 'Error: ${e.toString()}';
         }
 
@@ -141,6 +163,87 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _handleSendLoginOtp() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enter a valid email to receive a sign-in code'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiClient.initialize();
+      final res = await _apiClient.sendLoginOtp(email);
+      if (!mounted) return;
+      if (res.data['success'] == true) {
+        setState(() => _codeSent = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Check your email for a 6-digit code'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_messageFromDio(e) ?? 'Could not send code'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleVerifyLoginOtp() async {
+    final email = _emailController.text.trim();
+    final otp = _otpController.text.trim();
+    if (email.isEmpty || otp.length != 6) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Enter the 6-digit code from your email'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _apiClient.initialize();
+      final res = await _apiClient.verifyLoginOtp(email, otp);
+      if (res.data['success'] == true && mounted) {
+        final data = Map<String, dynamic>.from(res.data['data'] as Map);
+        await _completeCustomerLogin(data);
+      }
+    } on DioException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_messageFromDio(e) ?? 'Invalid OTP'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -215,52 +318,28 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      final String token = result['token'];
-      final userData = result['user'];
-        final rawRole = userData['role']?.toString() ?? '';
-        final role = (rawRole == 'CUSTOMER' || rawRole == 'customer')
-            ? 'pet_owner'
-            : rawRole;
-
-        // Role Guard: Only allow pet_owner (accept legacy CUSTOMER label from API)
-        if (role != 'pet_owner') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Unauthorized: This app is for Pet Owners only'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-        return;
-      }
-
-      // Save token and user data
-      await _storage.saveToken(token);
-      await _storage.saveUser(jsonEncode(userData));
-
-      // Request notification permission
-      if (mounted) {
-        await _permissionService.requestNotificationPermission(context);
-      }
-      await PushNotificationService.instance.syncTokenIfLoggedIn();
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const PetDashboardScreen()),
-        );
+      final Map<String, dynamic> raw = Map<String, dynamic>.from(result);
+      final String? token = raw['token']?.toString();
+      final Map<String, dynamic> merged = raw['user'] is Map
+          ? {
+              ...Map<String, dynamic>.from(raw['user'] as Map),
+              'token': ?token,
+            }
+          : raw;
+      if (token != null) {
+        await _completeCustomerLogin(merged);
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Google Sign-In failed';
+        String errorMessage =
+            _messageFromDio(e) ?? 'Google Sign-In failed';
 
         final isConnErr = e.toString().contains('connection timeout') ||
             e.toString().contains('SocketException');
         if (isConnErr) {
           errorMessage =
               'Cannot connect to server. Tap "Reconnect" or set server URL below.';
-        } else {
+        } else if (errorMessage == 'Google Sign-In failed') {
           errorMessage = 'Error: ${e.toString()}';
         }
 
@@ -369,7 +448,56 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: const Color(AppConstants.accentColor),
                     ),
                   ),
-                  SizedBox(height: size.height * 0.04),
+                  SizedBox(height: size.height * 0.02),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _useEmailCode = false;
+                                  _codeSent = false;
+                                  _otpController.clear();
+                                });
+                              },
+                        child: Text(
+                          'Password',
+                          style: GoogleFonts.outfit(
+                            fontWeight:
+                                !_useEmailCode ? FontWeight.w700 : FontWeight.w500,
+                            color: !_useEmailCode
+                                ? primary
+                                : ink.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                      Text('·', style: GoogleFonts.outfit(color: ink.withValues(alpha: 0.35))),
+                      TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _useEmailCode = true;
+                                  _codeSent = false;
+                                  _otpController.clear();
+                                });
+                              },
+                        child: Text(
+                          'Email code',
+                          style: GoogleFonts.outfit(
+                            fontWeight:
+                                _useEmailCode ? FontWeight.w700 : FontWeight.w500,
+                            color: _useEmailCode
+                                ? primary
+                                : ink.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: size.height * 0.02),
 
                   // Email Field
                   TextFormField(
@@ -396,64 +524,131 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: size.height * 0.02),
 
-                  // Password Field
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                  if (!_useEmailCode) ...[
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() => _obscurePassword = !_obscurePassword);
+                          },
                         ),
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: size.height * 0.03),
-
-                  // Login Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(AppConstants.primaryColor),
-                        padding: EdgeInsets.symmetric(
-                          vertical: (size.height * 0.018).clamp(16.0, 24.0),
-                        ),
-                        shape: RoundedRectangleBorder(
+                        border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        filled: true,
+                        fillColor: Colors.white,
                       ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              'Login',
-                              style: GoogleFonts.outfit(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your password';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
+                    SizedBox(height: size.height * 0.03),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(AppConstants.primaryColor),
+                          padding: EdgeInsets.symmetric(
+                            vertical: (size.height * 0.018).clamp(16.0, 24.0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                'Login',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ] else ...[
+                    if (_codeSent) ...[
+                      TextFormField(
+                        controller: _otpController,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        decoration: InputDecoration(
+                          labelText: '6-digit code',
+                          prefixIcon: const Icon(Icons.pin),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          counterText: '',
+                        ),
+                      ),
+                      SizedBox(height: size.height * 0.02),
+                    ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : (_codeSent
+                                ? _handleVerifyLoginOtp
+                                : _handleSendLoginOtp),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(AppConstants.primaryColor),
+                          padding: EdgeInsets.symmetric(
+                            vertical: (size.height * 0.018).clamp(16.0, 24.0),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                                _codeSent ? 'Verify & sign in' : 'Send sign-in code',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (_codeSent) ...[
+                      SizedBox(height: size.height * 0.012),
+                      TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                setState(() {
+                                  _codeSent = false;
+                                  _otpController.clear();
+                                });
+                              },
+                        child: Text(
+                          'Use a different email',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            color: primary.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                   SizedBox(height: size.height * 0.02),
 
                   // Set server URL link (for connection issues)

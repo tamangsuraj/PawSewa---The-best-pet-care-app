@@ -57,19 +57,46 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   }
 
   void _parseCustomerLocation() {
-    final loc = widget.order['deliveryLocation'];
-    if (loc is! Map) return;
-    final point = loc['point'];
-    if (point is! Map) return;
-    final coords = point['coordinates'];
-    if (coords is! List || coords.length < 2) return;
-    // GeoJSON: [lng, lat]
-    final lng = (coords[0] as num).toDouble();
-    final lat = (coords[1] as num).toDouble();
-    _customerLatLng = LatLng(lat, lng);
-    if (_customerLatLng != null) {
-      _mapController.move(_customerLatLng!, 14);
+    final o = widget.order;
+    double? lat;
+    double? lng;
+
+    final flat = o['location'];
+    if (flat is Map) {
+      final la = flat['lat'];
+      final ln = flat['lng'];
+      if (la is num && ln is num) {
+        lat = la.toDouble();
+        lng = ln.toDouble();
+      }
     }
+    if (lat == null || lng == null) {
+      final dc = o['deliveryCoordinates'];
+      if (dc is Map) {
+        final la = dc['lat'];
+        final ln = dc['lng'];
+        if (la is num && ln is num) {
+          lat = la.toDouble();
+          lng = ln.toDouble();
+        }
+      }
+    }
+    if (lat == null || lng == null) {
+      final loc = o['deliveryLocation'];
+      if (loc is Map) {
+        final point = loc['point'];
+        if (point is Map) {
+          final coords = point['coordinates'];
+          if (coords is List && coords.length >= 2) {
+            lng = (coords[0] as num).toDouble();
+            lat = (coords[1] as num).toDouble();
+          }
+        }
+      }
+    }
+    if (lat == null || lng == null) return;
+    _customerLatLng = LatLng(lat, lng);
+    _mapController.move(_customerLatLng!, 14);
   }
 
   Future<void> _startLocationUpdates() async {

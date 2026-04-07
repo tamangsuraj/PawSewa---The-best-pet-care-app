@@ -110,7 +110,7 @@ class _CareStaffTasksScreenState extends State<CareStaffTasksScreen> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: category,
+              initialValue: category,
               items: const [
                 DropdownMenuItem(value: 'cleaning', child: Text('Cleaning')),
                 DropdownMenuItem(value: 'walks', child: Text('Walk schedule')),

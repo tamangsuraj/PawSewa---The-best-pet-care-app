@@ -7,6 +7,18 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    /** Mirror of [user] for APIs / analytics (customer). */
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    /** Shop owner fulfilling the order (same as primary Product.seller). */
+    shopId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     items: [
       {
         product: {
@@ -67,16 +79,19 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+        'pending_confirmation',
         'pending',
         'processing',
+        'ready_for_pickup',
         'packed',
+        'assigned_to_rider',
         'out_for_delivery',
         'delivered',
         'returned',
         'refunded',
         'cancelled',
       ],
-      default: 'pending',
+      default: 'pending_confirmation',
     },
     /** Seller / carrier tracking reference (optional). */
     trackingNumber: {
@@ -168,14 +183,22 @@ const orderSchema = new mongoose.Schema(
 
 // Indexes for common dashboard / query patterns
 orderSchema.index({ user: 1, status: 1 });
+orderSchema.index({ customerId: 1, createdAt: -1 });
+orderSchema.index({ shopId: 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ assignedRider: 1, status: 1 });
 orderSchema.index({ assignedSeller: 1, status: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ 'deliveryLocation.point': '2dsphere' });
 
-// Sync deliveryCoordinates and deliveryStatus from deliveryLocation/status
+// Sync deliveryCoordinates, customerId, shopId, and deliveryStatus from deliveryLocation/status
 orderSchema.pre('save', function () {
+  if (this.user && !this.customerId) {
+    this.customerId = this.user;
+  }
+  if (this.assignedSeller && !this.shopId) {
+    this.shopId = this.assignedSeller;
+  }
   const coords = this.deliveryLocation?.point?.coordinates;
   if (Array.isArray(coords) && coords.length >= 2) {
     this.deliveryCoordinates = { lng: coords[0], lat: coords[1] };
@@ -187,9 +210,12 @@ orderSchema.pre('save', function () {
     };
   }
   const statusMap = {
+    pending_confirmation: 'Pending',
     pending: 'Pending',
     processing: 'Assigned',
+    ready_for_pickup: 'Assigned',
     packed: 'Assigned',
+    assigned_to_rider: 'Assigned',
     out_for_delivery: 'PickedUp',
     delivered: 'Delivered',
     returned: 'Delivered',
@@ -205,9 +231,9 @@ orderSchema.pre('save', function () {
     this.assignmentStatus = 'NONE';
   } else if (st === 'out_for_delivery') {
     this.assignmentStatus = 'OUT_FOR_DELIVERY';
-  } else if (this.assignedRider) {
+  } else if (this.assignedRider || st === 'assigned_to_rider') {
     this.assignmentStatus = 'ASSIGNED_TO_RIDER';
-  } else if (this.sellerConfirmedAt) {
+  } else if (this.sellerConfirmedAt || st === 'ready_for_pickup' || st === 'packed') {
     this.assignmentStatus = 'SELLER_CONFIRMED';
   } else if (this.assignedSeller) {
     this.assignmentStatus = 'ASSIGNED_TO_SELLER';

@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/partner_role.dart';
+import '../core/storage_service.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 import 'partner_marketplace_chat_screen.dart';
@@ -19,7 +23,9 @@ class CarePetRecordsScreen extends StatefulWidget {
 
 class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
   final _api = ApiClient();
+  final _storage = StorageService();
   bool _loading = true;
+  bool _accessDenied = false;
   String? _error;
   List<Map<String, dynamic>> _bookings = [];
   String? _busyId;
@@ -62,6 +68,27 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
   @override
   void initState() {
     super.initState();
+    _gateAndLoad();
+  }
+
+  Future<void> _gateAndLoad() async {
+    final raw = await _storage.getUser();
+    String serverRole = '';
+    if (raw != null && raw.trim().isNotEmpty) {
+      try {
+        final m = jsonDecode(raw);
+        if (m is Map) serverRole = (m['role'] ?? '').toString();
+      } catch (_) {/* ignore */}
+    }
+    if (!canAccessCarePetRecords(serverRole)) {
+      if (mounted) {
+        setState(() {
+          _accessDenied = true;
+          _loading = false;
+        });
+      }
+      return;
+    }
     _load();
   }
 
@@ -271,7 +298,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                 TextField(controller: incidentNotesCtrl, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: severity,
+                  initialValue: severity,
                   items: const [
                     DropdownMenuItem(value: 'low', child: Text('Low')),
                     DropdownMenuItem(value: 'medium', child: Text('Medium')),
@@ -343,7 +370,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
       actions: [
         IconButton(
           tooltip: 'Refresh',
-          onPressed: _loading ? null : _load,
+          onPressed: (_loading || _accessDenied) ? null : _load,
           icon: const Icon(Icons.refresh_rounded),
         ),
       ],
@@ -351,7 +378,18 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
         children: [
           const EditorialBodyBackdrop(),
           Positioned.fill(
-            child: _loading
+            child: _accessDenied
+                ? PartnerEmptyState(
+                    title: 'Care centre access only',
+                    body:
+                        'Pet intake and stay records are limited to care staff roles. Delivery partners use Delivery jobs; veterinarians use Clinic queue and assignments.',
+                    icon: Icons.lock_outline_rounded,
+                    primaryAction: OutlinedButton(
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      child: const Text('Go back'),
+                    ),
+                  )
+                : _loading
                 ? Center(child: CircularProgressIndicator(color: primary))
                 : _error != null
                     ? PartnerEmptyState(
@@ -378,7 +416,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                               padding:
                                   const EdgeInsets.fromLTRB(16, 14, 16, 24),
                               itemCount: _bookings.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, i) {
                                 final b = _bookings[i];

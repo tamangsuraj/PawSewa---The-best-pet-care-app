@@ -735,7 +735,13 @@ class _AddPetScreenState extends State<AddPetScreen> {
                       ),
                     ),
                     controlAffinity: ListTileControlAffinity.leading,
-                    activeColor: const Color(AppConstants.primaryColor),
+                    fillColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return const Color(AppConstants.primaryColor);
+                      }
+                      return null;
+                    }),
+                    checkColor: Colors.white,
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -776,7 +782,13 @@ class _AddPetScreenState extends State<AddPetScreen> {
                     ),
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
-                  activeColor: const Color(AppConstants.primaryColor),
+                  fillColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const Color(AppConstants.primaryColor);
+                    }
+                    return null;
+                  }),
+                  checkColor: Colors.white,
                   contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 32),

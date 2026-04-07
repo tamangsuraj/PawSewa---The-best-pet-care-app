@@ -11,6 +11,7 @@ import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../messages/marketplace_thread_screen.dart';
+import 'track_package_screen.dart';
 import '../../widgets/premium_empty_state.dart';
 import '../../widgets/premium_shimmer.dart';
 
@@ -152,7 +153,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         return _orders;
       case MyOrdersListMode.activeOnly:
         return _orders.where((o) {
-          final s = o['status']?.toString() ?? 'pending';
+          final s = o['status']?.toString() ?? 'pending_confirmation';
           return s != 'delivered' &&
               s != 'returned' &&
               s != 'refunded' &&
@@ -349,6 +350,23 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                 ),
               ],
               const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TrackPackageScreen(order: Map<String, dynamic>.from(order)),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.local_shipping_rounded),
+                label: Text('Track my package', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: () async {
                   try {
@@ -377,7 +395,8 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
               ),
               const SizedBox(height: 10),
               if (order['assignedRider'] != null &&
-                  (order['status']?.toString() ?? '') != 'pending')
+                  !{'pending', 'pending_confirmation'}
+                      .contains(order['status']?.toString() ?? ''))
                 FilledButton.tonalIcon(
                   onPressed: () async {
                     Navigator.pop(ctx);
@@ -428,7 +447,8 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                   ),
                 ),
               if (order['assignedRider'] != null &&
-                  (order['status']?.toString() ?? '') != 'pending')
+                  !{'pending', 'pending_confirmation'}
+                      .contains(order['status']?.toString() ?? ''))
                 const SizedBox(height: 10),
               if (firstProductId != null)
                 FilledButton.tonalIcon(
@@ -636,12 +656,18 @@ class _OrderCard extends StatelessWidget {
   /// Human-readable status for display.
   static String statusLabel(String raw) {
     switch (raw) {
+      case 'pending_confirmation':
+        return 'Awaiting shop';
       case 'pending':
         return 'New';
       case 'processing':
         return 'Preparing';
+      case 'ready_for_pickup':
+        return 'Ready for rider';
       case 'packed':
         return 'Packed';
+      case 'assigned_to_rider':
+        return 'Rider assigned';
       case 'out_for_delivery':
         return 'Dispatched';
       case 'delivered':
@@ -658,7 +684,7 @@ class _OrderCard extends StatelessWidget {
   }
 
   String get _status {
-    final s = order['status']?.toString() ?? 'pending';
+    final s = order['status']?.toString() ?? 'pending_confirmation';
     return statusLabel(s);
   }
 
@@ -673,7 +699,7 @@ class _OrderCard extends StatelessWidget {
     if (ar is Map && ar.isEmpty) return false;
     if (ar is String && ar.isEmpty) return false;
     final st = order['status']?.toString() ?? '';
-    return st != 'pending';
+    return st != 'pending' && st != 'pending_confirmation';
   }
 
   Future<void> _openRiderChat(BuildContext context) async {

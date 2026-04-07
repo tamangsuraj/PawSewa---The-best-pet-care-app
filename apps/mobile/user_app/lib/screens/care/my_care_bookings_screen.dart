@@ -1,12 +1,16 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
 import '../../core/constants.dart';
+import '../../services/socket_service.dart';
 import '../../widgets/premium_empty_state.dart';
 import '../../widgets/premium_shimmer.dart';
 import '../../widgets/premium_info_chip.dart';
+import '../messages/marketplace_thread_screen.dart';
 
 /// How to filter hostel / care bookings from the drawer.
 enum MyCareBookingsListMode {
@@ -32,18 +36,37 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
   List<dynamic> _items = [];
   bool _loading = true;
   String? _error;
+  Timer? _poll;
+  void Function(String, Map<String, dynamic>)? _careSocket;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _poll = Timer.periodic(const Duration(seconds: 22), (_) => _load(silent: true));
+    _careSocket = (_, _) {
+      if (mounted) _load(silent: true);
+    };
+    SocketService.instance.addCareBookingListener(_careSocket!);
+    SocketService.instance.connect();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _poll?.cancel();
+    if (_careSocket != null) {
+      SocketService.instance.removeCareBookingListener(_careSocket!);
+    }
+    super.dispose();
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final res = await _api.getMyCareBookings();
       if (!mounted) {
@@ -54,8 +77,9 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
         setState(() {
           _items = list is List ? list : [];
           _loading = false;
+          _error = null;
         });
-      } else {
+      } else if (!silent) {
         setState(() {
           _error = 'Could not load bookings';
           _loading = false;
@@ -65,20 +89,86 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _error = e.response?.data is Map
-            ? (e.response!.data as Map)['message']?.toString() ?? 'Network error'
-            : 'Network error';
-        _loading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _error = e.response?.data is Map
+              ? (e.response!.data as Map)['message']?.toString() ?? 'Network error'
+              : 'Network error';
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _error = 'Something went wrong';
-        _loading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _error = 'Something went wrong';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  static String _statusLabel(String raw) {
+    switch (raw) {
+      case 'awaiting_approval':
+        return 'Awaiting centre approval';
+      case 'confirmed':
+        return 'Confirmed';
+      case 'checked_in':
+        return 'Checked in';
+      case 'completed':
+        return 'Completed';
+      case 'declined':
+        return 'Declined';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'pending':
+        return 'Awaiting approval';
+      case 'paid':
+        return 'Paid · awaiting approval';
+      case 'accepted':
+        return 'Confirmed';
+      case 'rejected':
+        return 'Declined';
+      default:
+        return raw.replaceAll('_', ' ');
+    }
+  }
+
+  Future<void> _openCareChat(Map<String, dynamic> m) async {
+    final id = m['_id']?.toString();
+    if (id == null) return;
+    final hostel = m['hostelId'];
+    final centre = hostel is Map ? (hostel['name']?.toString() ?? 'Care centre') : 'Care centre';
+    try {
+      final res = await _api.openCareBookingChat(id);
+      final body = res.data;
+      if (body is! Map || body['success'] != true) return;
+      final conv = body['data'];
+      if (conv is! Map) return;
+      final cid = conv['_id']?.toString();
+      if (cid == null || !mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => MarketplaceThreadScreen(
+            conversationId: cid,
+            threadType: 'CARE',
+            peerName: centre,
+            peerSubtitle: 'Care booking updates',
+            productIdForFirstMessage: null,
+            highContrast: true,
+          ),
+        ),
+      );
+      if (mounted) _load(silent: true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     }
   }
 
@@ -86,6 +176,7 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
     'completed',
     'cancelled',
     'rejected',
+    'declined',
   };
 
   List<dynamic> get _visibleItems {
@@ -210,140 +301,186 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
                     dateLine = created.split('T').first;
                   }
 
-                  final statusColor = switch (status.toLowerCase()) {
-                    'pending' => Colors.orange.shade700,
-                    'accepted' => const Color(AppConstants.accentColor),
-                    'confirmed' => const Color(AppConstants.accentColor),
-                    'completed' => Colors.green.shade700,
-                    'cancelled' => Colors.red.shade700,
-                    'rejected' => Colors.red.shade700,
-                    _ => Colors.grey.shade700,
-                  };
+                  final statusKey = status.toLowerCase();
+                  Color statusColor;
+                  switch (statusKey) {
+                    case 'pending':
+                    case 'awaiting_approval':
+                    case 'paid':
+                      statusColor = Colors.orange.shade700;
+                      break;
+                    case 'accepted':
+                    case 'confirmed':
+                      statusColor = const Color(AppConstants.accentColor);
+                      break;
+                    case 'checked_in':
+                      statusColor = Colors.teal.shade700;
+                      break;
+                    case 'completed':
+                      statusColor = Colors.green.shade700;
+                      break;
+                    case 'cancelled':
+                    case 'rejected':
+                    case 'declined':
+                      statusColor = Colors.red.shade700;
+                      break;
+                    default:
+                      statusColor = Colors.grey.shade700;
+                  }
+                  final showChat = !const {
+                    'completed',
+                    'cancelled',
+                    'declined',
+                    'rejected',
+                  }.contains(statusKey);
 
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: brown.withValues(alpha: 0.10)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 14,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: brown.withValues(alpha: 0.10),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Icon(
-                                  Icons.home_work_rounded,
-                                  color: brown,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 15,
-                                        color: const Color(AppConstants.inkColor),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      petName.isNotEmpty
-                                          ? 'Pet: $petName'
-                                          : 'Care booking',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.outfit(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 12.5,
-                                        color: const Color(AppConstants.inkColor)
-                                            .withValues(alpha: 0.65),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: statusColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: statusColor.withValues(alpha: 0.22),
-                                  ),
-                                ),
-                                child: Text(
-                                  status.toUpperCase(),
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.02,
-                                    color: statusColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              if (dateLine.isNotEmpty)
-                                _Chip(
-                                  icon: Icons.calendar_today_rounded,
-                                  text: dateLine,
-                                ),
-                              if (checkOut != null && checkOut.contains('T'))
-                                _Chip(
-                                  icon: Icons.event_available_rounded,
-                                  text: 'Out: ${checkOut.split('T').first}',
-                                ),
-                              _Chip(
-                                icon: Icons.receipt_long_rounded,
-                                text: widget.listMode == MyCareBookingsListMode.historyOnly
-                                    ? 'History'
-                                    : 'Active',
-                              ),
-                            ],
-                          ),
-                          if (hostel is! Map) ...[
-                            const SizedBox(height: 10),
-                            const PremiumInfoChip(
-                              icon: Icons.info_outline_rounded,
-                              title: 'Details limited',
-                              body:
-                                  'Some booking details are still syncing. Pull to refresh in a moment.',
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: brown.withValues(alpha: 0.10)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 14,
+                              offset: const Offset(0, 8),
                             ),
                           ],
-                        ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: brown.withValues(alpha: 0.10),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: const Icon(
+                                      Icons.home_work_rounded,
+                                      color: brown,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15,
+                                            color: const Color(AppConstants.inkColor),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          petName.isNotEmpty
+                                              ? 'Pet: $petName'
+                                              : 'Care booking',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.outfit(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12.5,
+                                            color: const Color(AppConstants.inkColor)
+                                                .withValues(alpha: 0.65),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(999),
+                                        border: Border.all(
+                                          color: statusColor.withValues(alpha: 0.22),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        _statusLabel(statusKey),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.02,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  if (dateLine.isNotEmpty)
+                                    _Chip(
+                                      icon: Icons.calendar_today_rounded,
+                                      text: dateLine,
+                                    ),
+                                  if (checkOut != null && checkOut.contains('T'))
+                                    _Chip(
+                                      icon: Icons.event_available_rounded,
+                                      text: 'Out: ${checkOut.split('T').first}',
+                                    ),
+                                  _Chip(
+                                    icon: Icons.receipt_long_rounded,
+                                    text: widget.listMode == MyCareBookingsListMode.historyOnly
+                                        ? 'History'
+                                        : 'Active',
+                                  ),
+                                ],
+                              ),
+                              if (hostel is! Map) ...[
+                                const SizedBox(height: 10),
+                                const PremiumInfoChip(
+                                  icon: Icons.info_outline_rounded,
+                                  title: 'Details limited',
+                                  body:
+                                      'Some booking details are still syncing. Pull to refresh in a moment.',
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      if (showChat)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Material(
+                            color: brown.withValues(alpha: 0.12),
+                            shape: const CircleBorder(),
+                            child: IconButton(
+                              tooltip: 'Chat with care centre',
+                              icon: Icon(Icons.chat_bubble_rounded, color: brown),
+                              onPressed: () => _openCareChat(m),
+                            ),
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),

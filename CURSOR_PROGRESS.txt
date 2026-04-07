@@ -1,8 +1,0 @@
-2026-04-04 — Sprint start: audit task.md vs repo (apps/web/website, apps/web/admin, apps/mobile/user_app, apps/mobile/vet_app, backend).
-2026-04-04 — Backend: Order model extended (assignedSeller, sellerConfirmedAt, adminNote); orderSocketNotify service; assign-seller + seller-confirm + GET seller/assigned; targeted Socket.io (admin_room, user:rider, user:seller); Khalti paid emits order:paid.
-2026-04-04 — Admin supplies: Assign seller UI, OSM leaflet preview (same tile URL as user_app/service-requests), sockets new:order/order:paid/order:seller_confirmed, primary #703418 status button, modal stays open after assign.
-2026-04-04 — vet_app: SocketService shop-order events; rider delivery screen listens for job:available; shop inventory lists assigned orders + confirm stock API.
-2026-04-04 — Backend: assign_seller now emits order:assigned_seller to admin_room + seller user room (simultaneous Care+ alerts).
-2026-04-04 — Admin: /live-map OSM dashboard (GET /admin/live-map), socket refresh, Sidebar link; supplies listens for order:assigned_seller.
-2026-04-04 — user_web: /map page (OSM + vets/public pins #703418), Navbar Map link.
-2026-04-04 — user_app: SocketService orderUpdate + My Orders merges live order + #703418 app bar.

@@ -6,6 +6,8 @@ const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const Notification = require('../models/Notification');
 const { broadcastCareBooking } = require('../services/careBookingSocketNotify');
+const { sendMulticastToUser } = require('../utils/fcm');
+const MarketplaceConversation = require('../models/MarketplaceConversation');
 
 /**
  * @desc    Create a care booking (pet owner)
@@ -20,6 +22,31 @@ const createCareBooking = asyncHandler(async (req, res) => {
   const checkOut = body.checkOut || body.check_out;
   const roomType = body.roomType || body.room_type;
   const paymentMethod = body.paymentMethod === 'cash_on_delivery' ? 'cash_on_delivery' : 'online';
+  const logisticsRaw = (body.logisticsType || body.logistics || '').toString().trim().toLowerCase();
+  const deliveryRaw = (body.serviceDelivery || '').toString().trim().toLowerCase();
+  const logisticsType =
+    logisticsRaw === 'pickup' || deliveryRaw === 'home_visit' ? 'pickup' : 'self_drop';
+
+  let pickupAddress = null;
+  if (logisticsType === 'pickup') {
+    const pa = body.pickupAddress || body.pickup_address;
+    const addr = pa && typeof pa === 'object' ? String(pa.address || '').trim() : '';
+    const coords = pa && typeof pa === 'object' ? pa.coordinates || pa.coords || null : null;
+    let lat;
+    let lng;
+    if (Array.isArray(coords) && coords.length === 2) {
+      lng = Number(coords[0]);
+      lat = Number(coords[1]);
+    } else if (pa && typeof pa === 'object') {
+      lat = Number(pa.lat);
+      lng = Number(pa.lng);
+    }
+    if (!addr || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      res.status(400);
+      throw new Error('pickupAddress with address + coordinates is required for pickup logistics');
+    }
+    pickupAddress = { address: addr, point: { type: 'Point', coordinates: [lng, lat] } };
+  }
 
   if (!hostelId || !petId || !checkIn || !checkOut) {
     res.status(400);
@@ -87,8 +114,10 @@ const createCareBooking = asyncHandler(async (req, res) => {
 
   const booking = await CareBooking.create({
     hostelId,
+    centreId: hostelId,
     petId,
     userId: req.user._id,
+    customerId: req.user._id,
     checkIn: checkInDate,
     checkOut: checkOutDate,
     roomType: roomType || null,
@@ -100,13 +129,15 @@ const createCareBooking = asyncHandler(async (req, res) => {
     tax,
     totalAmount,
     serviceType: hostel.serviceType || 'Hostel',
-    status: 'pending',
+    status: 'awaiting_approval',
     paymentStatus: 'unpaid',
     paymentMethod,
     ownerNotes: body.ownerNotes || body.notes,
     packageName: body.packageName || body.package || null,
     addOns: addOnNames.length ? addOnNames : undefined,
     serviceDelivery: body.serviceDelivery || null,
+    logisticsType,
+    pickupAddress: pickupAddress || undefined,
   });
 
   const populated = await CareBooking.findById(booking._id)
@@ -131,6 +162,15 @@ const createCareBooking = asyncHandler(async (req, res) => {
   });
 
   await broadcastCareBooking(booking._id, 'new');
+
+  await sendMulticastToUser(hostel.ownerId, {
+    title: 'New care booking request',
+    body: `${pet.name} — ${hostel.name}. Open Partner app to accept or decline.`,
+    data: {
+      type: 'care_booking_new',
+      careBookingId: String(booking._id),
+    },
+  }).catch(() => {});
 
   res.status(201).json({
     success: true,
@@ -207,21 +247,22 @@ const respondToBooking = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error('Not authorized to respond to this booking');
   }
-  if (!['pending', 'paid'].includes(booking.status)) {
+  const awaiting = ['awaiting_approval', 'pending', 'paid'];
+  if (!awaiting.includes(booking.status)) {
     res.status(400);
-    throw new Error('Booking is already accepted or rejected');
+    throw new Error('Booking is not waiting for approval');
   }
 
-  booking.status = accept ? 'accepted' : 'rejected';
+  booking.status = accept ? 'confirmed' : 'declined';
   await booking.save();
 
   await broadcastCareBooking(booking._id, 'update');
 
   await Notification.create({
     user: booking.userId._id,
-    title: accept ? 'Booking accepted' : 'Booking rejected',
+    title: accept ? 'Booking confirmed' : 'Booking declined',
     message: accept
-      ? `Your booking at ${booking.hostelId.name} has been accepted.`
+      ? `Your booking at ${booking.hostelId.name} has been confirmed.`
       : `Your booking at ${booking.hostelId.name} was declined.`,
     type: 'care_booking',
     careBooking: booking._id,
@@ -229,7 +270,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: accept ? 'Booking accepted' : 'Booking rejected',
+    message: accept ? 'Booking confirmed' : 'Booking declined',
     data: booking,
   });
 });
@@ -363,11 +404,41 @@ const addIncident = asyncHandler(async (req, res) => {
 const markBookingCompleted = asyncHandler(async (req, res) => {
   const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
   const booking = await CareBooking.findById(bookingLean._id);
+  const okFrom = ['checked_in', 'confirmed', 'accepted'];
+  if (!okFrom.includes(booking.status)) {
+    res.status(400);
+    throw new Error('Check in the guest or confirm the booking before completing');
+  }
   booking.status = 'completed';
   booking.completedAt = new Date();
   await booking.save();
   await broadcastCareBooking(booking._id, 'update');
   res.json({ success: true, message: 'Marked completed', data: booking });
+});
+
+/**
+ * Partner: pet arrived / notify check-in → checked_in
+ * @route PATCH /api/v1/care-bookings/:id/check-in
+ */
+const notifyBookingCheckIn = asyncHandler(async (req, res) => {
+  const bookingLean = await assertFacilityAccessOrThrow({ bookingId: req.params.id, user: req.user });
+  const booking = await CareBooking.findById(bookingLean._id);
+  if (!['confirmed', 'accepted'].includes(booking.status)) {
+    res.status(400);
+    throw new Error('Confirm the booking before check-in');
+  }
+  booking.status = 'checked_in';
+  booking.checkedInAt = new Date();
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  await Notification.create({
+    user: booking.userId,
+    title: 'Pet checked in',
+    message: `Your pet is checked in at ${bookingLean.hostelId?.name || 'the care centre'}.`,
+    type: 'care_booking',
+    careBooking: booking._id,
+  });
+  res.json({ success: true, message: 'Checked in', data: booking });
 });
 
 /**
@@ -390,7 +461,17 @@ const getOwnerCalendar = asyncHandler(async (req, res) => {
     hostelId: { $in: hostelIds },
     checkIn: { $lte: end },
     checkOut: { $gte: from },
-    status: { $in: ['pending', 'paid', 'accepted', 'completed'] },
+    status: {
+      $in: [
+        'awaiting_approval',
+        'pending',
+        'paid',
+        'confirmed',
+        'accepted',
+        'checked_in',
+        'completed',
+      ],
+    },
   })
     .populate('hostelId', 'name serviceType')
     .populate('petId', 'name breed age photoUrl')
@@ -472,6 +553,102 @@ const adminAssignCarePartner = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Admin: cancel a stuck care booking
+ * PATCH /api/v1/admin/care-bookings/:id/cancel
+ */
+const adminCareBookingCancel = asyncHandler(async (req, res) => {
+  const booking = await CareBooking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ success: false, message: 'Booking not found' });
+  }
+  if (['completed', 'cancelled'].includes(booking.status)) {
+    return res.status(400).json({ success: false, message: 'Booking already closed' });
+  }
+  booking.status = 'cancelled';
+  await booking.save();
+  await broadcastCareBooking(booking._id, 'update');
+  await Notification.create({
+    user: booking.userId,
+    title: 'Care booking cancelled',
+    message: 'An administrator cancelled your care centre booking.',
+    type: 'care_booking',
+    careBooking: booking._id,
+  }).catch(() => {});
+  res.json({ success: true, message: 'Booking cancelled', data: booking });
+});
+
+/**
+ * Admin: move booking to another care centre (reassign listing)
+ * PATCH /api/v1/admin/care-bookings/:id/reassign-centre  { hostelId }
+ */
+const adminCareBookingReassignCentre = asyncHandler(async (req, res) => {
+  const { hostelId: newHostelId } = req.body || {};
+  if (!newHostelId) {
+    return res.status(400).json({ success: false, message: 'hostelId is required' });
+  }
+  const booking = await CareBooking.findById(req.params.id);
+  if (!booking) {
+    return res.status(404).json({ success: false, message: 'Booking not found' });
+  }
+  if (['completed', 'cancelled', 'declined'].includes(booking.status)) {
+    return res.status(400).json({ success: false, message: 'Cannot reassign this booking' });
+  }
+  const hostel = await Hostel.findById(newHostelId).lean();
+  if (!hostel) {
+    return res.status(404).json({ success: false, message: 'Care centre not found' });
+  }
+  booking.hostelId = newHostelId;
+  booking.centreId = newHostelId;
+  await booking.save();
+
+  await MarketplaceConversation.updateMany(
+    { type: 'CARE', careBooking: booking._id },
+    { $set: { partner: hostel.ownerId } }
+  ).catch(() => {});
+
+  const populated = await CareBooking.findById(booking._id)
+    .populate('hostelId', 'name location serviceType ownerId')
+    .populate('petId', 'name breed age photoUrl')
+    .populate('userId', 'name email phone')
+    .populate('assignedPartner', 'name email phone role')
+    .lean();
+
+  await broadcastCareBooking(booking._id, 'update');
+
+  res.json({ success: true, message: 'Booking reassigned to new centre', data: populated });
+});
+
+/**
+ * Admin: transcript for customer ↔ care centre chat
+ * GET /api/v1/admin/care-bookings/:id/chat
+ */
+const adminGetCareBookingChat = asyncHandler(async (req, res) => {
+  const conv = await MarketplaceConversation.findOne({
+    type: 'CARE',
+    careBooking: req.params.id,
+  })
+    .populate('customer', 'name email phone')
+    .populate('partner', 'name email phone role')
+    .lean();
+  if (!conv) {
+    return res.json({
+      success: true,
+      data: { conversation: null, messages: [] },
+    });
+  }
+  const MarketplaceMessage = require('../models/MarketplaceMessage');
+  const messages = await MarketplaceMessage.find({ conversation: conv._id })
+    .sort({ createdAt: 1 })
+    .limit(500)
+    .populate('sender', 'name email role')
+    .lean();
+  res.json({
+    success: true,
+    data: { conversation: conv, messages },
+  });
+});
+
 module.exports = {
   createCareBooking,
   getMyBookings,
@@ -479,10 +656,14 @@ module.exports = {
   respondToBooking,
   initiateCareBookingPayment,
   adminAssignCarePartner,
+  adminCareBookingCancel,
+  adminCareBookingReassignCentre,
+  adminGetCareBookingChat,
   getOwnerCalendar,
   updateFacilityNotes,
   addExtraCharge,
   updateIntake,
   addIncident,
   markBookingCompleted,
+  notifyBookingCheckIn,
 };

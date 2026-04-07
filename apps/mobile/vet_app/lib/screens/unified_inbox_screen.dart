@@ -147,7 +147,9 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
             ? 'Delivery chat'
             : 'Care booking';
 
-    await _api.clearUnreadThread(conversationId: id).catchError((_) {});
+    try {
+      await _api.clearUnreadThread(conversationId: id);
+    } catch (_) {}
 
     if (!mounted) return;
     await Navigator.of(context).push(
@@ -166,7 +168,9 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
   Future<void> _markUnread(Map<String, dynamic> row) async {
     final id = row['_id']?.toString();
     if (id == null || id.isEmpty) return;
-    await _api.markUnreadThread(conversationId: id, count: 1).catchError((_) {});
+    try {
+      await _api.markUnreadThread(conversationId: id, count: 1);
+    } catch (_) {}
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked unread')));
   }
@@ -290,7 +294,7 @@ class _CustomerChatsTab extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: rows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final r = rows[i];
         final id = r['_id']?.toString() ?? '';

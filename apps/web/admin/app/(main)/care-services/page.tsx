@@ -19,7 +19,7 @@ interface CareService {
 }
 
 export default function CareServicesPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [careServices, setCareServices] = useState<CareService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +50,11 @@ export default function CareServicesPage() {
   const fetchCareServices = async () => {
     try {
       const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const services = allUsers.filter((u: any) => u.role === 'care_service');
+      const allUsers: unknown[] = response.data?.data ?? [];
+      const services: CareService[] = allUsers
+        .filter((u): u is Record<string, unknown> => typeof u === 'object' && u !== null)
+        .filter((u) => u['role'] === 'care_service')
+        .map((u) => u as unknown as CareService);
       setCareServices(services);
     } catch (error) {
       console.error('Error fetching care services:', error);
@@ -82,8 +85,10 @@ export default function CareServicesPage() {
       });
       setShowModal(false);
       fetchCareServices();
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to create care service');
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
+      setError(msg || 'Failed to create care service');
     } finally {
       setFormLoading(false);
     }

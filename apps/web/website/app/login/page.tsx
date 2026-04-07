@@ -27,12 +27,17 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user, isLoading: authLoading } = useAuth();
+  const { login, sendLoginOtp, verifyOtpLogin, user, isLoading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState('');
+  const [otpMode, setOtpMode] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpBusy, setOtpBusy] = useState(false);
   const {
     register,
     handleSubmit,
+    getValues,
     clearErrors,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
@@ -82,8 +87,10 @@ export default function LoginPage() {
 
           // Show appropriate error message
           if (userData.role === 'admin') {
+            const adminBase =
+              process.env.NEXT_PUBLIC_ADMIN_PANEL_URL || 'http://localhost:3002';
             setFormError(
-              'Admin accounts cannot login here. Please use the Admin Panel at http://localhost:3002',
+              `Admin accounts cannot sign in here. Open the Admin Panel (${adminBase}).`,
             );
           } else {
             setFormError(
@@ -106,6 +113,53 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Login failed';
       setFormError(msg);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setFormError('');
+    const email = getValues('email');
+    if (!email?.trim()) {
+      setFormError('Enter your email address first.');
+      return;
+    }
+    setOtpBusy(true);
+    try {
+      await sendLoginOtp(email.trim());
+      setOtpSent(true);
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Could not send code');
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    setFormError('');
+    const email = getValues('email')?.trim();
+    const code = otpCode.trim();
+    if (!email || code.length !== 6) {
+      setFormError('Enter the 6-digit code from your email.');
+      return;
+    }
+    setOtpBusy(true);
+    try {
+      await verifyOtpLogin(email, code);
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        if (userData.role !== 'pet_owner') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setFormError('This is the customer website. Only pet owners can sign in here.');
+          return;
+        }
+      }
+      router.push('/dashboard');
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : 'Invalid OTP');
+    } finally {
+      setOtpBusy(false);
     }
   };
 
@@ -135,7 +189,16 @@ export default function LoginPage() {
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              if (otpMode) {
+                e.preventDefault();
+                return;
+              }
+              void handleSubmit(onSubmit)(e);
+            }}
+            className="space-y-4"
+          >
             <div>
               <Input
                 label="Email"
@@ -149,52 +212,121 @@ export default function LoginPage() {
               )}
             </div>
 
-            <div className="relative">
-              <Input
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                placeholder="••••••••"
-                {...register('password')}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-[42px] text-gray-500 hover:text-paw-teal-mid transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
+            {!otpMode ? (
+              <>
+                <div className="relative">
+                  <Input
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    {...register('password')}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-[42px] text-gray-500 hover:text-paw-teal-mid transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
+                  </button>
+                  {errors.password && (
+                    <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-paw-bark focus:ring-paw-teal-mid rounded border-paw-bark/20"
+                    />
+                    <span className="text-gray-600">Remember me</span>
+                  </label>
+                  <Link href="/forgot-password" className="text-paw-teal-mid font-medium hover:underline">
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Logging in...' : 'Login'}
+                </Button>
+              </>
+            ) : (
+              <div className="space-y-4 rounded-2xl border border-paw-bark/10 bg-[#faf8f5]/90 p-4">
+                <p className="text-sm text-paw-bark/75">
+                  We&apos;ll email a 6-digit code. Same account as the PawSewa app — one backend, one profile.
+                </p>
+                {!otpSent ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="w-full"
+                    disabled={otpBusy}
+                    onClick={handleSendOtp}
+                  >
+                    {otpBusy ? 'Sending…' : 'Send sign-in code'}
+                  </Button>
                 ) : (
-                  <Eye className="w-5 h-5" />
+                  <>
+                    <Input
+                      label="6-digit code"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    />
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="w-full"
+                      disabled={otpBusy || otpCode.length !== 6}
+                      onClick={handleVerifyOtp}
+                    >
+                      {otpBusy ? 'Verifying…' : 'Verify & sign in'}
+                    </Button>
+                    <button
+                      type="button"
+                      className="w-full text-center text-sm text-paw-teal-mid font-medium hover:underline"
+                      onClick={() => {
+                        setOtpSent(false);
+                        setOtpCode('');
+                      }}
+                    >
+                      Resend code to another email
+                    </button>
+                  </>
                 )}
-              </button>
-              {errors.password && (
-                <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 text-paw-bark focus:ring-paw-teal-mid rounded border-paw-bark/20"
-                />
-                <span className="text-gray-600">Remember me</span>
-              </label>
-              <Link href="/forgot-password" className="text-paw-teal-mid font-medium hover:underline">
-                Forgot password?
-              </Link>
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Logging in...' : 'Login'}
-            </Button>
+              </div>
+            )}
           </form>
+
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setOtpMode((v) => !v);
+                setOtpSent(false);
+                setOtpCode('');
+                setFormError('');
+                clearErrors();
+              }}
+              className="text-sm text-paw-teal-mid font-semibold hover:underline"
+            >
+              {otpMode ? 'Use password instead' : 'Sign in with email code'}
+            </button>
+          </div>
 
           {/* Divider */}
           <div className="relative my-6">

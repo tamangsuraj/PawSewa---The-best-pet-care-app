@@ -184,6 +184,15 @@ const userSchema = new mongoose.Schema(
     otpExpires: {
       type: Date,
     },
+    /** Short-lived code for passwordless login (separate from registration OTP). */
+    loginOtp: {
+      type: String,
+      select: false,
+    },
+    loginOtpExpires: {
+      type: Date,
+      select: false,
+    },
     // Alias field expected by some clients/specs
     verificationToken: { type: String },
     verificationTokenExpires: { type: Date },

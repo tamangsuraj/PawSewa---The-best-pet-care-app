@@ -24,6 +24,8 @@ import 'care/my_care_bookings_screen.dart';
 import 'care/my_care_requests_screen.dart';
 import 'messages/messages_hub_screen.dart';
 import 'care/care_screen.dart';
+import 'care/my_clinic_appointments_screen.dart';
+import 'care/vet_clinic_booking_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'owner_profile_screen.dart';
 import 'home_screen.dart';
@@ -676,6 +678,22 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                               initialFilterStatus: 'completed',
                             ),
                           );
+                        },
+                      ),
+                      _drawerSubItem(
+                        icon: Icons.vaccines_rounded,
+                        label: 'Book vaccination / checkup',
+                        active: false,
+                        onTap: () {
+                          _closeDrawerAndPush(const VetClinicBookingScreen());
+                        },
+                      ),
+                      _drawerSubItem(
+                        icon: Icons.event_available_outlined,
+                        label: 'My clinic appointments',
+                        active: false,
+                        onTap: () {
+                          _closeDrawerAndPush(const MyClinicAppointmentsScreen());
                         },
                       ),
                     ],

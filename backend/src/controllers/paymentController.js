@@ -72,7 +72,9 @@ async function markPaymentCompleted({ paymentId }) {
           throw new Error('Care booking not found');
         }
         booking.paymentStatus = 'paid';
-        booking.status = 'paid';
+        if (['pending', 'awaiting_approval'].includes(booking.status)) {
+          booking.status = 'awaiting_approval';
+        }
         await booking.save({ session });
       } else if (payment.targetType === 'subscription' && payment.metadata) {
         const { plan, billingCycle } = payment.metadata;

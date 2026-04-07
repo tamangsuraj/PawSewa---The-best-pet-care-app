@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import api from '@/lib/api';
 
 export default function TestLoginPage() {
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{ type: string; data: unknown } | null>(null);
   const [error, setError] = useState<string>('');
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL;
@@ -15,8 +15,9 @@ export default function TestLoginPage() {
       const data = await response.json();
       setResult({ type: 'Backend Health', data });
       setError('');
-    } catch (err: any) {
-      setError('Backend not reachable: ' + err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError('Backend not reachable: ' + message);
     }
   };
 
@@ -28,9 +29,16 @@ export default function TestLoginPage() {
       });
       setResult({ type: 'Login Success', data: response.data });
       setError('');
-    } catch (err: any) {
-      setError('Login failed: ' + (err.response?.data?.message || err.message));
-      setResult({ type: 'Login Error', data: err.response?.data });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ??
+        (err instanceof Error ? err.message : String(err));
+      setError('Login failed: ' + message);
+      setResult({
+        type: 'Login Error',
+        data: (err as { response?: { data?: unknown } })?.response?.data,
+      });
     }
   };
 
@@ -90,10 +98,10 @@ export default function TestLoginPage() {
         <div className="mt-8 bg-secondary border border-slate-700 p-6 rounded-lg">
           <h3 className="text-white font-bold mb-4">Instructions:</h3>
           <ol className="text-gray-300 space-y-2 list-decimal list-inside">
-            <li>Click "Test Backend Connection" - Should show status: "UP"</li>
-            <li>Click "Test Login API" - Should return user data with token</li>
+            <li>Click &quot;Test Backend Connection&quot; - Should show status: &quot;UP&quot;</li>
+            <li>Click &quot;Test Login API&quot; - Should return user data with token</li>
             <li>If login fails with 401, you need to create the admin user</li>
-            <li>If login succeeds but role is not "admin", change it in MongoDB</li>
+            <li>If login succeeds but role is not &quot;admin&quot;, change it in MongoDB</li>
           </ol>
         </div>
 

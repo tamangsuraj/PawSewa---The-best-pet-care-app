@@ -16,7 +16,14 @@ const Hostel = require('../models/Hostel');
 const LiveLocation = require('../models/LiveLocation');
 const User = require('../models/User');
 const MarketplaceConversation = require('../models/MarketplaceConversation');
-const { adminAssignCarePartner } = require('../controllers/careBookingController');
+const MarketplaceMessage = require('../models/MarketplaceMessage');
+const ShopChat = require('../models/ShopChat');
+const {
+  adminAssignCarePartner,
+  adminCareBookingCancel,
+  adminCareBookingReassignCentre,
+  adminGetCareBookingChat,
+} = require('../controllers/careBookingController');
 const {
   ensureDefaultCustomerCareConversation,
   toClientConversationShape,
@@ -62,7 +69,16 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
           status: { $in: ['pending', 'processing', 'out_for_delivery'] },
         }).select('deliveryLocation status assignmentStatus'),
         CareBooking.find({
-          status: { $in: ['pending', 'paid', 'accepted'] },
+          status: {
+            $in: [
+              'awaiting_approval',
+              'pending',
+              'paid',
+              'confirmed',
+              'accepted',
+              'checked_in',
+            ],
+          },
         })
           .populate('hostelId', 'name location serviceType')
           .populate('assignedPartner', 'name role')
@@ -342,6 +358,59 @@ router.patch('/hostels/:id/verify', protect, authorize('admin'), async (req, res
   }
 });
 
+// GET /api/v1/admin/shop-chat/threads — customer ↔ shop_owner (super-view; all threads)
+router.get('/shop-chat/threads', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 200);
+    const [threads, indexed] = await Promise.all([
+      MarketplaceConversation.find({ type: 'SELLER' })
+        .sort({ lastMessageAt: -1, updatedAt: -1 })
+        .limit(limit)
+        .populate('customer', 'name email phone')
+        .populate('partner', 'name email phone role')
+        .populate('lastProduct', 'name images')
+        .lean(),
+      ShopChat.find()
+        .sort({ lastMessageAt: -1 })
+        .limit(limit)
+        .populate('shopId', 'name email phone')
+        .populate('customerId', 'name email phone')
+        .lean(),
+    ]);
+    res.json({
+      success: true,
+      data: { conversations: threads, shopChatIndex: indexed },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/v1/admin/shop-chat/:conversationId/messages — audit transcript
+router.get('/shop-chat/:conversationId/messages', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const convId = req.params.conversationId;
+    const conv = await MarketplaceConversation.findById(convId).lean();
+    if (!conv || conv.type !== 'SELLER') {
+      return res.status(404).json({ success: false, message: 'Seller conversation not found' });
+    }
+    const messages = await MarketplaceMessage.find({ conversation: convId })
+      .populate('sender', 'name role')
+      .sort({ createdAt: 1 })
+      .limit(500)
+      .lean();
+    res.json({
+      success: true,
+      data: {
+        conversation: conv,
+        messages,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/admin/dispatch-operators
 // Riders, sellers, and care professionals for assignment UIs
 router.get('/dispatch-operators', protect, authorize('admin'), async (req, res, next) => {
@@ -367,6 +436,27 @@ router.patch(
   protect,
   authorize('admin'),
   adminAssignCarePartner
+);
+
+router.patch(
+  '/care-bookings/:id/cancel',
+  protect,
+  authorize('admin'),
+  adminCareBookingCancel
+);
+
+router.patch(
+  '/care-bookings/:id/reassign-centre',
+  protect,
+  authorize('admin'),
+  adminCareBookingReassignCentre
+);
+
+router.get(
+  '/care-bookings/:id/chat',
+  protect,
+  authorize('admin'),
+  adminGetCareBookingChat
 );
 
 // GET /api/v1/admin/care-bookings

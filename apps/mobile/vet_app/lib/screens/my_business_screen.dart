@@ -8,6 +8,7 @@ import '../core/constants.dart';
 import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
+import 'partner_marketplace_chat_screen.dart';
 
 class MyBusinessScreen extends StatefulWidget {
   const MyBusinessScreen({super.key});
@@ -141,7 +142,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
       await _apiClient.respondToBooking(bookingId, accept: accept);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(accept ? 'Booking accepted' : 'Booking rejected')),
+          SnackBar(content: Text(accept ? 'Booking confirmed' : 'Booking declined')),
         );
         _loadBookings();
       }
@@ -151,6 +152,89 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
           SnackBar(content: Text('Error: ${e.toString()}')),
         );
       }
+    }
+  }
+
+  Future<void> _notifyCheckIn(String bookingId) async {
+    try {
+      await _apiClient.patchCareBookingCheckIn(bookingId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marked as checked in')),
+        );
+        _loadBookings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  Future<void> _completeCareBooking(String bookingId) async {
+    try {
+      await _apiClient.markBookingCompleted(bookingId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking completed')),
+        );
+        _loadBookings();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  Future<void> _openCareChatForBooking(Map<String, dynamic> b) async {
+    final id = b['_id']?.toString();
+    if (id == null) return;
+    try {
+      final r = await _apiClient.openCareMarketplaceChat(id);
+      final body = r.data;
+      if (body is! Map || body['success'] != true) return;
+      final conv = body['data'];
+      if (conv is! Map) return;
+      final cid = conv['_id']?.toString();
+      if (cid == null || !mounted) return;
+      final user = b['userId'];
+      final peer = user is Map ? (user['name']?.toString() ?? 'Customer') : 'Customer';
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PartnerMarketplaceChatScreen(
+            conversationId: cid,
+            peerName: peer,
+            peerSubtitle: 'Care booking',
+          ),
+        ),
+      );
+      _loadBookings();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  Future<void> _openPickupOnMap(Map<String, dynamic> b) async {
+    final pa = b['pickupAddress'];
+    if (pa is! Map) return;
+    final pt = pa['point'];
+    if (pt is! Map) return;
+    final coords = pt['coordinates'];
+    if (coords is! List || coords.length < 2) return;
+    final lng = (coords[0] as num).toDouble();
+    final lat = (coords[1] as num).toDouble();
+    final uri = Uri.parse('https://www.openstreetmap.org/?mlat=$lat&mlon=$lng#map=17/$lat/$lng');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -236,7 +320,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                       tabs: const [
                         Tab(text: 'Billing'),
                         Tab(text: 'My Services'),
-                        Tab(text: 'Bookings'),
+                        Tab(text: 'Incoming'),
                       ],
                     ),
                   ),
@@ -604,127 +688,195 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
         final ownerName = user['name']?.toString() ?? 'Owner';
         final hostelName = hostel['name']?.toString() ?? 'Service';
         final status = b['status']?.toString() ?? 'pending';
-        final canRespond = status == 'pending' || status == 'paid';
+        final canRespond = ['awaiting_approval', 'pending', 'paid'].contains(status);
+        final canCheckIn = status == 'confirmed' || status == 'accepted';
+        final canComplete = status == 'checked_in';
         final checkIn = b['checkIn']?.toString();
         final nights = b['nights'];
         final total = b['totalAmount'];
+        final logistics = (b['logisticsType'] ?? '').toString();
+        final pickup = b['pickupAddress'];
+        String? pickupAddr;
+        bool hasPickupCoords = false;
+        if (pickup is Map) {
+          pickupAddr = pickup['address']?.toString();
+          final pt = pickup['point'];
+          if (pt is Map && pt['coordinates'] is List && (pt['coordinates'] as List).length >= 2) {
+            hasPickupCoords = true;
+          }
+        }
+        final bid = b['_id']?.toString() ?? '';
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      petName,
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[900],
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      status.toUpperCase(),
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _primary,
-                      ),
-                    ),
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.fromLTRB(16, 16, 48, 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Owner: $ownerName · $hostelName',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                ),
-              ),
-              if (checkIn != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Check-in: ${DateTime.tryParse(checkIn)?.toString().split(' ').first ?? checkIn} · $nights night(s)',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          petName,
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[900],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          status.toUpperCase(),
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Owner: $ownerName · $hostelName',
                     style: GoogleFonts.outfit(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: Colors.grey[600],
                     ),
                   ),
-                ),
-              if (total != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Rs. $total',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _primary,
-                    ),
-                  ),
-                ),
-              if (canRespond) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _respondToBooking(
-                          b['_id']?.toString() ?? '',
-                          false,
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.red,
-                          side: const BorderSide(color: Colors.red),
-                        ),
-                        child: const Text('Reject'),
+                  if (logistics == 'pickup' && pickupAddr != null && pickupAddr.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Pickup: $pickupAddr',
+                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[800]),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _respondToBooking(
-                          b['_id']?.toString() ?? '',
-                          true,
+                  if (checkIn != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Check-in: ${DateTime.tryParse(checkIn)?.toString().split(' ').first ?? checkIn} · $nights night(s)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          color: Colors.grey[600],
                         ),
+                      ),
+                    ),
+                  if (total != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Rs. $total',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _primary,
+                        ),
+                      ),
+                    ),
+                  if (hasPickupCoords)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextButton.icon(
+                        onPressed: () => _openPickupOnMap(b),
+                        icon: const Icon(Icons.map_rounded, size: 18),
+                        label: const Text('View on map'),
+                      ),
+                    ),
+                  if (canRespond) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _respondToBooking(bid, false),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                            child: const Text('Decline'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _respondToBooking(bid, true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Accept'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (canCheckIn) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: bid.isEmpty ? null : () => _notifyCheckIn(bid),
+                        icon: const Icon(Icons.pets_rounded),
+                        label: const Text('Notify arrival (check-in)'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: _primary,
                           foregroundColor: Colors.white,
                         ),
-                        child: const Text('Accept'),
                       ),
                     ),
                   ],
+                  if (canComplete) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: bid.isEmpty ? null : () => _completeCareBooking(bid),
+                        child: const Text('Mark completed'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: _primary.withValues(alpha: 0.12),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'Message customer',
+                  icon: Icon(Icons.chat_bubble_rounded, color: _primary),
+                  onPressed: bid.isEmpty ? null : () => _openCareChatForBooking(b),
                 ),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         );
       },
     );

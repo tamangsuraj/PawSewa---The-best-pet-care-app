@@ -159,6 +159,31 @@ class ApiClient {
     );
   }
 
+  Future<Response> sendLoginOtp(
+    String email, {
+    String appContext = 'partner',
+  }) async {
+    return await _dio.post(
+      '/auth/send-otp',
+      data: {'email': email, 'appContext': appContext},
+    );
+  }
+
+  Future<Response> verifyLoginOtp(
+    String email,
+    String otp, {
+    String appContext = 'partner',
+  }) async {
+    return await _dio.post(
+      '/auth/verify-otp',
+      data: {'email': email, 'otp': otp, 'appContext': appContext},
+    );
+  }
+
+  Future<Response> post(String path, Map<String, dynamic> data) async {
+    return await _dio.post(path, data: data);
+  }
+
   // Get user profile
   Future<Response> getUserProfile() async {
     return await _dio.get('/users/profile');
@@ -187,6 +212,25 @@ class ApiClient {
 
   Future<Response> markAllNotificationsRead() async {
     return await _dio.patch('/notifications/read-all');
+  }
+
+  /// Admin-assigned clinic visits (vaccination / checkup / vet flows).
+  Future<Response> getMyClinicAppointments() async {
+    return await _dio.get('/appointments/my');
+  }
+
+  Future<Response> patchClinicAppointmentStatus(
+    String appointmentId, {
+    required String status,
+    String? visitNotes,
+  }) async {
+    return await _dio.patch(
+      '/appointments/$appointmentId/status',
+      data: <String, dynamic>{
+        'status': status,
+        if (visitNotes != null && visitNotes.isNotEmpty) 'visitNotes': visitNotes,
+      },
+    );
   }
 
   // Get my assigned cases (Veterinarian)
@@ -234,7 +278,7 @@ class ApiClient {
           'visitNotes': visitNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
         if (scheduledTime != null) 'scheduledTime': scheduledTime.toIso8601String(),
-        if (visitVitals != null) 'visitVitals': visitVitals,
+        'visitVitals': visitVitals,
       },
     );
   }
@@ -420,6 +464,10 @@ class ApiClient {
     return await _dio.patch('/care-bookings/$bookingId/respond', data: {'accept': accept});
   }
 
+  Future<Response> patchCareBookingCheckIn(String bookingId) async {
+    return await _dio.patch('/care-bookings/$bookingId/check-in');
+  }
+
   Future<Response> updateBookingFacilityNotes(String bookingId, String notes) async {
     return await _dio.patch('/care-bookings/$bookingId/facility-notes', data: {'notes': notes});
   }
@@ -489,6 +537,11 @@ class ApiClient {
   // Marketplace chat (seller + rider)
   Future<Response> getSellerMarketplaceInbox() async {
     return await _dio.get('/marketplace-chat/seller/inbox');
+  }
+
+  /// Open customer ↔ shop thread for an order assigned to this shop (shop_owner).
+  Future<Response> openSellerMarketplaceChatFromOrder(String orderId) async {
+    return await _dio.post('/marketplace-chat/seller/open-from-order', data: {'orderId': orderId});
   }
 
   Future<Response> getCareMarketplaceInbox() async {

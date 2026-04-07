@@ -101,7 +101,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       await _apiClient.confirmSellerOrderStock(orderId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock confirmed — order is now preparing')),
+        const SnackBar(
+          content: Text('Stock confirmed — ready for rider assignment'),
+        ),
       );
       await _loadAssignedShopOrders();
     } catch (e) {
@@ -516,11 +518,13 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                             ],
                                           ),
                                         ],
-                                        if (status == 'packed')
+                                        if (status == 'ready_for_pickup' || status == 'packed')
                                           Padding(
                                             padding: const EdgeInsets.only(top: 6),
                                             child: Text(
-                                              'Packed — waiting for rider pickup',
+                                              status == 'ready_for_pickup'
+                                                  ? 'Ready — admin will assign a rider'
+                                                  : 'Packed — waiting for rider pickup',
                                               style: GoogleFonts.outfit(
                                                 fontSize: 12,
                                                 color: Colors.teal.shade800,

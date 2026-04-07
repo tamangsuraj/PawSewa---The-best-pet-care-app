@@ -28,6 +28,9 @@ class SocketService {
   final List<void Function()?> _connectListeners = [];
   final List<void Function(String)?> _disconnectListeners = [];
   final List<void Function(Map<String, dynamic>)?> _orderUpdateListeners = [];
+  final List<void Function(String event, Map<String, dynamic> payload)?>
+      _careBookingListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _appointmentUpdateListeners = [];
   final List<void Function(Map<String, dynamic>)?> _incomingCallListeners = [];
   final List<void Function(Map<String, dynamic>)?> _callAnsweredListeners = [];
   final List<void Function(Map<String, dynamic>)?> _callEndedListeners = [];
@@ -153,7 +156,7 @@ class SocketService {
           for (final cb in _customerCareMsgListeners) {
             cb?.call(Map<String, dynamic>.from(normalized));
           }
-        } else if (tt == 'seller' || tt == 'delivery') {
+        } else if (tt == 'seller' || tt == 'delivery' || tt == 'care') {
           for (final cb in _marketplaceMsgListeners) {
             cb?.call({
               'conversationId': normalized['conversationId'],
@@ -182,7 +185,7 @@ class SocketService {
           for (final cb in _customerCareTypingListeners) {
             cb?.call(Map<String, dynamic>.from(typingPayload));
           }
-        } else if (tt == 'seller' || tt == 'delivery') {
+        } else if (tt == 'seller' || tt == 'delivery' || tt == 'care') {
           for (final cb in _marketplaceTypingListeners) {
             cb?.call(Map<String, dynamic>.from(typingPayload));
           }
@@ -211,6 +214,32 @@ class SocketService {
         final map = _toMap(data);
         if (map != null) {
           for (final cb in _orderUpdateListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      void dispatchCareBooking(String event, dynamic data) {
+        final map = _toMap(data);
+        if (map == null) return;
+        for (final cb in _careBookingListeners) {
+          cb?.call(event, map);
+        }
+      }
+
+      _socket!.on(
+        'care_booking:new',
+        (data) => dispatchCareBooking('care_booking:new', data),
+      );
+      _socket!.on(
+        'care_booking:update',
+        (data) => dispatchCareBooking('care_booking:update', data),
+      );
+
+      _socket!.on('appointment:update', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _appointmentUpdateListeners) {
             cb?.call(map);
           }
         }
@@ -661,6 +690,26 @@ class SocketService {
 
   void removeOrderUpdateListener(void Function(Map<String, dynamic>) listener) {
     _orderUpdateListeners.remove(listener);
+  }
+
+  void addCareBookingListener(
+    void Function(String event, Map<String, dynamic> payload) listener,
+  ) {
+    _careBookingListeners.add(listener);
+  }
+
+  void removeCareBookingListener(
+    void Function(String event, Map<String, dynamic> payload) listener,
+  ) {
+    _careBookingListeners.remove(listener);
+  }
+
+  void addAppointmentUpdateListener(void Function(Map<String, dynamic>) listener) {
+    _appointmentUpdateListeners.add(listener);
+  }
+
+  void removeAppointmentUpdateListener(void Function(Map<String, dynamic>) listener) {
+    _appointmentUpdateListeners.remove(listener);
   }
 
   void emitMakeCall({
