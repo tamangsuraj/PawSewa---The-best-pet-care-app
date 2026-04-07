@@ -15,8 +15,14 @@ import '../widgets/premium_info_chip.dart';
 import 'book_service_screen.dart';
 import 'request_assistance_screen.dart';
 import 'shop/my_orders_screen.dart';
+import 'pro_coming_soon_screen.dart';
 
 const Color _kBrown = Color(AppConstants.primaryColor);
+const Color _kTeal = Color(AppConstants.accentColor);
+const Color _kCream = Color(AppConstants.secondaryColor);
+const Color _kInk = Color(AppConstants.inkColor);
+
+bool _kProAppOpenAdShownThisSession = false;
 
 /// Unified customer home: hero, quick actions, health, shop picks, live delivery map.
 /// Data from `GET /pets/home-dashboard/:petId`.
@@ -58,6 +64,20 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void initState() {
     super.initState();
     _loadDashboard();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowProAppOpenAd();
+    });
+  }
+
+  void _maybeShowProAppOpenAd() {
+    if (_kProAppOpenAdShownThisSession) return;
+    if (!mounted) return;
+    _kProAppOpenAdShownThisSession = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => const _ProAppOpenAdDialog(),
+    );
   }
 
   @override
@@ -922,6 +942,200 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProAppOpenAdDialog extends StatelessWidget {
+  const _ProAppOpenAdDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.sizeOf(context);
+    final pad = (mq.width * 0.06).clamp(16.0, 28.0);
+    final maxW = (mq.width * 0.92).clamp(280.0, 520.0);
+
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(horizontal: pad, vertical: 24),
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxW),
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(height: 8),
+                                Container(
+                                  width: 86,
+                                  height: 86,
+                                  decoration: BoxDecoration(
+                                    color: _kBrown,
+                                    borderRadius: BorderRadius.circular(28),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.10),
+                                        blurRadius: 18,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.star_outline_rounded,
+                                    color: _kCream,
+                                    size: 42,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Upgrade to PawSewa Pro',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.fraunces(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: _kBrown,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Unlock priority access, premium discounts, and faster care for your companion — all in one subscription.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13.5,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                    color: _kInk.withValues(alpha: 0.72),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                _FeatureRow(text: 'Priority Clinic Access'),
+                                const SizedBox(height: 10),
+                                _FeatureRow(text: '15% Off All Grooming'),
+                                const SizedBox(height: 10),
+                                _FeatureRow(text: 'Pro Support Chat Response'),
+                                const SizedBox(height: 18),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: FilledButton.icon(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: _kTeal,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      textStyle: GoogleFonts.outfit(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const ProComingSoonScreen(),
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.arrow_forward_rounded),
+                                    label: const Text('Upgrade Now'),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'CANCEL ANYTIME • NO HIDDEN FEES.',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.6,
+                                    color: _kInk.withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.close, color: Colors.grey.shade700),
+                        onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Close',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: _kTeal,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.outfit(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+              color: _kInk.withValues(alpha: 0.85),
             ),
           ),
         ),

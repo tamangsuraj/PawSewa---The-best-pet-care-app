@@ -436,8 +436,21 @@ class _SwitchTile extends StatelessWidget {
           border: Border.all(color: const Color(AppConstants.primaryColor).withValues(alpha: 0.10)),
         ),
         child: ListTile(
-          title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: ink)),
-          subtitle: Text(subtitle, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: ink.withValues(alpha: 0.65))),
+          title: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, color: ink),
+          ),
+          subtitle: Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w600,
+              color: ink.withValues(alpha: 0.65),
+            ),
+          ),
           trailing: Switch(
             value: value,
             activeThumbColor: const Color(AppConstants.accentColor),
@@ -559,8 +572,21 @@ class _StaticTile extends StatelessWidget {
             ),
             child: Icon(icon, color: primary),
           ),
-          title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: ink)),
-          subtitle: Text(subtitle, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: ink.withValues(alpha: 0.65))),
+          title: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: ink),
+          ),
+          subtitle: Text(
+            subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w600,
+              color: ink.withValues(alpha: 0.65),
+            ),
+          ),
         ),
       ),
     );

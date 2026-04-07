@@ -53,13 +53,14 @@ class FaqScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, i) {
-          final it = items[i];
-          return Container(
+      body: SafeArea(
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          itemCount: items.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          itemBuilder: (context, i) {
+            final it = items[i];
+            return Container(
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
@@ -72,13 +73,13 @@ class FaqScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                dividerColor: Colors.transparent,
-                splashColor: brown.withValues(alpha: 0.06),
-                highlightColor: brown.withValues(alpha: 0.04),
-              ),
-              child: ExpansionTile(
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  dividerColor: Colors.transparent,
+                  splashColor: brown.withValues(alpha: 0.06),
+                  highlightColor: brown.withValues(alpha: 0.04),
+                ),
+                child: ExpansionTile(
                 tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                 shape: const Border(),
@@ -100,22 +101,23 @@ class FaqScreen extends StatelessWidget {
                     color: const Color(AppConstants.inkColor),
                   ),
                 ),
-                children: [
-                  Text(
-                    it.a,
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      height: 1.35,
-                      color:
-                          const Color(AppConstants.inkColor).withValues(alpha: 0.72),
-                      fontWeight: FontWeight.w500,
+                  children: [
+                    Text(
+                      it.a,
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        height: 1.35,
+                        color:
+                            const Color(AppConstants.inkColor).withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
