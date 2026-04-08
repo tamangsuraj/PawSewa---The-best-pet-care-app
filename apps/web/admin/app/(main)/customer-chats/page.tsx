@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import api from '@/lib/api';
 import { getAdminSocket } from '@/lib/socket';
+import { getStoredAdminUser } from '@/lib/authStorage';
 import { MessageCircle, RefreshCw, Search, Send } from 'lucide-react';
 import type { Socket } from 'socket.io-client';
 
@@ -375,8 +376,7 @@ export default function CustomerChatsPage() {
     }
   };
 
-  const adminUser =
-    typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('admin-user') || 'null') : null;
+  const adminUser = getStoredAdminUser<{ _id?: string }>();
   const adminId = adminUser?._id ? String(adminUser._id) : '';
 
   const statLines: string[] = [];

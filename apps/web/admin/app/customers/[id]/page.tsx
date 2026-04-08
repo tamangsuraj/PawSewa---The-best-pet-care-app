@@ -4,6 +4,7 @@ import { useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
+import { getStoredAdminToken } from '@/lib/authStorage';
 import { ArrowLeft, Mail, Phone, MapPin, CheckCircle, XCircle, Plus, X } from 'lucide-react';
 import Image from 'next/image';
 
@@ -99,8 +100,8 @@ export default function CustomerDetailPage() {
     setAddingPet(true);
 
     try {
-      const token = localStorage.getItem('admin-token')?.trim();
-      if (!token || token === 'undefined' || token === 'null') {
+      const token = getStoredAdminToken();
+      if (!token) {
         alert('Authentication required');
         return;
       }

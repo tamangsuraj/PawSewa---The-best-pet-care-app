@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
+import { clearStoredAuth, getStoredToken } from '@/lib/authStorage';
 
 interface User {
   _id: string;
@@ -59,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkHealth();
 
     const checkAuth = async () => {
-      const savedToken = localStorage.getItem('token');
+      const savedToken = getStoredToken();
       
       if (savedToken) {
         try {
@@ -69,8 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(savedToken);
           }
         } catch (error) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          clearStoredAuth();
         }
       }
       
@@ -169,8 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearStoredAuth();
     window.location.href = '/';
   };
 

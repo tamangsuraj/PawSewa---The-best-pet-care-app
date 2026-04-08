@@ -105,7 +105,17 @@ class _SplashScreenState extends State<SplashScreen> {
     // Wait for splash animation
     await Future.delayed(const Duration(seconds: 2));
 
-    final isLoggedIn = await _storage.isLoggedIn();
+    bool isLoggedIn = await _storage.isLoggedIn();
+
+    // Validate persisted token against backend. If expired/invalid, clear and treat as logged out.
+    if (isLoggedIn) {
+      try {
+        await ApiClient().getUserProfile();
+      } catch (_) {
+        await _storage.clearAll();
+        isLoggedIn = false;
+      }
+    }
 
     if (mounted) {
       Navigator.of(context).pushReplacement(

@@ -21,6 +21,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { useAuth } from '@/context/AuthContext';
 
 interface ServiceRequest {
   _id: string;
@@ -64,6 +65,7 @@ function isScheduledRequest(r: ServiceRequest) {
 function MyServiceRequestsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const focusId = searchParams.get('focus');
   const highlightedRef = useRef<HTMLDivElement | null>(null);
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
@@ -75,10 +77,7 @@ function MyServiceRequestsPageInner() {
   const fetchMyRequests = useCallback(async () => {
     try {
       setLoading(true);
-      if (!localStorage.getItem('token')) {
-        router.push('/login');
-        return;
-      }
+      if (!isAuthenticated) return;
       const response = await api.get('/service-requests/my/requests');
       if (response.data.success) {
         setRequests(response.data.data || []);
@@ -91,16 +90,16 @@ function MyServiceRequestsPageInner() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       router.push('/login');
       return;
     }
     void fetchMyRequests();
-  }, [router, fetchMyRequests]);
+  }, [authLoading, isAuthenticated, router, fetchMyRequests]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -171,7 +170,7 @@ function MyServiceRequestsPageInner() {
   const currentList =
     tab === 'active' ? activeList : tab === 'history' ? historyList : scheduledList;
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <PageShell className="flex min-h-dvh items-center justify-center">
         <div className="flex flex-col items-center text-center">

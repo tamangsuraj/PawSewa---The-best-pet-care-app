@@ -71,7 +71,7 @@ const cardLift =
   'rounded-[1.35rem] border border-paw-bark/10 bg-white/90 backdrop-blur-sm shadow-paw transition-all duration-500 ease-out hover:shadow-paw-lg hover:-translate-y-1';
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const { addItem } = useCart();
   const router = useRouter();
   const { openSellerChat, openHubWithSupport } = useChatHub();
@@ -112,7 +112,6 @@ export default function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const token = localStorage.getItem('token');
         const base = process.env.NEXT_PUBLIC_API_URL || '';
         const res = await axios.get(`${base}/service-requests/my/requests`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -127,7 +126,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token]);
 
   const showcase = DESIGN_SUPPLY.map((slot, i) => {
     const apiProduct = products[i] || products.find((p) => p.name?.toLowerCase().includes(slot.title.slice(0, 6).toLowerCase()));

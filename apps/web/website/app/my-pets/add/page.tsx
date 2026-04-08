@@ -11,7 +11,7 @@ import { PageContent } from '@/components/layout/PageContent';
 
 export default function AddPetPage() {
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token } = useAuth();
   const [loading, setLoading] = useState(false);
   
   // Form state
@@ -62,7 +62,6 @@ export default function AddPetPage() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
       if (!token) {
         router.push('/login');
         return;

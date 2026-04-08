@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '@/lib/api';
 import { getAdminSocketUrl } from '@/lib/apiConfig';
+import { getStoredAdminToken } from '@/lib/authStorage';
 import {
   AlertCircle,
   CheckCircle,
@@ -78,9 +79,8 @@ export default function LiveCasesPage() {
   }, [filterStatus]);
 
   useEffect(() => {
-    const token =
-      typeof window !== 'undefined' ? localStorage.getItem('admin-token')?.trim() : null;
-    if (!token || token === 'undefined' || token === 'null') return;
+    const token = getStoredAdminToken();
+    if (!token) return;
     const socket: Socket = io(getAdminSocketUrl(), {
       auth: { token },
       transports: ['websocket', 'polling'],
@@ -98,8 +98,8 @@ export default function LiveCasesPage() {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('admin-token')?.trim();
-      if (!token || token === 'undefined' || token === 'null') {
+      const token = getStoredAdminToken();
+      if (!token) {
         setError('Not authenticated');
         setLoading(false);
         return;
@@ -148,8 +148,8 @@ export default function LiveCasesPage() {
 
   const fetchVets = async () => {
     try {
-      const token = localStorage.getItem('admin-token')?.trim();
-      if (!token || token === 'undefined' || token === 'null') return;
+      const token = getStoredAdminToken();
+      if (!token) return;
       const [casesVetsRes, usersRes] = await Promise.all([
         api.get('/cases/vets/available'),
         api.get('/users', { params: { role: 'veterinarian' } }),
@@ -167,8 +167,8 @@ export default function LiveCasesPage() {
 
   const handleAssign = async () => {
     if (!selectedItem || !selectedVet) return;
-    const token = localStorage.getItem('admin-token')?.trim();
-    if (!token || token === 'undefined' || token === 'null') return;
+    const token = getStoredAdminToken();
+    if (!token) return;
 
     try {
       setAssigning(true);

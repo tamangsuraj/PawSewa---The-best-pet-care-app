@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import api from '@/lib/api';
+import { getStoredAdminToken } from '@/lib/authStorage';
 import {
   AlertCircle,
   CheckCircle,
@@ -95,8 +96,8 @@ export default function PastCasesPage() {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('admin-token')?.trim();
-      if (!token || token === 'undefined' || token === 'null') {
+      const token = getStoredAdminToken();
+      if (!token) {
         setError('Not authenticated');
         setLoading(false);
         return;

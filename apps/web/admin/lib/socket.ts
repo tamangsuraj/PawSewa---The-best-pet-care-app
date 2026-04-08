@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { getAdminSocketUrl } from './apiConfig';
+import { getStoredAdminToken } from './authStorage';
 
 const SOCKET_URL = getAdminSocketUrl();
 
@@ -7,8 +8,8 @@ let socket: Socket | null = null;
 
 export function getAdminSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
-  const token = localStorage.getItem('admin-token')?.trim();
-  if (!token || token === 'undefined' || token === 'null') return null;
+  const token = getStoredAdminToken();
+  if (!token) return null;
 
   if (socket?.connected) return socket;
 

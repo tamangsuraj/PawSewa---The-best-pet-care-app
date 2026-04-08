@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import api from '@/lib/api';
 import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from '@/lib/apiConfig';
+import { getStoredAdminToken, getStoredAdminUser } from '@/lib/authStorage';
 
 export default function TestLoginPage() {
   const [result, setResult] = useState<{ type: string; data: unknown } | null>(null);
@@ -52,11 +53,11 @@ export default function TestLoginPage() {
   };
 
   const checkLocalStorage = () => {
-    const token = localStorage.getItem('admin-token')?.trim();
-    const user = localStorage.getItem('admin-user');
+    const token = getStoredAdminToken();
+    const user = getStoredAdminUser();
     setResult({
       type: 'LocalStorage',
-      data: { token, user: user ? JSON.parse(user) : null }
+      data: { token, user }
     });
   };
 

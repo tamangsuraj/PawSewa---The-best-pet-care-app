@@ -9,6 +9,7 @@ import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
+import { useAuth } from '@/context/AuthContext';
 
 interface Pet {
   _id: string;
@@ -21,6 +22,7 @@ interface Pet {
 
 export default function RequestAssistancePage() {
   const router = useRouter();
+  const { token, isAuthenticated, isLoading: authLoading } = useAuth();
   const [pets, setPets] = useState<Pet[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -32,12 +34,7 @@ export default function RequestAssistancePage() {
 
   const fetchMyPets = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-
-      if (!token) {
-        router.push('/login');
-        return;
-      }
+      if (!isAuthenticated || !token) return;
 
       const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await axios.get(`${apiBase}/pets/my-pets`, {
@@ -56,16 +53,16 @@ export default function RequestAssistancePage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [isAuthenticated, token]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       router.push('/login');
-    } else {
-      void fetchMyPets();
+      return;
     }
-  }, [router, fetchMyPets]);
+    void fetchMyPets();
+  }, [authLoading, isAuthenticated, router, fetchMyPets]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,7 +86,10 @@ export default function RequestAssistancePage() {
     setSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
 
       const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
       const response = await axios.post(
@@ -120,7 +120,7 @@ export default function RequestAssistancePage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
         <PawSewaLoader width={150} />

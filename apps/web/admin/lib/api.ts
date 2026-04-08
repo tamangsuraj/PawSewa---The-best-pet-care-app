@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from './apiConfig';
+import { clearStoredAdminAuth, getStoredAdminToken } from './authStorage';
 
 const baseURL = getAdminApiBaseUrl();
 
@@ -24,8 +25,8 @@ const api = axios.create({
 // Request interceptor to attach JWT token and fix FormData uploads
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('admin-token')?.trim();
-    if (token && token !== 'undefined' && token !== 'null') {
+    const token = getStoredAdminToken();
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -50,8 +51,7 @@ api.interceptors.response.use(
       const isLoginRequest = error.config?.url?.includes('login');
       // Do not redirect if this 401 was from the login call (let the login page show the error)
       if (!isLoginRequest) {
-        localStorage.removeItem('admin-token');
-        localStorage.removeItem('admin-user');
+        clearStoredAdminAuth();
         window.location.href = '/login';
       }
     }

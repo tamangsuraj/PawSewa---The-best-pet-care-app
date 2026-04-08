@@ -103,7 +103,17 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLoginStatus() async {
     final storage = StorageService();
-    final isLoggedIn = await storage.isLoggedIn();
+    bool isLoggedIn = await storage.isLoggedIn();
+
+    // Validate persisted token against backend. If expired/invalid, clear and treat as logged out.
+    if (isLoggedIn) {
+      try {
+        await ApiClient().getUserProfile();
+      } catch (_) {
+        await storage.clearAll();
+        isLoggedIn = false;
+      }
+    }
 
     await Future.delayed(const Duration(seconds: 1));
 

@@ -9,6 +9,7 @@ import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
+import { useAuth } from '@/context/AuthContext';
 
 const KathmanduBounds = {
   minLat: 27.55,
@@ -52,6 +53,7 @@ export default function ServiceRequestPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [selectedPetId, setSelectedPetId] = useState('');
   const [serviceType, setServiceType] = useState<'Appointment' | 'Health Checkup' | 'Vaccination' | ''>('');
@@ -76,13 +78,13 @@ export default function ServiceRequestPage() {
   }, [center, confirmedLatLng]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       window.location.href = '/login';
       return;
     }
     fetchMyPets();
-  }, []);
+  }, [authLoading, isAuthenticated]);
 
   useEffect(() => {
     if (pets.length === 0 || typeof window === 'undefined') {
@@ -96,10 +98,6 @@ export default function ServiceRequestPage() {
 
   const fetchMyPets = async () => {
     try {
-      if (!localStorage.getItem('token')) {
-        window.location.href = '/login';
-        return;
-      }
       const response = await api.get('/pets/my-pets');
       if (response.data.success) {
         setPets(response.data.data);
@@ -189,7 +187,7 @@ export default function ServiceRequestPage() {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <PageShell className="flex min-h-dvh flex-col items-center justify-center gap-4">
         <PawSewaLoader width={150} />

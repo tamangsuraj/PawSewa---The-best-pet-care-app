@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../cart/cart_service.dart';
 import '../core/api_client.dart';
+import '../core/storage_service.dart';
 import '../core/constants.dart';
 import '../models/pet.dart';
 import '../widgets/premium_info_chip.dart';
@@ -69,9 +70,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     });
   }
 
-  void _maybeShowProAppOpenAd() {
+  Future<void> _maybeShowProAppOpenAd() async {
     if (_kProAppOpenAdShownThisSession) return;
     if (!mounted) return;
+    // Only show after AuthCheck confirms a valid persisted session.
+    final loggedIn = await StorageService().isLoggedIn();
+    if (!mounted || !loggedIn) return;
     _kProAppOpenAdShownThisSession = true;
     showDialog<void>(
       context: context,

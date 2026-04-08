@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearStoredAuth, getStoredToken } from './authStorage';
 
 /** Same Node API as admin, user_app, and vet_app (one cluster + DB_NAME on the server). */
 const api = axios.create({
@@ -11,8 +12,7 @@ const api = axios.create({
 // Request interceptor to attach JWT token
 api.interceptors.request.use(
   (config) => {
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
+    const token = getStoredToken();
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -30,10 +30,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - clear auth state
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const isLoginRequest = error.config?.url?.includes('login');
+      if (typeof window !== 'undefined' && !isLoginRequest) {
+        clearStoredAuth();
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

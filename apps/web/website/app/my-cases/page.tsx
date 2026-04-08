@@ -19,6 +19,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { useAuth } from '@/context/AuthContext';
 
 interface Case {
   _id: string;
@@ -46,6 +47,7 @@ interface Case {
 
 export default function MyCasesPage() {
   const router = useRouter();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,11 +56,7 @@ export default function MyCasesPage() {
   const fetchMyCases = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
+      if (!isAuthenticated) return;
       const response = await api.get('/cases/my/requests');
       if (response.data.success) {
         setCases(response.data.data || []);
@@ -71,16 +69,16 @@ export default function MyCasesPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (authLoading) return;
+    if (!isAuthenticated) {
       router.push('/login');
-    } else {
-      void fetchMyCases();
+      return;
     }
-  }, [router, fetchMyCases]);
+    void fetchMyCases();
+  }, [authLoading, isAuthenticated, router, fetchMyCases]);
 
   const getStatusBadge = (status: string) => {
     const styles = {
@@ -132,7 +130,7 @@ export default function MyCasesPage() {
   const completedCount = cases.filter(c => c.status === 'completed').length;
   const totalCount = cases.length; // All cases including cancelled
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <PageShell className="flex min-h-dvh items-center justify-center">
         <div className="flex flex-col items-center text-center">

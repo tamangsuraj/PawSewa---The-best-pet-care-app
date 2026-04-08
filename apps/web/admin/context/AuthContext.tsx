@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from '@/lib/apiConfig';
 import toast from 'react-hot-toast';
+import { clearStoredAdminAuth, getStoredAdminToken } from '@/lib/authStorage';
 
 interface User {
   _id?: string;
@@ -48,13 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkHealth();
 
     const checkAuth = async () => {
-      const savedToken = localStorage.getItem('admin-token')?.trim();
+      const savedToken = getStoredAdminToken();
       const savedUser = localStorage.getItem('admin-user');
       
       if (
         savedToken &&
-        savedToken !== 'undefined' &&
-        savedToken !== 'null' &&
         savedUser
       ) {
         try {
@@ -66,16 +65,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (response.data.success && (role === 'admin' || role === 'ADMIN')) {
               setUser(response.data.data);
             } else {
-              localStorage.removeItem('admin-token');
-              localStorage.removeItem('admin-user');
+              clearStoredAdminAuth();
             }
           } catch (error) {
-            localStorage.removeItem('admin-token');
-            localStorage.removeItem('admin-user');
+            clearStoredAdminAuth();
           }
         } catch (error) {
-          localStorage.removeItem('admin-token');
-          localStorage.removeItem('admin-user');
+          clearStoredAdminAuth();
         }
       }
       
@@ -161,8 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('admin-token');
-    localStorage.removeItem('admin-user');
+    clearStoredAdminAuth();
     toast.success('Logged out successfully');
     window.location.href = '/login';
   };
