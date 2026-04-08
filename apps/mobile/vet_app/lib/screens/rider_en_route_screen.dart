@@ -62,8 +62,18 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     double? lat;
     double? lng;
 
+    final live = o['liveLocation'] as Map<String, dynamic>?;
+    if (live != null) {
+      final la = live['lat'];
+      final ln = live['lng'];
+      if (la is num && ln is num) {
+        lat = la.toDouble();
+        lng = ln.toDouble();
+      }
+    }
+
     final flat = o['location'];
-    if (flat is Map) {
+    if ((lat == null || lng == null) && flat is Map) {
       final la = flat['lat'];
       final ln = flat['lng'];
       if (la is num && ln is num) {

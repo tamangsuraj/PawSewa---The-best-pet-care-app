@@ -56,6 +56,8 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
   List<Map<String, dynamic>> _saved = [];
   bool _loadingSaved = false;
   DateTime? _lastReverseAt;
+  bool _gpsResolving = false;
+  bool _pinFromDeviceGps = false;
 
   late final Dio _dio;
   final _geo = GeocodingService();
@@ -130,6 +132,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       _address = place.displayName;
       _searchResults = [];
       _loadingAddress = false;
+      _pinFromDeviceGps = false;
     });
     _searchController.clear();
     _mapController.move(LatLng(place.lat, place.lon), 16);
@@ -181,6 +184,8 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
   }
 
   Future<void> _pinMyLocation() async {
+    if (_gpsResolving) return;
+    setState(() => _gpsResolving = true);
     try {
       final enabled = await Geolocator.isLocationServiceEnabled();
       if (!enabled) {
@@ -207,7 +212,11 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
       final p = LatLng(pos.latitude, pos.longitude);
-      setState(() => _pin = p);
+      if (!mounted) return;
+      setState(() {
+        _pin = p;
+        _pinFromDeviceGps = true;
+      });
       _mapController.move(p, 16);
       await _reverseGeocode(p);
     } catch (e) {
@@ -216,12 +225,17 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
           SnackBar(content: Text('Could not get location: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _gpsResolving = false);
     }
   }
 
   void _onMapMove(MapCamera cam) {
     final center = cam.center;
-    setState(() => _pin = center);
+    setState(() {
+      _pin = center;
+      _pinFromDeviceGps = false;
+    });
     // Debounce reverse-geocoding so dragging feels smooth.
     final now = DateTime.now();
     final last = _lastReverseAt;
@@ -249,6 +263,12 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
           'lat': _pin!.latitude,
           'lng': _pin!.longitude,
           'address': _address!,
+          if (_pinFromDeviceGps)
+            'liveLocation': {
+              'lat': _pin!.latitude,
+              'lng': _pin!.longitude,
+              'timestamp': DateTime.now().toUtc().toIso8601String(),
+            },
         });
       } else {
         Navigator.of(context).pop(_address);
@@ -259,6 +279,8 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
       lat: _pin!.latitude,
       lng: _pin!.longitude,
       address: _address!,
+      liveLocationCapturedAt:
+          _pinFromDeviceGps ? DateTime.now().toUtc() : null,
     );
     Navigator.of(context).pop(true);
   }
@@ -286,217 +308,271 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
           Positioned.fill(
             child: Column(
               children: [
-          if (_loadingSaved == false && _saved.isNotEmpty)
-            SizedBox(
-              height: 54,
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                scrollDirection: Axis.horizontal,
-                itemCount: _saved.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (context, i) {
-                  final a = _saved[i];
-                  final label = a['label']?.toString() ?? 'Saved';
-                  final street = a['street']?.toString() ?? '';
-                  final landmark = a['landmark']?.toString() ?? '';
-                  final lat = (a['lat'] as num?)?.toDouble();
-                  final lng = (a['lng'] as num?)?.toDouble();
-                  final addr = [street, landmark].where((s) => s.trim().isNotEmpty).join(' • ');
-                  return ActionChip(
-                    label: Text(label, style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                    avatar: const Icon(Icons.bookmark_rounded, size: 18, color: Color(AppConstants.primaryColor)),
-                    onPressed: (lat != null && lng != null)
-                        ? () {
-                            final p = LatLng(lat, lng);
-                            setState(() {
-                              _pin = p;
-                              _address = addr.isNotEmpty ? addr : _address;
-                            });
-                            _mapController.move(p, 16);
-                            _reverseGeocode(p);
-                          }
-                        : null,
-                  );
-                },
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: TextField(
-              controller: _searchController,
-              focusNode: _searchFocusNode,
-              decoration: InputDecoration(
-                hintText: 'Search e.g. Putalisadak, Kathmandu',
-                hintStyle: GoogleFonts.outfit(color: Colors.grey),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searching
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: PawSewaLoader(width: 32, center: false),
+                Flexible(
+                  flex: 0,
+                  fit: FlexFit.loose,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (_loadingSaved == false && _saved.isNotEmpty)
+                          SizedBox(
+                            height: 54,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _saved.length,
+                              separatorBuilder: (_, _) => const SizedBox(width: 10),
+                              itemBuilder: (context, i) {
+                                final a = _saved[i];
+                                final label = a['label']?.toString() ?? 'Saved';
+                                final street = a['street']?.toString() ?? '';
+                                final landmark = a['landmark']?.toString() ?? '';
+                                final lat = (a['lat'] as num?)?.toDouble();
+                                final lng = (a['lng'] as num?)?.toDouble();
+                                final addr = [street, landmark]
+                                    .where((s) => s.trim().isNotEmpty)
+                                    .join(' • ');
+                                return ActionChip(
+                                  label: Text(
+                                    label,
+                                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                                  ),
+                                  avatar: const Icon(
+                                    Icons.bookmark_rounded,
+                                    size: 18,
+                                    color: Color(AppConstants.primaryColor),
+                                  ),
+                                  onPressed: (lat != null && lng != null)
+                                      ? () {
+                                          final p = LatLng(lat, lng);
+                                          setState(() {
+                                            _pin = p;
+                                            _address = addr.isNotEmpty ? addr : _address;
+                                            _pinFromDeviceGps = false;
+                                          });
+                                          _mapController.move(p, 16);
+                                          _reverseGeocode(p);
+                                        }
+                                      : null,
+                                );
+                              },
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search e.g. Putalisadak, Kathmandu',
+                                    hintStyle: GoogleFonts.outfit(color: Colors.grey),
+                                    prefixIcon: const Icon(Icons.search),
+                                    suffixIcon: _searching
+                                        ? const Padding(
+                                            padding: EdgeInsets.all(12),
+                                            child: SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: PawSewaLoader(width: 32, center: false),
+                                            ),
+                                          )
+                                        : null,
+                                    filled: true,
+                                    fillColor: Colors.grey.shade100,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  style: GoogleFonts.outfit(),
+                                  onChanged: (value) {
+                                    if (value.trim().isEmpty) {
+                                      setState(() => _searchResults = []);
+                                      return;
+                                    }
+                                    Future.delayed(const Duration(milliseconds: 400), () {
+                                      if (mounted &&
+                                          _searchController.text.trim() == value.trim()) {
+                                        _searchPlaces(value);
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Material(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                                child: IconButton(
+                                  tooltip: 'Use current location',
+                                  onPressed: _gpsResolving ? null : _pinMyLocation,
+                                  icon: _gpsResolving
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: PawSewaLoader(width: 28, center: false),
+                                        )
+                                      : const Icon(Icons.my_location),
+                                  color: const Color(AppConstants.primaryColor),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              style: GoogleFonts.outfit(),
-              onChanged: (value) {
-                if (value.trim().isEmpty) {
-                  setState(() => _searchResults = []);
-                  return;
-                }
-                Future.delayed(const Duration(milliseconds: 400), () {
-                  if (mounted &&
-                      _searchController.text.trim() == value.trim()) {
-                    _searchPlaces(value);
-                  }
-                });
-              },
-            ),
-          ),
-          if (_searchResults.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                        if (_searchResults.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: _searchResults.length,
+                              itemBuilder: (context, index) {
+                                final place = _searchResults[index];
+                                return ListTile(
+                                  leading: Icon(
+                                    Icons.place,
+                                    color: const Color(AppConstants.primaryColor),
+                                  ),
+                                  title: Text(
+                                    place.displayName,
+                                    style: GoogleFonts.outfit(fontSize: 13),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onTap: () => _onSelectPlace(place),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              constraints: const BoxConstraints(maxHeight: 200),
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _searchResults.length,
-                itemBuilder: (context, index) {
-                  final place = _searchResults[index];
-                  return ListTile(
-                    leading: Icon(
-                      Icons.place,
-                      color: const Color(AppConstants.primaryColor),
-                    ),
-                    title: Text(
-                      place.displayName,
-                      style: GoogleFonts.outfit(fontSize: 13),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onTap: () => _onSelectPlace(place),
-                  );
-                },
-              ),
-            ),
-          Expanded(
-            child: FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: _center,
-                initialZoom: 14,
-                onPositionChanged: (pos, hasGesture) {
-                  if (hasGesture) {
-                    _onMapMove(pos);
-                  }
-                },
-                onTap: (tap, point) {
-                  setState(() => _pin = point);
-                  _mapController.move(point, _mapController.camera.zoom);
-                  _reverseGeocode(point);
-                },
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate:
-                      'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                  subdomains: const ['a', 'b', 'c', 'd'],
-                  userAgentPackageName: 'com.pawsewa.user_app',
                 ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: pin,
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.location_on,
-                        color: Color(AppConstants.primaryColor),
-                        size: 36,
+                Expanded(
+                  child: FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _center,
+                      initialZoom: 14,
+                      onPositionChanged: (pos, hasGesture) {
+                        if (hasGesture) {
+                          _onMapMove(pos);
+                        }
+                      },
+                      onTap: (tap, point) {
+                        setState(() {
+                          _pin = point;
+                          _pinFromDeviceGps = false;
+                        });
+                        _mapController.move(point, _mapController.camera.zoom);
+                        _reverseGeocode(point);
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                        subdomains: const ['a', 'b', 'c', 'd'],
+                        userAgentPackageName: 'com.pawsewa.user_app',
                       ),
-                    ),
-                  ],
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: pin,
+                            width: 40,
+                            height: 40,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Color(AppConstants.primaryColor),
+                              size: 36,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_loadingAddress)
+                        Text('Fetching address…', style: GoogleFonts.outfit())
+                      else if (_address != null)
+                        Text(
+                          _address!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            color: Colors.grey[800],
+                          ),
+                        )
+                      else
+                        Text(
+                          'Drag the map under the pin, tap on map, or use My Location.',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: (_gpsResolving ||
+                                  _loadingAddress ||
+                                  _address == null)
+                              ? null
+                              : _onConfirm,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(AppConstants.primaryColor),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: Text(
+                            'Use this location',
+                            style: GoogleFonts.outfit(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          Positioned(
-            right: 16,
-            bottom: 140,
-            child: FloatingActionButton(
-              heroTag: 'pin_my_location',
-              backgroundColor: Colors.white,
-              onPressed: _pinMyLocation,
-              child: const Icon(Icons.my_location_rounded, color: Color(AppConstants.primaryColor)),
+          if (_gpsResolving) ...[
+            Positioned.fill(
+              child: ModalBarrier(
+                dismissible: false,
+                color: Colors.black.withValues(alpha: 0.45),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_loadingAddress)
-                  Text('Fetching address…', style: GoogleFonts.outfit())
-                else if (_address != null)
-                  Text(
-                    _address!,
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      color: Colors.grey[800],
-                    ),
-                  )
-                else
-                  Text(
-                    'Drag the map under the pin, tap on map, or use My Location.',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _onConfirm,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(AppConstants.primaryColor),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: Text(
-                      'Use this location',
-                      style: GoogleFonts.outfit(),
-                    ),
-                  ),
-                ),
-              ],
+            const Center(
+              child: PawSewaLoader(width: 140),
             ),
-          ),
-              ],
-            ),
-          ),
+          ],
         ],
       ),
     );

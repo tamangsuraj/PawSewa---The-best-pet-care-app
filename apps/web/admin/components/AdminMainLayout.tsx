@@ -3,6 +3,7 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
+import { AdminPaymentSocketListener } from '@/components/AdminPaymentSocketListener';
 
 /** Fixed sidebar width — keep in sync with the aside column below. */
 export const ADMIN_SIDEBAR_WIDTH_PX = 260;
@@ -18,6 +19,7 @@ export default function AdminMainLayout({
 }) {
   return (
     <ProtectedRoute>
+      <AdminPaymentSocketListener />
       <div className="flex min-h-dvh w-full min-w-0 bg-gray-50">
         <aside className="sticky top-0 z-30 min-h-dvh w-[260px] min-w-[260px] shrink-0 self-stretch overflow-y-auto overflow-x-hidden border-r border-gray-200">
           <Sidebar />

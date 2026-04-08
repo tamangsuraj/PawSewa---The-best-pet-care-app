@@ -20,6 +20,7 @@ import 'widgets/pawsewa_brand_logo.dart';
 import 'widgets/pawsewa_logo_spinner.dart';
 import 'cart/cart_service.dart';
 import 'cart/saved_addresses_service.dart';
+import 'services/payment_deep_link.dart';
 
 Future<void> _logHealthCheck() async {
   try {
@@ -79,6 +80,8 @@ class MyApp extends StatelessWidget {
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: PawsewaTheme.light(),
+      builder: (context, child) =>
+          PaymentDeepLinkScope(child: child ?? const SizedBox.shrink()),
       home: const SplashScreen(),
       routes: <String, WidgetBuilder>{
         '/login': (_) => const LoginScreen(),

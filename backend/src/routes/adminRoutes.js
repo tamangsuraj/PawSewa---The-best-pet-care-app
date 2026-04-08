@@ -76,13 +76,13 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
           .lean(),
         ServiceRequest.find({
           status: { $in: ['pending', 'assigned', 'in_progress'] },
-        }).select('location status serviceType assignedStaff'),
+        }).select('location liveLocation status serviceType assignedStaff'),
         CareRequest.find({
           status: { $in: ['pending_review', 'assigned', 'in_progress'] },
         }).select('location status serviceType assignedStaff'),
         Order.find({
           status: { $in: ['pending', 'processing', 'out_for_delivery'] },
-        }).select('deliveryLocation status assignmentStatus'),
+        }).select('deliveryLocation liveLocation status assignmentStatus'),
         CareBooking.find({
           status: {
             $in: [
@@ -142,13 +142,25 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
         staff: [...staffFromPins, ...staffFromUsers],
         requests: pendingRequests
           .filter((r) => r.location && r.location.coordinates)
-          .map((r) => ({
-            _id: r._id,
-            status: r.status,
-            serviceType: r.serviceType,
-            coordinates: r.location.coordinates,
-            assignedStaff: r.assignedStaff,
-          })),
+          .map((r) => {
+            const ll = r.liveLocation;
+            const hasLive =
+              ll &&
+              typeof ll.lat === 'number' &&
+              typeof ll.lng === 'number' &&
+              !Number.isNaN(ll.lat) &&
+              !Number.isNaN(ll.lng);
+            return {
+              _id: r._id,
+              status: r.status,
+              serviceType: r.serviceType,
+              coordinates: hasLive
+                ? { lat: ll.lat, lng: ll.lng }
+                : r.location.coordinates,
+              liveGps: !!hasLive,
+              assignedStaff: r.assignedStaff,
+            };
+          }),
         careRequests: careRequests
           .filter((c) => c.location && c.location.point && Array.isArray(c.location.point.coordinates))
           .map((c) => ({
@@ -163,21 +175,45 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
           })),
         // Product delivery orders – use green box icon in admin map
         orders: productOrders
-          .filter(
-            (o) =>
-              o.deliveryLocation &&
-              o.deliveryLocation.point &&
-              Array.isArray(o.deliveryLocation.point.coordinates)
-          )
-          .map((o) => ({
-            _id: o._id,
-            status: o.status,
-            assignmentStatus: o.assignmentStatus,
-            coordinates: {
-              lat: o.deliveryLocation.point.coordinates[1],
-              lng: o.deliveryLocation.point.coordinates[0],
-            },
-          })),
+          .filter((o) => {
+            const ll = o.liveLocation;
+            const hasLive =
+              ll &&
+              typeof ll.lat === 'number' &&
+              typeof ll.lng === 'number' &&
+              !Number.isNaN(ll.lat) &&
+              !Number.isNaN(ll.lng);
+            const pt = o.deliveryLocation?.point?.coordinates;
+            return (
+              hasLive ||
+              (o.deliveryLocation &&
+                o.deliveryLocation.point &&
+                Array.isArray(pt) &&
+                pt.length >= 2)
+            );
+          })
+          .map((o) => {
+            const ll = o.liveLocation;
+            const hasLive =
+              ll &&
+              typeof ll.lat === 'number' &&
+              typeof ll.lng === 'number' &&
+              !Number.isNaN(ll.lat) &&
+              !Number.isNaN(ll.lng);
+            const pt = o.deliveryLocation?.point?.coordinates;
+            return {
+              _id: o._id,
+              status: o.status,
+              assignmentStatus: o.assignmentStatus,
+              coordinates: hasLive
+                ? { lat: ll.lat, lng: ll.lng }
+                : {
+                    lat: pt[1],
+                    lng: pt[0],
+                  },
+              liveGps: !!hasLive,
+            };
+          }),
         // Hostel / Grooming / etc. bookings at facility GPS (same shape as customer-facing hostel map)
         careBookings: careBookings
           .filter((b) => {
@@ -621,6 +657,86 @@ router.get('/call-sessions', protect, authorize('admin'), async (req, res, next)
       .populate('callee', 'name email')
       .lean();
     res.json({ success: true, data: rows });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Financials — Khalti / shop payment monitoring + receipt data
+router.get('/financials/transactions', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
+    const orders = await Order.find({
+      paymentMethod: 'khalti',
+      paymentStatus: 'paid',
+    })
+      .sort({ updatedAt: -1 })
+      .limit(limit)
+      .populate('user', 'name email phone')
+      .populate('items.product', 'name targetPets')
+      .lean();
+
+    const rows = orders.map((o) => ({
+      id: String(o._id),
+      orderId: String(o._id),
+      date: o.updatedAt || o.createdAt,
+      customerName: o.user?.name || '—',
+      customerEmail: o.user?.email || '',
+      amount: o.totalAmount,
+      status: 'completed',
+      method: 'Khalti',
+      transactionId: o.khaltiTransactionId || '',
+      itemCount: Array.isArray(o.items) ? o.items.length : 0,
+    }));
+
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/financials/receipt/:orderId', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(orderId))) {
+      return res.status(400).json({ success: false, message: 'Invalid order id' });
+    }
+    const order = await Order.findById(orderId)
+      .populate('user', 'name email phone')
+      .populate('items.product', 'name images targetPets')
+      .lean();
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    const items = (order.items || []).map((line) => ({
+      name: line.name || line.product?.name || 'Item',
+      quantity: line.quantity,
+      unitPrice: line.price,
+      lineTotal: (Number(line.price) || 0) * (Number(line.quantity) || 0),
+      productHint: line.product?.targetPets?.length
+        ? `Pets: ${line.product.targetPets.join(', ')}`
+        : '',
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        receiptNo: String(order._id).slice(-8).toUpperCase(),
+        issuedAt: order.updatedAt || order.createdAt,
+        customer: {
+          name: order.user?.name,
+          email: order.user?.email,
+          phone: order.user?.phone,
+        },
+        deliveryAddress: order.deliveryLocation?.address || order.location?.address,
+        paymentMethod: order.paymentMethod || 'khalti',
+        khaltiTransactionId: order.khaltiTransactionId || '',
+        items,
+        totalAmount: order.totalAmount,
+        orderId: String(order._id),
+      },
+    });
   } catch (e) {
     next(e);
   }

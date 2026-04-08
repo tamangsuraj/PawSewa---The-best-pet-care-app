@@ -7,7 +7,11 @@ const paymentLogSchema = new mongoose.Schema(
     amountPaisa: { type: Number },
     status: { type: String, required: true, trim: true },
     purchaseOrderId: { type: String, trim: true },
-    type: { type: String, enum: ['order', 'service', 'care'], default: 'order' },
+    type: {
+      type: String,
+      enum: ['order', 'service', 'care', 'shop_order', 'care_booking', 'subscription'],
+      default: 'order',
+    },
     gateway: { type: String, default: 'khalti' },
     rawPayload: { type: Object, default: {} },
   },

@@ -149,11 +149,19 @@ export default function PastCasesPage() {
       );
       setItems(merged);
     } catch (err: unknown) {
-      const msg =
+      const base =
         err instanceof Error
           ? err.message
           : (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(msg || 'Failed to load past cases');
+      const apiUrl = typeof process !== 'undefined' ? String(process.env.NEXT_PUBLIC_API_URL || '').trim() : '';
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const tunnelBrowse = host.includes('ngrok') || host.includes('vercel.app');
+      const apiPointsLocal = !apiUrl || apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+      const hint =
+        tunnelBrowse && apiPointsLocal
+          ? ' Set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local to your reachable API base and restart the dev server.'
+          : '';
+      setError(`${base || 'Failed to load past cases'}${hint}`);
       setItems([]);
     } finally {
       setLoading(false);

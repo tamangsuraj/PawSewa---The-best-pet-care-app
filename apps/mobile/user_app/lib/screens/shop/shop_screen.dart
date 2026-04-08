@@ -59,6 +59,7 @@ Future<bool> captureHighAccuracyGpsForDelivery(BuildContext context) async {
       lat: position.latitude,
       lng: position.longitude,
       address: address,
+      liveLocationCapturedAt: DateTime.now().toUtc(),
     );
     return true;
   } catch (_) {
@@ -786,7 +787,7 @@ class _ShopScreenState extends State<ShopScreen> {
     final lat = cart.deliveryLat!;
     final lng = cart.deliveryLng!;
     final address = cart.deliveryAddress!;
-    return {
+    final payload = <String, dynamic>{
       'items': cart.items.values
           .map((e) => {'productId': e.productId, 'quantity': e.quantity})
           .toList(),
@@ -800,6 +801,15 @@ class _ShopScreenState extends State<ShopScreen> {
       if (paymentMethod != null && paymentMethod.isNotEmpty)
         'paymentMethod': paymentMethod,
     };
+    final liveAt = cart.liveLocationCapturedAt;
+    if (liveAt != null) {
+      payload['liveLocation'] = {
+        'lat': lat,
+        'lng': lng,
+        'timestamp': liveAt.toIso8601String(),
+      };
+    }
+    return payload;
   }
 
   Future<void> _syncPendingOrderGps(String orderId) async {
@@ -862,7 +872,8 @@ class _ShopScreenState extends State<ShopScreen> {
     }
   }
 
-  /// Create order and initiate Khalti. Returns orderId, paymentUrl, successUrl for in-sheet WebView.
+  /// Deferred Khalti checkout: Payment row first, Order created only after gateway success.
+  /// Returns orderId (legacy), checkoutPaymentId + deferred, paymentUrl, successUrl, pidx.
   Future<Map<String, String>?> _initKhaltiForSheet(double amount) async {
     final cart = context.read<CartService>();
     if (cart.items.isEmpty) return null;
@@ -876,19 +887,37 @@ class _ShopScreenState extends State<ShopScreen> {
           'error': 'Add a delivery address with a map pin before paying.',
         };
       }
-      final orderPayload = _buildShopOrderPayload(cart);
+      final orderPayload = _buildShopOrderPayload(
+        cart,
+        paymentMethod: 'khalti',
+      );
       final createResp = await _apiClient.createOrder(orderPayload);
       final orderData = createResp.data;
-      String? orderId;
+      String? checkoutPaymentId;
+      String? legacyOrderId;
+      var deferred = false;
       if (orderData is Map) {
         final data = orderData['data'];
-        if (data is Map && data['_id'] != null) {
-          orderId = data['_id'].toString();
+        if (data is Map) {
+          if (data['checkoutPaymentId'] != null) {
+            checkoutPaymentId = data['checkoutPaymentId'].toString();
+            deferred = data['deferred'] == true;
+          }
+          if (data['_id'] != null && !deferred) {
+            legacyOrderId = data['_id'].toString();
+          }
         }
       }
-      if (orderId == null || orderId.isEmpty) return null;
 
-      final initResp = await _apiClient.initiateKhaltiForOrder(orderId);
+      late final Response<dynamic> initResp;
+      if (checkoutPaymentId != null && checkoutPaymentId.isNotEmpty) {
+        initResp = await _apiClient.initiateKhaltiShopCheckout(checkoutPaymentId);
+      } else if (legacyOrderId != null && legacyOrderId.isNotEmpty) {
+        initResp = await _apiClient.initiateKhaltiForOrder(legacyOrderId);
+      } else {
+        return null;
+      }
+
       final initData = initResp.data;
       String? paymentUrl;
       String? successUrl;
@@ -906,7 +935,8 @@ class _ShopScreenState extends State<ShopScreen> {
         successUrl = 'payment-success';
       }
       return {
-        'orderId': orderId,
+        if (legacyOrderId != null && legacyOrderId.isNotEmpty) 'orderId': legacyOrderId,
+        if (deferred) 'deferred': '1',
         'paymentUrl': paymentUrl,
         'successUrl': successUrl,
         if (pidx != null && pidx.isNotEmpty) 'pidx': pidx,
@@ -4188,6 +4218,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   String _phase =
       'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'khalti_verifying' | 'confirm_order'
   String? _khaltiOrderId;
+  /// True when Order is created only after Khalti success (skip GPS PATCH until verified).
+  bool _khaltiDeferredCheckout = false;
   String? _khaltiPidx;
   String? _khaltiPaymentUrl;
   String? _khaltiSuccessUrl;
@@ -4291,6 +4323,20 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             onNavigationRequest: (request) {
               final url = request.url;
               final uri = Uri.tryParse(url);
+              if (uri != null && uri.scheme == 'pawsewa') {
+                if (uri.host == 'payment-success') {
+                  final qp = uri.queryParameters['pidx'];
+                  if (qp != null && qp.isNotEmpty) {
+                    _khaltiPidx = qp;
+                  }
+                  if (mounted) unawaited(_onKhaltiPaymentSuccess(qp));
+                  return NavigationDecision.prevent;
+                }
+                if (uri.host == 'payment-failed') {
+                  if (mounted) _onKhaltiPaymentCancel();
+                  return NavigationDecision.prevent;
+                }
+              }
               final qp = uri?.queryParameters['pidx'];
               if (qp != null && qp.isNotEmpty) {
                 _khaltiPidx = qp;
@@ -4311,6 +4357,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       if (!mounted) return;
       setState(() {
         _phase = 'khalti_pay';
+        _khaltiDeferredCheckout = result['deferred'] == '1';
         _khaltiOrderId = result['orderId'];
         _khaltiPidx = result['pidx'];
         _khaltiPaymentUrl = paymentUrl;
@@ -4336,15 +4383,27 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         ? pidxFromUrl
         : _khaltiPidx;
     setState(() => _phase = 'khalti_verifying');
-    final ok = await verifyKhaltiPaymentWithRetries(
+    final verified = await verifyKhaltiPaymentWithRetriesAndOrderId(
       context,
       ApiClient(),
       pidx,
       maxAttempts: 5,
     );
+    final ok = verified.$1;
+    var id = _khaltiOrderId;
+    var deferred = _khaltiDeferredCheckout;
+    if (verified.$2 != null && verified.$2!.isNotEmpty) {
+      id = verified.$2;
+      deferred = false;
+      if (mounted) {
+        setState(() {
+          _khaltiOrderId = verified.$2;
+          _khaltiDeferredCheckout = false;
+        });
+      }
+    }
     await widget.refreshDeliveryGps();
-    final id = _khaltiOrderId;
-    if (id != null) {
+    if (id != null && id.isNotEmpty && !deferred) {
       await widget.syncPendingOrderGps(id);
     }
     if (!mounted) return;
@@ -4363,6 +4422,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     setState(() {
       _phase = 'select';
       _khaltiOrderId = null;
+      _khaltiDeferredCheckout = false;
       _khaltiPidx = null;
       _khaltiPaymentUrl = null;
       _khaltiSuccessUrl = null;

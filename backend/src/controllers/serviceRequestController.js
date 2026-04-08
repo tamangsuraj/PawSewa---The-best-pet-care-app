@@ -128,6 +128,28 @@ const createServiceRequest = asyncHandler(async (req, res) => {
       coordinates: { lat, lng },
     };
 
+    const liveRaw = body.liveLocation ?? body.live_location;
+    let liveLocationDoc;
+    if (liveRaw && typeof liveRaw === 'object') {
+      const llat = Number(liveRaw.lat);
+      const llng = Number(liveRaw.lng);
+      if (
+        Number.isFinite(llat) &&
+        Number.isFinite(llng) &&
+        llat >= -90 &&
+        llat <= 90 &&
+        llng >= -180 &&
+        llng <= 180
+      ) {
+        const t = liveRaw.timestamp != null ? new Date(liveRaw.timestamp) : new Date();
+        liveLocationDoc = {
+          lat: llat,
+          lng: llng,
+          timestamp: Number.isNaN(t.getTime()) ? new Date() : t,
+        };
+      }
+    }
+
     // Verify pet belongs to user (petId may be string; Mongoose accepts it)
     let pet;
     try {
@@ -169,6 +191,9 @@ const createServiceRequest = asyncHandler(async (req, res) => {
       status: SERVICE_REQUEST_STATUS.PENDING,
       paymentMethod,
     };
+    if (liveLocationDoc) {
+      createPayload.liveLocation = liveLocationDoc;
+    }
     if (notes != null && notes !== '') {
       createPayload.notes = String(notes);
     }

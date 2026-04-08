@@ -302,8 +302,17 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       BuildContext context, Map<String, dynamic> order) async {
     double? lat;
     double? lng;
+    final live = order['liveLocation'] as Map<String, dynamic>?;
+    if (live != null) {
+      final la = live['lat'];
+      final ln = live['lng'];
+      if (la is num && ln is num) {
+        lat = la.toDouble();
+        lng = ln.toDouble();
+      }
+    }
     final loc = order['location'] as Map<String, dynamic>?;
-    if (loc != null) {
+    if ((lat == null || lng == null) && loc != null) {
       final la = loc['lat'];
       final ln = loc['lng'];
       if (la is num && ln is num) {

@@ -20,12 +20,14 @@ class CartService extends ChangeNotifier {
   double? _deliveryLng;
   String? _deliveryAddress;
   String? _deliveryNotes;
+  DateTime? _liveLocationCapturedAt;
 
   Map<String, CartItem> get items => _items;
   double? get deliveryLat => _deliveryLat;
   double? get deliveryLng => _deliveryLng;
   String? get deliveryAddress => _deliveryAddress;
   String? get deliveryNotes => _deliveryNotes;
+  DateTime? get liveLocationCapturedAt => _liveLocationCapturedAt;
 
   void addItem({
     required String productId,
@@ -63,10 +65,12 @@ class CartService extends ChangeNotifier {
     required double lat,
     required double lng,
     required String address,
+    DateTime? liveLocationCapturedAt,
   }) {
     _deliveryLat = lat;
     _deliveryLng = lng;
     _deliveryAddress = address;
+    _liveLocationCapturedAt = liveLocationCapturedAt;
     notifyListeners();
   }
 

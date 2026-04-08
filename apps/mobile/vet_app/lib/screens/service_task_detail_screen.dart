@@ -41,9 +41,17 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   Future<void> _initLocations() async {
+    final live = widget.task['liveLocation'] as Map<String, dynamic>?;
+    if (live != null) {
+      final la = live['lat'] as num?;
+      final ln = live['lng'] as num?;
+      if (la != null && ln != null) {
+        _customerLocation = LatLng(la.toDouble(), ln.toDouble());
+      }
+    }
     final lat = widget.task['latitude'] as num?;
     final lng = widget.task['longitude'] as num?;
-    if (lat != null && lng != null) {
+    if (_customerLocation == null && lat != null && lng != null) {
       _customerLocation = LatLng(lat.toDouble(), lng.toDouble());
     }
     if (_customerLocation == null) {
@@ -92,8 +100,11 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   Future<void> _navigateToCustomer() async {
-    final lat = widget.task['latitude'] as num?;
-    final lng = widget.task['longitude'] as num?;
+    final live = widget.task['liveLocation'] as Map<String, dynamic>?;
+    num? lat = live?['lat'] as num?;
+    num? lng = live?['lng'] as num?;
+    lat ??= widget.task['latitude'] as num?;
+    lng ??= widget.task['longitude'] as num?;
     final addressString = widget.task['location'] is String
         ? widget.task['location'] as String
         : (widget.task['address_string'] as String?);

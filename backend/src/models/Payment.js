@@ -33,7 +33,7 @@ const paymentSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['service', 'care', 'care_booking', 'subscription'],
+      enum: ['service', 'care', 'care_booking', 'subscription', 'shop_order'],
       required: true,
     },
     amount: {

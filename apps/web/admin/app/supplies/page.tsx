@@ -701,7 +701,6 @@ export default function LiveSuppliesPage() {
     };
     const onPaid = (payload: { order?: Order }) => {
       if (payload?.order) mergeOrder(payload.order);
-      toast.success('Order payment received');
       void loadOrders();
     };
     const onSellerOk = (payload: { order?: Order }) => {

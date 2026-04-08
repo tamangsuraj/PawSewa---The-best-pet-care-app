@@ -32,6 +32,15 @@ async function broadcastShopOrder(orderId, kind = 'update') {
   }
   if (kind === 'paid') {
     io.to('admin_room').emit('order:paid', payload);
+    const uid = order.user?._id?.toString() || String(order.user || '');
+    io.to('admin_room').emit('admin:payment_received', {
+      message: 'New payment received',
+      orderId: String(orderId),
+      amount: order.totalAmount,
+      gateway: order.paymentMethod || 'khalti',
+      customerId: uid,
+      transactionId: order.khaltiTransactionId || null,
+    });
   }
 
   if (kind === 'assign_rider' && order.assignedRider) {

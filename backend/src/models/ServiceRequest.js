@@ -59,6 +59,11 @@ const serviceRequestSchema = new mongoose.Schema(
         },
       },
     },
+    liveLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      timestamp: { type: Date },
+    },
     notes: {
       type: String,
       trim: true,

@@ -63,6 +63,7 @@ interface RequestRow {
   status?: string;
   serviceType?: string;
   coordinates?: { lat: number; lng: number };
+  liveGps?: boolean;
 }
 
 interface CareRow {
@@ -77,6 +78,7 @@ interface OrderPin {
   status?: string;
   assignmentStatus?: string;
   coordinates?: { lat: number; lng: number };
+  liveGps?: boolean;
 }
 
 interface CareBookingPin {
@@ -212,11 +214,24 @@ export default function LiveMapBoard() {
         setErr('Invalid response');
       }
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to load live map';
+      const ax = e as { response?: { data?: { message?: string } }; message?: string };
+      const base =
+        ax.response?.data?.message ||
+        ax.message ||
+        'Failed to load live map';
+      const apiUrl = String(process.env.NEXT_PUBLIC_API_URL || '').trim();
+      const host = typeof window !== 'undefined' ? window.location.hostname : '';
+      const tunnelBrowse = host.includes('ngrok') || host.includes('vercel.app');
+      const apiPointsLocal = !apiUrl || apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+      const hint =
+        tunnelBrowse && apiPointsLocal
+          ? ' If you opened the admin via a public URL, set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local to that same backend (ngrok or deployed API + /api/v1) and restart npm run dev.'
+          : !apiUrl
+            ? ' Set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local (e.g. http://localhost:3000/api/v1 or your ngrok URL).'
+            : '';
+      const msg = `${base}${hint}`;
       setErr(msg);
-      toast.error(msg);
+      toast.error(msg, { duration: 9000 });
     } finally {
       setLoading(false);
     }
@@ -525,6 +540,11 @@ export default function LiveMapBoard() {
                   <Popup>
                     <div className="text-sm max-w-[200px]">
                       <p className="font-semibold">Service request</p>
+                      {r.liveGps ? (
+                        <p className="text-primary text-xs font-semibold">
+                          Live GPS pin
+                        </p>
+                      ) : null}
                       <p>{r.serviceType ?? '—'}</p>
                       <p className="text-gray-600 text-xs">
                         {statusLabel(r.status)}
@@ -585,6 +605,11 @@ export default function LiveMapBoard() {
                   <Popup>
                     <div className="text-sm max-w-[200px]">
                       <p className="font-semibold">Product delivery</p>
+                      {o.liveGps ? (
+                        <p className="text-primary text-xs font-semibold">
+                          Live GPS pin
+                        </p>
+                      ) : null}
                       <p className="text-gray-600 text-xs">
                         {statusLabel(o.status)}
                       </p>

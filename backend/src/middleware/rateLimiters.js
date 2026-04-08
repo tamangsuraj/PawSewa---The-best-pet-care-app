@@ -10,6 +10,11 @@ const generalApiLimiter = rateLimit({
   legacyHeaders: false,
   skip: (req) => {
     const p = req.path || '';
+    const url = req.originalUrl || req.url || '';
+    // Khalti redirects the customer's browser here; do not throttle gateway return traffic.
+    if (p.includes('khalti/callback') || url.includes('/payments/khalti/callback')) {
+      return true;
+    }
     // Under app.use('/api/v1', limiter), path is relative (e.g. /admin/care-bookings, /cases, /service-requests).
     // Skip admin routes and case/service-request routes when accessed by admin
     return p.startsWith('/admin') || p.startsWith('/cases') || p.startsWith('/service-requests');

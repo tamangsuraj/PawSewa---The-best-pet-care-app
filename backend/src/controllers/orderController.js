@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Payment = require('../models/Payment');
 const logger = require('../utils/logger');
 const Notification = require('../models/Notification');
 const { broadcastShopOrder } = require('../services/orderSocketNotify');
@@ -56,6 +57,21 @@ function parseOrderGps(body) {
   return { lat, lng, address, coordinates: [lng, lat] };
 }
 
+function parseOrderLiveLocation(body) {
+  const ll = body?.liveLocation;
+  if (!ll || typeof ll !== 'object') return null;
+  const lat = Number(ll.lat);
+  const lng = Number(ll.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  const ts = ll.timestamp != null ? new Date(ll.timestamp) : new Date();
+  return {
+    lat,
+    lng,
+    timestamp: Number.isNaN(ts.getTime()) ? new Date() : ts,
+  };
+}
+
 // POST /api/v1/orders
 // Body: { items, deliveryLocation: { address, coordinates: [lng, lat] }, location?: { lat, lng, address } }
 const createOrder = asyncHandler(async (req, res) => {
@@ -81,6 +97,7 @@ const createOrder = asyncHandler(async (req, res) => {
     });
   }
   const { address, coordinates, lat, lng } = parsed;
+  const liveLoc = parseOrderLiveLocation(req.body);
 
   const notes = typeof deliveryNotes === 'string' ? deliveryNotes.trim().slice(0, 500) : null;
 
@@ -128,8 +145,60 @@ const createOrder = asyncHandler(async (req, res) => {
 
   const payMethod = typeof paymentMethod === 'string' && paymentMethod.trim() ? paymentMethod.trim().toLowerCase() : null;
   const isCodOrFonepay = payMethod && ['cod', 'cash_on_delivery', 'fonepay', 'cash on delivery'].includes(payMethod);
+  const isKhaltiDeferred = payMethod === 'khalti' || payMethod === 'khalti_epay';
 
-  const order = await Order.create({
+  /** Khalti: hold a Payment + draft only; Order is created after gateway verification (atomic). */
+  if (isKhaltiDeferred) {
+    const draft = {
+      customerId: userId,
+      assignedSeller: primarySeller,
+      shopId: primarySeller,
+      items: orderItems,
+      totalAmount: total,
+      deliveryLocation: {
+        address,
+        point: {
+          type: 'Point',
+          coordinates,
+        },
+      },
+      location: {
+        lat,
+        lng,
+        address,
+      },
+      deliveryNotes: notes || undefined,
+    };
+    if (liveLoc) {
+      draft.liveLocation = {
+        lat: liveLoc.lat,
+        lng: liveLoc.lng,
+        timestamp: liveLoc.timestamp,
+      };
+    }
+    const checkoutPayment = await Payment.create({
+      user: userId,
+      targetType: 'shop_order',
+      amount: total,
+      currency: 'NPR',
+      gateway: 'khalti',
+      status: 'pending',
+      metadata: {
+        draft,
+      },
+    });
+    logger.info(`Shop Khalti checkout created: payment=${checkoutPayment._id} (order deferred)`);
+    return res.status(201).json({
+      success: true,
+      data: {
+        checkoutPaymentId: checkoutPayment._id,
+        amount: total,
+        deferred: true,
+      },
+    });
+  }
+
+  const orderPayload = {
     user: userId,
     customerId: userId,
     assignedSeller: primarySeller,
@@ -152,7 +221,11 @@ const createOrder = asyncHandler(async (req, res) => {
     paymentMethod: isCodOrFonepay ? (payMethod === 'fonepay' ? 'fonepay' : 'cod') : undefined,
     status: 'pending_confirmation',
     paymentStatus: isCodOrFonepay ? 'unpaid' : 'unpaid',
-  });
+  };
+  if (liveLoc) {
+    orderPayload.liveLocation = liveLoc;
+  }
+  const order = await Order.create(orderPayload);
 
   logger.info(`Order ${order._id}: GPS Coordinates captured (Lat: ${lat}, Lng: ${lng}).`);
   logger.success('[SUCCESS] GPS Order Logged', String(order._id), `lat=${lat}`, `lng=${lng}`);
@@ -770,7 +843,12 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
   }
 
   const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
-  const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+  const cbMode = String(req.body?.callbackMode || process.env.KHALTI_CALLBACK_REDIRECT || 'app')
+    .toLowerCase()
+    .trim();
+  const ru = new URL(`${baseUrl.replace(/\/$/, '')}/api/v1/payments/khalti/callback`);
+  ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
+  const returnUrl = ru.toString();
 
   const payload = {
     return_url: returnUrl,
@@ -820,6 +898,109 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
 });
 
 /**
+ * POST /api/v1/orders/checkout/khalti/initiate
+ * Body: { checkoutPaymentId } — deferred shop checkout (Payment targetType shop_order).
+ */
+const initiateKhaltiForShopCheckout = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Khalti is not configured. Set KHALTI_SECRET_KEY and KHALTI_BASE_URL.',
+    });
+  }
+
+  const checkoutPaymentId = (req.body?.checkoutPaymentId || '').toString().trim();
+  if (!checkoutPaymentId) {
+    return res.status(400).json({ success: false, message: 'checkoutPaymentId is required' });
+  }
+
+  const payment = await Payment.findOne({
+    _id: checkoutPaymentId,
+    user: userId,
+    targetType: 'shop_order',
+    status: 'pending',
+  }).populate('user', 'name email phone');
+
+  if (!payment) {
+    return res.status(404).json({
+      success: false,
+      message: 'Checkout session not found or already used',
+    });
+  }
+
+  const amountNpr = Number(payment.amount) || 0;
+  if (amountNpr < 0.1) {
+    return res.status(400).json({ success: false, message: 'Invalid checkout amount' });
+  }
+  const amountPaisa = nprToPaisa(amountNpr);
+  if (amountPaisa < 1000) {
+    return res.status(400).json({
+      success: false,
+      message: 'Amount should be greater than Rs. 10 (1000 paisa)',
+    });
+  }
+
+  const u = payment.user;
+  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const cbMode = String(req.body?.callbackMode || process.env.KHALTI_CALLBACK_REDIRECT || 'app')
+    .toLowerCase()
+    .trim();
+  const ru = new URL(`${baseUrl.replace(/\/$/, '')}/api/v1/payments/khalti/callback`);
+  ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
+  const returnUrl = ru.toString();
+
+  const payload = {
+    return_url: returnUrl,
+    website_url: baseUrl,
+    amount: amountPaisa,
+    purchase_order_id: String(payment._id),
+    purchase_order_name: `PawSewa Checkout #${String(payment._id).slice(-6)}`,
+    customer_info: {
+      name: (u && u.name) || 'Customer',
+      email: (u && u.email) || '',
+      phone: (u && u.phone) || '',
+    },
+  };
+
+  const resp = await axios.post(`${KHALTI_BASE_URL}/epayment/initiate/`, payload, {
+    headers: {
+      Authorization: `Key ${KHALTI_SECRET_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const { pidx, payment_url } = resp.data || {};
+  if (!pidx || !payment_url) {
+    return res.status(502).json({
+      success: false,
+      message: 'Khalti did not return pidx or payment_url',
+    });
+  }
+
+  payment.gatewayTransactionId = pidx;
+  payment.rawGatewayPayload = resp.data || {};
+  await payment.save();
+
+  const successUrl = `${baseUrl}/api/v1/payments/payment-success`;
+
+  res.json({
+    success: true,
+    data: {
+      pidx,
+      paymentUrl: payment_url,
+      successUrl,
+      publicKey: KHALTI_PUBLIC_KEY || undefined,
+      amount: amountNpr,
+      checkoutPaymentId: String(payment._id),
+    },
+  });
+});
+
+/**
  * PATCH /api/v1/orders/:orderId/delivery-gps
  * Owner only: refresh drop pin while order is still pending (e.g. after Khalti WebView, before final confirm).
  */
@@ -860,6 +1041,11 @@ const updateMyOrderDeliveryGps = asyncHandler(async (req, res) => {
     lat: latN,
     lng: lngN,
     address: order.deliveryLocation.address,
+  };
+  order.liveLocation = {
+    lat: latN,
+    lng: lngN,
+    timestamp: new Date(),
   };
   await order.save();
 
@@ -1138,6 +1324,7 @@ module.exports = {
   getSellerShopAnalytics,
   bulkAssignOrders,
   initiateKhaltiForOrder,
+  initiateKhaltiForShopCheckout,
   updateMyOrderDeliveryGps,
 };
 

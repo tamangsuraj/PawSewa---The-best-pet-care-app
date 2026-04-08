@@ -61,6 +61,16 @@ export const initiatePayment = (data: {
 export const initiateKhaltiForOrder = (orderId: string) =>
   api.post(`/orders/${orderId}/khalti/initiate`);
 
+/** Deferred checkout: `checkoutPaymentId` from POST /orders with paymentMethod khalti. */
+export const initiateKhaltiShopCheckout = (
+  checkoutPaymentId: string,
+  callbackMode: 'web' | 'app' = 'web',
+) =>
+  api.post('/orders/checkout/khalti/initiate', {
+    checkoutPaymentId,
+    callbackMode,
+  });
+
 // Verify payment with pidx
 export const verifyPayment = (pidx: string) =>
   api.post('/payments/verify-payment', { pidx });

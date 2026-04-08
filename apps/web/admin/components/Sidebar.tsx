@@ -107,6 +107,7 @@ const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ cl
   { name: 'Riders', href: '/riders', icon: Bike },
   { name: 'Promocodes', href: '/promocodes', icon: Tag },
   { name: 'Transactions', href: '/transactions', icon: CreditCard },
+  { name: 'Financials', href: '/financials', icon: DollarSign },
   { name: 'Payment Logs', href: '/payment-logs', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

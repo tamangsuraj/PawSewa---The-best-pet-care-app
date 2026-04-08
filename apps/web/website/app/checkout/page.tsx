@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { createOrder, initiateKhaltiForOrder } from '@/lib/api';
+import { createOrder, initiateKhaltiShopCheckout } from '@/lib/api';
 import {
   buildDeliveryNotes,
   checkoutDetailsSchema,
@@ -155,13 +155,18 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       if (payment === 'khalti') {
-        const orderResp = await createOrder(payloadBase);
+        const orderResp = await createOrder({
+          ...payloadBase,
+          paymentMethod: 'khalti',
+        });
         const orderData = orderResp.data?.data;
-        const orderId = orderData?._id ? String(orderData._id) : '';
-        if (!orderId) {
-          throw new Error('Server did not return order ID. Please try again.');
+        const checkoutId = orderData?.checkoutPaymentId
+          ? String(orderData.checkoutPaymentId)
+          : '';
+        if (!checkoutId) {
+          throw new Error('Server did not return checkout session. Please try again.');
         }
-        const khaltiResp = await initiateKhaltiForOrder(orderId);
+        const khaltiResp = await initiateKhaltiShopCheckout(checkoutId, 'web');
         const payUrl = khaltiResp.data?.data?.paymentUrl as string | undefined;
         if (!payUrl) {
           throw new Error('Could not get Khalti payment URL. Please try again.');

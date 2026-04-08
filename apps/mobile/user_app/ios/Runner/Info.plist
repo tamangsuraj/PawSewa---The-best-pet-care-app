@@ -54,6 +54,14 @@
 					<string>com.googleusercontent.apps.188502859936-h3p7j0sjua98d4j615b58m4lmt0pfj0g</string>
 				</array>
 			</dict>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>com.pawsewa.user.payment</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>pawsewa</string>
+				</array>
+			</dict>
 		</array>
 		<key>GIDClientID</key>
 		<string>188502859936-h3p7j0sjua98d4j615b58m4lmt0pfj0g.apps.googleusercontent.com</string>
@@ -63,7 +71,7 @@
 			<string>remote-notification</string>
 		</array>
 		<key>NSLocationWhenInUseUsageDescription</key>
-		<string>PawSewa uses your precise location at checkout so riders can navigate to your door.</string>
+		<string>PawSewa needs your location to send a rider or vet exactly to your door.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>PawSewa uses the microphone for voice and video calls with your vet.</string>
 		<key>NSCameraUsageDescription</key>

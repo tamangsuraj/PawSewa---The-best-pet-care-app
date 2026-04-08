@@ -13,6 +13,7 @@ const Order = require('../models/Order');
 const PaymentLog = require('../models/PaymentLog');
 const logger = require('../utils/logger');
 const { broadcastShopOrder } = require('../services/orderSocketNotify');
+const { finalizeShopCheckoutPayment } = require('../services/shopCheckoutKhalti');
 const {
   KHALTI_BASE_URL,
   KHALTI_SECRET_KEY,
@@ -385,6 +386,12 @@ const verifyKhalti = asyncHandler(async (req, res) => {
   payment.rawGatewayPayload = resp.data || {};
 
   if (status === 'Completed') {
+    if (payment.targetType === 'shop_order') {
+      const txnId =
+        resp.data?.transaction_id || resp.data?.idx || resp.data?.pidx || pidx;
+      await finalizeShopCheckoutPayment(payment, txnId, resp.data || {});
+      return res.json({ success: true, message: 'Payment completed' });
+    }
     await markPaymentCompleted({ paymentId: payment._id });
     return res.json({ success: true, message: 'Payment completed' });
   }
@@ -403,12 +410,45 @@ const verifyKhalti = asyncHandler(async (req, res) => {
  * We lookup pidx; if Completed and purchase_order_id is an order ID, mark order as paid.
  * Then redirect to success page or app deep link.
  */
+function buildKhaltiAppSuccessRedirect(pidx, orderIdForClient, khaltiTxnId) {
+  const base = (process.env.KHALTI_APP_SUCCESS_URL || 'pawsewa://payment-success').trim();
+  const params = new URLSearchParams();
+  if (pidx) params.set('pidx', String(pidx));
+  if (orderIdForClient) params.set('orderId', String(orderIdForClient));
+  if (khaltiTxnId) params.set('idx', String(khaltiTxnId));
+  const qs = params.toString();
+  if (!base.includes('://')) {
+    return qs ? `pawsewa://payment-success?${qs}` : 'pawsewa://payment-success';
+  }
+  const sep = base.includes('?') ? '&' : '?';
+  return qs ? `${base}${sep}${qs}` : base;
+}
+
+function buildKhaltiAppFailRedirect(reason) {
+  const base = (process.env.KHALTI_APP_FAIL_URL || 'pawsewa://payment-failed').trim();
+  const q = new URLSearchParams({ reason: reason || 'unknown' });
+  if (!base.includes('://')) {
+    return `pawsewa://payment-failed?${q.toString()}`;
+  }
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}${q.toString()}`;
+}
+
 const khaltiCallback = asyncHandler(async (req, res) => {
   const { pidx, status: callbackStatus, purchase_order_id: purchaseOrderId } = req.query || {};
   if (!pidx) {
-    return res.redirect(
-      process.env.KHALTI_FAIL_REDIRECT || `${process.env.BASE_URL || 'http://localhost:3000'}/payment-failed?reason=missing_pidx`
-    );
+    const fail = process.env.KHALTI_FAIL_REDIRECT || `${process.env.BASE_URL || 'http://localhost:3000'}/payment-failed?reason=missing_pidx`;
+    const cbQ0 = ((req.query && req.query.cb) || '').toString().toLowerCase();
+    const app0 =
+      cbQ0 === 'web'
+        ? false
+        : cbQ0 === 'app'
+          ? true
+          : String(process.env.KHALTI_CALLBACK_REDIRECT || 'app').toLowerCase() === 'app';
+    if (app0) {
+      return res.redirect(302, buildKhaltiAppFailRedirect('missing_pidx'));
+    }
+    return res.redirect(fail);
   }
 
   let lookupStatus = callbackStatus;
@@ -432,26 +472,52 @@ const khaltiCallback = asyncHandler(async (req, res) => {
 
   const amountPaisa = lookupData.amount != null ? Number(lookupData.amount) : 0;
   const amount = amountPaisa / 100;
+  const txnId =
+    lookupData.transaction_id || lookupData.idx || lookupData.pidx || pidx;
 
   const base = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
   const successRedirect =
     process.env.KHALTI_SUCCESS_REDIRECT || `${base}/api/v1/payments/payment-success`;
   const failRedirect =
     process.env.KHALTI_FAIL_REDIRECT || `${base}/api/v1/payments/payment-failed`;
+  const cbQ = ((req.query && req.query.cb) || '').toString().toLowerCase();
+  const useAppRedirect =
+    cbQ === 'web'
+      ? false
+      : cbQ === 'app'
+        ? true
+        : String(process.env.KHALTI_CALLBACK_REDIRECT || 'app').toLowerCase() === 'app';
 
   let logType = 'order';
+  /** Real shop Order id after finalize (for deferred checkout), else legacy order id */
+  let resolvedShopOrderId = '';
+
   if (lookupStatus === 'Completed' && purchaseOrderId) {
     const order = await Order.findById(purchaseOrderId);
-    if (order && order.paymentStatus !== 'paid') {
-      order.paymentStatus = 'paid';
-      order.paymentMethod = 'khalti';
-      await order.save();
-      await broadcastShopOrder(purchaseOrderId, 'paid');
-    }
-    const payment = await Payment.findById(purchaseOrderId);
-    if (payment && payment.status !== 'completed') {
-      await markPaymentCompleted({ paymentId: payment._id });
-      logType = payment.targetType || 'service';
+    if (order) {
+      logType = 'order';
+      if (order.paymentStatus !== 'paid') {
+        order.paymentStatus = 'paid';
+        order.paymentMethod = 'khalti';
+        order.khaltiTransactionId = txnId ? String(txnId) : order.khaltiTransactionId;
+        await order.save();
+        await broadcastShopOrder(purchaseOrderId, 'paid');
+      }
+      resolvedShopOrderId = String(order._id);
+    } else {
+      const payment = await Payment.findById(purchaseOrderId);
+      if (payment && payment.targetType === 'shop_order' && payment.status !== 'completed') {
+        try {
+          const created = await finalizeShopCheckoutPayment(payment, txnId, lookupData);
+          logType = 'shop_order';
+          resolvedShopOrderId = created ? String(created._id) : '';
+        } catch (e) {
+          console.error('[Khalti callback] finalize shop checkout failed:', e?.message || e);
+        }
+      } else if (payment && payment.status !== 'completed') {
+        await markPaymentCompleted({ paymentId: payment._id });
+        logType = payment.targetType || 'service';
+      }
     }
   }
 
@@ -467,7 +533,11 @@ const khaltiCallback = asyncHandler(async (req, res) => {
   }).catch((e) => console.error('[Khalti callback] PaymentLog create failed:', e.message));
 
   if (lookupStatus === 'Completed') {
-    const orderId = purchaseOrderId || '';
+    if (useAppRedirect) {
+      const oid = resolvedShopOrderId || (purchaseOrderId && logType === 'order' ? String(purchaseOrderId) : '');
+      return res.redirect(302, buildKhaltiAppSuccessRedirect(pidx, oid, txnId));
+    }
+    const orderId = resolvedShopOrderId || purchaseOrderId || '';
     const q = new URLSearchParams();
     if (orderId) q.set('orderId', String(orderId));
     if (pidx) q.set('pidx', String(pidx));
@@ -476,6 +546,9 @@ const khaltiCallback = asyncHandler(async (req, res) => {
   }
 
   const friendlyReason = getPaymentFailureMessage(lookupStatus || 'unknown');
+  if (useAppRedirect) {
+    return res.redirect(302, buildKhaltiAppFailRedirect(friendlyReason));
+  }
   return res.redirect(`${failRedirect}?reason=${encodeURIComponent(friendlyReason)}`);
 });
 
@@ -896,13 +969,39 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
 
   const status = (lookupResp.data?.status || '').trim();
   const purchaseOrderId = lookupResp.data?.purchase_order_id;
+  const lookupPayload = lookupResp.data || {};
+  const txnId =
+    lookupPayload.transaction_id || lookupPayload.idx || lookupPayload.pidx || pidx;
 
   if (status === 'Completed') {
     if (purchaseOrderId) {
+      const payShop = await Payment.findById(purchaseOrderId);
+      if (payShop && payShop.targetType === 'shop_order') {
+        if (payShop.status === 'completed' && payShop.metadata?.orderId) {
+          return res.json({
+            success: true,
+            message: 'Payment already recorded',
+            orderId: payShop.metadata.orderId,
+            status: 'Completed',
+          });
+        }
+        if (payShop.status !== 'completed') {
+          const created = await finalizeShopCheckoutPayment(payShop, txnId, lookupPayload);
+          console.log(`[${ts}] [INFO] Shop checkout finalized ${purchaseOrderId} → order ${created._id}`);
+          return res.json({
+            success: true,
+            message: 'Payment completed',
+            orderId: created._id,
+            status: 'Completed',
+          });
+        }
+      }
+
       const order = await Order.findById(purchaseOrderId);
       if (order && order.paymentStatus !== 'paid') {
         order.paymentStatus = 'paid';
         order.paymentMethod = 'khalti';
+        order.khaltiTransactionId = txnId ? String(txnId) : order.khaltiTransactionId;
         await order.save();
         await broadcastShopOrder(purchaseOrderId, 'paid');
         console.log(`[${ts}] [INFO] Order ${purchaseOrderId} marked as paid (PIDX: ${pidx})`);
@@ -914,7 +1013,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
         });
       }
       const payment = await Payment.findById(purchaseOrderId);
-      if (payment && payment.status !== 'completed') {
+      if (payment && payment.status !== 'completed' && payment.targetType !== 'shop_order') {
         await markPaymentCompleted({ paymentId: payment._id });
         console.log(`[${ts}] [INFO] Payment ${purchaseOrderId} marked as completed (PIDX: ${pidx})`);
         return res.json({
@@ -1004,7 +1103,28 @@ const verifyPayment = asyncHandler(async (req, res) => {
     null;
 
   if (status === 'Completed' && purchaseOrderId) {
-    // First, try to treat purchase_order_id as an Order (shop order flow).
+    const payDoc = await Payment.findById(purchaseOrderId);
+    if (payDoc && payDoc.targetType === 'shop_order') {
+      if (payDoc.status === 'completed' && payDoc.metadata?.orderId) {
+        return res.json({
+          success: true,
+          message: 'Payment already recorded',
+          orderId: payDoc.metadata.orderId,
+          transactionId,
+        });
+      }
+      if (payDoc.status !== 'completed') {
+        const created = await finalizeShopCheckoutPayment(payDoc, transactionId, lookupData);
+        return res.json({
+          success: true,
+          message: 'Payment completed',
+          orderId: created._id,
+          transactionId,
+        });
+      }
+    }
+
+    // Legacy: purchase_order_id is an existing Order (shop order created before payment).
     const order = await Order.findById(purchaseOrderId);
     if (order && order.paymentStatus !== 'paid') {
       logger.info(`Khalti: Initiating verification for Order ${order._id}.`);

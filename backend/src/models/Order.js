@@ -76,6 +76,12 @@ const orderSchema = new mongoose.Schema(
       lng: { type: Number },
       address: { type: String, trim: true },
     },
+    /** Exact device GPS lock at checkout (survives Khalti draft metadata). */
+    liveLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      timestamp: { type: Date },
+    },
     status: {
       type: String,
       enum: [

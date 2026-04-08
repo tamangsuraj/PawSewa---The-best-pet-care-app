@@ -7,3 +7,16 @@ String vetDirectRtcChannel(String ownerId, String vetId) {
   }
   return s.isEmpty ? 'pawsewa_vd' : s;
 }
+
+String marketplaceRtcChannel(String conversationId) {
+  final ts = DateTime.now().millisecondsSinceEpoch.toString();
+  var s = 'mp_${conversationId}_$ts'.replaceAll(RegExp(r'[^a-zA-Z0-9 _.\-:@#+]'), '_');
+  if (s.length > 64) {
+    // Keep the time suffix to reduce collision risk.
+    final suffix = '_$ts';
+    final keep = (64 - suffix.length).clamp(1, 64);
+    s = s.substring(0, keep) + suffix;
+    if (s.length > 64) s = s.substring(0, 64);
+  }
+  return s.isEmpty ? 'pawsewa_mp' : s;
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,6 +9,7 @@ import 'package:dio/dio.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../services/geocoding_service.dart';
 
 class BookServiceScreen extends StatefulWidget {
   /// If set, this pet is pre-selected when the screen loads (e.g. from Pet Details "Book Vet Visit").
@@ -31,6 +33,8 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isConfirmingLocation = false;
+  bool _gpsFetching = false;
+  DateTime? _serviceLiveGpsAt;
 
   String? _selectedPetId;
   String? _selectedServiceType;
@@ -150,7 +154,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           ? _confirmedAddress!
           : '${_confirmedAddress!}\nDetails: $extraLocationDetails';
 
-      final response = await _apiClient.createServiceRequest({
+      final payload = <String, dynamic>{
         'petId': _selectedPetId,
         'serviceType': _selectedServiceType,
         'preferredDate': DateFormat('yyyy-MM-dd').format(_selectedDate!),
@@ -166,7 +170,16 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
             'lng': _confirmedLatLng!.longitude,
           },
         },
-      });
+      };
+      if (_serviceLiveGpsAt != null) {
+        payload['liveLocation'] = {
+          'lat': _confirmedLatLng!.latitude,
+          'lng': _confirmedLatLng!.longitude,
+          'timestamp': _serviceLiveGpsAt!.toIso8601String(),
+        };
+      }
+
+      final response = await _apiClient.createServiceRequest(payload);
 
       if (response.statusCode == 201) {
         if (!mounted) return;
@@ -252,6 +265,60 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
     );
   }
 
+  Future<void> _useDeviceGpsForServiceLocation() async {
+    if (_gpsFetching) return;
+    setState(() => _gpsFetching = true);
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) {
+          _showError('Location services are disabled.');
+        }
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          _showError('Location permission is required for current location.');
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final p = LatLng(pos.latitude, pos.longitude);
+      _mapController.move(p, 15);
+      final geo = GeocodingService();
+      final address = await geo.reverse(lat: p.latitude, lng: p.longitude);
+      if (!mounted) return;
+      final resolvedAddress =
+          (address != null && address.trim().isNotEmpty)
+              ? address.trim()
+              : '${p.latitude.toStringAsFixed(5)}, ${p.longitude.toStringAsFixed(5)}';
+      final insideKathmandu = p.latitude >= _minLat &&
+          p.latitude <= _maxLat &&
+          p.longitude >= _minLng &&
+          p.longitude <= _maxLng;
+      setState(() {
+        _mapCenter = p;
+        _confirmedLatLng = p;
+        _confirmedAddress = resolvedAddress;
+        _geoWarning = insideKathmandu
+            ? null
+            : 'Service restricted to Kathmandu Valley. Please move the pin inside the boundary.';
+        _serviceLiveGpsAt = DateTime.now().toUtc();
+      });
+    } catch (e) {
+      if (mounted) _showError('Could not get location: $e');
+    } finally {
+      if (mounted) setState(() => _gpsFetching = false);
+    }
+  }
+
   Future<void> _confirmLocation() async {
     setState(() {
       _isConfirmingLocation = true;
@@ -289,6 +356,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       setState(() {
         _confirmedLatLng = _mapCenter;
         _confirmedAddress = address;
+        _serviceLiveGpsAt = null;
         _geoWarning = insideKathmandu
             ? null
             : 'Service restricted to Kathmandu Valley. Please move the pin inside the boundary.';
@@ -772,6 +840,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                         final center = position.center;
                         setState(() {
                           _mapCenter = center;
+                          if (hasGesture) _serviceLiveGpsAt = null;
                         });
                       },
                     ),
@@ -813,6 +882,32 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _gpsFetching ? null : _useDeviceGpsForServiceLocation,
+              icon: _gpsFetching
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: PawSewaLoader(width: 32, center: false),
+                    )
+                  : const Icon(Icons.my_location),
+              label: Text(
+                _gpsFetching ? 'Getting precise location…' : 'Use current location',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(AppConstants.primaryColor),
+                side: const BorderSide(color: Color(AppConstants.primaryColor)),
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -951,7 +1046,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       if (_currentStep == 1) return _selectedServiceType != null;
       if (_currentStep == 2) {
         // Require confirmed location inside Kathmandu for final submission
-        if (_isConfirmingLocation) return false;
+        if (_gpsFetching || _isConfirmingLocation) return false;
         if (_confirmedLatLng == null ||
             _confirmedAddress == null ||
             _confirmedAddress!.isEmpty) {

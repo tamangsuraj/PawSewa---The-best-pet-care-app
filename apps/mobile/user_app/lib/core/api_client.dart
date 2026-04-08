@@ -549,6 +549,17 @@ class ApiClient {
     return await _dio.post('/orders/$orderId/khalti/initiate');
   }
 
+  /// Deferred shop checkout: [checkoutPaymentId] from POST /orders with paymentMethod khalti.
+  Future<Response> initiateKhaltiShopCheckout(String checkoutPaymentId) async {
+    return await _dio.post(
+      '/orders/checkout/khalti/initiate',
+      data: {
+        'checkoutPaymentId': checkoutPaymentId,
+        'callbackMode': 'app',
+      },
+    );
+  }
+
   /// Unified initiate payment (orders or service). Use type: 'order', orderId for shop.
   Future<Response> initiatePayment({
     required String type,

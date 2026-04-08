@@ -20,6 +20,7 @@ const {
   getSellerShopAnalytics,
   bulkAssignOrders,
   initiateKhaltiForOrder,
+  initiateKhaltiForShopCheckout,
   updateMyOrderDeliveryGps,
 } = require('../controllers/orderController');
 const { protect, admin, authorize } = require('../middleware/authMiddleware');
@@ -34,6 +35,7 @@ router.get('/seller/analytics', protect, authorize('shop_owner'), getSellerShopA
 router.get('/:orderId/invoice', protect, getOrderInvoice);
 router.get('/', protect, admin, adminGetOrders);
 router.post('/bulk-assign', protect, admin, bulkAssignOrders);
+router.post('/checkout/khalti/initiate', protect, initiateKhaltiForShopCheckout);
 router.patch('/:orderId/assign', protect, admin, assignRiderToOrder);
 router.patch('/:orderId/assign-seller', protect, admin, assignSellerToOrder);
 router.patch('/:orderId/seller-confirm', protect, authorize('shop_owner'), confirmSellerOrder);
