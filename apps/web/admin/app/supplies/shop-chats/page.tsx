@@ -82,7 +82,7 @@ export default function ShopChatsAuditPage() {
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Shop chat audit</h1>
       <p className="text-gray-600 mb-6 max-w-2xl">
-        Super-view of customer ↔ shop_owner marketplace threads. Open a row to read the full
+        Super-view of customer to shop_owner marketplace threads. Open a row to read the full
         transcript for disputes or quality control.
       </p>
 

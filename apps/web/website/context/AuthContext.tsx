@@ -61,16 +61,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const checkAuth = async () => {
       const savedToken = getStoredToken();
+      const savedUserRaw = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      const savedUser = savedUserRaw ? (() => {
+        try {
+          return JSON.parse(savedUserRaw) as User;
+        } catch {
+          return null;
+        }
+      })() : null;
       
+      // Hydrate immediately to prevent logout on refresh when backend is temporarily unreachable.
       if (savedToken) {
+        setToken(savedToken);
+        if (savedUser) setUser(savedUser);
         try {
           const response = await api.get('/users/profile');
           if (response.data.success) {
             setUser(response.data.data);
             setToken(savedToken);
           }
-        } catch (error) {
-          clearStoredAuth();
+        } catch (error: any) {
+          // Clear only when token is actually invalid/expired.
+          if (error?.response?.status === 401) {
+            clearStoredAuth();
+            setUser(null);
+            setToken(null);
+          }
         }
       }
       

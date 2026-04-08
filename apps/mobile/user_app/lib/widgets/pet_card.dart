@@ -25,22 +25,15 @@ class PetCard extends StatelessWidget {
         : Colors.pink;
   }
 
-  String _getSpeciesEmoji() {
+  IconData _getSpeciesIcon() {
+    // Use Material icons only (no decorative emoji glyphs).
     switch (pet.species) {
-      case 'Dog':
-        return '🐕';
-      case 'Cat':
-        return '🐈';
-      case 'Bird':
-        return '🐦';
-      case 'Rabbit':
-        return '🐰';
-      case 'Hamster':
-        return '🐹';
       case 'Fish':
-        return '🐠';
+        return Icons.water;
+      case 'Bird':
+        return Icons.flutter_dash;
       default:
-        return '🐾';
+        return Icons.pets;
     }
   }
 
@@ -87,16 +80,18 @@ class PetCard extends StatelessWidget {
                           child: PawSewaLoader(width: 32, center: false),
                         ),
                         errorWidget: (context, url, error) => Center(
-                          child: Text(
-                            _getSpeciesEmoji(),
-                            style: const TextStyle(fontSize: 40),
+                          child: Icon(
+                            _getSpeciesIcon(),
+                            size: 40,
+                            color: const Color(AppConstants.primaryColor),
                           ),
                         ),
                       )
                     : Center(
-                        child: Text(
-                          _getSpeciesEmoji(),
-                          style: const TextStyle(fontSize: 40),
+                        child: Icon(
+                          _getSpeciesIcon(),
+                          size: 40,
+                          color: const Color(AppConstants.primaryColor),
                         ),
                       ),
               ),

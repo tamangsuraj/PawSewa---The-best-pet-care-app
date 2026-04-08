@@ -37,7 +37,7 @@ const sendOTPEmail = async (email, name, otp) => {
   const mailOptions = {
     from: `"PawSewa" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: '🐾 Verify Your PawSewa Account',
+    subject: 'Verify your PawSewa account',
     html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -65,7 +65,7 @@ const sendOTPEmail = async (email, name, otp) => {
                         <td align="center">
                           <!-- Logo Placeholder -->
                           <div style="width: 80px; height: 80px; background-color: rgba(255, 255, 255, 0.15); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 3px solid rgba(255, 255, 255, 0.3);">
-                            <span style="font-size: 40px; line-height: 1;">🐾</span>
+                            <span style="font-size: 22px; line-height: 1; font-weight: 700; color: #ffffff;">PS</span>
                           </div>
                           <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">PawSewa</h1>
                           <p style="margin: 8px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; font-weight: 500;">Your Pet Care Partner</p>
@@ -81,7 +81,7 @@ const sendOTPEmail = async (email, name, otp) => {
                     
                     <!-- Greeting -->
                     <h2 style="margin: 0 0 24px 0; color: #1a1a1a; font-size: 24px; font-weight: 600; line-height: 1.3;">
-                      Hello ${name}! 👋
+                      Hello ${name}
                     </h2>
                     
                     <!-- Message -->
@@ -101,7 +101,7 @@ const sendOTPEmail = async (email, name, otp) => {
                               ${otp}
                             </div>
                             <p style="margin: 12px 0 0 0; color: #8b6f47; font-size: 13px;">
-                              ⏱️ Expires in 10 minutes
+                              Expires in 10 minutes
                             </p>
                           </div>
                         </td>
@@ -113,7 +113,7 @@ const sendOTPEmail = async (email, name, otp) => {
                       <tr>
                         <td align="center">
                           <a href="#" style="display: inline-block; background-color: #703418; color: #ffffff; text-decoration: none; padding: 16px 48px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(112, 52, 24, 0.25); transition: all 0.3s ease;">
-                            Verify Now →
+                            Verify now
                           </a>
                         </td>
                       </tr>
@@ -122,7 +122,7 @@ const sendOTPEmail = async (email, name, otp) => {
                     <!-- Instructions -->
                     <div style="background-color: #f8f9fa; border-left: 4px solid #703418; border-radius: 8px; padding: 20px 24px; margin: 0 0 32px 0;">
                       <p style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">
-                        📋 What to do next:
+                        What to do next:
                       </p>
                       <ol style="margin: 0; padding-left: 20px; color: #4a4a4a; font-size: 14px; line-height: 1.8;">
                         <li>Copy the 6-digit code above</li>
@@ -137,7 +137,7 @@ const sendOTPEmail = async (email, name, otp) => {
                         <tr>
                           <td width="40" valign="top">
                             <div style="width: 32px; height: 32px; background-color: #ffc107; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-                              🔒
+                              !
                             </div>
                           </td>
                           <td valign="top">
@@ -173,7 +173,7 @@ const sendOTPEmail = async (email, name, otp) => {
                             If you didn't request this, please ignore this email.
                           </p>
                           <p style="margin: 16px 0 0 0; color: #adb5bd; font-size: 11px;">
-                            © 2026 PawSewa. All rights reserved.
+                            (c) 2026 PawSewa. All rights reserved.
                           </p>
                         </td>
                       </tr>
@@ -219,19 +219,10 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
     rider: 'Delivery Rider',
   };
 
-  const roleEmojis = {
-    pet_owner: '🐕',
-    veterinarian: '⚕️',
-    admin: '👑',
-    shop_owner: '🏪',
-    care_service: '🏠',
-    rider: '🏍️',
-  };
-
   const mailOptions = {
     from: `"PawSewa" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: `${roleEmojis[role]} Welcome to PawSewa - Your ${roleNames[role]} Account`,
+    subject: `Welcome to PawSewa - Your ${roleNames[role]} account`,
     html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -259,7 +250,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                         <td align="center">
                           <!-- Logo Placeholder -->
                           <div style="width: 80px; height: 80px; background-color: rgba(255, 255, 255, 0.15); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 3px solid rgba(255, 255, 255, 0.3);">
-                            <span style="font-size: 40px; line-height: 1;">🐾</span>
+                            <span style="font-size: 22px; line-height: 1; font-weight: 700; color: #ffffff;">PS</span>
                           </div>
                           <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">PawSewa</h1>
                           <p style="margin: 8px 0 0 0; color: rgba(255, 255, 255, 0.9); font-size: 14px; font-weight: 500;">Your Pet Care Partner</p>
@@ -278,10 +269,10 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                       <tr>
                         <td>
                           <h2 style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 28px; font-weight: 600; line-height: 1.3;">
-                            Welcome to PawSewa, ${name}! 🎉
+                            Welcome to PawSewa, ${name}
                           </h2>
                           <div style="display: inline-block; background: linear-gradient(135deg, #703418 0%, #8b6f47 100%); color: #ffffff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;">
-                            ${roleEmojis[role]} ${roleNames[role]}
+                            ${roleNames[role]}
                           </div>
                         </td>
                       </tr>
@@ -299,7 +290,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                           <div style="background: linear-gradient(135deg, #fdf8f5 0%, #f5ebe0 100%); border: 2px solid #703418; border-radius: 12px; padding: 24px; overflow: hidden;">
                             
                             <p style="margin: 0 0 20px 0; color: #703418; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                              🔑 Your Login Credentials
+                              Your login credentials
                             </p>
                             
                             <!-- Email Row -->
@@ -327,7 +318,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                               <tr>
                                 <td style="padding: 12px 0;">
                                   <p style="margin: 0 0 4px 0; color: #8b6f47; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Account Type</p>
-                                  <p style="margin: 0; color: #703418; font-size: 15px; font-weight: 600;">${roleEmojis[role]} ${roleNames[role]}</p>
+                                  <p style="margin: 0; color: #703418; font-size: 15px; font-weight: 600;">${roleNames[role]}</p>
                                 </td>
                               </tr>
                             </table>
@@ -342,7 +333,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                       <tr>
                         <td align="center">
                           <a href="#" style="display: inline-block; background-color: #703418; color: #ffffff; text-decoration: none; padding: 16px 48px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(112, 52, 24, 0.25);">
-                            Login to Your Account →
+                            Log in to your account
                           </a>
                         </td>
                       </tr>
@@ -351,7 +342,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                     <!-- Next Steps -->
                     <div style="background-color: #f8f9fa; border-left: 4px solid #703418; border-radius: 8px; padding: 20px 24px; margin: 0 0 32px 0;">
                       <p style="margin: 0 0 12px 0; color: #1a1a1a; font-size: 15px; font-weight: 600;">
-                        📋 Next Steps:
+                        Next steps:
                       </p>
                       <ol style="margin: 0; padding-left: 20px; color: #4a4a4a; font-size: 14px; line-height: 1.8;">
                         <li>Log in using the credentials above</li>
@@ -367,7 +358,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                         <tr>
                           <td width="40" valign="top">
                             <div style="width: 32px; height: 32px; background-color: #ffc107; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px;">
-                              🔒
+                              !
                             </div>
                           </td>
                           <td valign="top">
@@ -403,7 +394,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                             If you believe this is a mistake, please contact support immediately.
                           </p>
                           <p style="margin: 16px 0 0 0; color: #adb5bd; font-size: 11px;">
-                            © 2026 PawSewa. All rights reserved.
+                            (c) 2026 PawSewa. All rights reserved.
                           </p>
                         </td>
                       </tr>
@@ -425,10 +416,10 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`✅ Welcome email sent to ${email}`);
+    logger.info(`Welcome email sent to ${email.toString().toLowerCase().trim()}.`);
     return true;
   } catch (error) {
-    console.error('❌ Error sending welcome email:', error);
+    logger.warn(`Welcome email failed: ${error?.message || String(error)}`);
     // Don't throw error - account creation should succeed even if email fails
     return false;
   }

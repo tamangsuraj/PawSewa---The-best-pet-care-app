@@ -386,7 +386,7 @@ export default function CustomersPage() {
                           </span>
                         ) : (
                           <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium border border-amber-200">
-                            ⏳ Pending Verification
+                            Pending verification
                           </span>
                         )}
                       </div>

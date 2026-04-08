@@ -11,7 +11,7 @@ async function testAPI() {
 
     const token = loginRes.data.data.token;
     const user = loginRes.data.data;
-    console.log('✅ Login successful!');
+    console.log('Login successful!');
     console.log('User Role:', user.role);
     console.log('Token:', token.substring(0, 20) + '...');
 
@@ -23,12 +23,12 @@ async function testAPI() {
       }
     });
 
-    console.log('✅ Cases endpoint successful!');
+    console.log('Cases endpoint successful!');
     console.log('Cases count:', casesRes.data.count);
     console.log('Data:', JSON.stringify(casesRes.data.data, null, 2).substring(0, 500) + '...');
 
   } catch (error) {
-    console.error('❌ Error:', error.response?.data || error.message);
+    console.error('Error:', error.response?.data || error.message);
     if (error.response?.status) {
       console.error('Status:', error.response.status);
     }

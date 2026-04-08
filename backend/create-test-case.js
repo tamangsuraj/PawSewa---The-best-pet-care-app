@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { getConnectionUri } = require('./src/config/db');
 const Case = require('./src/models/Case');
 const User = require('./src/models/User');
@@ -13,7 +13,7 @@ async function createTestCase() {
       tlsAllowInvalidCertificates: true,
     });
 
-    console.log('Connected to MongoDB');
+    console.log('[INFO] MongoDB: connected.');
 
     // Get a customer and a pet
     const customer = await User.findOne({ role: 'pet_owner' });
@@ -36,15 +36,15 @@ async function createTestCase() {
       type: 'assistance'
     });
 
-    console.log('✅ Test case created successfully!');
-    console.log('Case ID:', testCase._id);
-    console.log('Customer:', customer.name);
-    console.log('Pet:', pet.name);
-    console.log('Status:', testCase.status);
+    console.log('[SUCCESS] Test case created.');
+    console.log('[INFO] Case ID:', testCase._id);
+    console.log('[INFO] Customer:', customer.name);
+    console.log('[INFO] Pet:', pet.name);
+    console.log('[INFO] Status:', testCase.status);
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error:', error.message);
+    console.error('[ERROR] Test case creation failed:', error.message);
     process.exit(1);
   }
 }

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from '@/lib/apiConfig';
 import toast from 'react-hot-toast';
-import { clearStoredAdminAuth, getStoredAdminToken } from '@/lib/authStorage';
+import { clearStoredAdminAuth, getStoredAdminToken, getStoredAdminUser } from '@/lib/authStorage';
 
 interface User {
   _id?: string;
@@ -50,31 +50,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const checkAuth = async () => {
       const savedToken = getStoredAdminToken();
-      const savedUser = localStorage.getItem('admin-user');
-      
-      if (
-        savedToken &&
-        savedUser
-      ) {
+      const savedUser = getStoredAdminUser<User>();
+
+      // Hydrate immediately to avoid logout-on-refresh when backend is temporarily unreachable.
+      if (savedToken && savedUser) {
+        setUser(savedUser);
+      }
+
+      // Verify in background; clear only on explicit 401 or role mismatch.
+      if (savedToken) {
         try {
-          const userData = JSON.parse(savedUser);
-          
-          try {
-            const response = await api.get('/users/profile');
-            const role = response.data.data.role;
-            if (response.data.success && (role === 'admin' || role === 'ADMIN')) {
-              setUser(response.data.data);
-            } else {
-              clearStoredAdminAuth();
-            }
-          } catch (error) {
+          const response = await api.get('/users/profile');
+          const role = response.data?.data?.role;
+          if (response.data?.success && (role === 'admin' || role === 'ADMIN')) {
+            setUser(response.data.data);
+          } else {
             clearStoredAdminAuth();
+            setUser(null);
           }
-        } catch (error) {
-          clearStoredAdminAuth();
+        } catch (error: any) {
+          if (error?.response?.status === 401) {
+            clearStoredAdminAuth();
+            setUser(null);
+          }
         }
       }
-      
+
       setIsLoading(false);
     };
 
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('admin-user', JSON.stringify(userData));
         setUser(userData);
         
-        toast.success(`Welcome, ${userData.name}!`);
+        toast.success(`Welcome, ${userData.name}`);
         return Promise.resolve();
       }
     } catch (error: any) {
@@ -111,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.error(error.response.data.message);
         return Promise.reject(new Error(error.response.data.message));
       }
-      toast.error('Login failed - check backend connection');
+      toast.error('Login failed. Check backend connectivity.');
       return Promise.reject(new Error('Unable to connect to backend. Please ensure backend is running on port 3000.'));
     }
   };
@@ -146,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('admin-token', String(token).trim());
         localStorage.setItem('admin-user', JSON.stringify(userData));
         setUser(userData);
-        toast.success(`Welcome, ${userData.name}!`);
+        toast.success(`Welcome, ${userData.name}`);
       }
     } catch (error: any) {
       const msg = error.response?.data?.message || 'Invalid or expired code';
@@ -158,7 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setUser(null);
     clearStoredAdminAuth();
-    toast.success('Logged out successfully');
+    toast.success('Logged out');
     window.location.href = '/login';
   };
 

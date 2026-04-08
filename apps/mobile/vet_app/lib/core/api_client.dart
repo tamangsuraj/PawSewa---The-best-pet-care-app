@@ -86,7 +86,7 @@ class ApiClient {
           if (error.type == DioExceptionType.connectionError ||
               error.type == DioExceptionType.connectionTimeout) {
             _log(
-              '[API] 💡 Connection failed. Ensure: (1) Backend is running, '
+              '[API] [DEBUG] Connection failed. Ensure: (1) Backend is running, '
               '(2) Device and PC are on same Wi‑Fi, (3) API host is correct. '
               'Override: flutter run --dart-define=API_HOST=YOUR_PC_IP',
             );
@@ -539,7 +539,7 @@ class ApiClient {
     return await _dio.get('/marketplace-chat/seller/inbox');
   }
 
-  /// Open customer ↔ shop thread for an order assigned to this shop (shop_owner).
+  /// Open customer <-> shop thread for an order assigned to this shop (shop_owner).
   Future<Response> openSellerMarketplaceChatFromOrder(String orderId) async {
     return await _dio.post('/marketplace-chat/seller/open-from-order', data: {'orderId': orderId});
   }

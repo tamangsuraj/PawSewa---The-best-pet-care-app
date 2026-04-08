@@ -1,5 +1,5 @@
 // Load environment variables FIRST
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const logger = require('./utils/logger');
 const { execSync } = require('child_process');
@@ -26,6 +26,7 @@ const { initFirebaseAdmin, isFirebaseAdminConfigured } = require('./config/fireb
 // Error handling middleware
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const { generalApiLimiter } = require('./middleware/rateLimiters');
+const requireDb = require('./middleware/requireDb');
 
 // Routes
 const userRoutes = require('./routes/userRoutes');
@@ -67,7 +68,7 @@ const Case = require('./models/Case');
 // Initialize Express application
 const app = express();
 app.set('trust proxy', 1);
-console.log('✅ Express Trust Proxy enabled for PawSewa Network');
+logger.info('Express: trust proxy enabled.');
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
@@ -100,6 +101,7 @@ const marketplaceChatRoutes = require('./routes/marketplaceChatRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const { upload: chatUploadMulter, postChatUpload } = require('./controllers/chatUploadController');
 const { protect: protectJwt } = require('./middleware/authMiddleware');
+const { admin: adminOnly } = require('./middleware/authMiddleware');
 
 io.use(socketAuthMiddleware);
 
@@ -178,6 +180,9 @@ app.use('/api/v1', dbRequestContext);
 const apiLogMiddleware = require('./middleware/apiLogMiddleware');
 app.use(apiLogMiddleware);
 
+// Fast-fail for DB-backed routes when Atlas is unreachable.
+app.use('/api/v1', requireDb);
+
 // ============================================
 // ROUTES
 // ============================================
@@ -208,6 +213,11 @@ app.use('/api/v1/marketplace-chat', marketplaceChatRoutes);
 app.use('/api/v1/chats', chatRoutes);
 // Alias (documented): POST /api/v1/chat/upload — same handler as POST /api/v1/chats/upload
 app.post('/api/v1/chat/upload', protectJwt, chatUploadMulter.single('file'), postChatUpload);
+
+// Back-compat alias used by some dashboards: same payload as /api/v1/admin/live-map
+app.get('/api/v1/map/live-operations', protectJwt, adminOnly, (req, res) => {
+  res.redirect(307, '/api/v1/admin/live-map');
+});
 app.use('/api/v1/cases', caseRoutes);
 app.use('/api/v1/service-requests', serviceRequestRoutes);
 app.use('/api/v1/admin', adminRoutes);
@@ -341,24 +351,35 @@ function tryAllowWindowsFirewall() {
 tryAllowWindowsFirewall();
 
 async function start() {
-  await connectDB();
-  logger.success(
-    '[Atlas] Mongoose connected — PawSewa API using cluster data (see LIVE DB IDENTIFIED / DB STATUS logs above).',
-  );
+  const connectedDb = await connectDB();
+  const dbConnected = mongoose.connection.readyState === 1 && Boolean(connectedDb);
+  if (dbConnected) {
+    logger.success(
+      '[Atlas] Mongoose connected — PawSewa API using cluster data (see LIVE DB IDENTIFIED / DB STATUS logs above).',
+    );
+  } else {
+    logger.warn(
+      '[DEV] MongoDB is not connected. API will run in degraded mode (DB-backed routes return 503).',
+    );
+  }
   try {
     const { resolveCareAdminId } = require('./services/customerCareService');
-    const ccAdmin = await resolveCareAdminId();
-    if (ccAdmin) {
-      logger.success('[Customer Care] Admin partner resolved:', String(ccAdmin));
-      if (!(process.env.CUSTOMER_CARE_ADMIN_ID || '').trim()) {
-        logger.info(
-          '[Customer Care] Optional: set CUSTOMER_CARE_ADMIN_ID in .env to pin this user, or run npm run sync:customer-care-admin.'
+    if (dbConnected) {
+      const ccAdmin = await resolveCareAdminId();
+      if (ccAdmin) {
+        logger.success('[Customer Care] Admin partner resolved:', String(ccAdmin));
+        if (!(process.env.CUSTOMER_CARE_ADMIN_ID || '').trim()) {
+          logger.info(
+            '[Customer Care] Optional: set CUSTOMER_CARE_ADMIN_ID in .env to pin this user, or run npm run sync:customer-care-admin.'
+          );
+        }
+      } else {
+        logger.warn(
+          '[Customer Care] No admin user found — support inbox for pet owners stays disabled until you create an admin or set CUSTOMER_CARE_ADMIN_ID.'
         );
       }
     } else {
-      logger.warn(
-        '[Customer Care] No admin user found — support inbox for pet owners stays disabled until you create an admin or set CUSTOMER_CARE_ADMIN_ID.'
-      );
+      logger.info('[Customer Care] Skipped (no DB).');
     }
   } catch (e) {
     logger.warn('[Customer Care] Startup check failed:', e?.message || String(e));
@@ -370,13 +391,15 @@ async function start() {
   }
   logger.info('Image domains authorized: images.unsplash.com.');
   logger.info('Product layout re-configured: 2-column grid active.');
-  const userCount = await User.countDocuments();
-  logger.info('Verified', userCount, 'users in production.');
+  if (dbConnected) {
+    const userCount = await User.countDocuments();
+    logger.info('Verified', userCount, 'users in production.');
+  }
 
   // Reminder push (in-app notifications) — runs in-process on an interval.
   const enableReminderNotifier =
     String(process.env.ENABLE_REMINDER_NOTIFIER || 'true').toLowerCase() !== 'false';
-  if (enableReminderNotifier) {
+  if (enableReminderNotifier && dbConnected) {
     const intervalMs = 15 * 60 * 1000; // 15 minutes
     setTimeout(() => {
       scanAndNotifyReminders24h().catch((e) => {
@@ -389,15 +412,21 @@ async function start() {
       });
     }, intervalMs);
     logger.info('Reminder Notifier: enabled (24h before due).');
+  } else if (enableReminderNotifier && !dbConnected) {
+    logger.info('Reminder Notifier: skipped (no DB connection).');
   } else {
     logger.info('Reminder Notifier: disabled by ENABLE_REMINDER_NOTIFIER=false');
   }
 
-  const productCount = await Product.countDocuments();
-  logger.info('Product Inventory Sync:', productCount, 'items found.');
+  if (dbConnected) {
+    const productCount = await Product.countDocuments();
+    logger.info('Product Inventory Sync:', productCount, 'items found.');
+  }
 
-  const activeCasesCount = await Case.countDocuments({ status: { $nin: ['completed', 'cancelled'] } });
-  logger.info('Live Cases Sync:', activeCasesCount, 'active cases found.');
+  if (dbConnected) {
+    const activeCasesCount = await Case.countDocuments({ status: { $nin: ['completed', 'cancelled'] } });
+    logger.info('Live Cases Sync:', activeCasesCount, 'active cases found.');
+  }
   logger.success('Hostels and Grooming centers mapped for all 4 platforms.');
 
   server.on('error', (err) => {
@@ -412,17 +441,17 @@ async function start() {
   });
 
   server.listen(PORT, '0.0.0.0', () => {
-    logger.info('Starting PawSewa Backend Server.');
-    logger.success('[SUCCESS] Brand Deployed: PawSewa API ready (logos, chat, GPS order logging active).');
-    logger.success(
-      '[SUCCESS] Marketplace Chat Active: Seller, Rider, and Support modules synced.'
-    );
-    logger.success('Server listening on Port:', PORT);
-    logger.info('Environment:', process.env.NODE_ENV || 'development');
-    logger.info('CORS enabled for localhost and local network.');
-    logger.event('Socket.io initialized for real-time synchronization.');
-    logger.info('Mobile devices can connect via: http://<your-ip>:' + PORT);
-    startLiveMapSimulation();
+    logger.info('Server: starting HTTP listener.');
+    logger.success('Server: listening on port', PORT);
+    logger.info('Runtime: environment', process.env.NODE_ENV || 'development');
+    logger.info('CORS: enabled for localhost and local network origins.');
+    logger.event('Socket.io: initialized.');
+    logger.info('Network: mobile devices can connect via http://<your-ip>:' + PORT);
+    if (dbConnected) {
+      startLiveMapSimulation();
+    } else {
+      logger.info('Live map simulation: skipped (no DB connection).');
+    }
   });
 }
 

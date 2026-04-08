@@ -3,7 +3,7 @@
  * Run from backend: node scripts/createAdmin.js
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const mongoose = require('mongoose');
 const { getConnectionUri, getMongooseConnectionOptions } = require('../src/config/db');
 const User = require('../src/models/User');
@@ -26,17 +26,17 @@ const createAdmin = async () => {
       .lean();
 
     if (anyAdmin) {
-      console.log('✅ An admin user already exists in the database.');
-      console.log('   Email:', anyAdmin.email);
-      console.log('   Name:', anyAdmin.name);
-      console.log('   Role:', anyAdmin.role);
-      console.log('\n   Run: npm run sync:customer-care-admin  (writes CUSTOMER_CARE_ADMIN_ID to .env)');
+      console.log('[INFO] Admin user already exists.');
+      console.log('[INFO] Email:', anyAdmin.email);
+      console.log('[INFO] Name:', anyAdmin.name);
+      console.log('[INFO] Role:', anyAdmin.role);
+      console.log('[INFO] Next step: npm run sync:customer-care-admin (writes CUSTOMER_CARE_ADMIN_ID to .env)');
       process.exit(0);
     }
 
     const existingEmail = await User.findOne({ email: 'admin@pawsewa.com' });
     if (existingEmail) {
-      console.log('⚠️  admin@pawsewa.com exists but role is not admin. Update role in DB or use another admin account.');
+      console.log('[WARN] admin@pawsewa.com exists but role is not admin. Update role in DB or use another admin account.');
       process.exit(1);
     }
 
@@ -49,19 +49,16 @@ const createAdmin = async () => {
       phone: '+1234567890',
     });
 
-    console.log('\n🎉 Admin user created successfully!');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📧 Email:', admin.email);
-    console.log('🔑 Password: admin123');
-    console.log('👤 Name:', admin.name);
-    console.log('🛡️  Role:', admin.role);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('\n🚀 You can now login to the admin panel at:');
-    console.log('   http://localhost:3002\n');
+    console.log('[SUCCESS] Admin user created.');
+    console.log('[INFO] Email:', admin.email);
+    console.log('[INFO] Password: admin123');
+    console.log('[INFO] Name:', admin.name);
+    console.log('[INFO] Role:', admin.role);
+    console.log('[INFO] Admin panel: http://localhost:3002');
 
     process.exit(0);
   } catch (error) {
-    console.error('❌ Error creating admin:', error.message);
+    console.error('[ERROR] Admin creation failed:', error.message);
     process.exit(1);
   }
 };

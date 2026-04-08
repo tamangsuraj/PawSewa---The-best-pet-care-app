@@ -198,7 +198,7 @@ function registerChatHandler(io) {
           if (ioServer) {
             const preview =
               textStr.trim() ||
-              (hasMedia && mediaType === 'video' ? '📹 Video' : hasMedia ? '📷 Photo' : '');
+              (hasMedia && mediaType === 'video' ? 'Video' : hasMedia ? 'Photo' : '');
             await bumpUnread(ioServer, recipientForUnread, requestKey(requestId), {
               senderName: (senderLean?.name || 'Someone').trim(),
               preview,

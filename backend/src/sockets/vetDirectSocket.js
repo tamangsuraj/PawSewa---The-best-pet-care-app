@@ -133,7 +133,7 @@ function registerVetDirectSocket(io) {
         if (recipientId && recipientId !== uid) {
           const preview =
             text ||
-            (hasMedia && mediaType === 'video' ? '📹 Video' : hasMedia ? '📷 Photo' : '');
+            (hasMedia && mediaType === 'video' ? 'Video' : hasMedia ? 'Photo' : '');
           await bumpUnread(io, recipientId, vetDirectKey(ownerId, vetId), {
             senderName: (me.name || 'Someone').trim(),
             preview,

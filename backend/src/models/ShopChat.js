@@ -1,5 +1,5 @@
 /**
- * Indexes customer ↔ shop_owner marketplace threads (MarketplaceConversation type SELLER)
+ * Indexes customer <-> shop_owner marketplace threads (MarketplaceConversation type SELLER)
  * for admin audit and analytics. Rows are upserted when a seller thread is opened.
  */
 const mongoose = require('mongoose');

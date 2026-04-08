@@ -195,8 +195,8 @@ function previewFromMessage({ trimmedText, mediaUrl, mediaType }) {
   if (trimmedText) {
     return trimmedText.length > 220 ? `${trimmedText.slice(0, 217)}...` : trimmedText;
   }
-  if (mediaUrl && mediaType === 'video') return '📹 Video';
-  if (mediaUrl && mediaType === 'image') return '📷 Photo';
+  if (mediaUrl && mediaType === 'video') return 'Video';
+  if (mediaUrl && mediaType === 'image') return 'Photo';
   return '';
 }
 

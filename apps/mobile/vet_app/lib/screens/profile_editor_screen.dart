@@ -171,7 +171,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                isComplete ? '✅ Profile Verified & Public!' : 'Profile updated successfully',
+                isComplete ? 'Profile verified and public.' : 'Profile updated successfully.',
                 style: GoogleFonts.outfit(),
               ),
               backgroundColor: isComplete ? Colors.green : const Color(AppConstants.primaryColor),

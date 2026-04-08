@@ -620,7 +620,7 @@ const adminCareBookingReassignCentre = asyncHandler(async (req, res) => {
 });
 
 /**
- * Admin: transcript for customer ↔ care centre chat
+ * Admin: transcript for customer <-> care centre chat
  * GET /api/v1/admin/care-bookings/:id/chat
  */
 const adminGetCareBookingChat = asyncHandler(async (req, res) => {

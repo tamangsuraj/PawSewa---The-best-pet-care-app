@@ -436,7 +436,7 @@ router.patch('/hostels/:id/verify', protect, authorize('admin'), async (req, res
   }
 });
 
-// GET /api/v1/admin/shop-chat/threads — customer ↔ shop_owner (super-view; all threads)
+// GET /api/v1/admin/shop-chat/threads — customer <-> shop_owner (super-view; all threads)
 router.get('/shop-chat/threads', protect, authorize('admin'), async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit) || 80, 1), 200);

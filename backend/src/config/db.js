@@ -5,8 +5,8 @@ const EXPECTED_DB_NAME = 'pawsewa_core';
 
 /** High-visibility boot line (requested for debugging split-brain / wrong DB). */
 mongoose.connection.on('open', () => {
-  console.log('🚀 LIVE DB IDENTIFIED:', mongoose.connection.name);
-  console.log('📍 HOST:', mongoose.connection.host);
+  logger.info('MongoDB: live database identified', mongoose.connection.name);
+  logger.info('MongoDB: host', mongoose.connection.host);
 });
 
 mongoose.connection.on('open', async () => {
@@ -23,7 +23,7 @@ mongoose.connection.on('open', async () => {
     console.log(`[MongoDB] Collections (${collectionNames.length}):`, collectionNames.join(', '));
 
     if (conn.name !== EXPECTED_DB_NAME) {
-      console.warn(`⚠️ WARNING: You are not connected to ${EXPECTED_DB_NAME}!`);
+      logger.warn(`MongoDB: database mismatch. Expected ${EXPECTED_DB_NAME}, got ${conn.name}.`);
     }
   } catch (err) {
     console.error('[MongoDB] open listener error:', err.message);
@@ -118,10 +118,9 @@ const connectDB = async (retries = 3) => {
     try {
       await mongoose.connect(uri, opts);
       const connectedDb = mongoose.connection.db?.databaseName || 'unknown';
-      console.log(
-        `[DB STATUS] Connected to: ${mongoose.connection.name} at ${mongoose.connection.host}`,
-      );
-      logger.success('System connected to:', connectedDb);
+      logger.info('MongoDB connection initialized.');
+      logger.info(`Database Name: ${mongoose.connection.name || connectedDb}`);
+      logger.info(`Host: ${mongoose.connection.host || 'unknown'}`);
       return connectedDb;
     } catch (error) {
       const code = error.code ?? error.codeName;
@@ -129,7 +128,7 @@ const connectDB = async (retries = 3) => {
         error.reason && typeof error.reason === 'object' && error.reason.message
           ? error.reason.message
           : error.reason;
-      logger.error(`MongoDB connection failed (attempt ${attempt}/${retries}):`, error.message);
+      logger.error(`MongoDB connection failed (attempt ${attempt}/${retries}): ${error.message}`);
       if (code != null) logger.error('  driver code:', String(code));
       if (reason != null && String(reason) !== String(error.message)) {
         logger.error('  reason:', String(reason));
@@ -138,6 +137,12 @@ const connectDB = async (retries = 3) => {
         logger.error(
           'Cannot connect to Atlas. Verify: MONGO_URI user/password, cluster host, DB_NAME=pawsewa_core, and Network Access allows your IP (or 0.0.0.0/0 for dev).',
         );
+        // DEV SAFETY: keep the API process alive so clients get a fast 503 instead of hanging.
+        // Production should still crash fast so the platform restarts it.
+        if (String(process.env.NODE_ENV || '').toLowerCase() === 'development') {
+          logger.warn('MongoDB: continuing without connection (development). DB-backed routes will return 503.');
+          return null;
+        }
         process.exit(1);
       }
       await new Promise((r) => setTimeout(r, 2000));

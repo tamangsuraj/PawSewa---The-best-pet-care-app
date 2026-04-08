@@ -690,7 +690,7 @@ class ApiClient {
     return await _dio.get('/care-bookings/my');
   }
 
-  /// Open customer ↔ care centre thread (Marketplace CARE).
+  /// Open customer <-> care centre thread (Marketplace CARE).
   Future<Response> openCareBookingChat(String bookingId) async {
     return await _dio.post('/marketplace-chat/care/open', data: {'bookingId': bookingId});
   }

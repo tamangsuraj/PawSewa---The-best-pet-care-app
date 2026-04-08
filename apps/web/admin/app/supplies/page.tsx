@@ -256,7 +256,7 @@ function OrderDetailModal({
 
   const handleUpdateStatus = async () => {
     if (selectedStatus === order.status) {
-      toast('Status unchanged', { icon: 'ℹ️' });
+      toast('Status unchanged');
       return;
     }
     setUpdatingStatus(true);

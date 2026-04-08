@@ -139,27 +139,23 @@ class MyPetCard extends StatelessWidget {
   }
 
   Widget _buildPlaceholderImage() {
-    String emoji = '🐾';
+    // Use Material icons only (no decorative emoji glyphs).
+    IconData icon = Icons.pets;
     switch (pet.species.toLowerCase()) {
-      case 'dog':
-        emoji = '🐕';
-        break;
-      case 'cat':
-        emoji = '🐈';
+      case 'fish':
+        icon = Icons.water;
         break;
       case 'bird':
-        emoji = '🐦';
-        break;
-      case 'rabbit':
-        emoji = '🐰';
+        icon = Icons.flutter_dash;
         break;
       default:
+        icon = Icons.pets;
         break;
     }
     return Container(
       color: const Color(0xFFF5F5F5),
       child: Center(
-        child: Text(emoji, style: const TextStyle(fontSize: 48)),
+        child: Icon(icon, size: 48, color: _primary),
       ),
     );
   }

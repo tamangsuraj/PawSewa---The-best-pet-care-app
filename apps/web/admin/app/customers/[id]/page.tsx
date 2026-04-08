@@ -268,7 +268,7 @@ export default function CustomerDetailPage() {
         {pets.length === 0 ? (
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">🐾</span>
+              <span className="text-sm font-semibold text-slate-200">PET</span>
             </div>
             <p className="text-slate-400 text-lg">No pets registered yet</p>
           </div>
@@ -290,13 +290,10 @@ export default function CustomerDetailPage() {
                       unoptimized
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-6xl">
-                      {pet.species === 'Dog' ? '🐕' :
-                       pet.species === 'Cat' ? '🐈' :
-                       pet.species === 'Bird' ? '🐦' :
-                       pet.species === 'Rabbit' ? '🐰' :
-                       pet.species === 'Hamster' ? '🐹' :
-                       pet.species === 'Fish' ? '🐠' : '🐾'}
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="px-3 py-2 rounded-lg bg-slate-800 text-slate-200 text-sm font-semibold border border-slate-700">
+                        {pet.species || 'Pet'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -305,8 +302,8 @@ export default function CustomerDetailPage() {
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-xl font-bold text-white">{pet.name}</h3>
-                    <span className="text-2xl">
-                      {pet.gender === 'Male' ? '♂️' : '♀️'}
+                    <span className="text-xs font-semibold text-slate-300">
+                      {pet.gender === 'Male' ? 'Male' : 'Female'}
                     </span>
                   </div>
 
@@ -380,7 +377,7 @@ export default function CustomerDetailPage() {
                           className="object-cover w-full h-full"
                         />
                       ) : (
-                        <span className="text-4xl">📷</span>
+                        <span className="text-sm font-semibold text-slate-200">PHOTO</span>
                       )}
                     </div>
                     <div className="absolute bottom-0 right-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl">

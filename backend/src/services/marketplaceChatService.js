@@ -56,7 +56,7 @@ function logSellerRouting({ convDoc, senderId, prodRef }) {
 }
 
 /**
- * Order is in the window where customer ↔ rider may exchange messages.
+ * Order is in the window where customer <-> rider may exchange messages.
  */
 function isOrderDeliveryChatActive(order) {
   if (!order || !order.assignedRider) return false;
@@ -206,8 +206,8 @@ function previewFromMessage({ trimmedText, mediaUrl, mediaType }) {
   if (trimmedText) {
     return trimmedText.length > 120 ? `${trimmedText.slice(0, 117)}...` : trimmedText;
   }
-  if (mediaUrl && mediaType === 'video') return '📹 Video';
-  if (mediaUrl && mediaType === 'image') return '📷 Photo';
+  if (mediaUrl && mediaType === 'video') return 'Video';
+  if (mediaUrl && mediaType === 'image') return 'Photo';
   return '';
 }
 

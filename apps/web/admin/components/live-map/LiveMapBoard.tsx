@@ -27,10 +27,10 @@ import toast from 'react-hot-toast';
 const DEFAULT_CENTER: [number, number] = [27.7172, 85.324];
 const OSM_TILE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-function makeEmojiIcon(emoji: string, variant: string): L.DivIcon {
+function makeLabelIcon(label: string, variant: string): L.DivIcon {
   return L.divIcon({
     className: 'lm-div-icon-root',
-    html: `<div class="lm-emoji lm-emoji--${variant}" aria-hidden="true">${emoji}</div>`,
+    html: `<div class="lm-emoji lm-emoji--${variant}" aria-hidden="true">${label}</div>`,
     iconSize: [46, 46],
     iconAnchor: [23, 23],
     popupAnchor: [0, -22],
@@ -38,15 +38,15 @@ function makeEmojiIcon(emoji: string, variant: string): L.DivIcon {
 }
 
 const ICONS = {
-  rider: makeEmojiIcon('🏍️', 'rider'),
-  vet: makeEmojiIcon('🩺', 'vet'),
-  shop: makeEmojiIcon('🏪', 'shop'),
-  careCenter: makeEmojiIcon('🏥', 'carecenter'),
-  sos: makeEmojiIcon('🆘', 'sos'),
-  carePlus: makeEmojiIcon('🐾', 'careplus'),
-  delivery: makeEmojiIcon('📦', 'delivery'),
-  booking: makeEmojiIcon('🏢', 'booking'),
-  staffOther: makeEmojiIcon('📍', 'staffother'),
+  rider: makeLabelIcon('R', 'rider'),
+  vet: makeLabelIcon('V', 'vet'),
+  shop: makeLabelIcon('S', 'shop'),
+  careCenter: makeLabelIcon('C', 'carecenter'),
+  sos: makeLabelIcon('SR', 'sos'),
+  carePlus: makeLabelIcon('C+', 'careplus'),
+  delivery: makeLabelIcon('D', 'delivery'),
+  booking: makeLabelIcon('B', 'booking'),
+  staffOther: makeLabelIcon('U', 'staffother'),
 };
 
 interface StaffRow {
@@ -390,7 +390,7 @@ export default function LiveMapBoard() {
           </h1>
           <p className="text-gray-600 mt-1 max-w-2xl">
             Kathmandu valley — real-time fleet simulation, venues, and active
-            requests. Reference layout: operational legend, emoji markers, and
+            requests. Reference layout: operational legend, custom markers, and
             socket-driven updates for simulated riders and vets.
           </p>
         </div>
@@ -410,14 +410,14 @@ export default function LiveMapBoard() {
       <div className="flex flex-col gap-4 mb-4">
         <div className="rounded-2xl border border-gray-200/80 bg-white/90 backdrop-blur-sm shadow-sm px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex flex-wrap gap-2 text-xs font-medium">
-            <span className="lm-legend lm-legend--rider">🏍️ Rider</span>
-            <span className="lm-legend lm-legend--vet">🩺 Vet</span>
-            <span className="lm-legend lm-legend--sos">🆘 Service req.</span>
-            <span className="lm-legend lm-legend--careplus">🐾 Care+ req.</span>
-            <span className="lm-legend lm-legend--delivery">📦 Delivery</span>
-            <span className="lm-legend lm-legend--booking">🏢 Care booking</span>
-            <span className="lm-legend lm-legend--shop">🏪 Shop</span>
-            <span className="lm-legend lm-legend--carecenter">🏥 Care centre</span>
+            <span className="lm-legend lm-legend--rider">R Rider</span>
+            <span className="lm-legend lm-legend--vet">V Vet</span>
+            <span className="lm-legend lm-legend--sos">SR Service req.</span>
+            <span className="lm-legend lm-legend--careplus">C+ Care+ req.</span>
+            <span className="lm-legend lm-legend--delivery">D Delivery</span>
+            <span className="lm-legend lm-legend--booking">B Care booking</span>
+            <span className="lm-legend lm-legend--shop">S Shop</span>
+            <span className="lm-legend lm-legend--carecenter">C Care centre</span>
           </div>
           <p className="text-[11px] text-gray-500 max-w-md">
             Customer home addresses are never shown — only dispatch, venue, and

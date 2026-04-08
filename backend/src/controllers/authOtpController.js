@@ -1,4 +1,5 @@
 const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, sendOTPEmail } = require('../utils/sendEmail');
@@ -93,6 +94,16 @@ const sendLoginOtp = asyncHandler(async (req, res) => {
   const { email, appContext: rawCtx } = req.body || {};
   const appContext = ['customer', 'partner', 'admin'].includes(rawCtx) ? rawCtx : 'customer';
 
+  // Fail fast when Mongo is unreachable; otherwise Mongoose can buffer and hang requests,
+  // which looks like "loading forever" in mobile clients.
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message:
+        'Server database is temporarily unavailable. Please try again in a moment.',
+    });
+  }
+
   if (!email || typeof email !== 'string') {
     return res.status(400).json({ success: false, message: 'Email is required' });
   }
@@ -152,6 +163,14 @@ const sendLoginOtp = asyncHandler(async (req, res) => {
 const verifyLoginOtp = asyncHandler(async (req, res) => {
   const { email, otp, appContext: rawCtx } = req.body || {};
   const appContext = ['customer', 'partner', 'admin'].includes(rawCtx) ? rawCtx : 'customer';
+
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      message:
+        'Server database is temporarily unavailable. Please try again in a moment.',
+    });
+  }
 
   if (!email || !otp) {
     return res.status(400).json({ success: false, message: 'Email and OTP are required' });

@@ -9,7 +9,7 @@
  *   PET_TRACE_NAME=Spoidy node scripts/check-all-dbs.js
  */
 
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const mongoose = require('mongoose');
 const {
   getConnectionUri,
@@ -30,12 +30,12 @@ async function run() {
   const logicalDb = getConfiguredDbName();
   const uri = withExplicitDatabasePathInUri(rawUri, logicalDb);
 
-  console.log('Connecting with DB_NAME →', logicalDb);
+  console.log('[INFO] MongoDB: connecting with DB_NAME', logicalDb);
   await mongoose.connect(uri, getMongooseConnectionOptions(rawUri));
 
-  console.log('🚀 LIVE DB IDENTIFIED:', mongoose.connection.name);
-  console.log('📍 HOST:', mongoose.connection.host);
-  console.log('\n=== Scanning all databases for name matching:', JSON.stringify(TRACE), '===\n');
+  console.log('[INFO] MongoDB: live database identified', mongoose.connection.name);
+  console.log('[INFO] MongoDB: host', mongoose.connection.host);
+  console.log('[INFO] Scan: matching name', JSON.stringify(TRACE));
 
   const client = mongoose.connection.getClient();
   const { databases } = await client.db().admin().listDatabases();
@@ -82,7 +82,7 @@ async function run() {
   console.log('Matches:', foundCount);
   console.log('App target DB_NAME:', logicalDb);
   if (logicalDb !== 'pawsewa_chat') {
-    console.warn('⚠️  DB_NAME is not pawsewa_chat — align .env with Compass / all clients.');
+    console.warn('[WARN] DB_NAME is not pawsewa_chat. Align .env with Compass and clients.');
   }
   if (foundCount === 0) {
     console.log('No documents with that exact name (case-insensitive) in scanned databases.');

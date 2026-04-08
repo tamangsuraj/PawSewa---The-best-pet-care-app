@@ -175,7 +175,7 @@ const postVetDirectMessage = asyncHandler(async (req, res) => {
   const recipientId = uid === String(ownerId) ? String(vetId) : String(ownerId);
   const preview =
     trimmed ||
-    (hasMedia && mType === 'video' ? '📹 Video' : hasMedia ? '📷 Photo' : '');
+    (hasMedia && mType === 'video' ? 'Video' : hasMedia ? 'Photo' : '');
   if (io && recipientId && recipientId !== uid) {
     await bumpUnread(io, recipientId, vetDirectKey(ownerId, vetId), {
       senderName: (req.user.name || 'Someone').trim(),

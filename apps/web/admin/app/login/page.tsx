@@ -165,7 +165,7 @@ export default function LoginPage() {
         </div>
 
         <p className="mt-6 text-center text-sm text-[#5c2d12]/55">
-          PawSewa Admin Portal © 2026
+          PawSewa Admin Portal (c) 2026
         </p>
       </div>
     </div>
