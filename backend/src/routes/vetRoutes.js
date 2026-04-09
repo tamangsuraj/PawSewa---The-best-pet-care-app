@@ -32,7 +32,7 @@ router.get('/public', async (req, res) => {
       data: vets,
     });
   } catch (error) {
-    console.error('Error fetching vets:', error);
+    logger.error('Vets: public list failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch veterinarians',
@@ -68,7 +68,7 @@ router.get('/public/:id', async (req, res) => {
       data: vet,
     });
   } catch (error) {
-    console.error('Error fetching vet:', error);
+    logger.error('Vets: public get failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch veterinarian',
@@ -144,7 +144,7 @@ router.get('/earnings', protect, authorize('veterinarian', 'VET', 'care_service'
       },
     });
   } catch (error) {
-    console.error('Error fetching vet earnings:', error);
+    logger.error('Vets: earnings failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch earnings',

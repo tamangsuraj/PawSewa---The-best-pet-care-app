@@ -1,6 +1,13 @@
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import '../core/api_client.dart';
+
+/// Structured console logging for Google OAuth (no emojis).
+void _oauthLog(String level, String message) {
+  debugPrint('[$level] $message');
+}
 
 class GoogleAuthService {
   static final GoogleAuthService _instance = GoogleAuthService._internal();
@@ -15,27 +22,55 @@ class GoogleAuthService {
         '188502859936-doe0igj265poprfntbg3hkq8coo3kndu.apps.googleusercontent.com',
   );
 
+  /// OpenID Connect + basic profile — surfaces the standard Google consent when needed.
+  static const List<String> _scopes = <String>[
+    'openid',
+    'email',
+    'profile',
+  ];
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
+    scopes: _scopes,
     serverClientId: _serverClientId,
   );
 
   final ApiClient _apiClient = ApiClient();
 
+  /// Manual OAuth only: never calls [GoogleSignIn.signInSilently].
+  /// Clears the Google session first so [signIn] runs interactively (account picker).
   Future<Map<String, dynamic>?> signInWithGoogle() async {
+    _oauthLog('INFO', 'Initializing manual Google OAuth flow.');
+    await _apiClient.initialize();
+
     try {
-      // Ensure Dio base URL / interceptors match current ApiConfig (e.g. after host override).
-      await _apiClient.initialize();
+      await _googleSignIn.signOut();
+    } catch (e) {
+      if (kDebugMode) {
+        _oauthLog('DEBUG', 'Pre-sign-in Google signOut: ${e.toString()}');
+      }
+    }
 
-      // Trigger the Google Sign-In flow
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        // User cancelled the sign-in
+    GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await _googleSignIn.signIn();
+    } on PlatformException catch (e) {
+      if (e.code == GoogleSignIn.kSignInCanceledError) {
+        _oauthLog('DEBUG', 'OAuth flow cancelled by user interaction.');
         return null;
       }
+      _oauthLog(
+        'ERROR',
+        'Google Sign-In failed: ${e.code} ${e.message ?? ''}',
+      );
+      rethrow;
+    }
 
-      // Obtain the auth details from the request
+    if (googleUser == null) {
+      _oauthLog('DEBUG', 'OAuth flow cancelled by user interaction.');
+      return null;
+    }
+
+    try {
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
@@ -45,11 +80,9 @@ class GoogleAuthService {
         throw Exception('Failed to get ID token from Google');
       }
 
-      // Backend requires email and name; optional googleId for new-account password.
       final String email = googleUser.email;
       final String name = googleUser.displayName ?? email.split('@').first;
 
-      // Backend derives subject from verified ID token; omit googleId to avoid rare SDK/sub mismatches.
       final response = await _apiClient.post('/auth/google', {
         'googleToken': idToken,
         'email': email,
@@ -58,14 +91,23 @@ class GoogleAuthService {
       });
 
       if (response.data['success'] == true) {
-        return response.data['data'];
+        final data = response.data['data'];
+        if (data is Map<String, dynamic>) {
+          _oauthLog('SUCCESS', 'Authentication successful for user: $email');
+          return data;
+        }
+        if (data is Map) {
+          _oauthLog('SUCCESS', 'Authentication successful for user: $email');
+          return Map<String, dynamic>.from(data);
+        }
+        throw Exception('Invalid response from server');
       } else {
-        throw Exception(response.data['message'] ?? 'Google sign-in failed');
+        throw Exception(
+          response.data['message']?.toString() ?? 'Google sign-in failed',
+        );
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Google Sign-In Error: $e');
-      }
+      _oauthLog('ERROR', 'Google Sign-In Error: $e');
       rethrow;
     }
   }

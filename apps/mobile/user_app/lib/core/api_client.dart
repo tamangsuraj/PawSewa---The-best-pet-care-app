@@ -36,7 +36,7 @@ String? _parseApiErrorMessage(dynamic data) {
 String? _describeHttpError(Response? response, dynamic data) {
   final ngrok = response?.headers.value('ngrok-error-code');
   if (ngrok == 'ERR_NGROK_3200') {
-    return 'Ngrok tunnel is offline or the URL changed. On your PC run: ngrok http 3000 (or npm run tunnel in backend). Then open the app’s server URL setting and paste the new https address — old ngrok links stop working when the tunnel closes.';
+    return 'Ngrok tunnel is offline or the URL changed. On your PC run: ngrok http 3000 (or npm run tunnel in backend). Then open the app’s server URL setting and paste the new https address. Old ngrok links stop working when the tunnel closes.';
   }
   if (ngrok != null && ngrok.startsWith('ERR_NGROK')) {
     return 'Ngrok error ($ngrok). Check that ngrok is running and the app uses the current tunnel URL.';
@@ -59,6 +59,9 @@ class ApiClient {
     final baseUrl = await ApiConfig.getBaseUrl();
     if (kDebugMode) {
       debugPrint('[API] Using base URL: $baseUrl');
+      if (baseUrl.toLowerCase().contains('ngrok')) {
+        debugPrint('[SUCCESS] Base URL updated to Ngrok tunnel.');
+      }
     }
     _dio = Dio(
       BaseOptions(
@@ -78,8 +81,16 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          if (ApiConfig.looksLikeNgrokUrl(options.uri.toString())) {
+            options.headers['ngrok-skip-browser-warning'] = 'true';
+            if (kDebugMode) {
+              debugPrint(
+                '[DEBUG] Ngrok skip-header applied to payment verification request.',
+              );
+            }
+          }
           if (kDebugMode) {
-            debugPrint('[API] → ${options.method} ${options.uri}');
+            debugPrint('[API] ${options.method} ${options.uri}');
           }
           if (options.data is FormData) {
             options.headers.remove('Content-Type');
@@ -461,6 +472,17 @@ class ApiClient {
     return await _dio.get('/orders/my');
   }
 
+  /// GET /orders/user/:userId?scope=all|current|past (same user or admin).
+  Future<Response> getOrderHistoryForUser(
+    String userId, {
+    String scope = 'all',
+  }) async {
+    return await _dio.get(
+      '/orders/user/$userId',
+      queryParameters: scope == 'all' ? null : {'scope': scope},
+    );
+  }
+
   /// JSON invoice for print/share (owner, seller, or admin).
   Future<Response> getOrderInvoice(String orderId) async {
     return await _dio.get('/orders/$orderId/invoice');
@@ -527,7 +549,7 @@ class ApiClient {
     );
   }
 
-  /// Multipart upload → Cloudinary via backend. Returns `{ success, data: { url, mediaType } }`.
+  /// Multipart upload > Cloudinary via backend. Returns `{ success, data: { url, mediaType } }`.
   Future<Response> uploadChatMedia(
     Uint8List bytes, {
     required String filename,
@@ -546,16 +568,24 @@ class ApiClient {
   /// Initiate Khalti payment for a shop order. Returns pidx, paymentUrl, orderId.
   /// Backend creates the Khalti session; app should open paymentUrl in browser/WebView.
   Future<Response> initiateKhaltiForOrder(String orderId) async {
-    return await _dio.post('/orders/$orderId/khalti/initiate');
+    final origin = await ApiConfig.getApiOrigin();
+    return await _dio.post(
+      '/orders/$orderId/khalti/initiate',
+      data: {
+        if (origin.isNotEmpty) 'publicApiBase': origin,
+      },
+    );
   }
 
   /// Deferred shop checkout: [checkoutPaymentId] from POST /orders with paymentMethod khalti.
   Future<Response> initiateKhaltiShopCheckout(String checkoutPaymentId) async {
+    final origin = await ApiConfig.getApiOrigin();
     return await _dio.post(
       '/orders/checkout/khalti/initiate',
       data: {
         'checkoutPaymentId': checkoutPaymentId,
         'callbackMode': 'app',
+        if (origin.isNotEmpty) 'publicApiBase': origin,
       },
     );
   }
@@ -567,11 +597,13 @@ class ApiClient {
     String? serviceRequestId,
     double? amount,
   }) async {
+    final origin = await ApiConfig.getApiOrigin();
     return await _dio.post('/payments/initiate-payment', data: {
       'type': type,
       ...? (orderId != null ? {'orderId': orderId} : null),
       ...? (serviceRequestId != null ? {'serviceRequestId': serviceRequestId} : null),
       ...? (amount != null ? {'amount': amount} : null),
+      if (origin.isNotEmpty) 'publicApiBase': origin,
     });
   }
 
@@ -613,9 +645,14 @@ class ApiClient {
     required String serviceRequestId,
     required double amount,
   }) async {
+    final origin = await ApiConfig.getApiOrigin();
     return await _dio.post(
       '/payments/khalti/initiate',
-      data: {'serviceRequestId': serviceRequestId, 'amount': amount},
+      data: {
+        'serviceRequestId': serviceRequestId,
+        'amount': amount,
+        if (origin.isNotEmpty) 'publicApiBase': origin,
+      },
     );
   }
 

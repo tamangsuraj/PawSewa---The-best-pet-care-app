@@ -180,8 +180,8 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return PartnerScaffold(
-      title: 'Unified inbox',
-      subtitle: 'Chats, support, calls, notifications',
+      title: 'PawSewa Inbox',
+      subtitle: 'Customer threads, support, calls, notifications',
       actions: [
         IconButton(
           tooltip: 'Refresh',
@@ -203,7 +203,7 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search_rounded),
-                      hintText: 'Search chats, customers, products…',
+                      hintText: 'Search customers, orders, or products',
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -275,7 +275,7 @@ class _CustomerChatsTab extends StatelessWidget {
     }
     if (error != null) {
       return PartnerEmptyState(
-        title: 'Couldn’t load inbox',
+        title: 'Couldn’t load PawSewa Inbox',
         body: error!,
         icon: Icons.wifi_off_rounded,
         primaryAction: OutlinedButton.icon(
@@ -359,7 +359,7 @@ class _CustomerChatsTab extends StatelessWidget {
                         if (id.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
-                            'Long‑press → Mark unread',
+                            'Long-press > Mark unread',
                             style: GoogleFonts.outfit(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,

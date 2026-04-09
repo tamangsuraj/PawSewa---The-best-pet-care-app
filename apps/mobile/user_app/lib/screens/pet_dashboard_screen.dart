@@ -5,9 +5,7 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -28,7 +26,7 @@ import 'care/my_clinic_appointments_screen.dart';
 import 'care/vet_clinic_booking_screen.dart';
 import 'my_pets/my_pets_screen.dart';
 import 'owner_profile_screen.dart';
-import 'home_screen.dart';
+import 'home/home_screen.dart';
 import 'notifications_screen.dart';
 import 'support/contact_us_screen.dart';
 import 'support/faq_screen.dart';
@@ -39,6 +37,7 @@ import '../services/chat_unread_notify_service.dart';
 import '../services/notification_unread_notify_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/ongoing_call_service.dart';
+import '../services/promotion_modal_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
 
@@ -61,7 +60,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
   String _userName = 'Pet Owner';
   String? _userAvatarUrl;
   int _currentIndex = 0;
-  int _lastBottomBarIndex = 0; // when on Messages, bottom bar shows this
+  int _lastBottomBarIndex = 0; // when on Message Center, bottom bar shows this
 
   /// Sub-tab for [ServicesScreen] (0 Upcoming … 3 Clinics). Reset when opening Services from the bottom bar.
   int _servicesInitialTab = 0;
@@ -79,6 +78,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       if (!mounted) {
         return;
       }
+      unawaited(PromotionModalService.maybeShow(context));
       unawaited(context.read<NotificationUnreadNotifyService>().refreshFromApi());
     });
   }
@@ -139,7 +139,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     }
   }
 
-  /// Sync name and avatar from `GET /users/profile` (Mongo `users` / pawsewa_chat.users).
+  /// Sync name and avatar from `GET /users/profile`.
   Future<void> _refreshUserProfileFromApi() async {
     try {
       final response = await _api.getUserProfile();
@@ -234,217 +234,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     }
   }
 
-  void _showPetDetails(Pet pet) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      pet.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.outfit(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(AppConstants.primaryColor),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Digital ID Card for PawID + QR
-              if (pet.pawId != null && pet.pawId!.isNotEmpty)
-                GestureDetector(
-                  onLongPress: () async {
-                    final id = pet.pawId!;
-                    // Capture context-dependent objects before the async gap.
-                    final messenger = ScaffoldMessenger.of(context);
-                    final canPop = Navigator.of(context).canPop();
-
-                    await Clipboard.setData(ClipboardData(text: id));
-                    if (!mounted || !canPop) return;
-
-                    HapticFeedback.lightImpact();
-                    messenger.showSnackBar(
-                      SnackBar(
-                        content: Text('PawID copied: $id'),
-                        duration: const Duration(seconds: 2),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7EC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: const Color(AppConstants.primaryColor),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              AppConstants.primaryColor,
-                            ).withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.badge,
-                            color: Color(AppConstants.primaryColor),
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Digital Paw ID',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(AppConstants.primaryColor),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              SelectableText(
-                                pet.pawId ?? '',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.brown[800],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Long press to copy or let your vet scan the QR.',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 11,
-                                  color: Colors.brown[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE2D3B5)),
-                          ),
-                          child: QrImageView(
-                            data: pet.pawId!,
-                            size: 72,
-                            eyeStyle: const QrEyeStyle(
-                              eyeShape: QrEyeShape.square,
-                              color: Color(AppConstants.primaryColor),
-                            ),
-                            dataModuleStyle: const QrDataModuleStyle(
-                              dataModuleShape: QrDataModuleShape.square,
-                              color: Color(AppConstants.primaryColor),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              _buildDetailRow('Species', pet.species),
-              if (pet.breed != null && pet.breed!.isNotEmpty)
-                _buildDetailRow('Breed', pet.breed!),
-              if (pet.age != null) _buildDetailRow('Age', '${pet.age} years'),
-              _buildDetailRow('Gender', pet.gender),
-              if (pet.weight != null)
-                _buildDetailRow('Weight', '${pet.weight} kg'),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        // For now just close; delete flow can be added back if needed
-                      },
-                      icon: const Icon(Icons.close),
-                      label: Text('Close', style: GoogleFonts.outfit()),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(AppConstants.primaryColor),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                color: const Color(AppConstants.accentColor),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _titleForIndex() {
     switch (_currentIndex) {
       case 0:
@@ -454,7 +243,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       case 2:
         return 'Shop';
       case 3:
-        return 'Chats';
+        return 'Message Center';
       case 4:
         return 'Pet Care+';
       case 5:
@@ -631,7 +420,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                         onTap: () {
                           _closeDrawerAndPush(
                             const MyOrdersScreen(
-                              listMode: MyOrdersListMode.historyOnly,
+                              listMode: MyOrdersListMode.drawerUnified,
                             ),
                           );
                         },
@@ -968,7 +757,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           _homePetIndex = i;
         });
       },
-      onShowPetDetails: _showPetDetails,
       isLoadingPets: _isLoading,
       onRefreshPets: _loadPets,
       onOpenServicesTab: (int tab) {
@@ -1016,93 +804,20 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                 child: PawSewaBrandLogo(height: 28),
               ),
             ),
-            Consumer2<NotificationUnreadNotifyService, OngoingCallService>(
-              builder: (context, nUnread, ongoing, _) {
-                final bell = Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none_rounded, size: 22),
-                      color: Colors.black87,
-                      onPressed: () async {
-                        await Navigator.push<void>(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const NotificationsScreen(),
-                          ),
-                        );
-                        if (context.mounted) {
-                          unawaited(nUnread.refreshFromApi());
-                        }
-                      },
-                      tooltip: 'Notifications',
-                    ),
-                    if (ongoing.active)
-                      Positioned(
-                        right: 2,
-                        top: 4,
-                        child: IgnorePointer(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'LIVE',
-                              style: GoogleFonts.outfit(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-                final c = nUnread.unreadCount;
-                if (c <= 0) {
-                  return bell;
-                }
-                return Badge.count(
-                  count: c > 99 ? 99 : c,
-                  child: bell,
-                );
-              },
-            ),
-            Consumer<ChatUnreadNotifyService>(
-              builder: (context, unread, _) {
-                final c = unread.totalUnread;
-                final btn = IconButton(
-                  icon: Icon(
-                    _currentIndex == 3
-                        ? Icons.chat_bubble
-                        : Icons.chat_bubble_outline,
-                    color: _currentIndex == 3
-                        ? const Color(AppConstants.primaryColor)
-                        : Colors.grey[700],
-                    size: 20,
+            IconButton(
+              icon: const Icon(Icons.account_circle_outlined, size: 24),
+              color: Colors.black87,
+              tooltip: 'Profile',
+              onPressed: () {
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const OwnerProfileScreen(),
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _currentIndex = 3;
-                    });
-                  },
-                  tooltip: 'Messages',
-                );
-                if (c <= 0) {
-                  return btn;
-                }
-                return Badge.count(
-                  count: c > 99 ? 99 : c,
-                  child: btn,
                 );
               },
             ),
+            const SizedBox(width: 4),
           ],
         ),
       ),
@@ -1247,7 +962,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                   _currentIndex = 3;
                 });
               },
-              tooltip: 'Messages',
+              tooltip: 'Message Center',
             );
             if (c <= 0) {
               return btn;

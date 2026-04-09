@@ -63,7 +63,7 @@ const sendOTPEmail = async (email, name, otp) => {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td align="center">
-                          <!-- Logo Placeholder -->
+                          <!-- Brand header -->
                           <div style="width: 80px; height: 80px; background-color: rgba(255, 255, 255, 0.15); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 3px solid rgba(255, 255, 255, 0.3);">
                             <span style="font-size: 22px; line-height: 1; font-weight: 700; color: #ffffff;">PS</span>
                           </div>
@@ -248,7 +248,7 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
                     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                       <tr>
                         <td align="center">
-                          <!-- Logo Placeholder -->
+                          <!-- Brand header -->
                           <div style="width: 80px; height: 80px; background-color: rgba(255, 255, 255, 0.15); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 3px solid rgba(255, 255, 255, 0.3);">
                             <span style="font-size: 22px; line-height: 1; font-weight: 700; color: #ffffff;">PS</span>
                           </div>

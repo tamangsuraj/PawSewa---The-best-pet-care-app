@@ -12,14 +12,16 @@ import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../messages/marketplace_thread_screen.dart';
 import 'track_package_screen.dart';
+import '../../widgets/paw_sewa_loader.dart';
 import '../../widgets/premium_empty_state.dart';
-import '../../widgets/premium_shimmer.dart';
 
 /// How to filter the owner’s shop orders in the list.
 enum MyOrdersListMode {
   all,
   activeOnly,
   historyOnly,
+  /// Drawer "Order History": current and past sections, fresh fetch via /orders/user/:id.
+  drawerUnified,
 }
 
 class MyOrdersScreen extends StatefulWidget {
@@ -92,6 +94,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    if (kDebugMode && widget.listMode == MyOrdersListMode.drawerUnified) {
+      debugPrint('[DEBUG] Navigating to History Screen via Sidebar.');
+    }
     _load();
     _initUserAndSocket();
   }
@@ -118,7 +123,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
       _error = null;
     });
     try {
-      final resp = await _apiClient.getMyOrders();
+      final u = await StorageService().getUser();
+      if (u != null && u.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(u);
+          if (decoded is Map) {
+            _myUserId = decoded['_id']?.toString() ?? decoded['id']?.toString();
+          }
+        } catch (_) {}
+      }
+      final Response resp;
+      if (_myUserId != null &&
+          _myUserId!.isNotEmpty &&
+          widget.listMode == MyOrdersListMode.drawerUnified) {
+        resp = await _apiClient.getOrderHistoryForUser(_myUserId!, scope: 'all');
+      } else {
+        resp = await _apiClient.getMyOrders();
+      }
       final data = resp.data;
       List<Map<String, dynamic>> list = [];
       if (data is Map && data['data'] is List) {
@@ -167,6 +188,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               s == 'refunded' ||
               s == 'cancelled';
         }).toList();
+      case MyOrdersListMode.drawerUnified:
+        return _orders;
     }
   }
 
@@ -178,11 +201,201 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         return 'Current orders';
       case MyOrdersListMode.historyOnly:
         return 'Order history';
+      case MyOrdersListMode.drawerUnified:
+        return 'Orders';
     }
+  }
+
+  static bool _isTerminalOrderStatus(String? status) {
+    final s = status?.toString() ?? '';
+    return s == 'delivered' ||
+        s == 'returned' ||
+        s == 'refunded' ||
+        s == 'cancelled';
+  }
+
+  Widget _buildDrawerUnified(BuildContext context) {
+    final current = _orders
+        .where((o) => !_isTerminalOrderStatus(o['status']?.toString()))
+        .toList();
+    final past = _orders
+        .where((o) => _isTerminalOrderStatus(o['status']?.toString()))
+        .toList();
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          _appBarTitle,
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      body: _loading
+          ? const Center(
+              child: PawSewaLoader(width: 160, height: 160),
+            )
+          : _error != null
+              ? PremiumEmptyState(
+                  title: 'Could not load orders',
+                  body: _error!,
+                  icon: Icons.wifi_off_rounded,
+                  primaryAction: FilledButton.icon(
+                    onPressed: _load,
+                    style: FilledButton.styleFrom(backgroundColor: _primary),
+                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    label: Text(
+                      'Retry',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+              : _orders.isEmpty
+                  ? PremiumEmptyState(
+                      title: 'No orders yet',
+                      body:
+                          'Place an order from the Shop. Current and completed orders will appear here.',
+                      icon: Icons.receipt_long_rounded,
+                      primaryAction: FilledButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: FilledButton.styleFrom(backgroundColor: _primary),
+                        icon: const Icon(Icons.shopping_bag_rounded, color: Colors.white),
+                        label: Text(
+                          'Back to shop',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      color: _primary,
+                      child: CustomScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                              child: Text(
+                                'Current orders',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (current.isEmpty)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'No active orders right now.',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            SliverPadding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    final o = current[index];
+                                    final id = o['_id']?.toString();
+                                    final hl = widget.highlightOrderId != null &&
+                                        id != null &&
+                                        id == widget.highlightOrderId;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: _OrderCard(
+                                        key: hl ? _highlightKey : null,
+                                        order: o,
+                                        highlight: hl,
+                                        isPastStatus: false,
+                                      ),
+                                    );
+                                  },
+                                  childCount: current.length,
+                                ),
+                              ),
+                            ),
+                          SliverToBoxAdapter(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                              child: Text(
+                                'Past orders',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.grey.shade700,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (past.isEmpty)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'No completed or cancelled orders yet.',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            SliverPadding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, index) {
+                                    final o = past[index];
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: _OrderCard(
+                                        order: o,
+                                        highlight: false,
+                                        isPastStatus: true,
+                                      ),
+                                    );
+                                  },
+                                  childCount: past.length,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.listMode == MyOrdersListMode.drawerUnified) {
+      return _buildDrawerUnified(context);
+    }
     final visible = _visibleOrders;
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -204,16 +417,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         ),
       ),
       body: _loading
-          ? PremiumShimmer(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-                children: const [
-                  SkeletonListTile(),
-                  SkeletonListTile(),
-                  SkeletonListTile(),
-                  SkeletonListTile(),
-                ],
-              ),
+          ? const Center(
+              child: PawSewaLoader(width: 160, height: 160),
             )
           : _error != null
               ? PremiumEmptyState(
@@ -281,6 +486,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     key: highlight ? _highlightKey : null,
                     order: o,
                     highlight: highlight,
+                    isPastStatus: _isTerminalOrderStatus(
+                      o['status']?.toString(),
+                    ),
                   );
                 },
               ),
@@ -418,7 +626,7 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                                 conversationId: cid,
                                 threadType: 'DELIVERY',
                                 peerName: name,
-                                peerSubtitle: 'Your order',
+                                peerSubtitle: 'Order progress',
                                 highContrast: true,
                               ),
                             ),
@@ -648,10 +856,17 @@ Future<void> _rateDeliveredProduct(
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({super.key, required this.order, this.highlight = false});
+  const _OrderCard({
+    super.key,
+    required this.order,
+    this.highlight = false,
+    this.isPastStatus = false,
+  });
 
   final Map<String, dynamic> order;
   final bool highlight;
+  /// Teal badge when false (active); grey when true (terminal).
+  final bool isPastStatus;
 
   /// Human-readable status for display.
   static String statusLabel(String raw) {
@@ -722,7 +937,7 @@ class _OrderCard extends StatelessWidget {
                 conversationId: cid,
                 threadType: 'DELIVERY',
                 peerName: name,
-                peerSubtitle: 'Your order',
+                peerSubtitle: 'Order progress',
                 highContrast: true,
               ),
             ),
@@ -744,6 +959,8 @@ class _OrderCard extends StatelessWidget {
     }
   }
 
+  static const Color _tealActive = Color(0xFF0D9488);
+
   @override
   Widget build(BuildContext context) {
     final primary = const Color(AppConstants.primaryColor);
@@ -753,6 +970,8 @@ class _OrderCard extends StatelessWidget {
     final id = order['_id']?.toString() ?? '';
     final status = _status;
     final paymentStatus = _paymentStatus;
+    final badgeBg = isPastStatus ? Colors.grey.shade200 : _tealActive.withValues(alpha: 0.15);
+    final badgeFg = isPastStatus ? Colors.grey.shade800 : _tealActive;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -773,26 +992,52 @@ class _OrderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '#${id.length >= 6 ? id.substring(id.length - 6) : id}',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: Colors.black87,
+                Expanded(
+                  child: Text(
+                    '#${id.length >= 6 ? id.substring(id.length - 6) : id}',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(
-                  paymentStatus,
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    color: paymentStatus == 'Paid'
-                        ? Colors.green[700]
-                        : Colors.orange[700],
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    paymentStatus,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: paymentStatus == 'Paid'
+                          ? Colors.green[700]
+                          : Colors.orange[700],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Pet: All pets',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Service: Product',
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
             ),
             const SizedBox(height: 8),
             if (items.isNotEmpty)
@@ -812,26 +1057,30 @@ class _OrderCard extends StatelessWidget {
               ),
             const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    status,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: primary,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      status,
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: badgeFg,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
+                const Spacer(),
                 Text(
                   'NPR ${total.toStringAsFixed(0)}',
                   style: GoogleFonts.outfit(
@@ -839,6 +1088,8 @@ class _OrderCard extends StatelessWidget {
                     fontSize: 14,
                     color: Colors.black87,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { Home, RefreshCw, ShieldCheck } from 'lucide-react';
 
@@ -30,7 +30,7 @@ export default function CareHostelsPage() {
   const [error, setError] = useState('');
   const [serviceTypeFilter, setServiceTypeFilter] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -38,24 +38,26 @@ export default function CareHostelsPage() {
       if (serviceTypeFilter) params.serviceType = serviceTypeFilter;
       const resp = await api.get('/admin/hostels', { params });
       setHostels(resp.data?.data ?? []);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to load hostels';
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = e.response?.data?.message || e.message || 'Failed to load hostels';
       setError(msg);
     } finally {
       setLoading(false);
     }
-  };
+  }, [serviceTypeFilter]);
 
   useEffect(() => {
     load();
-  }, [serviceTypeFilter]);
+  }, [load]);
 
   const handleVerify = async (id: string) => {
     try {
       await api.patch(`/admin/hostels/${id}/verify`);
       load();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to verify');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message || 'Failed to verify');
     }
   };
 

@@ -210,7 +210,7 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
                                     ? _fmtDay(checkIn)
                                     : 'Date not set';
                                 final range = (checkIn != null && checkOut != null)
-                                    ? '${checkIn.month}/${checkIn.day} → ${checkOut.month}/${checkOut.day}'
+                                    ? '${checkIn.month}/${checkIn.day} > ${checkOut.month}/${checkOut.day}'
                                     : '';
                                 final status =
                                     (b['status'] ?? 'pending').toString();

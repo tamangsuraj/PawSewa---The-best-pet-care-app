@@ -10,15 +10,17 @@ import {
   Search,
   MapPin,
 } from 'lucide-react';
+import { PawSewaLoader } from '@/components/PawSewaLoader';
 
 interface Order {
   _id: string;
   user?: { _id: string; name: string; email?: string; phone?: string };
   items: Array<{ name: string; price: number; quantity: number }>;
   totalAmount: number;
-  status: 'delivered';
+  status: string;
   paymentStatus?: string;
   deliveryLocation?: { address: string };
+  assignedSeller?: { _id: string; name?: string };
   assignedRider?: { _id: string; name?: string };
   proofOfDelivery?: {
     otp?: string;
@@ -30,6 +32,12 @@ interface Order {
 }
 
 type DateFilter = 'all' | 'today' | 'yesterday' | 'week' | 'month';
+
+interface UserOption {
+  _id: string;
+  name?: string;
+  email?: string;
+}
 
 function getDateRange(filter: DateFilter): { start: Date; end: Date } | null {
   const now = new Date();
@@ -71,8 +79,35 @@ export default function PastSuppliesPage() {
   const [appliedSearch, setAppliedSearch] = useState('');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [selectedProof, setSelectedProof] = useState<Order | null>(null);
+  const [sellers, setSellers] = useState<UserOption[]>([]);
+  const [riders, setRiders] = useState<UserOption[]>([]);
+  const [sellerId, setSellerId] = useState('');
+  const [riderId, setRiderId] = useState('');
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
 
   const handleSearch = () => setAppliedSearch(search.trim());
+
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const [sr, rr] = await Promise.all([
+          api.get<{ success: boolean; data?: UserOption[] }>('/users', {
+            params: { role: 'shop_owner' },
+          }),
+          api.get<{ success: boolean; data?: UserOption[] }>('/users', {
+            params: { role: 'rider' },
+          }),
+        ]);
+        setSellers(sr.data?.data ?? []);
+        setRiders(rr.data?.data ?? []);
+      } catch {
+        setSellers([]);
+        setRiders([]);
+      }
+    };
+    void loadFilters();
+  }, []);
 
   useEffect(() => {
     fetchAll();
@@ -82,9 +117,26 @@ export default function PastSuppliesPage() {
     try {
       setLoading(true);
       setError('');
+      const params: Record<string, string | number> = {
+        terminalOnly: 1,
+        limit: 200,
+        page: 1,
+      };
+      if (sellerId) params.assignedSeller = sellerId;
+      if (riderId) params.assignedRider = riderId;
+      if (rangeFrom) {
+        params.createdAfter = new Date(
+          `${rangeFrom}T00:00:00.000Z`
+        ).toISOString();
+      }
+      if (rangeTo) {
+        params.createdBefore = new Date(
+          `${rangeTo}T23:59:59.999Z`
+        ).toISOString();
+      }
       const resp = await api.get<{ success: boolean; data?: Order[] }>(
         '/orders',
-        { params: { status: 'delivered' } }
+        { params }
       );
       const data = resp.data?.data ?? [];
       const sorted = [...data].sort(
@@ -117,12 +169,14 @@ export default function PastSuppliesPage() {
           .join(' ')
           .toLowerCase();
         const riderName = order.assignedRider?.name ?? '';
+        const sellerName = order.assignedSeller?.name ?? '';
         return (
           orderId.toLowerCase().includes(q) ||
           email.toLowerCase().includes(q) ||
           phone.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
           productNames.includes(q) ||
-          riderName.toLowerCase().includes(q)
+          riderName.toLowerCase().includes(q) ||
+          sellerName.toLowerCase().includes(q)
         );
       });
     }
@@ -148,8 +202,8 @@ export default function PastSuppliesPage() {
               Past Pet Supplies
             </h1>
             <p className="text-gray-600 mt-1">
-              Delivered orders. Search by order ID, customer email, phone, product
-              name or rider name.
+              Terminal orders (delivered, returned, refunded, cancelled). Filter by
+              date range, seller, rider, or search.
             </p>
           </div>
           <button
@@ -158,6 +212,72 @@ export default function PastSuppliesPage() {
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-3 mb-4 items-end">
+          <div className="min-w-[160px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Seller
+            </label>
+            <select
+              value={sellerId}
+              onChange={(e) => setSellerId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">All sellers</option>
+              {sellers.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name ?? s.email ?? s._id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-[160px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Rider
+            </label>
+            <select
+              value={riderId}
+              onChange={(e) => setRiderId(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            >
+              <option value="">All riders</option>
+              {riders.map((r) => (
+                <option key={r._id} value={r._id}>
+                  {r.name ?? r.email ?? r._id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              From
+            </label>
+            <input
+              type="date"
+              value={rangeFrom}
+              onChange={(e) => setRangeFrom(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              To
+            </label>
+            <input
+              type="date"
+              value={rangeTo}
+              onChange={(e) => setRangeTo(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void fetchAll()}
+            className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 text-sm font-medium"
+          >
+            Apply filters
           </button>
         </div>
 
@@ -216,9 +336,9 @@ export default function PastSuppliesPage() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
-          <p className="mt-4 text-gray-600">Loading past orders...</p>
+        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg shadow-sm border border-gray-200">
+          <PawSewaLoader />
+          <p className="mt-4 text-gray-600 text-sm">Loading past orders...</p>
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow-sm">
@@ -239,6 +359,9 @@ export default function PastSuppliesPage() {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Seller
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Items
@@ -277,6 +400,9 @@ export default function PastSuppliesPage() {
                       <p className="text-xs text-gray-500">{order.user.phone}</p>
                     )}
                   </td>
+                  <td className="px-6 py-4 text-sm text-gray-800">
+                    {order.assignedSeller?.name ?? '—'}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     <ul className="list-disc list-inside space-y-0.5">
                       {order.items.map((it, idx) => (
@@ -298,9 +424,17 @@ export default function PastSuppliesPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border bg-green-100 text-green-800 border-green-300">
-                      <CheckCircle className="w-4 h-4" />
-                      DELIVERED
+                    <span
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${
+                        order.status === 'delivered'
+                          ? 'bg-green-100 text-green-800 border-green-300'
+                          : 'bg-gray-100 text-gray-800 border-gray-300'
+                      }`}
+                    >
+                      {order.status === 'delivered' ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : null}
+                      {(order.status ?? '').replace(/_/g, ' ').toUpperCase()}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">

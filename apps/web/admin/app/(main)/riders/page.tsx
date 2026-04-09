@@ -19,7 +19,7 @@ interface Rider {
 }
 
 export default function RidersPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,13 +50,24 @@ export default function RidersPage() {
   const fetchRiders = async () => {
     try {
       const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const ridersList = (allUsers || []).filter(
-        (u: any) => u.role === 'rider' || u.role === 'RIDER'
+      const allUsers = response.data?.data as unknown;
+      const rows = Array.isArray(allUsers) ? (allUsers as Array<Record<string, unknown>>) : [];
+      const ridersList = rows.filter((u) => u.role === 'rider' || u.role === 'RIDER');
+      setRiders(
+        ridersList.map((u) => ({
+          _id: String(u._id ?? ''),
+          name: String(u.name ?? u.full_name ?? u.email ?? 'Rider'),
+          email: String(u.email ?? ''),
+          phone: u.phone ? String(u.phone) : undefined,
+          location: u.location ? String(u.location) : undefined,
+          vehicleType: u.vehicleType ? String(u.vehicleType) : undefined,
+          licenseNumber: u.licenseNumber ? String(u.licenseNumber) : undefined,
+          isVerified: typeof u.isVerified === 'boolean' ? u.isVerified : undefined,
+          createdAt: String(u.createdAt ?? ''),
+        }))
       );
-      setRiders(ridersList.map((u: any) => ({ ...u, name: u.name || u.full_name || u.email })));
-    } catch (error) {
-      console.error('Error fetching riders:', error);
+    } catch {
+      setRiders([]);
     } finally {
       setLoading(false);
     }
@@ -84,8 +95,9 @@ export default function RidersPage() {
       });
       setShowModal(false);
       fetchRiders();
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to create rider');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to create rider');
     } finally {
       setFormLoading(false);
     }
@@ -96,8 +108,8 @@ export default function RidersPage() {
       const response = await api.get(`/users/${riderId}`);
       setSelectedRider(response.data.data);
       setShowDetailsModal(true);
-    } catch (error) {
-      console.error('Error fetching rider details:', error);
+    } catch {
+      setShowDetailsModal(false);
     }
   };
 
@@ -107,8 +119,8 @@ export default function RidersPage() {
     try {
       await api.delete(`/users/${id}`);
       fetchRiders();
-    } catch (error) {
-      console.error('Error deleting rider:', error);
+    } catch {
+      // ignore
     }
   };
 

@@ -172,9 +172,8 @@ const careBookingSchema = new mongoose.Schema(
         type: {
           type: String,
           enum: ['Point'],
-          default: 'Point',
         },
-        coordinates: { type: [Number], default: undefined }, // [lng, lat]
+        coordinates: { type: [Number] }, // [lng, lat] — omit when unknown; no default type (avoids invalid GeoJSON)
       },
     },
     /** Admin-dispatched professional (vet / groomer / etc.) — surfaces in Partner app + sockets. */
@@ -210,6 +209,22 @@ careBookingSchema.pre('save', function syncCareBookingFields() {
     this.careAssignmentStatus = 'ASSIGNED_TO_PROFESSIONAL';
   } else {
     this.careAssignmentStatus = 'UNASSIGNED';
+  }
+  const pa = this.pickupAddress;
+  if (pa && pa.point) {
+    const c = pa.point.coordinates;
+    const ok =
+      Array.isArray(c) &&
+      c.length === 2 &&
+      Number.isFinite(Number(c[0])) &&
+      Number.isFinite(Number(c[1]));
+    if (!ok) {
+      this.pickupAddress = pa.address && String(pa.address).trim()
+        ? { address: String(pa.address).trim() }
+        : undefined;
+    } else if (pa.point.type !== 'Point') {
+      pa.point.type = 'Point';
+    }
   }
 });
 

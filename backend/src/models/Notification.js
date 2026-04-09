@@ -19,8 +19,14 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['service_request', 'case', 'system', 'reminder', 'care_booking'],
+      enum: ['service_request', 'case', 'system', 'reminder', 'care_booking', 'broadcast'],
       default: 'service_request',
+    },
+    /** Set when type is admin broadcast (links to NotificationLog). */
+    broadcastLog: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'NotificationLog',
+      default: null,
     },
     serviceRequest: {
       type: mongoose.Schema.Types.ObjectId,

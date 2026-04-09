@@ -90,7 +90,7 @@ async function resolveGoogleIdentity(googleToken) {
     };
   } catch (verifyErr) {
     if (process.env.NODE_ENV !== 'production') {
-      console.warn('[Google OAuth] verifyIdToken failed, trying userinfo fallback:', verifyErr.message);
+      require('../utils/logger').warn('Google OAuth: verifyIdToken failed. Falling back to userinfo.', verifyErr.message);
     }
     const res = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
       headers: { Authorization: `Bearer ${googleToken}` },
@@ -256,7 +256,7 @@ router.post('/google', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Google OAuth error:', error);
+    require('../utils/logger').error('Google OAuth error:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Google authentication failed',

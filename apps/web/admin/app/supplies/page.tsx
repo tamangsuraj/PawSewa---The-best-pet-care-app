@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import 'leaflet/dist/leaflet.css';
@@ -120,14 +120,6 @@ function ProofMiniBadges({ order }: { order: Order }) {
   );
 }
 
-interface Seller {
-  _id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  role: string;
-}
-
 function orderPreciseCoords(order: Order): { lat: number; lng: number } | null {
   const loc = order.location;
   if (
@@ -171,32 +163,25 @@ const ORDER_STATUSES: string[] = [
 function OrderDetailModal({
   order,
   riders,
-  sellers,
   onClose,
   onUpdated,
 }: {
   order: Order;
   riders: Rider[];
-  sellers: Seller[];
   onClose: () => void;
   onUpdated: (updatedOrder?: Order) => void;
 }) {
   const [selectedRiderId, setSelectedRiderId] = useState<string>(
     order.assignedRider?._id ?? ''
   );
-  const [selectedSellerId, setSelectedSellerId] = useState<string>(
-    order.assignedSeller?._id ?? ''
-  );
   const [selectedStatus, setSelectedStatus] = useState<string>(order.status);
   const [assigning, setAssigning] = useState(false);
-  const [assigningSeller, setAssigningSeller] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
-    setSelectedSellerId(order.assignedSeller?._id ?? '');
     setSelectedRiderId(order.assignedRider?._id ?? '');
     setSelectedStatus(order.status);
-  }, [order._id, order.assignedSeller?._id, order.assignedRider?._id, order.status]);
+  }, [order._id, order.assignedRider?._id, order.status]);
 
   const precise = orderPreciseCoords(order);
   const mapsSearchUrl = precise
@@ -207,29 +192,6 @@ function OrderDetailModal({
   const osmUrl = precise
     ? `https://www.openstreetmap.org/?mlat=${precise.lat}&mlon=${precise.lng}#map=16/${precise.lat}/${precise.lng}`
     : null;
-
-  const handleAssignSeller = async () => {
-    if (!selectedSellerId) {
-      toast.error('Select a seller');
-      return;
-    }
-    setAssigningSeller(true);
-    try {
-      const resp = await api.patch<{ success: boolean; data?: Order }>(
-        `/orders/${order._id}/assign-seller`,
-        { sellerId: selectedSellerId }
-      );
-      toast.success('Seller assigned — partner app notified');
-      onUpdated(resp.data?.data);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Failed to assign seller';
-      toast.error(msg);
-    } finally {
-      setAssigningSeller(false);
-    }
-  };
 
   const handleAssign = async () => {
     if (!selectedRiderId) {
@@ -481,43 +443,26 @@ function OrderDetailModal({
             </p>
           </div>
 
-          {/* Assign seller (Care+ shop chain) */}
+          {/* Seller (set automatically from product owner at checkout) */}
           <div>
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
               <Package className="w-4 h-4" />
-              Assign seller
+              Seller info
             </h3>
-            <p className="text-xs text-gray-500 mb-2">
-              Shop owner confirms stock before rider pickup. Partner app receives a real-time ping.
-            </p>
-            <div className="flex flex-wrap gap-2 items-end">
-              <div className="flex-1 min-w-[200px]">
-                <select
-                  value={selectedSellerId}
-                  onChange={(e) => setSelectedSellerId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                >
-                  <option value="">Select seller</option>
-                  {sellers.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name} {s.phone ? `(${s.phone})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={handleAssignSeller}
-                disabled={assigningSeller || !selectedSellerId}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 disabled:opacity-50 text-sm font-medium"
-              >
-                {assigningSeller ? 'Assigning…' : 'Assign seller'}
-              </button>
-            </div>
-            {order.assignedSeller && (
-              <p className="mt-2 text-sm text-gray-600">
-                Current seller: {order.assignedSeller.name}
-                {order.sellerConfirmedAt ? ' · Stock confirmed' : ' · Awaiting confirmation'}
+            {order.assignedSeller ? (
+              <p className="text-sm text-gray-800">
+                Assigned seller: {order.assignedSeller.name}
+                {order.assignedSeller.phone
+                  ? ` (${order.assignedSeller.phone})`
+                  : ''}
+                {order.sellerConfirmedAt
+                  ? ' · Stock confirmed'
+                  : ' · Awaiting confirmation'}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600">
+                Assigned seller: not available. Contact support if this order should
+                have a shop owner.
               </p>
             )}
           </div>
@@ -600,7 +545,6 @@ const PAGE_SIZE = 20;
 export default function LiveSuppliesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [riders, setRiders] = useState<Rider[]>([]);
-  const [sellers, setSellers] = useState<Seller[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -615,8 +559,11 @@ export default function LiveSuppliesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkRiderId, setBulkRiderId] = useState('');
   const [bulkAssigning, setBulkAssigning] = useState(false);
+  const pageRef = useRef(page);
+  pageRef.current = page;
 
-  const loadOrders = useCallback(async () => {
+  /** Fetch a specific results page (avoids stale closure when socket events need page 1). */
+  const fetchOrders = useCallback(async (targetPage: number) => {
     try {
       setLoading(true);
       setError('');
@@ -625,7 +572,7 @@ export default function LiveSuppliesPage() {
         liveOnly?: number;
         limit: number;
         page: number;
-      } = { limit: PAGE_SIZE, page, liveOnly: 1 };
+      } = { limit: PAGE_SIZE, page: targetPage, liveOnly: 1 };
       if (filterStatus !== 'all') params.status = filterStatus;
       const resp = await api.get<OrdersResponse>('/orders', { params });
       const data = resp.data?.data ?? [];
@@ -641,7 +588,17 @@ export default function LiveSuppliesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, page]);
+  }, [filterStatus]);
+
+  /** New orders land on page 1 (newest first). Always jump here on create/pay events. */
+  const refreshFirstPage = useCallback(() => {
+    setPage(1);
+    void fetchOrders(1);
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    void fetchOrders(page);
+  }, [page, filterStatus, fetchOrders]);
 
   const loadRiders = async () => {
     try {
@@ -655,18 +612,6 @@ export default function LiveSuppliesPage() {
     }
   };
 
-  const loadSellers = async () => {
-    try {
-      const resp = await api.get<{ success: boolean; data?: Seller[] }>(
-        '/users',
-        { params: { role: 'shop_owner' } }
-      );
-      setSellers(resp.data?.data ?? []);
-    } catch {
-      setSellers([]);
-    }
-  };
-
   const mergeOrder = useCallback((updated: Order) => {
     setOrders((prev) =>
       prev.map((o) => (o._id === updated._id ? { ...o, ...updated } : o))
@@ -677,12 +622,7 @@ export default function LiveSuppliesPage() {
   }, [detailOrder?._id]);
 
   useEffect(() => {
-    loadOrders();
-  }, [filterStatus, page, loadOrders]);
-
-  useEffect(() => {
     loadRiders();
-    loadSellers();
   }, []);
 
   useEffect(() => {
@@ -697,11 +637,11 @@ export default function LiveSuppliesPage() {
     const onNew = (payload: { order?: Order }) => {
       if (payload?.order) mergeOrder(payload.order);
       toast.success('New shop order');
-      void loadOrders();
+      refreshFirstPage();
     };
     const onPaid = (payload: { order?: Order }) => {
       if (payload?.order) mergeOrder(payload.order);
-      void loadOrders();
+      refreshFirstPage();
     };
     const onSellerOk = (payload: { order?: Order }) => {
       if (payload?.order) mergeOrder(payload.order);
@@ -713,15 +653,19 @@ export default function LiveSuppliesPage() {
     const onSellerAssigned = (payload: { order?: Order }) => {
       if (payload?.order) mergeOrder(payload.order);
       toast.success('Care+ seller assignment synced');
-      void loadOrders();
+      void fetchOrders(pageRef.current);
     };
     socket.on('order:assigned_seller', onSellerAssigned);
     const onRiderAssigned = (payload: { order?: Order }) => {
       if (payload?.order) mergeOrder(payload.order);
       toast.success('Rider assignment updated');
-      void loadOrders();
+      void fetchOrders(pageRef.current);
     };
     socket.on('order:assigned_rider', onRiderAssigned);
+    const onReconnect = () => {
+      void fetchOrders(pageRef.current);
+    };
+    socket.io.on('reconnect', onReconnect);
     return () => {
       socket.off('orderUpdate', handler);
       socket.off('new:order', onNew);
@@ -729,8 +673,9 @@ export default function LiveSuppliesPage() {
       socket.off('order:seller_confirmed', onSellerOk);
       socket.off('order:assigned_seller', onSellerAssigned);
       socket.off('order:assigned_rider', onRiderAssigned);
+      socket.io.off('reconnect', onReconnect);
     };
-  }, [mergeOrder, loadOrders]);
+  }, [mergeOrder, fetchOrders, refreshFirstPage]);
 
   useEffect(() => {
     if (detailOrder) loadRiders();
@@ -767,7 +712,7 @@ export default function LiveSuppliesPage() {
       toast.success(`Rider assigned to ${selectedIds.size} order(s)`);
       setSelectedIds(new Set());
       setBulkRiderId('');
-      loadOrders();
+      void fetchOrders(page);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -820,7 +765,7 @@ export default function LiveSuppliesPage() {
   ).length;
 
   return (
-    <div className="p-8 bg-gray-50 min-h-dvh">
+    <div className="min-w-0 w-full max-w-none pb-4">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -841,7 +786,7 @@ export default function LiveSuppliesPage() {
               Shop chat audit
             </Link>
             <button
-              onClick={loadOrders}
+              onClick={() => void fetchOrders(page)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
             >
               <RefreshCw className="w-4 h-4" />
@@ -976,8 +921,10 @@ export default function LiveSuppliesPage() {
               </button>
             </div>
           )}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="admin-table-scroll overflow-x-auto">
+              <div className="admin-data-table-inner">
+                <table className="admin-table-sticky-first admin-table-sticky-last min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left">
@@ -1025,7 +972,7 @@ export default function LiveSuppliesPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {orders.map((o) => (
-                  <tr key={o._id} className="hover:bg-gray-50">
+                  <tr key={o._id} className="group hover:bg-gray-50">
                     <td className="px-4 py-4">
                       <input
                         type="checkbox"
@@ -1134,7 +1081,9 @@ export default function LiveSuppliesPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+                </table>
+              </div>
+            </div>
             {pagination && pagination.pages > 1 && (
               <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
                 <p className="text-sm text-gray-600">
@@ -1171,14 +1120,13 @@ export default function LiveSuppliesPage() {
         <OrderDetailModal
           order={detailOrder}
           riders={riders}
-          sellers={sellers}
           onClose={() => setDetailOrder(null)}
           onUpdated={(updatedOrder) => {
             if (updatedOrder) {
               mergeOrder(updatedOrder);
               setDetailOrder(updatedOrder);
             } else {
-              void loadOrders();
+              void fetchOrders(page);
             }
           }}
         />

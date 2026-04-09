@@ -383,7 +383,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                 ? PartnerEmptyState(
                     title: 'Care centre access only',
                     body:
-                        'Pet intake and stay records are limited to care staff roles. Delivery partners use Delivery jobs; veterinarians use Clinic queue and assignments.',
+                        'Pet intake and stay records are limited to care staff roles. Delivery partners use Order progress; veterinarians use Clinic queue and assignments.',
                     icon: Icons.lock_outline_rounded,
                     primaryAction: OutlinedButton(
                       onPressed: () => Navigator.of(context).maybePop(),

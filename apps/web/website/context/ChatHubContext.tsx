@@ -162,11 +162,11 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
       if (!parityLogged.current) {
         parityLogged.current = true;
         // eslint-disable-next-line no-console
-        console.log('[SUCCESS] Chat parity achieved between Web and Mobile platforms.');
+        console.log('[SUCCESS] Message Center preview aligned with mobile app.');
       }
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.warn('[ChatHub] inbox load failed', e);
+      console.warn('[DEBUG] Message Center preview load failed', e);
     } finally {
       setLoadingList(false);
     }

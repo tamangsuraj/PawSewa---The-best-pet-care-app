@@ -56,7 +56,6 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
   bool _sentFirstWithProduct = false;
   ChatUnreadNotifyService? _unreadNotify;
   bool _uploading = false;
-  double? _uploadProgress;
   final _picker = ImagePicker();
 
   @override
@@ -310,7 +309,6 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     if (!mounted) return;
     setState(() {
       _uploading = true;
-      _uploadProgress = 0;
     });
     try {
       final res = await _api.uploadChatMedia(
@@ -318,7 +316,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         filename: filename,
         onSendProgress: (sent, total) {
           if (!mounted || total <= 0) return;
-          setState(() => _uploadProgress = sent / total);
+          setState(() {});
         },
       );
       final body = res.data;
@@ -344,7 +342,6 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
       if (mounted) {
         setState(() {
           _uploading = false;
-          _uploadProgress = null;
         });
       }
     }
@@ -381,6 +378,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
         elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               widget.peerName,
@@ -388,6 +386,8 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
               Text(
@@ -396,6 +396,8 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                   fontSize: 11,
                   color: widget.highContrast ? Colors.white70 : Colors.grey,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
@@ -531,10 +533,12 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                   ),
                 ),
                 if (_uploading)
-                  LinearProgressIndicator(
-                    value: _uploadProgress,
-                    minHeight: 3,
-                    backgroundColor: widget.highContrast ? Colors.grey.shade800 : null,
+                  SizedBox(
+                    height: 68,
+                    child: PawSewaLoader(
+                      width: 120,
+                      center: true,
+                    ),
                   ),
                 Material(
                   color: bg,

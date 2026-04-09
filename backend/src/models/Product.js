@@ -118,8 +118,5 @@ const productSchema = new mongoose.Schema(
 // Text search on name + description
 productSchema.index({ name: 'text', description: 'text' });
 
-// eslint-disable-next-line no-console
-console.log('[BACKEND] Product schema updated with targetPets and tags.');
-
 module.exports = mongoose.model('Product', productSchema, 'products');
 

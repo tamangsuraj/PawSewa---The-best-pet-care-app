@@ -28,6 +28,16 @@ class ApiConfig {
     return 'http://$value:3000/api/v1';
   }
 
+  /// API origin without `/api/v1` — send as `publicApiBase` on payment init so Khalti `return_url` uses the tunnel, not loopback.
+  static Future<String> paymentPublicOrigin() async {
+    final base = await getBaseUrl();
+    const suffix = '/api/v1';
+    if (base.endsWith(suffix)) {
+      return base.substring(0, base.length - suffix.length);
+    }
+    return base;
+  }
+
   /// Socket.io server origin (same as API host, no path).
   static Future<String> getSocketUrl() async {
     final value = await getHost();
@@ -63,4 +73,7 @@ class ApiConfig {
     }
     return {};
   }
+
+  static bool looksLikeNgrokUrl(String url) =>
+      url.toLowerCase().contains('ngrok');
 }

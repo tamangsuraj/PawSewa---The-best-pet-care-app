@@ -266,7 +266,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
     final primary = Theme.of(context).colorScheme.primary;
     return PartnerScaffold(
       title: 'New orders',
-      subtitle: 'Confirm stock → ready for rider',
+      subtitle: 'Confirm stock > ready for rider',
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh_rounded),

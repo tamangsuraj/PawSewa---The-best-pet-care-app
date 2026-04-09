@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -37,7 +38,6 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
   bool _loadingPets = true;
   bool _creating = false;
   bool _paying = false;
-  String? _error;
 
   List<Map<String, dynamic>> get _roomTypes {
     final rt = widget.hostel['roomTypes'];
@@ -47,6 +47,84 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           .toList();
     }
     return [];
+  }
+
+  static String _stringId(dynamic id) => id?.toString() ?? '';
+
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  /// GeoJSON payload aligned with backend CareBooking schema:
+  /// pickupAddress: { address, point: { type: 'Point', coordinates: [lng, lat] } }
+  /// Returns null when coordinates are missing.
+  Map<String, dynamic>? _selfDropPickupAddressPayload() {
+    final loc = widget.hostel['location'];
+    String addr = 'Care centre location';
+    double? lat;
+    double? lng;
+
+    if (loc is Map) {
+      final a = (loc['address'] ?? '').toString().trim();
+      if (a.isNotEmpty) addr = a;
+
+      final c = loc['coordinates'];
+      if (c is Map) {
+        lat = _toDouble(c['lat']);
+        lng = _toDouble(c['lng']);
+      } else if (c is List && c.length >= 2) {
+        lng = _toDouble(c[0]);
+        lat = _toDouble(c[1]);
+      }
+
+      final point = loc['point'];
+      if ((lat == null || lng == null) && point is Map) {
+        final coords = point['coordinates'];
+        if (coords is List && coords.length >= 2) {
+          lng = _toDouble(coords[0]);
+          lat = _toDouble(coords[1]);
+        }
+      }
+    }
+
+    if (lat == null || lng == null || !lat.isFinite || !lng.isFinite) {
+      debugPrint('[ERROR] GeoJSON Point validation failed: coordinates missing.');
+      return null;
+    }
+    debugPrint('[SUCCESS] GeoJSON validation passed for Hostel Booking.');
+    return <String, dynamic>{
+      'address': addr,
+      'point': <String, dynamic>{
+        'type': 'Point',
+        'coordinates': <double>[lng, lat],
+      },
+    };
+  }
+
+  String _careBookingUserMessage(Object e) {
+    if (e is DioException) {
+      final d = e.response?.data;
+      if (d is Map && d['message'] != null) {
+        return d['message'].toString();
+      }
+      if (e.message != null && e.message!.isNotEmpty) {
+        return e.message!;
+      }
+    }
+    return e.toString().replaceFirst('Exception: ', '');
+  }
+
+  void _logCareBookingError(Object e, StackTrace st) {
+    final msg = _careBookingUserMessage(e);
+    if (msg.toLowerCase().contains('geo') ||
+        msg.toLowerCase().contains('coordinate') ||
+        msg.toLowerCase().contains('point')) {
+      debugPrint('[ERROR] GeoJSON validation failed: coordinates missing.');
+    }
+    debugPrint('[ERROR] Hostel booking failed: $msg');
+    debugPrint('$e\n$st');
   }
 
   @override
@@ -65,6 +143,9 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           _selectedPet = pets.isNotEmpty ? pets.first : null;
           _loadingPets = false;
         });
+        debugPrint(
+          '[INFO] Initializing Hostel Booking for Pet ID: ${pets.isNotEmpty ? pets.first.id : "none"}',
+        );
       }
     } catch (_) {
       if (mounted) setState(() => _loadingPets = false);
@@ -110,18 +191,31 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
 
     setState(() {
       _creating = true;
-      _error = null;
     });
 
+    final pickup = _selfDropPickupAddressPayload();
+    if (pickup == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a pickup location')),
+      );
+      return;
+    }
+
+    final hostelOid = _stringId(widget.hostel['_id']);
     try {
-      final resp = await _apiClient.createCareBooking({
-        'hostelId': widget.hostel['_id'],
+      final body = <String, dynamic>{
+        'hostelId': hostelOid,
+        'centreId': hostelOid,
         'petId': _selectedPet!.id,
         'checkIn': _checkIn!.toIso8601String(),
         'checkOut': _checkOut!.toIso8601String(),
-        if (_selectedRoomType != null) 'roomType': _selectedRoomType,
+        'logisticsType': 'self_drop',
         'paymentMethod': paymentOnline ? 'online' : 'cash_on_delivery',
-      });
+        'pickupAddress': pickup,
+      };
+      if (_selectedRoomType != null) body['roomType'] = _selectedRoomType;
+      final resp = await _apiClient.createCareBooking(body);
 
       if (resp.data is Map && resp.data['success'] == true && resp.data['data'] != null) {
         final booking = Map<String, dynamic>.from(resp.data['data'] as Map);
@@ -130,6 +224,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             _booking = booking;
             _creating = false;
           });
+          debugPrint('[SUCCESS] Hostel booking record created in PawSewa-Cluster.');
           if (!paymentOnline) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -140,14 +235,15 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           }
         }
       } else {
-        throw Exception(resp.data['message'] ?? 'Failed to create booking');
+        throw Exception(resp.data is Map ? (resp.data['message'] ?? 'Failed to create booking') : 'Failed to create booking');
       }
-    } catch (e) {
+    } catch (e, st) {
+      _logCareBookingError(e, st);
       if (mounted) {
-        setState(() {
-          _creating = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
-        });
+        setState(() => _creating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_careBookingUserMessage(e))),
+        );
       }
     }
   }
@@ -198,11 +294,13 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           }
         }
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('[ERROR] Khalti payment flow failed: ${_careBookingUserMessage(e)}');
+      debugPrint('$e\n$st');
       if (mounted) {
         setState(() => _paying = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment failed: ${e.toString().replaceFirst('Exception: ', '')}')),
+          SnackBar(content: Text(_careBookingUserMessage(e))),
         );
       }
     }
@@ -213,6 +311,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
     const primary = Color(AppConstants.primaryColor);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -273,7 +372,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             )
           else
             SizedBox(
-              height: 100,
+              height: 116,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: _pets.length,
@@ -400,7 +499,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 180,
+              height: 200,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: roomTypes.length,
@@ -435,11 +534,12 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                           ),
                         ],
                       ),
+                      clipBehavior: Clip.antiAlias,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           ClipRRect(
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                             child: AspectRatio(
                               aspectRatio: 16 / 10,
                               child: img != null && img.isNotEmpty
@@ -461,27 +561,36 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                                     ),
                             ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  style: GoogleFonts.outfit(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                      height: 1.2,
+                                    ),
                                   ),
-                                ),
-                                Text(
-                                  'Rs. ${price.toStringAsFixed(0)} /night',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                    color: primary,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Rs. ${price.toStringAsFixed(0)} /night',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: primary,
+                                      height: 1.2,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -493,23 +602,6 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             ),
             const SizedBox(height: 24),
           ],
-
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Text(
-                  _error!,
-                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.red.shade800),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -570,6 +662,18 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
     );
   }
 
+  Future<void> _confirmCodFromCheckout() async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Booking confirmed. Pay at check-in.'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    widget.onBooked?.call();
+    Navigator.of(context).pop();
+  }
+
   Widget _buildCheckoutBody() {
     const primary = Color(AppConstants.primaryColor);
     final b = _booking!;
@@ -579,15 +683,19 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
     final cleaningFee = (b['cleaningFee'] ?? 0) as num;
     final tax = (b['tax'] ?? 0) as num;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Payment Summary',
-            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
-          ),
+    return SafeArea(
+      top: true,
+      bottom: false,
+      minimum: const EdgeInsets.only(top: 8),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Payment Summary',
+              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: const Color(0xFF2D2D2D)),
+            ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(16),
@@ -604,22 +712,31 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                 if (tax > 0) _SummaryRow(label: 'Tax (13% VAT)', value: 'Rs. ${tax.toStringAsFixed(2)}'),
                 const Divider(height: 24),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Total Amount',
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF2D2D2D),
+                    Expanded(
+                      child: Text(
+                        'Total Amount',
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF2D2D2D),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    Text(
-                      'Rs. ${total.toStringAsFixed(2)}',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Rs. ${total.toStringAsFixed(2)}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: primary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
                       ),
                     ),
                   ],
@@ -685,6 +802,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -706,27 +824,49 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             ),
           ],
         ),
-        child: ElevatedButton.icon(
-          onPressed: _paying ? null : _payWithKhalti,
-          icon: _paying
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: PawSewaLoader(width: 36, center: false),
-                )
-              : const Icon(Icons.calendar_today, size: 18),
-          label: Text(
-            'Confirm booking  Rs. ${total.toStringAsFixed(0)}',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ElevatedButton.icon(
+              onPressed: _paying ? null : _payWithKhalti,
+              icon: _paying
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: PawSewaLoader(width: 36, center: false),
+                    )
+                  : const Icon(Icons.payment_rounded, size: 18),
+              label: Text(
+                'Pay with Khalti  Rs. ${total.toStringAsFixed(0)}',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _paying ? null : _confirmCodFromCheckout,
+              icon: const Icon(Icons.payments_outlined, size: 18),
+              label: Text(
+                'Pay at check-in (COD)',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.grey[800],
+                side: BorderSide(color: Colors.grey.shade300),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -793,10 +933,25 @@ class _SummaryRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700])),
-          Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500)),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w500),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );

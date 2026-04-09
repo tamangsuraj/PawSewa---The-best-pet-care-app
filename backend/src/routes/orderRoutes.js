@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   createOrder,
   getMyOrders,
+  getOrdersForUser,
   adminGetOrders,
   getRiderAssignedOrders,
   getSellerAssignedOrders,
@@ -28,6 +29,7 @@ const { protect, admin, authorize } = require('../middleware/authMiddleware');
 router.post('/', protect, createOrder);
 router.patch('/:orderId/delivery-gps', protect, updateMyOrderDeliveryGps);
 router.get('/my', protect, getMyOrders);
+router.get('/user/:userId', protect, getOrdersForUser);
 router.get('/rider/assigned', protect, authorize('rider'), getRiderAssignedOrders);
 router.get('/rider/active', protect, authorize('rider'), getRiderActiveOrders);
 router.get('/seller/assigned', protect, authorize('shop_owner'), getSellerAssignedOrders);

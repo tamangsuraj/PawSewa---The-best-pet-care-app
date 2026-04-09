@@ -50,6 +50,12 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
     '09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM', '06:00 PM',
   ];
 
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
   List<Map<String, dynamic>> get _packages {
     final pkgs = widget.hostel['groomingPackages'];
     if (pkgs is List && pkgs.isNotEmpty) {
@@ -152,7 +158,26 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
       if (isPickup && (_pickupLocation == null || _pickupLocation!['address'] == null)) {
         throw Exception('Please select a pickup location');
       }
-      final resp = await _apiClient.createCareBooking({
+      Map<String, dynamic>? pickupPayload;
+      if (isPickup) {
+        final pl = _pickupLocation!;
+        final lat = _toDouble(pl['lat']);
+        final lng = _toDouble(pl['lng']);
+        if (lat == null || lng == null || !lat.isFinite || !lng.isFinite) {
+          debugPrint('[ERROR] GeoJSON Point validation failed: coordinates missing.');
+          throw Exception(
+            'Pickup location is missing coordinates. Please choose the location again on the map.',
+          );
+        }
+        pickupPayload = <String, dynamic>{
+          'address': pl['address'].toString(),
+          'point': <String, dynamic>{
+            'type': 'Point',
+            'coordinates': <double>[lng, lat],
+          },
+        };
+      }
+      final bookingBody = <String, dynamic>{
         'hostelId': widget.hostel['_id'],
         'petId': _selectedPet!.id,
         'checkIn': checkIn.toIso8601String(),
@@ -161,16 +186,12 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
         'addOns': _selectedAddOns.toList(),
         'serviceDelivery': _serviceDelivery,
         'logisticsType': isPickup ? 'pickup' : 'self_drop',
-        if (isPickup)
-          'pickupAddress': {
-            'address': _pickupLocation!['address'],
-            'coordinates': [
-              _pickupLocation!['lng'],
-              _pickupLocation!['lat'],
-            ],
-          },
         'paymentMethod': paymentOnline ? 'online' : 'cash_on_delivery',
-      });
+      };
+      if (pickupPayload != null) {
+        bookingBody['pickupAddress'] = pickupPayload;
+      }
+      final resp = await _apiClient.createCareBooking(bookingBody);
 
       if (resp.data is Map && resp.data['success'] == true && resp.data['data'] != null) {
         final booking = Map<String, dynamic>.from(resp.data['data'] as Map);
@@ -297,7 +318,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
           _sectionTitle('CHOOSE GROOMING PACKAGE'),
           const SizedBox(height: 12),
           SizedBox(
-            height: 130,
+            height: 148,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _packages.length,
@@ -321,15 +342,21 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.start,
                       children: [
-                        Text('NPR ${price.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: primary)),
-                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
-                        if (desc.isNotEmpty) Text(desc, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600])),
+                        Text('NPR ${price.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: primary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        if (desc.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(desc, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]), maxLines: 2, overflow: TextOverflow.ellipsis),
+                        ],
+                        const SizedBox(height: 4),
                         Row(
                           children: [
                             Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
-                            Text(' $mins mins', style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600])),
+                            const SizedBox(width: 2),
+                            Flexible(child: Text('$mins mins', style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ],
@@ -582,10 +609,25 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.normal)),
-          Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.w500, color: const Color(AppConstants.primaryColor))),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.normal),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(fontSize: 14, fontWeight: bold ? FontWeight.bold : FontWeight.w500, color: const Color(AppConstants.primaryColor)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
         ],
       ),
     );

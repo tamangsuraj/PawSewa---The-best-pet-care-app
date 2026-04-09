@@ -32,9 +32,10 @@ function isSocketCorsOriginAllowed(origin) {
   const localOrTunnel =
     origin.startsWith('http://localhost:') ||
     origin.startsWith('https://localhost:') ||
-    /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
-    /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
+    /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/i.test(origin) ||
+    /^https?:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/i.test(origin) ||
     /^https?:\/\/[\w.-]+\.ngrok(-free)?\.app(:\d+)?$/i.test(origin) ||
+    /^https?:\/\/[\w.-]+\.ngrok-free\.dev(:\d+)?$/i.test(origin) ||
     /^https?:\/\/[\w.-]+\.ngrok\.io(:\d+)?$/i.test(origin);
 
   return Boolean(localOrTunnel);

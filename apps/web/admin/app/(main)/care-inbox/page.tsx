@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { AlertCircle, Clock, MapPin, User, RefreshCw, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
 
 interface CareRequest {
   _id: string;
@@ -218,9 +219,11 @@ export default function CareInboxPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                         {item.pet.photoUrl ? (
-                          <img
+                          <Image
                             src={item.pet.photoUrl}
                             alt={item.pet.name}
+                            width={40}
+                            height={40}
                             className="w-10 h-10 rounded-full object-cover"
                           />
                         ) : (

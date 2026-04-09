@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
-import { FileText, RefreshCw, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { FileText, RefreshCw, CheckCircle, XCircle, Clock, Receipt } from 'lucide-react';
 
 interface PaymentLogEntry {
   _id: string;
@@ -16,13 +16,39 @@ interface PaymentLogEntry {
   createdAt: string;
 }
 
+interface ReceiptPayload {
+  log: PaymentLogEntry;
+  khaltiTransactionId: string;
+  order: {
+    receiptNo: string;
+    issuedAt: string;
+    customer: { name?: string; email?: string; phone?: string };
+    deliveryAddress?: string;
+    paymentMethod: string;
+    khaltiTransactionId: string;
+    items: {
+      name: string;
+      quantity: number;
+      unitPrice: number;
+      lineTotal: number;
+      productHint?: string;
+    }[];
+    totalAmount: number;
+    orderId: string;
+  } | null;
+}
+
 export default function PaymentLogsPage() {
   const [logs, setLogs] = useState<PaymentLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptError, setReceiptError] = useState('');
+  const [receipt, setReceipt] = useState<ReceiptPayload | null>(null);
 
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -30,16 +56,33 @@ export default function PaymentLogsPage() {
       if (statusFilter) params.status = statusFilter;
       const resp = await api.get('/admin/payment-logs', { params });
       setLogs(resp.data?.data ?? []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load payment logs');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to load payment logs');
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     loadLogs();
-  }, [statusFilter]);
+  }, [loadLogs]);
+
+  const openReceipt = useCallback(async (logId: string) => {
+    setReceiptOpen(true);
+    setReceipt(null);
+    setReceiptError('');
+    setReceiptLoading(true);
+    try {
+      const resp = await api.get<{ data: ReceiptPayload }>(`/admin/payment-logs/${logId}/receipt`);
+      setReceipt(resp.data?.data ?? null);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setReceiptError(e.response?.data?.message || 'Could not load receipt');
+    } finally {
+      setReceiptLoading(false);
+    }
+  }, []);
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -141,6 +184,9 @@ export default function PaymentLogsPage() {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Order / Ref
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Receipt
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -160,10 +206,108 @@ export default function PaymentLogsPage() {
                           <td className="px-6 py-4 text-sm font-mono text-gray-500 truncate max-w-[120px]">
                             {log.purchaseOrderId || '—'}
                           </td>
+                          <td className="px-6 py-4">
+                            {log.status === 'Completed' ? (
+                              <button
+                                type="button"
+                                onClick={() => openReceipt(log._id)}
+                                className="inline-flex items-center gap-1.5 text-sm font-medium text-[#703418] hover:underline"
+                              >
+                                <Receipt className="w-4 h-4" />
+                                View
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-sm">—</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {receiptOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+                role="dialog"
+                aria-modal="true"
+                onClick={() => setReceiptOpen(false)}
+              >
+                <div
+                  className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-gray-900">Digital receipt</h2>
+                    <button
+                      type="button"
+                      className="text-gray-500 hover:text-gray-800 text-sm"
+                      onClick={() => setReceiptOpen(false)}
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="px-6 py-5 space-y-4 text-sm text-gray-700">
+                    {receiptLoading && (
+                      <p className="text-gray-500">Loading receipt…</p>
+                    )}
+                    {receiptError && (
+                      <p className="text-red-600">{receiptError}</p>
+                    )}
+                    {!receiptLoading && receipt && (
+                      <>
+                        <div>
+                          <p className="text-xs uppercase text-gray-500">Khalti transaction</p>
+                          <p className="font-mono break-all">
+                            {receipt.khaltiTransactionId || receipt.log.pidx}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase text-gray-500">pidx</p>
+                          <p className="font-mono break-all">{receipt.log.pidx}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase text-gray-500">Amount</p>
+                          <p className="font-semibold">Rs. {Number(receipt.log.amount).toFixed(0)}</p>
+                        </div>
+                        {receipt.order ? (
+                          <>
+                            <div className="border-t border-gray-100 pt-4">
+                              <p className="text-xs uppercase text-gray-500 mb-2">Customer</p>
+                              <p>{receipt.order.customer.name || '—'}</p>
+                              <p className="text-gray-500">{receipt.order.customer.email}</p>
+                              <p className="text-gray-500">{receipt.order.customer.phone}</p>
+                            </div>
+                            {receipt.order.items.length > 0 && (
+                              <div>
+                                <p className="text-xs uppercase text-gray-500 mb-2">Items (pet hints)</p>
+                                <ul className="space-y-2">
+                                  {receipt.order.items.map((it, i) => (
+                                    <li key={i} className="border border-gray-100 rounded-lg p-2">
+                                      <span className="font-medium">{it.name}</span>
+                                      <span className="text-gray-500"> × {it.quantity}</span>
+                                      {it.productHint ? (
+                                        <p className="text-xs text-gray-500 mt-0.5">{it.productHint}</p>
+                                      ) : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-500">
+                              Order ID: <span className="font-mono">{receipt.order.orderId}</span>
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-gray-500 italic">
+                            No linked shop order for this log (service/care payments show Khalti ids only).
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

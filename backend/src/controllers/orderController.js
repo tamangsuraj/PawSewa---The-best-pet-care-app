@@ -20,7 +20,35 @@ const {
   KHALTI_PUBLIC_KEY,
   nprToPaisa,
   isKhaltiConfigured,
+  getKhaltiPublicBaseUrlFromRequest,
 } = require('../config/payment_config');
+
+/**
+ * Expose customerPhone and pickupAddress for rider apps (maps + tel:).
+ */
+function shapeOrderForRiderClient(o) {
+  if (!o || typeof o !== 'object') return o;
+  const userPhone =
+    o.user && typeof o.user === 'object' && o.user.phone != null
+      ? String(o.user.phone).trim()
+      : '';
+  o.customerPhone = userPhone;
+  const seller = o.assignedSeller;
+  let pickupLine = 'PawSewa Shop';
+  if (seller && typeof seller === 'object') {
+    const cn = seller.clinicName != null ? String(seller.clinicName).trim() : '';
+    const nm = seller.name != null ? String(seller.name).trim() : '';
+    const ca = seller.clinicAddress != null ? String(seller.clinicAddress).trim() : '';
+    const head = cn || nm || 'Shop';
+    pickupLine = ca ? `${head} — ${ca}` : head;
+  }
+  if (!o.pickupAddress || typeof o.pickupAddress !== 'object') {
+    o.pickupAddress = { address: pickupLine };
+  } else if (!o.pickupAddress.address) {
+    o.pickupAddress.address = pickupLine;
+  }
+  return o;
+}
 
 function parseOrderGps(body) {
   const raw = body || {};
@@ -126,6 +154,21 @@ const createOrder = asyncHandler(async (req, res) => {
   }
   const primarySeller = [...sellerIds][0];
 
+  for (const raw of items) {
+    const pRow = productMap.get(raw.productId);
+    if (!pRow) continue;
+    const sid = raw?.sellerId;
+    if (sid != null && String(sid).trim() !== '') {
+      const resolved = await resolveProductSellerId(pRow);
+      if (!resolved || String(resolved) !== String(sid)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cart seller information does not match the product shop. Refresh and try again.',
+        });
+      }
+    }
+  }
+
   let total = 0;
   const orderItems = items.map((i) => {
     const p = productMap.get(i.productId);
@@ -140,6 +183,7 @@ const createOrder = asyncHandler(async (req, res) => {
       name: p.name,
       price: p.price,
       quantity,
+      sellerId: primarySeller,
     };
   });
 
@@ -153,6 +197,7 @@ const createOrder = asyncHandler(async (req, res) => {
       customerId: userId,
       assignedSeller: primarySeller,
       shopId: primarySeller,
+      sellerId: primarySeller,
       items: orderItems,
       totalAmount: total,
       deliveryLocation: {
@@ -203,6 +248,7 @@ const createOrder = asyncHandler(async (req, res) => {
     customerId: userId,
     assignedSeller: primarySeller,
     shopId: primarySeller,
+    sellerId: primarySeller,
     items: orderItems,
     totalAmount: total,
     deliveryLocation: {
@@ -228,8 +274,9 @@ const createOrder = asyncHandler(async (req, res) => {
   const order = await Order.create(orderPayload);
 
   logger.info(`Order ${order._id}: GPS Coordinates captured (Lat: ${lat}, Lng: ${lng}).`);
-  logger.success('[SUCCESS] GPS Order Logged', String(order._id), `lat=${lat}`, `lng=${lng}`);
   logger.info('New Order Received: ID', order._id.toString());
+  logger.info(`Order ${order._id}: Automated seller identification successful.`);
+  logger.info(`Routing real-time ping to Seller ID: ${primarySeller}`);
 
   await broadcastShopOrder(order._id, 'new_order');
   await broadcastShopOrder(order._id, 'assign_seller');
@@ -252,7 +299,7 @@ const createOrder = asyncHandler(async (req, res) => {
     await Notification.create({
       user: userId,
       title: 'Order received',
-      message: `We received your order with ${orderItems.length} item(s). Total NPR ${total}. Track it in My Orders.`,
+      message: `We received your pet supplies order (${orderItems.length} item(s)). Total NPR ${total}. Track order progress in My Orders.`,
       type: 'system',
       isRead: false,
     });
@@ -275,12 +322,62 @@ const getMyOrders = asyncHandler(async (req, res) => {
   res.json({ success: true, data: orders });
 });
 
+const TERMINAL_ORDER_STATUSES = ['delivered', 'returned', 'refunded', 'cancelled'];
+
+// GET /api/v1/orders/user/:userId?scope=all|current|past
+// Caller must be the same user or admin. Used for explicit history fetches and tooling.
+const getOrdersForUser = asyncHandler(async (req, res) => {
+  const targetId = req.params.userId;
+  const uid = req.user?._id?.toString();
+  const role = (req.user?.role || '').toString().toLowerCase();
+  const isAdmin = role === 'admin';
+  if (!uid) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+  if (!isAdmin && uid !== String(targetId)) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+
+  logger.info('Fetching Order History for UID:', String(targetId));
+
+  const scope = String(req.query.scope || 'all').toLowerCase();
+  const filter = { user: targetId };
+  if (scope === 'current') {
+    filter.status = { $nin: TERMINAL_ORDER_STATUSES };
+  } else if (scope === 'past') {
+    filter.status = { $in: TERMINAL_ORDER_STATUSES };
+  }
+
+  const orders = await Order.find(filter)
+    .populate('items.product', 'name images')
+    .populate('assignedRider', 'name phone profilePicture')
+    .populate('assignedSeller', 'name phone')
+    .populate('shopId', 'name phone')
+    .sort({ createdAt: -1 });
+
+  logger.success(`${orders.length} history records retrieved successfully.`);
+
+  res.json({ success: true, data: orders });
+});
+
 // Admin: GET /api/v1/orders
 // Query: status, liveOnly (1 = only pending|processing|out_for_delivery), limit (default 20), page (default 1)
 const adminGetOrders = asyncHandler(async (req, res) => {
-  const { status, liveOnly, limit: limitQ, page: pageQ } = req.query;
+  const {
+    status,
+    liveOnly,
+    terminalOnly,
+    limit: limitQ,
+    page: pageQ,
+    assignedSeller,
+    assignedRider,
+    createdAfter,
+    createdBefore,
+  } = req.query;
   const filter = {};
-  if (liveOnly === '1' || liveOnly === 'true') {
+  if (terminalOnly === '1' || terminalOnly === 'true') {
+    filter.status = { $in: TERMINAL_ORDER_STATUSES };
+  } else if (liveOnly === '1' || liveOnly === 'true') {
     filter.status = {
       $in: [
         'pending_confirmation',
@@ -294,6 +391,23 @@ const adminGetOrders = asyncHandler(async (req, res) => {
     };
   }
   if (status) filter.status = status;
+  if (assignedSeller && mongoose.Types.ObjectId.isValid(String(assignedSeller))) {
+    filter.assignedSeller = assignedSeller;
+  }
+  if (assignedRider && mongoose.Types.ObjectId.isValid(String(assignedRider))) {
+    filter.assignedRider = assignedRider;
+  }
+  if (createdAfter || createdBefore) {
+    filter.createdAt = {};
+    if (createdAfter) {
+      const d = new Date(String(createdAfter));
+      if (!Number.isNaN(d.getTime())) filter.createdAt.$gte = d;
+    }
+    if (createdBefore) {
+      const d = new Date(String(createdBefore));
+      if (!Number.isNaN(d.getTime())) filter.createdAt.$lte = d;
+    }
+  }
 
   const limit = Math.min(Math.max(Number(limitQ) || 20, 1), 100);
   const page = Math.max(Number(pageQ) || 1, 1);
@@ -330,10 +444,14 @@ const getRiderAssignedOrders = asyncHandler(async (req, res) => {
 
   const orders = await Order.find({ assignedRider: riderId })
     .populate('user', 'name email phone')
-    .populate('assignedSeller', 'name email phone')
-    .sort({ createdAt: -1 });
+    .populate('assignedSeller', 'name email phone clinicName clinicAddress')
+    .populate('items.product', 'name images')
+    .sort({ createdAt: -1 })
+    .lean();
 
-  res.json({ success: true, data: orders });
+  const data = orders.map((doc) => shapeOrderForRiderClient({ ...doc }));
+
+  res.json({ success: true, data });
 });
 
 /**
@@ -380,10 +498,14 @@ const getRiderActiveOrders = asyncHandler(async (req, res) => {
     },
   })
     .populate('user', 'name email phone')
-    .populate('assignedSeller', 'name email phone')
-    .sort({ createdAt: -1 });
+    .populate('assignedSeller', 'name email phone clinicName clinicAddress')
+    .populate('items.product', 'name images')
+    .sort({ createdAt: -1 })
+    .lean();
 
-  res.json({ success: true, data: orders });
+  const data = orders.map((doc) => shapeOrderForRiderClient({ ...doc }));
+
+  res.json({ success: true, data });
 });
 
 const ORDER_STATUS_VALUES = [
@@ -498,6 +620,34 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   logger.info('Order Status Updated: ID', order._id.toString(), 'status', current, '->', status);
   await broadcastShopOrder(orderId, 'update');
+
+  if (status === 'out_for_delivery' && order.user) {
+    const customerId = order.user._id || order.user;
+    try {
+      await sendMulticastToUser(customerId, {
+        title: 'Order progress',
+        body: "Your pet's order is on the way!",
+        data: {
+          type: 'shop_order',
+          orderId: String(orderId),
+          event: 'out_for_delivery',
+        },
+      });
+    } catch (e) {
+      logger.warn('FCM customer out_for_delivery skipped:', e?.message || String(e));
+    }
+    try {
+      await Notification.create({
+        user: customerId,
+        title: 'Order progress',
+        message: "Your pet's order is on the way. Track order progress in My Orders.",
+        type: 'system',
+        isRead: false,
+      });
+    } catch (e) {
+      logger.warn('In-app out_for_delivery notification skipped:', e?.message || String(e));
+    }
+  }
 
   res.json({
     success: true,
@@ -624,7 +774,7 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
     await broadcastShopOrder(orderId, 'assign_rider');
     try {
       await sendMulticastToUser(order.assignedRider, {
-        title: 'New delivery task',
+        title: 'New task available',
         body: `Pick up order #${String(orderId).slice(-6)} for delivery.`,
         data: {
           type: 'rider_task',
@@ -670,6 +820,7 @@ const assignSellerToOrder = asyncHandler(async (req, res) => {
 
   order.assignedSeller = sellerId;
   order.shopId = sellerId;
+  order.sellerId = sellerId;
   await order.save();
 
   const updated = await Order.findById(orderId)
@@ -782,7 +933,7 @@ const bulkAssignOrders = asyncHandler(async (req, res) => {
     }
     try {
       await sendMulticastToUser(riderId, {
-        title: 'New delivery task',
+        title: 'New task available',
         body: `Pick up order #${String(o._id).slice(-6)}.`,
         data: { type: 'rider_task', orderId: String(o._id), event: 'assigned' },
       });
@@ -842,13 +993,24 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
   const cbMode = String(req.body?.callbackMode || process.env.KHALTI_CALLBACK_REDIRECT || 'app')
     .toLowerCase()
     .trim();
-  const ru = new URL(`${baseUrl.replace(/\/$/, '')}/api/v1/payments/khalti/callback`);
-  ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
-  const returnUrl = ru.toString();
+
+  // Prefer the explicit env var so physical devices always reach a reachable host.
+  const envReturnUrl = (process.env.KHALTI_RETURN_URL || '').trim();
+  let returnUrl;
+  if (envReturnUrl) {
+    const ru = new URL(envReturnUrl);
+    if (!ru.searchParams.get('cb')) ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
+    returnUrl = ru.toString();
+  } else {
+    const ru = new URL(`${baseUrl.replace(/\/$/, '')}/api/v1/payments/khalti/callback`);
+    ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
+    returnUrl = ru.toString();
+  }
+  logger.info(`Khalti initiate for order ${orderId}. Return URL: ${returnUrl}`);
 
   const payload = {
     return_url: returnUrl,
@@ -945,13 +1107,24 @@ const initiateKhaltiForShopCheckout = asyncHandler(async (req, res) => {
   }
 
   const u = payment.user;
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
   const cbMode = String(req.body?.callbackMode || process.env.KHALTI_CALLBACK_REDIRECT || 'app')
     .toLowerCase()
     .trim();
-  const ru = new URL(`${baseUrl.replace(/\/$/, '')}/api/v1/payments/khalti/callback`);
-  ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
-  const returnUrl = ru.toString();
+
+  // Prefer the explicit env var so physical devices always reach a reachable host.
+  const envReturnUrl = (process.env.KHALTI_RETURN_URL || '').trim();
+  let returnUrl;
+  if (envReturnUrl) {
+    const ru = new URL(envReturnUrl);
+    if (!ru.searchParams.get('cb')) ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
+    returnUrl = ru.toString();
+  } else {
+    const ru = new URL(`${baseUrl.replace(/\/$/, '')}/api/v1/payments/khalti/callback`);
+    ru.searchParams.set('cb', cbMode === 'web' ? 'web' : 'app');
+    returnUrl = ru.toString();
+  }
+  logger.info(`Khalti deferred checkout initiate for payment ${String(payment._id).slice(-6)}. Return URL: ${returnUrl}`);
 
   const payload = {
     return_url: returnUrl,
@@ -1308,6 +1481,7 @@ const getSellerShopAnalytics = asyncHandler(async (req, res) => {
 module.exports = {
   createOrder,
   getMyOrders,
+  getOrdersForUser,
   adminGetOrders,
   getRiderAssignedOrders,
   getSellerAssignedOrders,

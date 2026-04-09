@@ -6,11 +6,14 @@ class CartItem {
     required this.name,
     required this.price,
     this.quantity = 1,
+    this.sellerId,
   });
 
   final String productId;
   final String name;
   final double price;
+  /// Shop owner user id from product payload (for checkout routing).
+  final String? sellerId;
   int quantity;
 }
 
@@ -33,6 +36,7 @@ class CartService extends ChangeNotifier {
     required String productId,
     required String name,
     required double price,
+    String? sellerId,
   }) {
     if (_items.containsKey(productId)) {
       _items[productId]!.quantity++;
@@ -41,6 +45,7 @@ class CartService extends ChangeNotifier {
         productId: productId,
         name: name,
         price: price,
+        sellerId: sellerId,
       );
     }
     notifyListeners();

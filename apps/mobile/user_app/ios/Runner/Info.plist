@@ -78,5 +78,10 @@
 		<string>PawSewa uses the camera for video calls with your vet.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>comgooglemaps</string>
+			<string>https</string>
+		</array>
 	</dict>
 </plist>

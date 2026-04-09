@@ -14,11 +14,11 @@ import '../core/constants.dart';
 import '../services/location_service.dart';
 import '../services/socket_service.dart';
 import 'rider_en_route_screen.dart';
-import 'partner_marketplace_chat_screen.dart';
+import 'rider_delivery_messages_screen.dart';
 import 'order_proof_view_screen.dart';
 
 /// For riders: list of assigned pet-supplies orders with status updates.
-/// Flow: Select status → Processing (at shop) → On the way (left shop) → Delivered.
+/// Flow: Select status > Processing (at shop) > On the way (left shop) > Delivered.
 class RiderDeliveryOrdersScreen extends StatefulWidget {
   const RiderDeliveryOrdersScreen({super.key});
 
@@ -53,6 +53,13 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   List<Map<String, dynamic>> _transactions = [];
   String? _riderId;
   Timer? _liveMapPulseTimer;
+  bool _deliveryInboxBump = false;
+
+  void _onDeliveryInboxSignal(Map<String, dynamic> _) {
+    if (!mounted) return;
+    setState(() => _deliveryInboxBump = true);
+    unawaited(_load(silent: true));
+  }
 
   void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
     if (event != 'job:available' &&
@@ -64,12 +71,17 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('New delivery assignment')),
     );
-    _load();
+    unawaited(_load(silent: true));
+  }
+
+  void _onSocketReconnect() {
+    if (mounted) unawaited(_load(silent: true));
   }
 
   @override
   void initState() {
     super.initState();
+    debugPrint('[INFO] Initializing Rider Quick-Action UI.');
     _last7Days = List.generate(7, (i) {
       final base = DateTime.now();
       final day = DateTime(base.year, base.month, base.day).subtract(Duration(days: 6 - i));
@@ -78,7 +90,10 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     _load();
     _loadCurrentLocationForDistance();
     SocketService.instance.connect();
+    SocketService.instance.addConnectListener(_onSocketReconnect);
     SocketService.instance.addShopOrderListener(_onShopOrderSocket);
+    SocketService.instance.addMarketplaceMessageListener(_onDeliveryInboxSignal);
+    SocketService.instance.addNewMessageListener(_onDeliveryInboxSignal);
     _liveMapPulseTimer = Timer.periodic(const Duration(seconds: 25), (_) {
       unawaited(_pushRiderLocationForLiveMap());
     });
@@ -87,11 +102,14 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   @override
   void dispose() {
     _liveMapPulseTimer?.cancel();
+    SocketService.instance.removeConnectListener(_onSocketReconnect);
     SocketService.instance.removeShopOrderListener(_onShopOrderSocket);
+    SocketService.instance.removeMarketplaceMessageListener(_onDeliveryInboxSignal);
+    SocketService.instance.removeNewMessageListener(_onDeliveryInboxSignal);
     super.dispose();
   }
 
-  /// Pushes GPS to backend → StaffLocation → Admin Live Map while rider has active deliveries.
+  /// Pushes GPS to backend > StaffLocation > Admin Live Map while rider has active deliveries.
   Future<void> _pushRiderLocationForLiveMap() async {
     if (!mounted) {
       return;
@@ -139,37 +157,6 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     }
   }
 
-  Future<void> _openCustomerChat(BuildContext context, Map<String, dynamic> order) async {
-    final id = order['_id']?.toString();
-    if (id == null) return;
-    try {
-      final r = await ApiClient().getRiderDeliveryChat(id);
-      final body = r.data;
-      if (body is Map && body['success'] == true && body['data'] is Map) {
-        final conv = body['data'] as Map<String, dynamic>;
-        final cid = conv['_id']?.toString();
-        final user = order['user'];
-        final custName = user is Map ? (user['name']?.toString() ?? 'Customer') : 'Customer';
-        if (!context.mounted || cid == null) return;
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PartnerMarketplaceChatScreen(
-              conversationId: cid,
-              peerName: custName,
-              peerSubtitle: 'Delivery chat',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Chat unavailable: $e')),
-        );
-      }
-    }
-  }
-
   void _computeDerivedState(List<Map<String, dynamic>> list) {
     _transactions = list
         .where((o) =>
@@ -193,9 +180,6 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     _dailyEarnings = _computeDailyEarnings(_transactions);
 
     _riderId = list.isNotEmpty ? list.first['assignedRider']?.toString() : _riderId;
-    if (_riderId != null && _riderId!.isNotEmpty) {
-      debugPrint('[SUCCESS] Earnings data synced from pawsewa_production.');
-    }
   }
 
   double _sumEarningsForDate(
@@ -249,17 +233,187 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
           .where((o) => o['status']?.toString() == 'delivered')
           .toList();
     }
-    return _orders
+    var list = _orders
         .where((o) =>
             o['status'] != null && o['status'].toString() != 'delivered')
         .toList();
+    final hero = _heroOrder;
+    if (hero != null) {
+      final hid = hero['_id']?.toString();
+      list = list.where((o) => o['_id']?.toString() != hid).toList();
+    }
+    return list;
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+  int _taskRank(String status) {
+    switch (status) {
+      case 'out_for_delivery':
+        return 0;
+      case 'assigned_to_rider':
+        return 1;
+      case 'ready_for_pickup':
+      case 'packed':
+        return 2;
+      case 'processing':
+        return 3;
+      default:
+        return 9;
+    }
+  }
+
+  Map<String, dynamic>? get _heroOrder {
+    final active = _orders.where((o) {
+      final s = o['status']?.toString() ?? '';
+      return s != 'delivered' &&
+          s != 'cancelled' &&
+          s != 'returned' &&
+          s != 'refunded';
+    }).toList();
+    if (active.isEmpty) return null;
+    active.sort((a, b) {
+      final ra = _taskRank(a['status']?.toString() ?? '');
+      final rb = _taskRank(b['status']?.toString() ?? '');
+      final c = ra.compareTo(rb);
+      if (c != 0) return c;
+      final da = _parseOrderDate(a['createdAt']);
+      final db = _parseOrderDate(b['createdAt']);
+      if (da != null && db != null) return db.compareTo(da);
+      return 0;
     });
+    return active.first;
+  }
+
+  String _pickupLine(Map<String, dynamic> order) {
+    final pa = order['pickupAddress'];
+    if (pa is Map && pa['address'] != null) {
+      final a = pa['address']!.toString().trim();
+      if (a.isNotEmpty) return a;
+    }
+    return 'PawSewa Shop';
+  }
+
+  Future<void> _openOrderMaps(
+    BuildContext context,
+    Map<String, dynamic> order, {
+    required bool toPickup,
+  }) async {
+    if (toPickup) {
+      final addr = _pickupLine(order);
+      final uri = Uri.parse(
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(addr)}',
+      );
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('[ERROR] Failed to launch Google Maps: ${e.toString()}');
+        }
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open maps for pickup location.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+      return;
+    }
+    await _navigateToDeliveryAddress(context, order);
+  }
+
+  Future<void> _callCustomer(Map<String, dynamic> order) async {
+    final oid = order['_id']?.toString() ?? '';
+    final raw = order['customerPhone']?.toString().trim() ??
+        (order['user'] is Map
+            ? (order['user'] as Map)['phone']?.toString().trim()
+            : null) ??
+        '';
+    if (raw.replaceAll(RegExp(r'[^\d+]'), '').isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No customer phone on this order.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    final uri = Uri.parse('tel:${Uri.encodeComponent(raw.trim())}');
+    try {
+      if (kDebugMode) {
+        debugPrint('[SUCCESS] Direct Call intent triggered for Order: $oid');
+      }
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[ERROR] Failed to launch dialer: ${e.toString()}');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not start phone call.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _startTripForOrder(Map<String, dynamic> order) async {
+    final id = order['_id']?.toString();
+    if (id == null) return;
+    final st = order['status']?.toString() ?? '';
+    if (st == 'out_for_delivery') {
+      await Navigator.of(context).push(
+        MaterialPageRoute<bool>(
+          builder: (context) => RiderEnRouteScreen(
+            order: Map<String, dynamic>.from(order),
+          ),
+        ),
+      );
+      if (mounted) await _load(silent: true);
+      return;
+    }
+    setState(() => _updatingOrderId = id);
+    try {
+      await _apiClient.updateOrderStatus(orderId: id, status: 'out_for_delivery');
+      if (!mounted) return;
+      final next = Map<String, dynamic>.from(order);
+      next['status'] = 'out_for_delivery';
+      await Navigator.of(context).push(
+        MaterialPageRoute<bool>(
+          builder: (context) => RiderEnRouteScreen(order: next),
+        ),
+      );
+      if (mounted) await _load(silent: true);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RiderOrders] Start trip error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is DioException && e.response?.data != null
+                ? (e.response!.data as Map)['message']?.toString() ??
+                      'Could not start trip'
+                : 'Could not start trip',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingOrderId = null);
+    }
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final resp = await _apiClient.getRiderAssignedOrders();
       final data = resp.data;
@@ -274,14 +428,15 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       if (!mounted) return;
       setState(() {
         _orders = list;
-        _loading = false;
+        if (!silent) _loading = false;
+        _error = null;
         _computeDerivedState(list);
       });
     } catch (e) {
       if (kDebugMode) debugPrint('[RiderOrders] Error: $e');
       if (!mounted) return;
       setState(() {
-        _loading = false;
+        if (!silent) _loading = false;
         _error = e is DioException && e.response?.data != null
             ? (e.response!.data as Map)['message']?.toString() ??
                   'Failed to load orders'
@@ -362,7 +517,10 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     );
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[ERROR] Failed to launch Google Maps: ${e.toString()}');
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -485,12 +643,38 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       length: 2,
       child: Scaffold(
         backgroundColor: bg,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        floatingActionButton: SafeArea(
+          child: Badge(
+            isLabelVisible: _deliveryInboxBump,
+            smallSize: 8,
+            child: FloatingActionButton.extended(
+              heroTag: 'rider_delivery_messages_fab',
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              onPressed: () async {
+                setState(() => _deliveryInboxBump = false);
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const RiderDeliveryMessagesScreen(),
+                  ),
+                );
+                if (mounted) await _load(silent: true);
+              },
+              icon: const Icon(Icons.chat_bubble_outline_rounded),
+              label: Text(
+                'Messages',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ),
         appBar: AppBar(
           backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 0,
           title: Text(
-            'Rider Control Center',
+            'Live order tracking',
             style: GoogleFonts.outfit(
               fontWeight: FontWeight.w600,
               fontSize: 18,
@@ -526,301 +710,368 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
         ),
         body: TabBarView(
           children: [
-            // Deliveries tab (pro control center + active task list)
-            Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [chipShadow],
-                      border: Border.all(
-                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Status',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: textMuted,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _online ? successGreen : Colors.grey,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      _online ? 'ONLINE' : 'OFFLINE',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: textStrong,
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            // Toggle with clear outdoor indicator.
-                            Switch(
-                              value: _online,
-                              onChanged: (v) {
-                                setState(() => _online = v);
-                                final id = _riderId ?? 'unknown';
-                                if (v) {
-                                  debugPrint('[INFO] Rider $id toggled ONLINE');
-                                } else {
-                                  debugPrint('[INFO] Rider $id toggled OFFLINE');
-                                }
-                              },
-                              inactiveThumbColor: Colors.grey,
-                              inactiveTrackColor: Colors.grey.withValues(alpha: 0.35),
-                              activeTrackColor: successGreen,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Earnings card
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                primary,
-                                primary.withValues(alpha: 0.85),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primary.withValues(alpha: 0.22),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
+            // Deliveries tab: scrollable dashboard, Expanded metric tiles, full-tab loader while fetching.
+            _loading
+                ? const Center(child: PawSewaLoader())
+                : _error != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                "Today's Earnings",
+                                _error!,
                                 style: GoogleFonts.outfit(
-                                  fontSize: 14,
+                                  color: Colors.red[700],
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.85),
                                 ),
+                                textAlign: TextAlign.center,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Rs. ${_todaysEarnings.toStringAsFixed(0)}',
-                                style: GoogleFonts.fraunces(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Total Tasks Completed: $_totalTasksCompleted',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                              const SizedBox(height: 16),
+                              TextButton.icon(
+                                onPressed: _load,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Retry'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: primary,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        // Performance metrics row
-                        SizedBox(
-                          height: 54,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _MetricChip(
-                                  label: 'Rating',
-                                  value: _rating.toStringAsFixed(1),
-                                  color: accent,
-                                  textStrong: isDark
-                                      ? Colors.white
-                                      : const Color(AppConstants.inkColor),
-                                ),
-                                const SizedBox(width: 12),
-                                _MetricChip(
-                                  label: 'Acceptance Rate',
-                                  value: '${(_acceptanceRate * 100).toStringAsFixed(0)}%',
-                                  color: const Color(AppConstants.accentWarmColor),
-                                  textStrong: isDark
-                                      ? Colors.white
-                                      : const Color(AppConstants.inkColor),
-                                ),
-                                const SizedBox(width: 12),
-                                _MetricChip(
-                                  label: 'Cancellation Rate',
-                                  value: '${(_cancellationRate * 100).toStringAsFixed(0)}%',
-                                  color: Colors.grey.shade600,
-                                  textStrong: isDark
-                                      ? Colors.white
-                                      : const Color(AppConstants.inkColor),
-                                ),
-                              ],
-                            ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        color: primary,
+                        child: CustomScrollView(
+                          physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Existing Active/Delivered filter (unchanged functionality)
-                Container(
-                  width: double.infinity,
-                  color: primary,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Material(
-                          color: _filter == 'active'
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            onTap: () => setState(() => _filter = 'active'),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.local_shipping_rounded,
-                                    size: 20,
-                                    color: _filter == 'active'
-                                        ? primary
-                                        : Colors.white,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Active',
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: _filter == 'active'
-                                          ? primary
-                                          : Colors.white,
+                          slivers: [
+                            if (_heroOrder != null && _filter == 'active')
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                                  child: _CurrentTaskHeroCard(
+                                    order: _heroOrder!,
+                                    busy: _updatingOrderId ==
+                                        _heroOrder!['_id']?.toString(),
+                                    primary: primary,
+                                    onStartTrip: () =>
+                                        _startTripForOrder(_heroOrder!),
+                                    onPickupMaps: () => _openOrderMaps(
+                                      context,
+                                      _heroOrder!,
+                                      toPickup: true,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Material(
-                          color: _filter == 'delivered'
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            onTap: () => setState(() => _filter = 'delivered'),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline_rounded,
-                                    size: 20,
-                                    color: _filter == 'delivered'
-                                        ? primary
-                                        : Colors.white,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Delivered',
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: _filter == 'delivered'
-                                          ? primary
-                                          : Colors.white,
+                                    onDropoffMaps: () => _openOrderMaps(
+                                      context,
+                                      _heroOrder!,
+                                      toPickup: false,
                                     ),
+                                    onCall: () => _callCustomer(_heroOrder!),
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Expanded(
-                  child: _loading
-                      ? Center(child: const PawSewaLoader())
-                      : _error != null
-                          ? Center(
+                            SliverToBoxAdapter(
                               child: Padding(
-                                padding: const EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _error!,
-                                      style: GoogleFonts.outfit(
-                                        color: Colors.red[700],
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      textAlign: TextAlign.center,
+                                padding: const EdgeInsets.all(16),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: cardBg,
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [chipShadow],
+                                    border: Border.all(
+                                      color: (isDark ? Colors.white : Colors.black)
+                                          .withValues(alpha: 0.08),
                                     ),
-                                    const SizedBox(height: 16),
-                                    TextButton.icon(
-                                      onPressed: _load,
-                                      icon: const Icon(Icons.refresh),
-                                      label: const Text('Retry'),
-                                      style: TextButton.styleFrom(
-                                        foregroundColor: primary,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Status',
+                                                style: GoogleFonts.outfit(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: textMuted,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 10,
+                                                    height: 10,
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: _online ? successGreen : Colors.grey,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Text(
+                                                    _online ? 'ONLINE' : 'OFFLINE',
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: textStrong,
+                                                      letterSpacing: 0.8,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          Switch(
+                                            value: _online,
+                                            onChanged: (v) {
+                                              setState(() => _online = v);
+                                              final id = _riderId ?? 'unknown';
+                                              if (v) {
+                                                debugPrint('[INFO] Rider $id toggled ONLINE');
+                                              } else {
+                                                debugPrint('[INFO] Rider $id toggled OFFLINE');
+                                              }
+                                            },
+                                            inactiveThumbColor: Colors.grey,
+                                            inactiveTrackColor:
+                                                Colors.grey.withValues(alpha: 0.35),
+                                            activeTrackColor: successGreen,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(18),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                            colors: [
+                                              primary,
+                                              primary.withValues(alpha: 0.85),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: primary.withValues(alpha: 0.22),
+                                              blurRadius: 18,
+                                              offset: const Offset(0, 8),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "Today's Earnings",
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white.withValues(alpha: 0.85),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Rs. ${_todaysEarnings.toStringAsFixed(0)}',
+                                              style: GoogleFonts.fraunces(
+                                                fontSize: 34,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                                letterSpacing: 1,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Total Tasks Completed: $_totalTasksCompleted',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 14),
+                                      LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: Alignment.centerLeft,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxWidth: constraints.maxWidth,
+                                              ),
+                                              child: Row(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  SizedBox(
+                                                    width: (constraints.maxWidth - 16) / 3,
+                                                    child: _MetricChip(
+                                                      label: 'Rating',
+                                                      value: _rating
+                                                          .toStringAsFixed(1),
+                                                      color: accent,
+                                                      textStrong: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              AppConstants.inkColor,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  SizedBox(
+                                                    width: (constraints.maxWidth - 16) / 3,
+                                                    child: _MetricChip(
+                                                      label: 'Acceptance Rate',
+                                                      value:
+                                                          '${(_acceptanceRate * 100).toStringAsFixed(0)}%',
+                                                      color: const Color(
+                                                        AppConstants
+                                                            .accentWarmColor,
+                                                      ),
+                                                      textStrong: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              AppConstants
+                                                                  .inkColor,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  SizedBox(
+                                                    width: (constraints.maxWidth - 16) / 3,
+                                                    child: _MetricChip(
+                                                      label: 'Cancellation Rate',
+                                                      value:
+                                                          '${(_cancellationRate * 100).toStringAsFixed(0)}%',
+                                                      color: Colors.grey.shade600,
+                                                      textStrong: isDark
+                                                          ? Colors.white
+                                                          : const Color(
+                                                              AppConstants
+                                                                  .inkColor,
+                                                            ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SliverToBoxAdapter(
+                              child: Container(
+                                width: double.infinity,
+                                color: primary,
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Material(
+                                        color: _filter == 'active'
+                                            ? Colors.white
+                                            : Colors.white.withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: InkWell(
+                                          onTap: () => setState(() => _filter = 'active'),
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.symmetric(vertical: 12),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.local_shipping_rounded,
+                                                  size: 20,
+                                                  color: _filter == 'active'
+                                                      ? primary
+                                                      : Colors.white,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Active',
+                                                  style: GoogleFonts.outfit(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                    color: _filter == 'active'
+                                                        ? primary
+                                                        : Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Material(
+                                        color: _filter == 'delivered'
+                                            ? Colors.white
+                                            : Colors.white.withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: InkWell(
+                                          onTap: () => setState(() => _filter = 'delivered'),
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: Padding(
+                                            padding:
+                                                const EdgeInsets.symmetric(vertical: 12),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.check_circle_outline_rounded,
+                                                  size: 20,
+                                                  color: _filter == 'delivered'
+                                                      ? primary
+                                                      : Colors.white,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Delivered',
+                                                  style: GoogleFonts.outfit(
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 14,
+                                                    color: _filter == 'delivered'
+                                                        ? primary
+                                                        : Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                            )
-                          : _filteredOrders.isEmpty
-                              ? Center(
+                            ),
+                            if (_filteredOrders.isEmpty)
+                              SliverFillRemaining(
+                                hasScrollBody: false,
+                                child: Center(
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -855,39 +1106,43 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                       ),
                                     ],
                                   ),
-                                )
-                              : RefreshIndicator(
-                                  onRefresh: _load,
-                                  color: primary,
-                                  child: ListView.builder(
-                                    padding: const EdgeInsets.all(16),
-                                    itemCount: _filteredOrders.length,
-                                    itemBuilder: (context, index) {
+                                ),
+                              )
+                            else
+                              SliverPadding(
+                                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                                sliver: SliverList(
+                                  delegate: SliverChildBuilderDelegate(
+                                    (context, index) {
                                       final order = _filteredOrders[index];
                                       return _OrderCard(
                                         order: order,
                                         updatingOrderId: _updatingOrderId,
                                         currentLatLng: _currentLatLng,
                                         onUpdateStatus: _updateStatus,
-                                        onNavigate: _navigateToDeliveryAddress,
-                                        onChatCustomer: !{
-                                          'pending',
-                                          'pending_confirmation',
-                                        }.contains(order['status']?.toString() ?? '')
-                                            ? () => _openCustomerChat(context, order)
-                                            : null,
-                                        onViewReceipt: (order['status']?.toString() ?? '') == 'delivered'
-                                            ? () => _openReceipt(order)
-                                            : null,
+                                        onOpenMaps: (toPickup) => _openOrderMaps(
+                                          context,
+                                          order,
+                                          toPickup: toPickup,
+                                        ),
+                                        onCallCustomer: () =>
+                                            _callCustomer(order),
+                                        onViewReceipt:
+                                            (order['status']?.toString() ?? '') ==
+                                                    'delivered'
+                                                ? () => _openReceipt(order)
+                                                : null,
                                         statusLabel: _statusLabel,
                                         nextStatus: _nextStatus,
                                       );
                                     },
+                                    childCount: _filteredOrders.length,
                                   ),
                                 ),
-                ),
-              ],
-            ),
+                              ),
+                          ],
+                        ),
+                      ),
 
             // Earnings tab (dedicated module + bar chart)
             _EarningsTab(
@@ -903,14 +1158,186 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   }
 }
 
+class _CurrentTaskHeroCard extends StatelessWidget {
+  const _CurrentTaskHeroCard({
+    required this.order,
+    required this.busy,
+    required this.primary,
+    required this.onStartTrip,
+    required this.onPickupMaps,
+    required this.onDropoffMaps,
+    required this.onCall,
+  });
+
+  final Map<String, dynamic> order;
+  final bool busy;
+  final Color primary;
+  final VoidCallback onStartTrip;
+  final VoidCallback onPickupMaps;
+  final VoidCallback onDropoffMaps;
+  final VoidCallback onCall;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = order['_id']?.toString() ?? '';
+    final shortId = id.length >= 6 ? id.substring(id.length - 6) : id;
+    final status = order['status']?.toString() ?? '';
+    final pickupLine = order['pickupAddress'] is Map
+        ? ((order['pickupAddress'] as Map)['address']?.toString() ?? 'PawSewa Shop')
+        : 'PawSewa Shop';
+    final startLabel =
+        status == 'out_for_delivery' ? 'Continue trip' : 'Start trip';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            primary,
+            primary.withValues(alpha: 0.88),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: primary.withValues(alpha: 0.28),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Current task',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Order #$shortId',
+            style: GoogleFonts.fraunces(
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Pickup',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            pickupLine,
+            style: GoogleFonts.outfit(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              height: 1.25,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: busy ? null : onStartTrip,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    busy ? 'Please wait' : startLabel,
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              FilledButton.tonal(
+                onPressed: onCall,
+                style: FilledButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  padding: const EdgeInsets.all(14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Icon(Icons.phone_rounded, size: 22),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onPickupMaps,
+                  icon: const Icon(Icons.storefront_rounded, size: 18),
+                  label: Text(
+                    'Pickup maps',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.65)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onDropoffMaps,
+                  icon: const Icon(Icons.home_rounded, size: 18),
+                  label: Text(
+                    'Customer maps',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.65)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OrderCard extends StatelessWidget {
   const _OrderCard({
     required this.order,
     required this.updatingOrderId,
     required this.currentLatLng,
     required this.onUpdateStatus,
-    required this.onNavigate,
-    this.onChatCustomer,
+    required this.onOpenMaps,
+    required this.onCallCustomer,
     this.onViewReceipt,
     required this.statusLabel,
     required this.nextStatus,
@@ -920,8 +1347,8 @@ class _OrderCard extends StatelessWidget {
   final String? updatingOrderId;
   final LatLng? currentLatLng;
   final void Function(String orderId, String status) onUpdateStatus;
-  final void Function(BuildContext context, Map<String, dynamic> order) onNavigate;
-  final VoidCallback? onChatCustomer;
+  final void Function(bool toPickup) onOpenMaps;
+  final VoidCallback onCallCustomer;
   final VoidCallback? onViewReceipt;
   final String Function(String) statusLabel;
   final String? Function(String) nextStatus;
@@ -978,7 +1405,11 @@ class _OrderCard extends StatelessWidget {
       distanceKm = Distance().as(LengthUnit.Kilometer, from, to);
     }
     final distanceText =
-        distanceKm == null ? 'Distance —' : '${distanceKm.toStringAsFixed(1)} km';
+        distanceKm == null ? 'Distance' : '${distanceKm.toStringAsFixed(1)} km';
+    final pickupLabel = order['pickupAddress'] is Map
+        ? ((order['pickupAddress'] as Map)['address']?.toString() ?? 'PawSewa Shop')
+        : 'PawSewa Shop';
+    final mapsToPickup = status != 'out_for_delivery';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -991,60 +1422,74 @@ class _OrderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '#$shortId',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: textStrong,
+                Expanded(
+                  child: Text(
+                    '#$shortId',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: textStrong,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      distanceText,
-                      style: GoogleFonts.fraunces(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                        letterSpacing: 0.4,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        distanceText,
+                        style: GoogleFonts.fraunces(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                          letterSpacing: 0.4,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _statusColor(status).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        statusLabel(status),
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _statusColor(status),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          statusLabel(status),
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _statusColor(status),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Pickup: PawSewa Shop',
+              'Pickup: $pickupLabel',
               style: GoogleFonts.outfit(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: textMuted,
               ),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             if (address != null && address.isNotEmpty) ...[
@@ -1057,6 +1502,7 @@ class _OrderCard extends StatelessWidget {
                   color: isDark ? Colors.white : Colors.black87,
                 ),
                 maxLines: 2,
+                softWrap: true,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -1096,62 +1542,55 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            if ((status == 'processing' ||
-                    status == 'packed' ||
-                    status == 'ready_for_pickup' ||
-                    status == 'assigned_to_rider' ||
-                    status == 'out_for_delivery') &&
-                customerLatLng != null) ...[
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => onNavigate(context, order),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            if (status == 'processing' ||
+                status == 'packed' ||
+                status == 'ready_for_pickup' ||
+                status == 'assigned_to_rider' ||
+                status == 'out_for_delivery') ...[
+              SafeArea(
+                top: false,
+                minimum: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: onCallCustomer,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.all(12),
+                        backgroundColor: accent.withValues(alpha: 0.15),
+                        foregroundColor: accent,
+                      ),
+                      child: const Icon(Icons.phone_rounded, size: 22),
                     ),
-                  ),
-                  icon: const Icon(Icons.map_rounded, size: 20),
-                  label: Text(
-                    'Open in Google Maps',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => onOpenMaps(mapsToPickup),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.map_rounded, size: 20),
+                        label: Text(
+                          mapsToPickup
+                              ? 'Pickup in Google Maps'
+                              : 'Customer in Google Maps',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),
-            ],
-            if (onChatCustomer != null) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: onChatCustomer,
-                  icon: const Icon(Icons.chat_bubble_outline, size: 20),
-                  label: Text(
-                    'Chat with Customer',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isDark ? Colors.orange.shade800 : accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
             ],
 
             if (onViewReceipt != null) ...[
@@ -1188,10 +1627,10 @@ class _OrderCard extends StatelessWidget {
                 backgroundColor:
                     next == 'delivered' ? successGreen : accent,
                 label: next == 'delivered'
-                    ? 'Swipe — Delivered'
+                    ? 'Swipe: Delivered'
                     : next == 'out_for_delivery'
-                        ? 'Swipe — Out for delivery'
-                        : 'Swipe — Update status',
+                        ? 'Swipe: Out for delivery'
+                        : 'Swipe: Update status',
                 onSwiped: () => onUpdateStatus(id, next),
                 loading: isUpdating,
               ),
@@ -1239,32 +1678,40 @@ class _MetricChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.outfit(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
+              height: 1.15,
               color: textStrong.withValues(alpha: 0.85),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             value,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: GoogleFonts.fraunces(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
               color: textStrong,
-              letterSpacing: 0.6,
+              letterSpacing: 0.4,
             ),
           ),
         ],
@@ -1314,7 +1761,9 @@ class _EarningsTab extends StatelessWidget {
       },
       color: primary,
       child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1582,22 +2031,31 @@ class _PayoutRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(
-            value,
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Colors.black87,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Colors.black87,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
             ),
           ),
         ],

@@ -66,11 +66,13 @@ async function finalizeShopCheckoutPayment(payment, khaltiTransactionId, lookupD
       }
 
       const liveLoc = normalizeDraftLiveLocation(draft.liveLocation);
+      const sellerRef = draft.sellerId || draft.assignedSeller;
       const orderPayload = {
         user: p.user,
         customerId: draft.customerId || p.user,
         assignedSeller: draft.assignedSeller,
         shopId: draft.shopId || draft.assignedSeller,
+        sellerId: sellerRef,
         items: draft.items,
         totalAmount: draft.totalAmount ?? p.amount,
         deliveryLocation: draft.deliveryLocation,
@@ -110,6 +112,12 @@ async function finalizeShopCheckoutPayment(payment, khaltiTransactionId, lookupD
 
   const oid = createdOrder._id;
 
+  const routeSid = createdOrder.sellerId || createdOrder.assignedSeller || createdOrder.shopId;
+  logger.info(`Order ${oid}: Automated seller identification successful.`);
+  if (routeSid) {
+    logger.info(`Routing real-time ping to Seller ID: ${routeSid}`);
+  }
+
   try {
     await broadcastShopOrder(oid, 'new_order');
     await broadcastShopOrder(oid, 'assign_seller');
@@ -120,8 +128,8 @@ async function finalizeShopCheckoutPayment(payment, khaltiTransactionId, lookupD
 
   try {
     await sendMulticastToUser(payment.user, {
-      title: 'Payment successful!',
-      body: 'Your order is being processed.',
+      title: 'Payment confirmed',
+      body: 'Your pet supplies order is being prepared.',
       data: {
         type: 'shop_order_paid',
         orderId: String(oid),
@@ -153,7 +161,7 @@ async function finalizeShopCheckoutPayment(payment, khaltiTransactionId, lookupD
     await Notification.create({
       user: payment.user,
       title: 'Order received',
-      message: `Payment received. Your order #${String(oid).slice(-6)} is being processed.`,
+      message: `Payment received. Your pet supplies order #${String(oid).slice(-6)} is being processed.`,
       type: 'system',
       isRead: false,
     });
@@ -161,7 +169,7 @@ async function finalizeShopCheckoutPayment(payment, khaltiTransactionId, lookupD
     logger.warn('Order in-app notification skipped:', e?.message || String(e));
   }
 
-  logger.success(
+  logger.info(
     `Shop checkout finalized: payment=${pid} order=${oid} txn=${khaltiTransactionId || 'n/a'}`
   );
 

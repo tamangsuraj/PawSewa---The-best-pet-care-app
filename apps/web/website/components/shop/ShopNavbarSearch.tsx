@@ -43,7 +43,7 @@ function ShopNavbarSearchInner() {
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-paw-foreground/35" />
       <input
         type="search"
-        placeholder="Search essentials..."
+        placeholder="Search for pet supplies"
         value={val}
         onChange={(e) => {
           const v = e.target.value;

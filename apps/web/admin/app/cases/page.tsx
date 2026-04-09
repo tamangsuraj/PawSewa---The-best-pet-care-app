@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '@/lib/api';
 import { getAdminSocketUrl } from '@/lib/apiConfig';
@@ -17,36 +17,51 @@ import {
   X,
 } from 'lucide-react';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import Image from 'next/image';
 
-interface CaseItem {
+type LiveCaseSource = 'assistance' | 'service_request' | 'clinic_appointment';
+
+interface LiveCaseCustomer {
   _id: string;
-  type: 'assistance';
-  customer: { _id: string; name: string; email?: string; phone?: string };
-  pet: { _id: string; name: string; breed?: string; age?: number; image?: string };
-  issueDescription: string;
-  location: string;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed';
-  assignedVet?: { _id: string; name: string; specialty?: string; currentShift?: string };
-  createdAt: string;
-  assignedAt?: string;
+  name: string;
+  email?: string;
+  phone?: string;
 }
 
-interface ServiceRequestItem {
+interface LiveCasePet {
   _id: string;
-  type: 'appointment';
-  user: { _id: string; name: string; email?: string; phone?: string };
-  pet: { _id: string; name: string; breed?: string; age?: number; photoUrl?: string; image?: string };
-  serviceType: string;
-  preferredDate: string;
-  timeWindow: string;
-  location?: { address?: string; coordinates?: { lat: number; lng: number } };
+  name: string;
+  breed?: string;
+  age?: number;
+  image?: string;
+  photoUrl?: string;
+  pawId?: string;
+}
+
+interface LiveCaseAssignee {
+  _id: string;
+  name: string;
+  specialty?: string;
+  specialization?: string;
+}
+
+interface UnifiedLiveCaseRow {
+  source: LiveCaseSource;
+  _id: string;
+  displayType: string;
+  issueLine: string;
+  locationLabel: string;
+  latitude?: number | null;
+  longitude?: number | null;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
-  assignedStaff?: { _id: string; name: string; specialty?: string; specialization?: string };
+  customer: LiveCaseCustomer | null;
+  pet: LiveCasePet | null;
+  assignee: LiveCaseAssignee | null;
   createdAt: string;
-  scheduledTime?: string;
+  serviceType?: string;
+  preferredDate?: string;
+  timeWindow?: string;
 }
-
-type LiveCaseRow = (CaseItem | ServiceRequestItem) & { createdAt: string };
 
 interface Vet {
   _id: string;
@@ -59,42 +74,39 @@ interface Vet {
   isAvailable?: boolean;
 }
 
+const LIVE_STATUSES = ['pending', 'assigned', 'in_progress'] as const;
+
+function parseLiveCaseCoords(item: UnifiedLiveCaseRow): { lat: number; lng: number } | null {
+  const lat = item.latitude;
+  const lng = item.longitude;
+  if (typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)) {
+    if (lat === 0 && lng === 0) return null;
+    return { lat, lng };
+  }
+  return null;
+}
+
+function openGoogleMapsInNewTab(coords: { lat: number; lng: number }) {
+  if (typeof window === 'undefined') return;
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${coords.lat},${coords.lng}`)}`;
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 export default function LiveCasesPage() {
-  const [items, setItems] = useState<LiveCaseRow[]>([]);
+  const [items, setItems] = useState<UnifiedLiveCaseRow[]>([]);
   const [vets, setVets] = useState<Vet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedItem, setSelectedItem] = useState<LiveCaseRow | null>(null);
+  const [selectedItem, setSelectedItem] = useState<UnifiedLiveCaseRow | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedVet, setSelectedVet] = useState('');
   const [selectedShift, setSelectedShift] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterCategory, setFilterCategory] = useState<'all' | 'assistance' | 'appointments'>('all');
 
-  const LIVE_STATUSES = ['pending', 'assigned', 'in_progress'] as const;
-
-  useEffect(() => {
-    fetchAll();
-  }, [filterStatus]);
-
-  useEffect(() => {
-    const token = getStoredAdminToken();
-    if (!token) return;
-    const socket: Socket = io(getAdminSocketUrl(), {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-    });
-    socket.on('case_status_change', () => {
-      fetchAll();
-    });
-    return () => {
-      socket.off('case_status_change');
-      socket.disconnect();
-    };
-  }, []);
-
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -105,46 +117,45 @@ export default function LiveCasesPage() {
         return;
       }
 
-      const casesPath = filterStatus === 'all' ? '/cases' : `/cases?status=${filterStatus}`;
-      const requestsPath =
-        filterStatus === 'all'
-          ? '/service-requests'
-          : `/service-requests?status=${filterStatus}`;
+      const statusParam = filterStatus === 'all' ? 'all' : filterStatus;
+      const res = await api.get<{ success: boolean; data?: UnifiedLiveCaseRow[] }>(
+        `/admin/live-cases?status=${encodeURIComponent(statusParam)}&category=${encodeURIComponent(filterCategory)}`,
+      );
 
-      const [casesRes, requestsRes] = await Promise.all([
-        api.get<{ success: boolean; data?: CaseItem[] }>(casesPath),
-        api.get<{ success: boolean; data?: ServiceRequestItem[] }>(requestsPath),
-      ]);
-
-      const casesData: CaseItem[] = (casesRes.data.data || []).map((c) => ({ ...c, type: 'assistance' as const }));
-      const requestsData: ServiceRequestItem[] = (requestsRes.data.data || []).map((r) => ({
-        ...r,
-        type: 'appointment' as const,
-      }));
-
-      const rawMerged = [...casesData, ...requestsData];
-      const liveOnly = rawMerged.filter((r) => LIVE_STATUSES.includes(r.status as (typeof LIVE_STATUSES)[number]));
-
-      const isUnassigned = (row: LiveCaseRow) => {
-        const assigned = 'assignedVet' in row ? row.assignedVet : row.assignedStaff;
-        return !assigned;
-      };
-
-      const unassignedPending = liveOnly.filter((r) => r.status === 'pending' && isUnassigned(r));
-      const rest = liveOnly.filter((r) => r.status !== 'pending' || !isUnassigned(r));
-
-      unassignedPending.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      rest.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-      const merged: LiveCaseRow[] = [...unassignedPending, ...rest];
-      setItems(merged);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load live cases');
+      const rows = res.data.data || [];
+      const liveOnly = rows.filter((r) => LIVE_STATUSES.includes(r.status as (typeof LIVE_STATUSES)[number]));
+      setItems(liveOnly);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to load live cases');
       setItems([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus, filterCategory]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  useEffect(() => {
+    const token = getStoredAdminToken();
+    if (!token) return;
+    const socket: Socket = io(getAdminSocketUrl(), {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
+    const onBump = () => {
+      fetchAll();
+    };
+    socket.on('case_status_change', onBump);
+    socket.on('appointment:update', onBump);
+    return () => {
+      socket.off('case_status_change', onBump);
+      socket.off('appointment:update', onBump);
+      socket.disconnect();
+    };
+  }, [fetchAll]);
 
   const fetchVets = async () => {
     try {
@@ -159,8 +170,7 @@ export default function LiveCasesPage() {
       const byId = new Map<string, Vet>();
       [...fromCases, ...fromUsers].forEach((v: Vet) => byId.set(v._id, { ...v }));
       setVets(Array.from(byId.values()));
-    } catch (e) {
-      console.error('Failed to load vets', e);
+    } catch {
       setVets([]);
     }
   };
@@ -172,13 +182,13 @@ export default function LiveCasesPage() {
 
     try {
       setAssigning(true);
-      if (selectedItem.type === 'assistance') {
+      if (selectedItem.source === 'assistance') {
         await api.patch(`/cases/${selectedItem._id}/assign`, {
           vetId: selectedVet,
           shift: selectedShift || undefined,
         });
-        alert('Case assigned successfully!');
-      } else {
+        alert('Case assigned successfully.');
+      } else if (selectedItem.source === 'service_request') {
         if (!scheduledTime) {
           alert('Please select scheduled time for the appointment.');
           setAssigning(false);
@@ -188,7 +198,12 @@ export default function LiveCasesPage() {
           staffId: selectedVet,
           scheduledTime,
         });
-        alert('Appointment assigned successfully!');
+        alert('Appointment assigned successfully.');
+      } else if (selectedItem.source === 'clinic_appointment') {
+        await api.patch(`/appointments/${selectedItem._id}/assign`, {
+          vetId: selectedVet,
+        });
+        alert('Appointment assigned successfully.');
       }
       setShowAssignModal(false);
       setSelectedItem(null);
@@ -196,14 +211,15 @@ export default function LiveCasesPage() {
       setSelectedShift('');
       setScheduledTime('');
       fetchAll();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message || 'Failed to assign');
     } finally {
       setAssigning(false);
     }
   };
 
-  const openAssignModal = (item: LiveCaseRow) => {
+  const openAssignModal = (item: UnifiedLiveCaseRow) => {
     setSelectedItem(item);
     setShowAssignModal(true);
     setSelectedVet('');
@@ -212,9 +228,9 @@ export default function LiveCasesPage() {
     if (vets.length === 0) fetchVets();
   };
 
-  const getStatusBadge = (item: LiveCaseRow) => {
+  const getStatusBadge = (item: UnifiedLiveCaseRow) => {
     const status = item.status;
-    const assigned = getAssigned(item);
+    const assigned = item.assignee;
     const isPendingUnassigned = status === 'pending' && !assigned;
 
     const styles: Record<string, string> = {
@@ -243,34 +259,30 @@ export default function LiveCasesPage() {
     );
   };
 
-  const getPet = (item: LiveCaseRow) => ('pet' in item ? item.pet : item.pet);
-  const getOwner = (item: LiveCaseRow) => ('customer' in item ? item.customer?.name : item.user?.name) ?? '—';
-  const getDescription = (item: LiveCaseRow) =>
-    item.type === 'assistance'
-      ? (item as CaseItem).issueDescription
-      : `${(item as ServiceRequestItem).serviceType} — ${(item as ServiceRequestItem).preferredDate} (${(item as ServiceRequestItem).timeWindow})`;
-  const getLocation = (item: LiveCaseRow) =>
-    item.type === 'assistance'
-      ? (item as CaseItem).location
-      : (item as ServiceRequestItem).location?.address ?? '—';
-  const getAssigned = (item: LiveCaseRow) =>
-    item.type === 'assistance'
-      ? (item as CaseItem).assignedVet
-      : (item as ServiceRequestItem).assignedStaff;
-  const canAssign = (item: LiveCaseRow) => item.status === 'pending' && !['cancelled'].includes(item.status);
+  const getPet = (item: UnifiedLiveCaseRow) => item.pet;
+  const getOwner = (item: UnifiedLiveCaseRow) => item.customer?.name ?? '—';
+  const getDescription = (item: UnifiedLiveCaseRow) => item.issueLine;
+  const getLocation = (item: UnifiedLiveCaseRow) => item.locationLabel || '—';
+  const canAssign = (item: UnifiedLiveCaseRow) => item.status === 'pending' && !item.assignee;
 
-  const unassignedPendingCount = items.filter((i) => i.status === 'pending' && !getAssigned(i)).length;
+  const unassignedPendingCount = items.filter((i) => i.status === 'pending' && !i.assignee).length;
   const assignedCount = items.filter((i) => i.status === 'assigned').length;
   const inProgressCount = items.filter((i) => i.status === 'in_progress').length;
 
+  const assignNeedsSchedule = selectedItem?.source === 'service_request';
+  const assignDisabled =
+    !selectedVet ||
+    (assignNeedsSchedule && !scheduledTime) ||
+    assigning;
+
   return (
-    <div className="p-8 bg-gray-50 min-h-dvh">
+    <div className="min-w-0 w-full max-w-none pb-4">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Live Cases</h1>
             <p className="text-gray-600 mt-1">
-              All requests from customers (Request Assistance + Book Appointment). Assign and manage from here.
+              Unified queue: assistance requests, booked services, and clinic appointments (including vaccinations).
             </p>
           </div>
           <button
@@ -312,18 +324,35 @@ export default function LiveCasesPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 border-b border-gray-200 bg-white rounded-t-lg px-2 pt-2">
-          {['all', 'pending', 'assigned', 'in_progress'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 font-medium transition-colors ${
-                filterStatus === status ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {status === 'all' ? 'All' : status.replace('_', ' ').toUpperCase()}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between border-b border-gray-200 bg-white rounded-t-lg px-2 pt-2">
+          <div className="flex gap-2 flex-wrap">
+            {(['all', 'assistance', 'appointments'] as const).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setFilterCategory(cat)}
+                className={`px-4 py-2 font-medium transition-colors rounded-t ${
+                  filterCategory === cat ? 'border-b-2 border-primary text-primary bg-primary/5' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {cat === 'all' ? 'All' : cat === 'assistance' ? 'Assistance' : 'Appointments'}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-wrap pb-1">
+            {['all', 'pending', 'assigned', 'in_progress'].map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setFilterStatus(status)}
+                className={`px-3 py-1.5 text-sm font-medium transition-colors rounded-md ${
+                  filterStatus === status ? 'bg-primary text-white' : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {status === 'all' ? 'All statuses' : status.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -345,94 +374,117 @@ export default function LiveCasesPage() {
           <p className="text-gray-600 text-lg">No cases or appointments found</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pet & Owner</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue / Appointment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {items.map((item) => {
-                const pet = getPet(item);
-                const assigned = getAssigned(item);
-                const isPendingUnassigned = item.status === 'pending' && !assigned;
-                return (
-                  <tr
-                    key={`${item.type}-${item._id}`}
-                    className={`hover:bg-gray-50 ${isPendingUnassigned ? 'bg-red-50/50 border-l-4 border-l-red-500' : ''}`}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.type === 'assistance' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {item.type === 'assistance' ? 'Assistance' : 'Appointment'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">#{item._id.slice(-6)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                          {pet?.image || (pet as { photoUrl?: string })?.photoUrl ? (
-                            <img
-                              src={((pet as { image?: string }).image ?? (pet as { photoUrl?: string }).photoUrl) as string}
-                              alt={pet?.name}
-                              className="w-10 h-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-primary font-bold">{(pet?.name || '?')[0]}</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{pet?.name ?? '—'}</p>
-                          <p className="text-xs text-gray-500">{getOwner(item)}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-900 max-w-xs truncate">{getDescription(item)}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-600 max-w-xs">
-                        <MapPin className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{getLocation(item)}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(item)}</td>
-                    <td className="px-6 py-4">
-                      {assigned ? (
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Dr. {assigned.name}</p>
-                          <p className="text-xs text-gray-500">{assigned.specialty || assigned.specialization || 'Vet'}</p>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">Not assigned</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {canAssign(item) && (
-                        <button
-                          onClick={() => openAssignModal(item)}
-                          className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90"
-                        >
-                          Assign
-                        </button>
-                      )}
-                    </td>
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="admin-table-scroll overflow-x-auto">
+            <div className="admin-data-table-inner">
+              <table className="admin-table-sticky-first admin-table-sticky-last min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pet & Owner</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue / Appointment</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {items.map((item) => {
+                    const pet = getPet(item);
+                    const assigned = item.assignee;
+                    const isPendingUnassigned = item.status === 'pending' && !assigned;
+                    const mapCoords = parseLiveCaseCoords(item);
+                    const locationLabel = getLocation(item);
+                    const typeClass =
+                      item.source === 'assistance'
+                        ? 'bg-amber-100 text-amber-800'
+                        : item.displayType === 'Vaccination'
+                          ? 'bg-violet-100 text-violet-800'
+                          : 'bg-blue-100 text-blue-800';
+                    return (
+                      <tr
+                        key={`${item.source}-${item._id}`}
+                        className={`hover:bg-gray-50 ${isPendingUnassigned ? 'row-live-urgent bg-red-50/50 border-l-4 border-l-red-500' : ''}`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${typeClass}`}>
+                            {item.displayType}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">#{item._id.slice(-6)}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center overflow-hidden">
+                              {pet?.image || pet?.photoUrl ? (
+                                <Image
+                                  src={(pet.image ?? pet.photoUrl) as string}
+                                  alt={pet?.name ?? 'Pet'}
+                                  width={40}
+                                  height={40}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-primary font-bold">{(pet?.name || '?')[0]}</span>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{pet?.name ?? '—'}</p>
+                              <p className="text-xs text-gray-500">{getOwner(item)}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm text-gray-900 max-w-xs truncate">{getDescription(item)}</p>
+                        </td>
+                        <td className="px-6 py-4">
+                          {mapCoords ? (
+                            <button
+                              type="button"
+                              onClick={() => openGoogleMapsInNewTab(mapCoords)}
+                              className="group flex max-w-xs items-start gap-1 text-left text-sm text-primary hover:underline"
+                              title="Open pinned location in Google Maps"
+                            >
+                              <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                              <span className="truncate text-gray-700 group-hover:text-primary">{locationLabel}</span>
+                            </button>
+                          ) : (
+                            <div className="flex max-w-xs items-center gap-1 text-sm text-gray-600">
+                              <MapPin className="h-4 w-4 flex-shrink-0" />
+                              <span className="truncate">{locationLabel}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">{getStatusBadge(item)}</td>
+                        <td className="px-6 py-4">
+                          {assigned ? (
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">Dr. {assigned.name}</p>
+                              <p className="text-xs text-gray-500">{assigned.specialty || assigned.specialization || 'Vet'}</p>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">Not assigned</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          {canAssign(item) && (
+                            <button
+                              type="button"
+                              onClick={() => openAssignModal(item)}
+                              className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90"
+                            >
+                              Assign
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
@@ -440,10 +492,8 @@ export default function LiveCasesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {selectedItem.type === 'assistance' ? 'Assign Case to Veterinarian' : 'Assign Appointment to Veterinarian'}
-              </h2>
-              <button onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h2 className="text-2xl font-bold text-gray-900">Assign to veterinarian</h2>
+              <button type="button" onClick={() => setShowAssignModal(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -452,8 +502,7 @@ export default function LiveCasesPage() {
                 <h3 className="font-semibold text-gray-900 mb-2">Details</h3>
                 <div className="space-y-2 text-sm">
                   <p>
-                    <span className="font-medium">Type:</span>{' '}
-                    {selectedItem.type === 'assistance' ? 'Request Assistance' : 'Book Appointment'}
+                    <span className="font-medium">Type:</span> {selectedItem.displayType}
                   </p>
                   <p>
                     <span className="font-medium">Pet:</span> {getPet(selectedItem)?.name} ({getPet(selectedItem)?.breed ?? '—'})
@@ -462,8 +511,7 @@ export default function LiveCasesPage() {
                     <span className="font-medium">Owner:</span> {getOwner(selectedItem)}
                   </p>
                   <p>
-                    <span className="font-medium">{selectedItem.type === 'assistance' ? 'Issue:' : 'Service:'}</span>{' '}
-                    {getDescription(selectedItem)}
+                    <span className="font-medium">Issue / appointment:</span> {getDescription(selectedItem)}
                   </p>
                   <p>
                     <span className="font-medium">Location:</span> {getLocation(selectedItem)}
@@ -471,9 +519,9 @@ export default function LiveCasesPage() {
                 </div>
               </div>
 
-              {selectedItem.type === 'assistance' && (
+              {selectedItem.source === 'assistance' && (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Shift (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Shift (optional)</label>
                   <select
                     value={selectedShift}
                     onChange={(e) => setSelectedShift(e.target.value)}
@@ -487,9 +535,9 @@ export default function LiveCasesPage() {
                 </div>
               )}
 
-              {selectedItem.type === 'appointment' && (
+              {assignNeedsSchedule && (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Scheduled Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Scheduled time</label>
                   <input
                     type="datetime-local"
                     value={scheduledTime}
@@ -538,6 +586,7 @@ export default function LiveCasesPage() {
 
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={() => setShowAssignModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                   disabled={assigning}
@@ -545,8 +594,9 @@ export default function LiveCasesPage() {
                   Cancel
                 </button>
                 <button
+                  type="button"
                   onClick={handleAssign}
-                  disabled={!selectedVet || (selectedItem.type === 'appointment' && !scheduledTime) || assigning}
+                  disabled={assignDisabled}
                   className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {assigning ? 'Assigning...' : 'Assign'}

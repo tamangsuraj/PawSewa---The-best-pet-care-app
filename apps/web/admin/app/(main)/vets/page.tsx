@@ -15,7 +15,7 @@ interface Vet {
 }
 
 export default function VetsPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [vets, setVets] = useState<Vet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,13 +42,21 @@ export default function VetsPage() {
   const fetchVets = async () => {
     try {
       const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const veterinarians = (allUsers || []).filter(
-        (u: any) => u.role === 'veterinarian' || u.role === 'VET'
-      );
-      setVets(veterinarians.map((u: any) => ({ ...u, name: u.name || u.full_name || u.email })));
-    } catch (error) {
-      console.error('Error fetching vets:', error);
+      const raw = response.data?.data as unknown;
+      const rows = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
+      const veterinarians = rows
+        .filter((u) => u.role === 'veterinarian' || u.role === 'VET')
+        .map((u) => ({
+          _id: String(u._id ?? ''),
+          name: String(u.name ?? u.full_name ?? u.email ?? 'Veterinarian'),
+          email: String(u.email ?? ''),
+          phone: u.phone ? String(u.phone) : undefined,
+          clinicLocation: u.clinicLocation ? String(u.clinicLocation) : undefined,
+          createdAt: String(u.createdAt ?? ''),
+        }));
+      setVets(veterinarians);
+    } catch {
+      setVets([]);
     } finally {
       setLoading(false);
     }
@@ -77,8 +85,9 @@ export default function VetsPage() {
       
       // Refresh vets list
       fetchVets();
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to create veterinarian');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to create veterinarian');
     } finally {
       setFormLoading(false);
     }

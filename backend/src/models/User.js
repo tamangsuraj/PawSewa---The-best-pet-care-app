@@ -9,6 +9,7 @@ function normalizeRole(role) {
   if (upper === 'VET' || r === 'vet') return 'veterinarian';
   if (upper === 'ADMIN') return 'admin';
   if (upper === 'RIDER') return 'rider';
+  if (upper === 'PETCARE' || r === 'petcare') return 'care_service';
   return r.toLowerCase();
 }
 
@@ -160,6 +161,11 @@ const userSchema = new mongoose.Schema(
     isVerified: {
       type: Boolean,
       default: false,
+    },
+    /** When false, partner app login is rejected (admin deactivation). */
+    isAccountActive: {
+      type: Boolean,
+      default: true,
     },
     // Provider subscription (for hostel_owner, service_provider, groomer, trainer, facility_owner)
     subscriptionStatus: {

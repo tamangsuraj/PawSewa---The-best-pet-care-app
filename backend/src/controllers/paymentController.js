@@ -11,6 +11,8 @@ const Subscription = require('../models/Subscription');
 const Hostel = require('../models/Hostel');
 const Order = require('../models/Order');
 const PaymentLog = require('../models/PaymentLog');
+const { AppointmentUnified } = require('../models/unified');
+const { broadcastAppointment } = require('../services/appointmentSocketNotify');
 const logger = require('../utils/logger');
 const { broadcastShopOrder } = require('../services/orderSocketNotify');
 const { finalizeShopCheckoutPayment } = require('../services/shopCheckoutKhalti');
@@ -19,6 +21,7 @@ const {
   KHALTI_SECRET_KEY,
   nprToPaisa,
   isKhaltiConfigured,
+  getKhaltiPublicBaseUrlFromRequest,
   getPaymentFailureMessage,
 } = require('../config/payment_config');
 
@@ -29,12 +32,31 @@ const ESEWA_PRODUCT_CODE = process.env.ESEWA_PRODUCT_CODE || '';
 // Example (check latest docs): https://epay.esewa.com.np/api/epay/transaction/status/
 const ESEWA_VERIFY_URL = process.env.ESEWA_VERIFY_URL || '';
 
+function addNgrokBypassToReturnUrl(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url);
+    const host = (u.host || '').toLowerCase();
+    if (!host.includes('ngrok')) return url;
+    // Ensure callback redirects to app deep link.
+    if (!u.searchParams.get('cb')) u.searchParams.set('cb', 'app');
+    // Best-effort query hints (some clients/proxies treat this as a bypass).
+    u.searchParams.set('ngrok-skip-browser-warning', 'true');
+    u.searchParams.set('ngrokSkipBrowserWarning', 'true');
+    return u.toString();
+  } catch (_) {
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}cb=app&ngrok-skip-browser-warning=true`;
+  }
+}
+
 /**
  * Helper: promote ServiceRequest to \"confirmed\" + mark paymentStatus
  * in a single DB transaction.
  */
 async function markPaymentCompleted({ paymentId }) {
   const session = await mongoose.startSession();
+  let clinicAppointmentNotifyId = null;
   try {
     await session.withTransaction(async () => {
       const payment = await Payment.findById(paymentId).session(session);
@@ -104,10 +126,24 @@ async function markPaymentCompleted({ paymentId }) {
           { $set: { isActive: true } },
           { session }
         );
+      } else if (payment.targetType === 'clinic_appointment' && payment.unifiedAppointment) {
+        const appt = await AppointmentUnified.findById(payment.unifiedAppointment).session(session);
+        if (!appt) {
+          throw new Error('Clinic appointment not found');
+        }
+        appt.paymentStatus = 'paid';
+        if (['pending_admin', 'pending'].includes(appt.status)) {
+          appt.status = 'pending_admin';
+        }
+        await appt.save({ session });
+        clinicAppointmentNotifyId = appt._id.toString();
       }
     });
   } finally {
     session.endSession();
+  }
+  if (clinicAppointmentNotifyId) {
+    await broadcastAppointment(clinicAppointmentNotifyId, 'update');
   }
 }
 
@@ -115,7 +151,7 @@ async function markPaymentCompleted({ paymentId }) {
  * Initiate Khalti payment for a care booking. Throws on error.
  * @returns {Promise<{ paymentUrl: string, pidx: string, paymentId: string, amount: number }>}
  */
-async function initiateCareBookingKhalti({ userId, careBookingId }) {
+async function initiateCareBookingKhalti({ userId, careBookingId, req }) {
   if (!isKhaltiConfigured()) {
     const err = new Error('Khalti is not configured');
     err.statusCode = 503;
@@ -161,8 +197,8 @@ async function initiateCareBookingKhalti({ userId, careBookingId }) {
     gateway: 'khalti',
     status: 'pending',
   });
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
-  const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+  const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
+  const returnUrl = addNgrokBypassToReturnUrl(`${baseUrl}/api/v1/payments/khalti/callback`);
   const payload = {
     return_url: returnUrl,
     website_url: baseUrl,
@@ -207,7 +243,7 @@ async function initiateCareBookingKhalti({ userId, careBookingId }) {
 /**
  * Initiate Khalti payment for provider subscription.
  */
-async function initiateSubscriptionKhalti({ userId, plan, billingCycle, amount }) {
+async function initiateSubscriptionKhalti({ userId, plan, billingCycle, amount, req }) {
   if (!isKhaltiConfigured()) {
     const err = new Error('Khalti is not configured');
     err.statusCode = 503;
@@ -229,8 +265,8 @@ async function initiateSubscriptionKhalti({ userId, plan, billingCycle, amount }
     status: 'pending',
     metadata: { plan, billingCycle },
   });
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
-  const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+  const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
+  const returnUrl = addNgrokBypassToReturnUrl(`${baseUrl}/api/v1/payments/khalti/callback`);
   const payload = {
     return_url: returnUrl,
     website_url: baseUrl,
@@ -280,11 +316,91 @@ const initiateKhalti = asyncHandler(async (req, res) => {
   if (!userId) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
-  const { serviceRequestId, amount } = req.body || {};
+  const { serviceRequestId, unifiedAppointmentId, amount } = req.body || {};
+
+  if (!isKhaltiConfigured()) {
+    return res.status(503).json({
+      success: false,
+      message: 'Khalti is not configured. Set KHALTI_SECRET_KEY and KHALTI_BASE_URL.',
+    });
+  }
+
+  const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
+  const returnUrl = addNgrokBypassToReturnUrl(
+    process.env.KHALTI_RETURN_URL || `${baseUrl}/api/v1/payments/khalti/callback`
+  );
+  const websiteUrl = process.env.KHALTI_WEBSITE_URL || baseUrl;
+
+  if (unifiedAppointmentId) {
+    if (typeof amount !== 'number' || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'unifiedAppointmentId and positive amount (NPR) are required',
+      });
+    }
+    const appt = await AppointmentUnified.findById(unifiedAppointmentId).select(
+      'customerId totalAmount paymentStatus status'
+    );
+    if (!appt) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+    if (appt.customerId.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not allowed for this appointment' });
+    }
+    if (appt.paymentStatus === 'paid') {
+      return res.status(400).json({ success: false, message: 'Appointment is already paid' });
+    }
+    if (typeof appt.totalAmount === 'number' && appt.totalAmount > 0) {
+      const diff = Math.abs(Number(appt.totalAmount) - amount);
+      if (diff > 0.01) {
+        return res.status(400).json({
+          success: false,
+          message: 'Amount must match the appointment total',
+        });
+      }
+    }
+    const amountPaisa = nprToPaisa(amount);
+    const payment = await Payment.create({
+      user: userId,
+      unifiedAppointment: unifiedAppointmentId,
+      targetType: 'clinic_appointment',
+      amount,
+      currency: 'NPR',
+      gateway: 'khalti',
+      status: 'pending',
+    });
+    const payload = {
+      return_url: returnUrl,
+      website_url: websiteUrl,
+      amount: amountPaisa,
+      purchase_order_id: payment._id.toString(),
+      purchase_order_name: `Clinic appointment ${unifiedAppointmentId}`,
+    };
+    const resp = await axios.post(`${KHALTI_BASE_URL}/epayment/initiate/`, payload, {
+      headers: {
+        Authorization: `Key ${KHALTI_SECRET_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const { pidx, payment_url } = resp.data || {};
+    payment.gatewayTransactionId = pidx;
+    payment.rawGatewayPayload = resp.data || {};
+    await payment.save();
+    return res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        pidx,
+        paymentUrl: payment_url,
+      },
+    });
+  }
+
   if (!serviceRequestId || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({
       success: false,
-      message: 'serviceRequestId and positive amount (NPR) are required',
+      message:
+        'serviceRequestId and positive amount (NPR) are required, or unifiedAppointmentId for clinic payment',
     });
   }
 
@@ -298,17 +414,8 @@ const initiateKhalti = asyncHandler(async (req, res) => {
     return res.status(403).json({ success: false, message: 'Not allowed for this request' });
   }
 
-  if (!isKhaltiConfigured()) {
-    return res.status(503).json({
-      success: false,
-      message: 'Khalti is not configured. Set KHALTI_SECRET_KEY and KHALTI_BASE_URL.',
-    });
-  }
-
-  // Amount in paisa (Amount * 100) per Khalti spec
   const amountPaisa = nprToPaisa(amount);
 
-  // Create a Payment record first
   const payment = await Payment.create({
     user: userId,
     serviceRequest: serviceRequestId,
@@ -320,8 +427,8 @@ const initiateKhalti = asyncHandler(async (req, res) => {
   });
 
   const payload = {
-    return_url: process.env.KHALTI_RETURN_URL || 'https://example.com/pay/khalti/return',
-    website_url: process.env.KHALTI_WEBSITE_URL || 'https://example.com',
+    return_url: returnUrl,
+    website_url: websiteUrl,
     amount: amountPaisa,
     purchase_order_id: payment._id.toString(),
     purchase_order_name: `Service Request ${serviceRequestId}`,
@@ -413,6 +520,7 @@ const verifyKhalti = asyncHandler(async (req, res) => {
 function buildKhaltiAppSuccessRedirect(pidx, orderIdForClient, khaltiTxnId) {
   const base = (process.env.KHALTI_APP_SUCCESS_URL || 'pawsewa://payment-success').trim();
   const params = new URLSearchParams();
+  params.set('status', 'completed');
   if (pidx) params.set('pidx', String(pidx));
   if (orderIdForClient) params.set('orderId', String(orderIdForClient));
   if (khaltiTxnId) params.set('idx', String(khaltiTxnId));
@@ -437,7 +545,9 @@ function buildKhaltiAppFailRedirect(reason) {
 const khaltiCallback = asyncHandler(async (req, res) => {
   const { pidx, status: callbackStatus, purchase_order_id: purchaseOrderId } = req.query || {};
   if (!pidx) {
-    const fail = process.env.KHALTI_FAIL_REDIRECT || `${process.env.BASE_URL || 'http://localhost:3000'}/payment-failed?reason=missing_pidx`;
+    const fail =
+      process.env.KHALTI_FAIL_REDIRECT ||
+      `${getKhaltiPublicBaseUrlFromRequest(req)}/payment-failed?reason=missing_pidx`;
     const cbQ0 = ((req.query && req.query.cb) || '').toString().toLowerCase();
     const app0 =
       cbQ0 === 'web'
@@ -466,8 +576,11 @@ const khaltiCallback = asyncHandler(async (req, res) => {
     );
     lookupData = lookupResp.data || {};
     lookupStatus = lookupData.status;
+    if (lookupStatus === 'Completed') {
+      logger.info(`Khalti verification successful for PIDX: ${pidx}`);
+    }
   } catch (err) {
-    console.error('[Khalti callback] Lookup failed:', err?.response?.data || err.message);
+    logger.error('Khalti callback: lookup failed:', err?.response?.data || err.message);
   }
 
   const amountPaisa = lookupData.amount != null ? Number(lookupData.amount) : 0;
@@ -475,7 +588,7 @@ const khaltiCallback = asyncHandler(async (req, res) => {
   const txnId =
     lookupData.transaction_id || lookupData.idx || lookupData.pidx || pidx;
 
-  const base = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const base = getKhaltiPublicBaseUrlFromRequest(req);
   const successRedirect =
     process.env.KHALTI_SUCCESS_REDIRECT || `${base}/api/v1/payments/payment-success`;
   const failRedirect =
@@ -512,7 +625,7 @@ const khaltiCallback = asyncHandler(async (req, res) => {
           logType = 'shop_order';
           resolvedShopOrderId = created ? String(created._id) : '';
         } catch (e) {
-          console.error('[Khalti callback] finalize shop checkout failed:', e?.message || e);
+          logger.error('Khalti callback: finalize shop checkout failed:', e?.message || e);
         }
       } else if (payment && payment.status !== 'completed') {
         await markPaymentCompleted({ paymentId: payment._id });
@@ -530,7 +643,7 @@ const khaltiCallback = asyncHandler(async (req, res) => {
     type: logType,
     gateway: 'khalti',
     rawPayload: lookupData,
-  }).catch((e) => console.error('[Khalti callback] PaymentLog create failed:', e.message));
+  }).catch((e) => logger.error('Khalti callback: PaymentLog create failed:', e.message));
 
   if (lookupStatus === 'Completed') {
     if (useAppRedirect) {
@@ -746,7 +859,7 @@ const verifyEsewa = asyncHandler(async (req, res) => {
           });
         }
       } catch (err) {
-        console.error('eSewa verification error:', err.message);
+        logger.error('eSewa verification error:', err.message);
         return res.status(502).json({
           success: false,
           message: 'Failed to verify payment with eSewa gateway',
@@ -782,7 +895,8 @@ const initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
-  const { type, orderId, serviceRequestId, amount, careBookingId } = req.body || {};
+  const { type, orderId, serviceRequestId, amount, careBookingId, unifiedAppointmentId } =
+    req.body || {};
   const userId = req.user._id.toString();
 
   if (type === 'order' && orderId) {
@@ -807,8 +921,8 @@ const initiatePayment = asyncHandler(async (req, res) => {
         message: 'Amount should be greater than Rs. 10 (1000 paisa)',
       });
     }
-    const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
-    const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+    const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
+    const returnUrl = addNgrokBypassToReturnUrl(`${baseUrl}/api/v1/payments/khalti/callback`);
     const payload = {
       return_url: returnUrl,
       website_url: baseUrl,
@@ -852,6 +966,7 @@ const initiatePayment = asyncHandler(async (req, res) => {
       const result = await initiateCareBookingKhalti({
         userId: req.user._id,
         careBookingId,
+        req,
       });
       return res.json({
         success: true,
@@ -868,6 +983,77 @@ const initiatePayment = asyncHandler(async (req, res) => {
       const code = err.statusCode || 500;
       return res.status(code).json({ success: false, message: err.message || 'Payment initiation failed' });
     }
+  }
+
+  if (
+    type === 'clinic_appointment' &&
+    unifiedAppointmentId &&
+    typeof amount === 'number' &&
+    amount > 0
+  ) {
+    const appt = await AppointmentUnified.findById(unifiedAppointmentId).select(
+      'customerId totalAmount paymentStatus status'
+    );
+    if (!appt) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+    if (appt.customerId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Not allowed for this appointment' });
+    }
+    if (appt.paymentStatus === 'paid') {
+      return res.status(400).json({ success: false, message: 'Appointment is already paid' });
+    }
+    if (typeof appt.totalAmount === 'number' && appt.totalAmount > 0) {
+      const diff = Math.abs(Number(appt.totalAmount) - amount);
+      if (diff > 0.01) {
+        return res.status(400).json({
+          success: false,
+          message: 'Amount must match the appointment total',
+        });
+      }
+    }
+    const amountPaisa = nprToPaisa(amount);
+    const payment = await Payment.create({
+      user: req.user._id,
+      unifiedAppointment: unifiedAppointmentId,
+      targetType: 'clinic_appointment',
+      amount,
+      currency: 'NPR',
+      gateway: 'khalti',
+      status: 'pending',
+    });
+    const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
+    const returnUrl = addNgrokBypassToReturnUrl(`${baseUrl}/api/v1/payments/khalti/callback`);
+    const payload = {
+      return_url: returnUrl,
+      website_url: baseUrl,
+      amount: amountPaisa,
+      purchase_order_id: payment._id.toString(),
+      purchase_order_name: `Clinic appointment ${unifiedAppointmentId}`,
+    };
+    const resp = await axios.post(
+      `${KHALTI_BASE_URL}/epayment/initiate/`,
+      payload,
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const { pidx, payment_url } = resp.data || {};
+    payment.gatewayTransactionId = pidx;
+    payment.rawGatewayPayload = resp.data || {};
+    await payment.save();
+    return res.json({
+      success: true,
+      data: {
+        paymentId: payment._id,
+        pidx,
+        paymentUrl: payment_url,
+        successUrl: `${baseUrl}/api/v1/payments/payment-success`,
+      },
+    });
   }
 
   if (type === 'service' && serviceRequestId && typeof amount === 'number' && amount > 0) {
@@ -888,8 +1074,8 @@ const initiatePayment = asyncHandler(async (req, res) => {
       gateway: 'khalti',
       status: 'pending',
     });
-    const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
-    const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
+    const baseUrl = getKhaltiPublicBaseUrlFromRequest(req);
+    const returnUrl = addNgrokBypassToReturnUrl(`${baseUrl}/api/v1/payments/khalti/callback`);
     const payload = {
       return_url: returnUrl,
       website_url: baseUrl,
@@ -924,7 +1110,8 @@ const initiatePayment = asyncHandler(async (req, res) => {
 
   return res.status(400).json({
     success: false,
-    message: 'Invalid body. Use { type: "order", orderId } or { type: "care_booking", careBookingId } or { type: "service", serviceRequestId, amount }',
+    message:
+      'Invalid body. Use { type: "order", orderId } or { type: "care_booking", careBookingId } or { type: "service", serviceRequestId, amount } or { type: "clinic_appointment", unifiedAppointmentId, amount }',
   });
 });
 
@@ -945,7 +1132,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
   }
 
   const ts = new Date().toISOString();
-  console.log(`[${ts}] [INFO] Verifying Khalti Payment for PIDX: ${pidx}`);
+  logger.info('Khalti: verifying payment pidx=', pidx);
 
   let lookupResp;
   try {
@@ -960,7 +1147,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
       }
     );
   } catch (err) {
-    console.error(`[${ts}] [ERROR] Khalti Lookup failed for PIDX ${pidx}:`, err?.response?.data || err.message);
+    logger.error('Khalti: lookup failed pidx=', pidx, err?.response?.data || err.message);
     return res.status(502).json({
       success: false,
       message: 'Failed to verify payment with Khalti. Please try again.',
@@ -987,7 +1174,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
         }
         if (payShop.status !== 'completed') {
           const created = await finalizeShopCheckoutPayment(payShop, txnId, lookupPayload);
-          console.log(`[${ts}] [INFO] Shop checkout finalized ${purchaseOrderId} → order ${created._id}`);
+          logger.info('Khalti: shop checkout finalized payment=', purchaseOrderId, 'order=', created._id);
           return res.json({
             success: true,
             message: 'Payment completed',
@@ -1004,7 +1191,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
         order.khaltiTransactionId = txnId ? String(txnId) : order.khaltiTransactionId;
         await order.save();
         await broadcastShopOrder(purchaseOrderId, 'paid');
-        console.log(`[${ts}] [INFO] Order ${purchaseOrderId} marked as paid (PIDX: ${pidx})`);
+        logger.info('Khalti: order marked paid purchaseOrderId=', purchaseOrderId, 'pidx=', pidx);
         return res.json({
           success: true,
           message: 'Payment completed',
@@ -1015,7 +1202,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
       const payment = await Payment.findById(purchaseOrderId);
       if (payment && payment.status !== 'completed' && payment.targetType !== 'shop_order') {
         await markPaymentCompleted({ paymentId: payment._id });
-        console.log(`[${ts}] [INFO] Payment ${purchaseOrderId} marked as completed (PIDX: ${pidx})`);
+        logger.info('Khalti: payment marked completed paymentId=', purchaseOrderId, 'pidx=', pidx);
         return res.json({
           success: true,
           message: 'Payment completed',
@@ -1035,7 +1222,7 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
   };
 
   const message = failureMessages[status] || getPaymentFailureMessage(status) || `Payment not completed (status: ${status})`;
-  console.log(`[${ts}] [INFO] Khalti verification failed for PIDX ${pidx}: status=${status}`);
+  logger.warn('Khalti: verification failed pidx=', pidx, 'status=', status);
 
   return res.status(400).json({
     success: false,

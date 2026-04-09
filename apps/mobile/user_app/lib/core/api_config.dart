@@ -32,6 +32,15 @@ class ApiConfig {
     return 'http://$value:3000/api/v1';
   }
 
+  /// Scheme + host + port only (no path). Send to backend for Khalti `return_url` so it matches this app’s API host.
+  static Future<String> getApiOrigin() async {
+    final base = await getBaseUrl();
+    final uri = Uri.parse(base);
+    if (!uri.hasScheme) return '';
+    final port = uri.hasPort ? ':${uri.port}' : '';
+    return '${uri.scheme}://${uri.host}$port';
+  }
+
   /// Current Socket.io URL
   static Future<String> getSocketUrl() async {
     final value = await getHost();
@@ -64,11 +73,14 @@ class ApiConfig {
     return v != null && v.trim().isNotEmpty;
   }
 
-  /// ngrok free tier may inject an HTML warning page; this header reduces issues on REST calls.
+  /// Ngrok may inject an HTML interstitial; send this on every request to the API.
   static Map<String, String> ngrokHeadersForBaseUrl(String baseUrl) {
     if (baseUrl.toLowerCase().contains('ngrok')) {
       return {'ngrok-skip-browser-warning': 'true'};
     }
     return {};
   }
+
+  static bool looksLikeNgrokUrl(String url) =>
+      url.toLowerCase().contains('ngrok');
 }

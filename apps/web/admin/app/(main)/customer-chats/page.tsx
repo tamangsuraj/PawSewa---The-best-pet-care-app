@@ -415,7 +415,7 @@ export default function CustomerChatsPage() {
                 <div className="px-4 py-3 border-b border-gray-100 space-y-3">
                   <div className="font-semibold text-gray-900 flex items-center gap-2">
                     <MessageCircle className="w-4 h-4 text-primary" />
-                    Inbox
+                    Message Center
                   </div>
                   <div className="flex gap-2">
                     <input

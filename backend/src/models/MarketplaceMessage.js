@@ -62,7 +62,7 @@ const marketplaceMessageSchema = new mongoose.Schema(
 
 marketplaceMessageSchema.index({ conversation: 1, createdAt: 1 });
 
-marketplaceMessageSchema.pre('validate', function validateContentOrMedia(next) {
+marketplaceMessageSchema.pre('validate', function validateContentOrMedia() {
   const text = (this.content || '').trim();
   const hasMedia =
     this.mediaUrl &&
@@ -71,7 +71,6 @@ marketplaceMessageSchema.pre('validate', function validateContentOrMedia(next) {
   if (!text && !hasMedia) {
     this.invalidate('content', 'Message must include text or media');
   }
-  next();
 });
 
 module.exports = mongoose.model('MarketplaceMessage', marketplaceMessageSchema);

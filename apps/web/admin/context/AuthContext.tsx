@@ -113,7 +113,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return Promise.reject(new Error(error.response.data.message));
       }
       toast.error('Login failed. Check backend connectivity.');
-      return Promise.reject(new Error('Unable to connect to backend. Please ensure backend is running on port 3000.'));
+      const hint = getAdminApiBaseUrl() || 'http://localhost:3000/api/v1';
+      return Promise.reject(
+        new Error(
+          `Unable to reach the API at ${hint}. Ensure the backend is running (default port 3000) and NEXT_PUBLIC_API_URL matches.`,
+        ),
+      );
     }
   };
 

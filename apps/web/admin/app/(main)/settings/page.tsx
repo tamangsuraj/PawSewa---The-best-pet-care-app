@@ -49,11 +49,20 @@ export default function SettingsPage() {
   const fetchAdmins = async () => {
     try {
       const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const adminUsers = allUsers.filter((u: any) => u.role === 'admin');
+      const allUsers = response.data?.data as unknown;
+      const rows = Array.isArray(allUsers) ? (allUsers as Array<Record<string, unknown>>) : [];
+      const adminUsers = rows
+        .filter((u) => u.role === 'admin' || u.role === 'ADMIN')
+        .map((u) => ({
+          _id: String(u._id ?? ''),
+          name: String(u.name ?? u.email ?? 'Admin'),
+          email: String(u.email ?? ''),
+          phone: u.phone ? String(u.phone) : undefined,
+          createdAt: String(u.createdAt ?? ''),
+        }));
       setAdmins(adminUsers);
-    } catch (error) {
-      console.error('Error fetching admins:', error);
+    } catch {
+      setAdmins([]);
     } finally {
       setLoading(false);
     }
@@ -99,8 +108,9 @@ export default function SettingsPage() {
       
       // Refresh admins list
       fetchAdmins();
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to create admin');
+    } catch (err: unknown) {
+      const e2 = err as { response?: { data?: { message?: string } } };
+      setError(e2.response?.data?.message || 'Failed to create admin');
     } finally {
       setFormLoading(false);
     }

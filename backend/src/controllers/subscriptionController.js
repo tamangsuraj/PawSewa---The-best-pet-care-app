@@ -138,6 +138,7 @@ const initiateSubscriptionPayment = asyncHandler(async (req, res) => {
     plan,
     billingCycle,
     amount,
+    req,
   });
   res.json({
     success: true,

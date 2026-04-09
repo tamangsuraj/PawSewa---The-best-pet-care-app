@@ -10,7 +10,8 @@ import '../core/constants.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String ngrokDefaultOrigin = 'https://your-id.ngrok-free.app';
+  static const String ngrokDefaultOrigin =
+      'https://foveal-gummatous-karyn.ngrok-free.dev';
 
   static const String _dartDefineOrigin = String.fromEnvironment(
     'PAWSEWA_BASE_URL',

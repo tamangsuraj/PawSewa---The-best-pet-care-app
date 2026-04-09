@@ -13,7 +13,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-20 shrink-0 border-b border-white/70 bg-[#F7F4FC]/80 shadow-sm backdrop-blur-md">
-      <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      <div className="flex min-w-0 items-center justify-between gap-3 overflow-x-auto px-4 py-4 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="hidden shrink-0 rounded-xl border border-primary/20 bg-transparent p-1.5 sm:block">
             <PawSewaLogo variant="nav" height={40} />

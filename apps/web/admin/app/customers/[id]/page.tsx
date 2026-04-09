@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
+import { useCallback, useEffect, useState, FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import api from '@/lib/api';
@@ -64,24 +64,24 @@ export default function CustomerDetailPage() {
   const speciesList = ['Dog', 'Cat', 'Bird', 'Rabbit', 'Hamster', 'Fish', 'Other'];
   const genderList = ['Male', 'Female'];
 
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const response = await api.get(`/users/admin/${params.id}/full-profile`);
+      setProfile(response.data.data);
+    } catch {
+      setProfile(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/login');
     } else {
       fetchUserProfile();
     }
-  }, [isAuthenticated, params.id]);
-
-  const fetchUserProfile = async () => {
-    try {
-      const response = await api.get(`/users/admin/${params.id}/full-profile`);
-      setProfile(response.data.data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isAuthenticated, router, fetchUserProfile]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,9 +144,9 @@ export default function CustomerDetailPage() {
         // Refresh profile
         fetchUserProfile();
       }
-    } catch (error: any) {
-      console.error('Error adding pet:', error);
-      alert(error.response?.data?.message || 'Failed to add pet');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message || 'Failed to add pet');
     } finally {
       setAddingPet(false);
     }

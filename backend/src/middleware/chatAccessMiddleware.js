@@ -1,5 +1,6 @@
 const ServiceRequest = require('../models/ServiceRequest');
 const Chat = require('../models/Chat');
+const logger = require('../utils/logger');
 
 /**
  * Internal helper: loads the serviceRequest and attaches:
@@ -77,8 +78,7 @@ async function loadChatContext(req, res, next) {
 
     next();
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('[chatAccessMiddleware] loadChatContext error:', err?.message || err);
+    logger.error('chatAccessMiddleware: loadChatContext failed:', err?.message || err);
     next(err);
   }
 }

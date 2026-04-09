@@ -17,16 +17,16 @@ mongoose.connection.on('open', async () => {
     const cols = await conn.db.listCollections().toArray();
     const collectionNames = cols.map((c) => c.name).sort();
 
-    console.log('[MongoDB] Connection open');
-    console.log('[MongoDB] Host:', host);
-    console.log('[MongoDB] Database name:', dbName);
-    console.log(`[MongoDB] Collections (${collectionNames.length}):`, collectionNames.join(', '));
+    logger.info('MongoDB: connection open.');
+    logger.info('MongoDB: host', host);
+    logger.info('MongoDB: database name', dbName);
+    logger.debug(`MongoDB: collections (${collectionNames.length})`, collectionNames.join(', '));
 
     if (conn.name !== EXPECTED_DB_NAME) {
       logger.warn(`MongoDB: database mismatch. Expected ${EXPECTED_DB_NAME}, got ${conn.name}.`);
     }
   } catch (err) {
-    console.error('[MongoDB] open listener error:', err.message);
+    logger.error('MongoDB: open listener error:', err.message);
   }
 });
 
@@ -56,11 +56,7 @@ function getConnectionUri() {
   }
   const lower = uri.toLowerCase();
   if (lower.includes('localhost') || lower.includes('127.0.0.1')) {
-    // ANSI red high-visibility fatal line.
-    // eslint-disable-next-line no-console
-    console.error(
-      '\x1b[31m[FATAL ERROR]: LOCAL DATABASE DETECTED. SYSTEM HALTED. ONLY MONGODB ATLAS PAWSEWA-CLUSTER IS PERMITTED.\x1b[0m'
-    );
+    logger.error('FATAL: local database detected in MONGO_URI. Only MongoDB Atlas is permitted.');
     throw new Error('Local MongoDB detected in MONGO_URI.');
   }
   if (!uri.startsWith('mongodb+srv://')) {
@@ -91,8 +87,8 @@ function withExplicitDatabasePathInUri(rawUri, logicalDbName) {
     return `${base}/${logicalDbName}${query}`;
   }
   if (pathOnly !== logicalDbName) {
-    console.warn(
-      `[MongoDB] MONGO_URI database path "${pathOnly}" differs from DB_NAME "${logicalDbName}". Using DB_NAME via Mongoose dbName option.`,
+    logger.warn(
+      `MongoDB: MONGO_URI database path "${pathOnly}" differs from DB_NAME "${logicalDbName}". Using DB_NAME via Mongoose dbName option.`
     );
   }
   return rawUri;
@@ -121,6 +117,7 @@ const connectDB = async (retries = 3) => {
       logger.info('MongoDB connection initialized.');
       logger.info(`Database Name: ${mongoose.connection.name || connectedDb}`);
       logger.info(`Host: ${mongoose.connection.host || 'unknown'}`);
+      logger.info('Connected to Atlas Cluster: PawSewaDB');
       return connectedDb;
     } catch (error) {
       const code = error.code ?? error.codeName;

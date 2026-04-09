@@ -136,6 +136,8 @@ function AnimatedMarker(props: {
     if (Math.abs(from[0] - to[0]) < 1e-9 && Math.abs(from[1] - to[1]) < 1e-9) {
       return undefined;
     }
+    const toLat = to[0];
+    const toLng = to[1];
     const start = performance.now();
     const duration = 750;
     let raf = 0;
@@ -144,14 +146,14 @@ function AnimatedMarker(props: {
       const u = Math.min(1, (now - start) / duration);
       const e = easeOut(u);
       setPos([
-        from[0] + (to[0] - from[0]) * e,
-        from[1] + (to[1] - from[1]) * e,
+        from[0] + (toLat - from[0]) * e,
+        from[1] + (toLng - from[1]) * e,
       ]);
       if (u < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [target[0], target[1]]);
+  }, [target]);
 
   return (
     <Marker position={pos} icon={icon}>

@@ -2,6 +2,7 @@ const asyncHandler = require('express-async-handler');
 const Favourite = require('../models/Favourite');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const logger = require('../utils/logger');
 
 const addFavourite = asyncHandler(async (req, res) => {
   try {
@@ -24,7 +25,7 @@ const addFavourite = asyncHandler(async (req, res) => {
     const fav = await Favourite.create({ user: userId, product: productId });
     res.status(201).json({ success: true, message: 'Added to favourites', data: fav });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Favourites: add failed:', error?.message ?? error);
     res.status(500).json({ success: false, message: 'Failed to add favourite', error: error.message });
   }
 });
@@ -42,7 +43,7 @@ const removeFavourite = asyncHandler(async (req, res) => {
     await Favourite.findOneAndDelete({ user: userId, product: productId });
     res.status(200).json({ success: true, message: 'Removed from favourites' });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Favourites: remove failed:', error?.message ?? error);
     res.status(500).json({ success: false, message: 'Failed to remove favourite', error: error.message });
   }
 });
@@ -84,7 +85,7 @@ const getFavourites = asyncHandler(async (req, res) => {
     const asList = Array.isArray(products) ? products : [];
     res.status(200).json({ success: true, data: asList });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Favourites: list failed:', error?.message ?? error);
     res.status(500).json({ success: true, data: [] });
   }
 });
@@ -102,7 +103,7 @@ const checkFavourite = asyncHandler(async (req, res) => {
     const fav = await Favourite.findOne({ user: userId, product: productId }).lean();
     res.status(200).json({ success: true, isFavourite: !!fav });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Favourites: check failed:', error?.message ?? error);
     res.status(200).json({ success: true, isFavourite: false });
   }
 });

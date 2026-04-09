@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/layout_utils.dart';
+import '../utils/map_launcher.dart';
 import '../services/socket_service.dart';
 import '../widgets/premium_empty_state.dart';
 import '../widgets/premium_shimmer.dart';
@@ -375,6 +376,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     final location = isAppointment
         ? (item['location'] is Map ? (item['location'] as Map)['address']?.toString() : null) ?? ''
         : item['location']?.toString() ?? '';
+    final pinned = parsePinnedCoordinates(item);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -500,21 +502,52 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          if (location.isNotEmpty) ...[
+                          if (location.isNotEmpty || pinned != null) ...[
                             const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on, size: 14, color: Color(AppConstants.primaryColor)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    location,
-                                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () async {
+                                final p = parsePinnedCoordinates(item);
+                                if (p == null) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Location coordinates not available for this case.',
+                                        style: GoogleFonts.outfit(),
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                await openMap(
+                                  context,
+                                  latitude: p.latitude,
+                                  longitude: p.longitude,
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.location_on, size: 14, color: Color(AppConstants.primaryColor)),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      location.isNotEmpty
+                                          ? location
+                                          : 'Pinned location — tap to open in Maps',
+                                      style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  if (pinned != null)
+                                    Icon(
+                                      Icons.open_in_new_rounded,
+                                      size: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                ],
+                              ),
                             ),
                           ],
                         ],

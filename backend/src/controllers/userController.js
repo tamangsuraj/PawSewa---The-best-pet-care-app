@@ -4,6 +4,7 @@ const generateToken = require('../utils/generateToken');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../utils/sendEmail');
 const asyncHandler = require('express-async-handler');
 const logger = require('../utils/logger');
+const { USER_ROLES } = require('../constants/userRoles');
 const { recordStaffLocationPulse } = require('../utils/staffLiveLocation');
 
 function isStoredPasswordHashed(stored) {
@@ -135,8 +136,37 @@ const registerUser = asyncHandler(async (req, res) => {
  * @route   POST /api/v1/users/login
  * @access  Public
  */
+/** PawSewa Partner (vet_app) — only these roles may sign in when forPartnerApp is set. */
+const PARTNER_APP_ROLE_KEYS = new Set([
+  'veterinarian',
+  'vet',
+  'shop_owner',
+  'care_service',
+  'rider',
+  'hostel_owner',
+  'groomer',
+  'trainer',
+  'facility_owner',
+  'service_provider',
+]);
+
+function resolveRoleKeyForPartnerGate(roleRaw) {
+  let r = String(roleRaw || '')
+    .trim()
+    .toLowerCase();
+  if (r === 'vet') r = 'veterinarian';
+  if (r === 'petcare') r = 'care_service';
+  return r;
+}
+
+const LOGIN_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const forPartnerApp =
+    req.body.forPartnerApp === true ||
+    req.body.forPartnerApp === 'true' ||
+    String(req.body.client || '').toLowerCase() === 'pawsewa-partner';
 
   if (!email || !password) {
     res.status(400);
@@ -144,10 +174,18 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   const emailNorm = (email || '').toString().toLowerCase().trim();
+  if (!LOGIN_EMAIL_RE.test(emailNorm)) {
+    res.status(400);
+    throw new Error('Invalid email format');
+  }
 
   const user = await User.findOne({ email: emailNorm });
   const found = !!user;
-  logger.info('[INFO] Login attempt for:', emailNorm, '| Role:', user ? user.role : 'N/A');
+  if (forPartnerApp) {
+    logger.info(`[INFO] Partner login attempt for ${emailNorm}`);
+  } else {
+    logger.info('[INFO] Login attempt for:', emailNorm, '| Role:', user ? user.role : 'N/A');
+  }
   logger.info('[DEBUG] Database Query: Found user?', found ? 'Yes' : 'No');
 
   const matches = user && (await passwordMatches(user.password, password));
@@ -161,6 +199,20 @@ const loginUser = asyncHandler(async (req, res) => {
     ) {
       res.status(403);
       throw new Error('Please verify your email before logging in. Check your inbox for the verification code.');
+    }
+
+    if (forPartnerApp) {
+      const key = resolveRoleKeyForPartnerGate(user.role);
+      if (!PARTNER_APP_ROLE_KEYS.has(key)) {
+        res.status(403);
+        throw new Error(
+          'This account is not authorized for PawSewa Partner. Use the customer app or contact support.',
+        );
+      }
+      if (user.isAccountActive === false) {
+        res.status(403);
+        throw new Error('This partner account has been deactivated. Contact support.');
+      }
     }
 
     const roleForClient = normalizeRoleForResponse(user.role) || user.role;
@@ -595,18 +647,34 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     throw new Error(`Invalid role. Must be one of: pet_owner, customer, veterinarian, admin, shop_owner, care_service, rider`);
   }
 
+  const emailNorm = String(email).toLowerCase().trim();
+
   // Check if user already exists
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ email: emailNorm });
 
   if (userExists) {
+    const existingRole = String(userExists.role || '').toLowerCase();
+    if (
+      resolvedRole === USER_ROLES.VETERINARIAN &&
+      (existingRole === USER_ROLES.RIDER || existingRole === USER_ROLES.SHOP_OWNER)
+    ) {
+      res.status(400);
+      throw new Error(
+        'This email is already assigned to a Rider or Shop Owner account. Provision the veterinarian with a different email.',
+      );
+    }
     res.status(400);
     throw new Error('User already exists with this email');
+  }
+
+  if (resolvedRole === USER_ROLES.VETERINARIAN) {
+    logger.info('[INFO] Admin provisioning new Veterinarian:', emailNorm);
   }
 
   // Create user with admin-specified role
   const userData = {
     name,
-    email,
+    email: emailNorm,
     password,
     role: resolvedRole,
     phone,
@@ -615,10 +683,11 @@ const adminCreateUser = asyncHandler(async (req, res) => {
   };
 
   // Add role-specific fields
-  if (resolvedRole === 'veterinarian') {
+  if (resolvedRole === USER_ROLES.VETERINARIAN) {
     if (clinicLocation) userData.clinicLocation = clinicLocation;
     if (specialization) userData.specialization = specialization;
     if (clinicName) userData.clinicName = clinicName;
+    if (licenseNumber) userData.licenseNumber = String(licenseNumber).trim();
   } else if (resolvedRole === 'shop_owner') {
     if (shopName) userData.shopName = shopName;
     if (businessLicense) userData.businessLicense = businessLicense;
@@ -633,11 +702,14 @@ const adminCreateUser = asyncHandler(async (req, res) => {
   const user = await User.create(userData);
 
   if (user) {
+    if (resolvedRole === USER_ROLES.VETERINARIAN) {
+      logger.info('[SUCCESS] Veterinarian account created and synced to PawSewa-Cluster.');
+    }
     // Send welcome email with credentials (optional - doesn't block response)
     try {
       await sendWelcomeEmail(email, name, resolvedRole, password);
     } catch (error) {
-      console.error('Failed to send welcome email:', error);
+      logger.warn('Welcome email send failed:', error?.message ?? error);
       // Continue anyway - email is optional
     }
 
@@ -654,10 +726,11 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     };
 
     // Add role-specific fields to response
-    if (resolvedRole === 'veterinarian') {
+    if (resolvedRole === USER_ROLES.VETERINARIAN) {
       responseData.clinicLocation = user.clinicLocation;
       responseData.specialization = user.specialization;
       responseData.clinicName = user.clinicName;
+      responseData.licenseNumber = user.licenseNumber;
     } else if (resolvedRole === 'shop_owner') {
       responseData.shopName = user.shopName;
       responseData.businessLicense = user.businessLicense;
@@ -919,6 +992,47 @@ const putMyAddresses = asyncHandler(async (req, res) => {
   res.json({ success: true, data: user.addresses });
 });
 
+/**
+ * @desc    List veterinarians with unified appointment counts (admin)
+ * @route   GET /api/v1/users/admin/veterinarians
+ * @access  Private/Admin
+ */
+const adminListVeterinariansWithMetrics = asyncHandler(async (req, res) => {
+  const AppointmentUnified = require('../models/unified/AppointmentUnified');
+  const vets = await User.find({ role: USER_ROLES.VETERINARIAN })
+    .select('-password')
+    .sort({ name: 1 })
+    .lean();
+  const ids = vets.map((v) => v._id);
+  if (ids.length === 0) {
+    return res.json({ success: true, data: [] });
+  }
+  const counts = await AppointmentUnified.aggregate([
+    {
+      $match: {
+        $or: [{ vetId: { $in: ids } }, { staffId: { $in: ids } }],
+      },
+    },
+    {
+      $project: {
+        assignee: { $ifNull: ['$vetId', '$staffId'] },
+      },
+    },
+    {
+      $group: {
+        _id: '$assignee',
+        totalAppointments: { $sum: 1 },
+      },
+    },
+  ]);
+  const countMap = new Map(counts.map((c) => [String(c._id), c.totalAppointments]));
+  const data = vets.map((v) => ({
+    ...v,
+    totalAppointments: countMap.get(String(v._id)) || 0,
+  }));
+  res.json({ success: true, data });
+});
+
 module.exports = {
   registerUser,
   loginUser,
@@ -936,6 +1050,7 @@ module.exports = {
   updateUserRole,
   getDashboardStats,
   adminCreateUser,
+  adminListVeterinariansWithMetrics,
   getUserById,
   getUserFullProfile,
   updateStaffProfile,

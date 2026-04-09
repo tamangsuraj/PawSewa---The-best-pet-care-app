@@ -2,6 +2,7 @@
 require('dotenv').config({ quiet: true });
 
 const logger = require('./utils/logger');
+const axios = require('axios');
 const { execSync } = require('child_process');
 const os = require('os');
 const http = require('http');
@@ -10,7 +11,7 @@ const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
 const { Server: SocketServer } = require('socket.io');
-const { isSocketCorsOriginAllowed } = require('./utils/socketCorsOrigin');
+const { isRestCorsOriginAllowed } = require('./utils/corsPolicy');
 
 // Security & Utility Middleware
 const helmet = require('helmet');
@@ -53,6 +54,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const favouriteRoutes = require('./routes/favouriteRoutes');
 const promoCodeRoutes = require('./routes/promoCodeRoutes');
+const promotionRoutes = require('./routes/promotionRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const reminderRoutes = require('./routes/reminderRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
@@ -67,6 +69,7 @@ const Case = require('./models/Case');
 
 // Initialize Express application
 const app = express();
+// Required for express-rate-limit behind proxies; entry point is server.js (no separate app.js).
 app.set('trust proxy', 1);
 logger.info('Express: trust proxy enabled.');
 const server = http.createServer(app);
@@ -76,11 +79,11 @@ const PORT = process.env.PORT || 3000;
 const io = new SocketServer(server, {
   cors: {
     origin: (origin, callback) => {
-      callback(null, isSocketCorsOriginAllowed(origin));
+      callback(null, isRestCorsOriginAllowed(origin));
     },
     credentials: true,
     methods: ['GET', 'POST'],
-    allowedHeaders: ['Authorization', 'Content-Type'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'ngrok-skip-browser-warning'],
   },
   pingTimeout: 20000,
   pingInterval: 10000,
@@ -143,18 +146,21 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// CORS - use ALLOWED_ORIGINS in production (comma-separated). Development: allow all.
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  : '*';
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    allowedHeaders: ['Authorization', 'Content-Type'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  })
-);
+const CORS_ALLOWED_HEADERS = ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning'];
+const CORS_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    callback(null, isRestCorsOriginAllowed(origin));
+  },
+  credentials: true,
+  allowedHeaders: CORS_ALLOWED_HEADERS,
+  methods: CORS_METHODS,
+};
+
+app.use(cors(corsOptions));
+// Express 5 path-to-regexp rejects app.options('*', ...). Preflight is handled by cors() above.
+logger.info('CORS policy initialized for Ngrok tunneling.');
 
 // Body Parser - Parse JSON with size limit (prevent DoS attacks)
 app.use(express.json({ limit: '10mb' }));
@@ -235,6 +241,7 @@ app.use('/api/v1/subscriptions', subscriptionRoutes);
 app.use('/api/v1/provider-applications', providerApplicationRoutes);
 app.use('/api/v1/favourites', favouriteRoutes);
 app.use('/api/v1/promocodes', promoCodeRoutes);
+app.use('/api/v1/promotions', promotionRoutes);
 app.use('/api/v1/orders', orderRoutes);
 logger.success('Precision mapping enabled for delivery routing.');
 app.use('/api/v1/appointments', appointmentRoutes);
@@ -442,15 +449,50 @@ async function start() {
 
   server.listen(PORT, '0.0.0.0', () => {
     logger.info('Server: starting HTTP listener.');
-    logger.success('Server: listening on port', PORT);
+    logger.info(`API Server listening on Port ${PORT}`);
     logger.info('Runtime: environment', process.env.NODE_ENV || 'development');
-    logger.info('CORS: enabled for localhost and local network origins.');
+    logger.info('HTTP listener ready; CORS was configured at application startup.');
     logger.event('Socket.io: initialized.');
     logger.info('Network: mobile devices can connect via http://<your-ip>:' + PORT);
     if (dbConnected) {
       startLiveMapSimulation();
     } else {
       logger.info('Live map simulation: skipped (no DB connection).');
+    }
+
+    const tunnelBase = (
+      process.env.NGROK_TUNNEL_ORIGIN ||
+      process.env.PUBLIC_API_BASE_URL ||
+      process.env.BASE_URL ||
+      ''
+    )
+      .trim()
+      .replace(/\/$/, '');
+    if (tunnelBase && tunnelBase.toLowerCase().includes('ngrok')) {
+      logger.info('Tunnel established via Ngrok.');
+      logger.info(`API Base set to: ${tunnelBase}`);
+      setImmediate(() => {
+        axios
+          .get(`${tunnelBase}/api/v1/health`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+            timeout: 15000,
+            validateStatus: (s) => s >= 200 && s < 400,
+          })
+          .then((res) => {
+            if (res.status >= 200 && res.status < 300) {
+              logger.success('External connection verified.');
+            } else {
+              logger.warn(
+                `External tunnel probe returned HTTP ${res.status}. Is ngrok running?`,
+              );
+            }
+          })
+          .catch((e) => {
+            logger.warn(
+              `External connection verification failed: ${e?.message || String(e)}`,
+            );
+          });
+      });
     }
   });
 }
