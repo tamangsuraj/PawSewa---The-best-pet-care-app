@@ -4,6 +4,7 @@ import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants.dart';
+import '../../core/product_image_service.dart';
 
 /// Reference-style service card: ~60% image, name, location, rating, price + subtitle.
 class PetCareServiceCard extends StatelessWidget {
@@ -25,6 +26,7 @@ class PetCareServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
+    const ngrokHeaders = {'ngrok-skip-browser-warning': 'true'};
     final images = hostel['images'] is List ? hostel['images'] as List : <dynamic>[];
     final imgUrl = images.isNotEmpty && images[0] != null ? images[0].toString() : null;
     final name = hostel['name']?.toString() ?? 'Care Service';
@@ -92,6 +94,7 @@ class PetCareServiceCard extends StatelessWidget {
                       if (imgUrl != null && imgUrl.isNotEmpty)
                         CachedNetworkImage(
                           imageUrl: imgUrl,
+                          httpHeaders: ngrokHeaders,
                           fit: BoxFit.cover,
                           memCacheWidth: (cardWidth * MediaQuery.devicePixelRatioOf(context)).round().clamp(200, 800),
                           placeholder: (context, url) => Container(
@@ -104,16 +107,12 @@ class PetCareServiceCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          errorWidget: (context, url, err) => Container(
-                            color: const Color(0xFFF3F4F6),
-                            child: Icon(Icons.pets, size: 48, color: primary.withValues(alpha: 0.5)),
+                          errorWidget: (context, url, err) => _CareCategoryAssetImage(
+                            category: serviceType,
                           ),
                         )
                       else
-                        Container(
-                          color: const Color(0xFFF3F4F6),
-                          child: Icon(Icons.pets, size: 48, color: primary.withValues(alpha: 0.5)),
-                        ),
+                        _CareCategoryAssetImage(category: serviceType),
                       if (hostel['isVerified'] == true || hostel['isFeatured'] == true)
                         Positioned(
                           top: 10,
@@ -260,5 +259,17 @@ class PetCareServiceCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _CareCategoryAssetImage extends StatelessWidget {
+  const _CareCategoryAssetImage({required this.category});
+
+  final String category;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = ProductImageService.urlForCareService(category);
+    return ProductImageService.networkImage(url, fit: BoxFit.cover);
   }
 }

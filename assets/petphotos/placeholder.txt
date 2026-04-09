@@ -1,0 +1,2 @@
+This folder contains pet photos for the app.
+The app uses network images from Unsplash for demonstration purposes.

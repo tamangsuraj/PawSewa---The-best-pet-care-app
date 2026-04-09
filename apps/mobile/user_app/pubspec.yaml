@@ -132,6 +132,14 @@ flutter:
     - assets/paypal.png
     - assets/sounds/notification.mp3
     - assets/animations/dog_running.json
+    # Shared marketplace fallback images (repo root /assets/*)
+    - ../../../assets/accessoriesimages/
+    - ../../../assets/essentialsimages/
+    - ../../../assets/foodimages/
+    - ../../../assets/groomingimages/
+    - ../../../assets/medicineimages/
+    - ../../../assets/petphotos/
+    - ../../../assets/animations/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

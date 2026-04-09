@@ -903,8 +903,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         return [
           {
             'icon': Icons.chat_bubble_outline,
-            'title': 'Customer Inquiries',
-            'subtitle': 'Daraz-style chats about your products',
+            'title': 'PawSewa Inbox',
+            'subtitle': 'Chats about your products',
             'route': 'seller_inquiries',
             'badge': 0,
           },

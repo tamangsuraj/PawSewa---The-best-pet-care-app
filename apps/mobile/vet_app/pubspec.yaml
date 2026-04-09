@@ -109,6 +109,14 @@ flutter:
     - assets/brand/image_607767.png
     - assets/sounds/notification.mp3
     - assets/animations/dog_running.json
+    # Shared marketplace fallback images (repo root /assets/*)
+    - ../../../assets/accessoriesimages/
+    - ../../../assets/essentialsimages/
+    - ../../../assets/foodimages/
+    - ../../../assets/groomingimages/
+    - ../../../assets/medicineimages/
+    - ../../../assets/petphotos/
+    - ../../../assets/animations/
 
   # Map / staff icons
   # When you add custom PNG/SVG markers, list them here, for example:

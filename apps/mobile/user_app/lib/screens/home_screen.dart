@@ -1,18 +1,18 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
 import '../cart/cart_service.dart';
 import '../core/api_client.dart';
+import '../core/product_image_service.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
 import '../models/pet.dart';
-import '../widgets/premium_info_chip.dart';
+import '../widgets/premium_shimmer.dart';
 import 'book_service_screen.dart';
 import 'request_assistance_screen.dart';
 import 'shop/my_orders_screen.dart';
@@ -24,6 +24,27 @@ const Color _kCream = Color(AppConstants.secondaryColor);
 const Color _kInk = Color(AppConstants.inkColor);
 
 bool _kProAppOpenAdShownThisSession = false;
+
+enum _PromoDestination { hostels, grooming, shop }
+
+class _PromoBanner {
+  const _PromoBanner({
+    required this.title,
+    required this.subtitle,
+    required this.ctaLabel,
+    required this.destination,
+    this.bannerImageIndex = 0,
+  });
+
+  final String title;
+  final String subtitle;
+  final String ctaLabel;
+  final _PromoDestination destination;
+  /// Index into [_kBannerUrls] list.
+  final int bannerImageIndex;
+
+  bool get timothyHayFoodPromo => bannerImageIndex == 2;
+}
 
 /// Unified customer home: hero, quick actions, health, shop picks, live delivery map.
 /// Data from `GET /pets/home-dashboard/:petId`.
@@ -48,7 +69,8 @@ class CustomerHomeScreen extends StatefulWidget {
   final bool isLoadingPets;
   final Future<void> Function() onRefreshPets;
   final void Function(int initialTabIndex) onOpenServicesTab;
-  final VoidCallback onOpenShopTab;
+  final void Function({String? categorySlug, String? categoryName})
+  onOpenShopTab;
   final VoidCallback onOpenCareTab;
 
   @override
@@ -61,13 +83,80 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   bool _dashLoading = false;
   String? _dashError;
 
+  static const List<_PromoBanner> _promoBanners = [
+    _PromoBanner(
+      title: 'PawSewa Hostel',
+      subtitle: 'Luxury Pet Stays available.',
+      ctaLabel: 'Book Now',
+      destination: _PromoDestination.hostels,
+      bannerImageIndex: 0,
+    ),
+    _PromoBanner(
+      title: 'PawSewa Grooming',
+      subtitle: 'Book a spa day for your best friend.',
+      ctaLabel: 'Book Service',
+      destination: _PromoDestination.grooming,
+      bannerImageIndex: 1,
+    ),
+    _PromoBanner(
+      title: 'PawSewa Shop',
+      subtitle: '15% off all Timothy Hay this week.',
+      ctaLabel: 'Shop Sale',
+      destination: _PromoDestination.shop,
+      bannerImageIndex: 2,
+    ),
+  ];
+
+  // ─── Sliding promo banners (Home top) ───────────────────────────────────────
+  static const _kBannerIntervalMs = 5000;
+  final PageController _bannerController = PageController();
+  Timer? _bannerTimer;
+  int _bannerIndex = 0;
+
+  // Shop recommendations should be driven by shop categories.
+  List<Map<String, dynamic>> _shopCategories = [];
+  final String _selectedShopCategorySlug = '';
+  bool _catsLoading = false;
+  final List<Map<String, dynamic>> _categoryProducts = [];
+  final bool _categoryProductsLoading = false;
+
   @override
   void initState() {
     super.initState();
+    debugPrint('[INFO] Initializing Home Screen sliding banners.');
+    debugPrint(
+      '[DEBUG] Banner auto-play interval set to ${_kBannerIntervalMs}ms.',
+    );
+    _startBannerAutoplay();
+    debugPrint('[SUCCESS] Banners loaded for Hostels, Grooming, Shop.');
     _loadDashboard();
+    _loadShopCategories();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowProAppOpenAd();
     });
+  }
+
+  @override
+  void dispose() {
+    _bannerTimer?.cancel();
+    _bannerController.dispose();
+    super.dispose();
+  }
+
+  void _startBannerAutoplay() {
+    _bannerTimer?.cancel();
+    _bannerTimer = Timer.periodic(
+      const Duration(milliseconds: _kBannerIntervalMs),
+      (_) {
+        if (!mounted) return;
+        final next = (_bannerIndex + 1) % _promoBanners.length;
+        _bannerController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeInOut,
+        );
+      },
+    );
   }
 
   Future<void> _maybeShowProAppOpenAd() async {
@@ -141,7 +230,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       }
       setState(() {
         _dashError = e.response?.data is Map
-            ? (e.response!.data as Map)['message']?.toString() ?? 'Network error'
+            ? (e.response!.data as Map)['message']?.toString() ??
+                  'Network error'
             : 'Network error';
         _dashLoading = false;
       });
@@ -156,9 +246,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
   }
 
+  Future<void> _loadShopCategories() async {
+    if (mounted) {
+      setState(() {
+        _catsLoading = true;
+      });
+    }
+    try {
+      final resp = await _api.getCategories();
+      if (!mounted) return;
+      if (resp.statusCode == 200 && resp.data is Map) {
+        final root = resp.data as Map;
+        final raw = root['data'];
+        if (raw is List) {
+          final cats = <Map<String, dynamic>>[];
+          for (final e in raw) {
+            if (e is Map) cats.add(Map<String, dynamic>.from(e));
+          }
+          setState(() {
+            _shopCategories = cats;
+            _catsLoading = false;
+          });
+          return;
+        }
+      }
+      setState(() {
+        _catsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _catsLoading = false;
+      });
+    }
+  }
+
   Future<void> _onPullRefresh() async {
     await widget.onRefreshPets();
     await _loadDashboard();
+    await _loadShopCategories();
   }
 
   Pet? get _selectedPet {
@@ -201,8 +327,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildPetSwitcher(context),
-                  const SizedBox(height: 16),
                   if (widget.isLoadingPets && widget.pets.isEmpty)
                     const Center(
                       child: Padding(
@@ -233,103 +357,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         ),
                       )
                     else ...[
-                      _buildHealthAlert(context),
-                      const SizedBox(height: 20),
                       _buildShopSection(context),
-                      const SizedBox(height: 20),
-                      _buildLiveMap(context),
                     ],
                   ],
                 ],
               ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPetSwitcher(BuildContext context) {
-    if (widget.pets.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: PremiumInfoChip(
-          icon: Icons.pets_rounded,
-          title: 'Add your first pet to personalize PawSewa',
-          body:
-              'Your pet profile unlocks smarter recommendations, medical history, and faster bookings.',
-          action: TextButton(
-            onPressed: () => widget.onOpenServicesTab(1),
-            child: Text(
-              'Add pet',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w800,
-                color: const Color(AppConstants.primaryColor),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    return SizedBox(
-      height: 88,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: widget.pets.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final pet = widget.pets[index];
-          final selected = index == widget.homePetIndex;
-          return GestureDetector(
-            onTap: () {
-              widget.onHomePetIndexChanged(index);
-            },
-            onLongPress: () {
-              final cb = widget.onShowPetDetails;
-              if (cb != null) {
-                cb(pet);
-              }
-            },
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selected ? _kBrown : Colors.transparent,
-                      width: 3,
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.grey.shade200,
-                    backgroundImage: (pet.photoUrl != null &&
-                            pet.photoUrl!.startsWith('http'))
-                        ? CachedNetworkImageProvider(pet.photoUrl!)
-                        : null,
-                    child: (pet.photoUrl == null || !pet.photoUrl!.startsWith('http'))
-                        ? Icon(Icons.pets, color: Colors.grey.shade600, size: 28)
-                        : null,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: 72,
-                  child: Text(
-                    pet.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? _kBrown : Colors.grey.shade800,
-                    ),
-                  ),
-                ),
-              ],
             ),
           );
         },
@@ -370,109 +402,70 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  Map<String, dynamic>? get _banner {
-    final p = _payload;
-    if (p == null) {
-      return null;
-    }
-    final b = p['banner'];
-    if (b is Map) {
-      return Map<String, dynamic>.from(b);
-    }
-    return null;
+  Widget _buildHero(BuildContext context) {
+    final radius = BorderRadius.circular(22);
+    const activeDot = _kTeal;
+    final inactiveDot = Colors.grey.shade300;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ClipRRect(
+          borderRadius: radius,
+          child: AspectRatio(
+            aspectRatio: 21 / 9,
+            child: PageView.builder(
+              controller: _bannerController,
+              itemCount: _promoBanners.length,
+              onPageChanged: (i) {
+                setState(() {
+                  _bannerIndex = i;
+                });
+              },
+              itemBuilder: (context, i) {
+                final b = _promoBanners[i];
+                return _PromoBannerSlide(
+                  banner: b,
+                  onTap: () => _openPromoDestination(b),
+                  onCta: () => _openPromoDestination(b),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_promoBanners.length, (i) {
+            final isActive = i == _bannerIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 240),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: isActive ? 16 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? activeDot : inactiveDot,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
   }
 
-  Widget _buildHero(BuildContext context) {
-    final b = _banner;
-    final eyebrow = b?['eyebrow']?.toString() ?? "GIVE 'EM BETTER";
-    final headline = b?['headline']?.toString() ?? 'FREE HEALTH CHECKUP!';
-    final cta = b?['ctaLabel']?.toString() ?? 'Book Now';
-    final variant = b?['variant']?.toString() ?? 'health';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(22, 22, 18, 22),
-      decoration: BoxDecoration(
-        color: _kBrown,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: _kBrown.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  eyebrow.toUpperCase(),
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.2,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  headline,
-                  style: GoogleFonts.outfit(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextButton(
-                  onPressed: () {
-                    if (variant == 'shop') {
-                      widget.onOpenShopTab();
-                    } else {
-                      _openBookForPet();
-                    }
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    cta,
-                    style: GoogleFonts.outfit(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      decoration: TextDecoration.underline,
-                      decorationColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              variant == 'shop' ? Icons.shopping_bag_rounded : Icons.pets_rounded,
-              size: 48,
-              color: Colors.white.withValues(alpha: 0.95),
-            ),
-          ),
-        ],
-      ),
-    );
+  void _openPromoDestination(_PromoBanner banner) {
+    switch (banner.destination) {
+      case _PromoDestination.hostels:
+        widget.onOpenCareTab();
+        return;
+      case _PromoDestination.grooming:
+        widget.onOpenCareTab();
+        return;
+      case _PromoDestination.shop:
+        widget.onOpenShopTab();
+        return;
+    }
   }
 
   Widget _buildQuickRow(BuildContext context) {
@@ -610,102 +603,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  List<Map<String, dynamic>> get _healthAlerts {
-    final p = _payload;
-    if (p == null) {
-      return [];
-    }
-    final raw = p['healthAlerts'];
-    if (raw is! List) {
-      return [];
-    }
-    final out = <Map<String, dynamic>>[];
-    for (final e in raw) {
-      if (e is Map) {
-        out.add(Map<String, dynamic>.from(e));
-      }
-    }
-    return out;
-  }
-
-  Widget _buildHealthAlert(BuildContext context) {
-    final alerts = _healthAlerts;
-    if (alerts.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: PremiumInfoChip(
-          icon: Icons.health_and_safety_rounded,
-          title: 'No health alerts',
-          body: 'We’ll show reminders here when it’s time for checkups or vaccines.',
-        ),
-      );
-    }
-    Map<String, dynamic>? pick;
-    for (final a in alerts) {
-      if (a['severity']?.toString() == 'overdue') {
-        pick = a;
-        break;
-      }
-    }
-    pick ??= alerts.first;
-    final msg = pick['message']?.toString() ?? '';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFE8EE),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF5C6D4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.health_and_safety_rounded, color: Colors.red.shade700, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Urgent health alert',
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.red.shade900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  msg,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    height: 1.35,
-                    color: Colors.red.shade900.withValues(alpha: 0.9),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextButton(
-                  onPressed: _openBookForPet,
-                  style: TextButton.styleFrom(
-                    foregroundColor: _kBrown,
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'Schedule now',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   List<Map<String, dynamic>> get _products {
     final p = _payload;
     if (p == null) {
@@ -724,17 +621,24 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     return out;
   }
 
-  String _petLabelForTitle() {
-    final pet = _selectedPet;
-    if (pet == null) {
-      return 'your pet';
-    }
-    return pet.name;
-  }
-
   Widget _buildShopSection(BuildContext context) {
-    final products = _products;
-    final petName = _petLabelForTitle();
+    final dashProducts = _products;
+    final cats = _effectiveShopCategories(dashProducts);
+    final selected = _selectedShopCategorySlug;
+
+    final selectedFromDash = selected.isEmpty
+        ? dashProducts
+        : dashProducts.where((p) {
+            final cat = p['category'];
+            final slug = cat is Map ? cat['slug']?.toString() : null;
+            return slug == selected;
+          }).toList();
+
+    final showProducts = (selected.isEmpty)
+        ? dashProducts.take(6).toList()
+        : (selectedFromDash.isNotEmpty
+              ? selectedFromDash.take(6).toList()
+              : _categoryProducts.take(6).toList());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,7 +648,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           children: [
             Expanded(
               child: Text(
-                'Recommended for $petName',
+                'Recommended for your pet',
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -767,189 +671,198 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        _buildCategoryStrip(
+          context,
+          categories: cats,
+          selectedSlug: selected,
+          loading: _catsLoading,
+          onChanged: (slug, name) {
+            widget.onOpenShopTab(
+              categorySlug: slug.isEmpty ? null : slug,
+              categoryName: slug.isEmpty ? null : name,
+            );
+          },
+        ),
         const SizedBox(height: 12),
-        if (products.isEmpty)
+        if (_categoryProductsLoading)
+          const Center(
+            child: Padding(padding: EdgeInsets.all(12), child: PawSewaLoader()),
+          )
+        else if (showProducts.isEmpty)
           Text(
             'No products to show yet.',
             style: GoogleFonts.outfit(color: Colors.grey.shade600),
           )
         else
-          SizedBox(
-            height: 220,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: products.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (context, i) {
-                return _ProductPickCard(
-                  product: products[i],
-                  onAddToCart: () async {
-                    final id = products[i]['_id']?.toString() ?? '';
-                    final name = products[i]['name']?.toString() ?? 'Item';
-                    final price = (products[i]['price'] is num)
-                        ? (products[i]['price'] as num).toDouble()
-                        : double.tryParse(products[i]['price']?.toString() ?? '') ??
-                            0;
-                    if (id.isEmpty) {
-                      return;
-                    }
-                    if (!context.mounted) {
-                      return;
-                    }
-                    context.read<CartService>().addItem(
-                          productId: id,
-                          name: name,
-                          price: price,
-                        );
-                    try {
-                      await _api.postShopRecommendationEvent(productId: id);
-                    } catch (_) {}
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Added to cart',
-                            style: GoogleFonts.outfit(),
-                          ),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  },
-                );
-              },
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: showProducts.length.clamp(0, 6),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              // Slightly taller tiles prevent small-screen overflows.
+              childAspectRatio: 0.68,
             ),
+            itemBuilder: (context, i) {
+              return _ProductGridCard(
+                product: showProducts[i],
+                onAddToCart: () async {
+                  final id = showProducts[i]['_id']?.toString() ?? '';
+                  final name = showProducts[i]['name']?.toString() ?? 'Item';
+                  final price = (showProducts[i]['price'] is num)
+                      ? (showProducts[i]['price'] as num).toDouble()
+                      : double.tryParse(
+                              showProducts[i]['price']?.toString() ?? '',
+                            ) ??
+                            0;
+                  if (id.isEmpty) return;
+                  if (!context.mounted) return;
+                  context.read<CartService>().addItem(
+                    productId: id,
+                    name: name,
+                    price: price,
+                  );
+                  try {
+                    await _api.postShopRecommendationEvent(productId: id);
+                  } catch (_) {}
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Added to cart',
+                          style: GoogleFonts.outfit(),
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+              );
+            },
           ),
       ],
     );
   }
 
-  Map<String, dynamic>? get _liveDelivery {
-    final p = _payload;
-    if (p == null) {
-      return null;
+  List<Map<String, dynamic>> _effectiveShopCategories(
+    List<Map<String, dynamic>> dashProducts,
+  ) {
+    if (_shopCategories.isNotEmpty) return _shopCategories;
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (final p in dashProducts) {
+      final cat = p['category'];
+      if (cat is! Map) continue;
+      final slug = cat['slug']?.toString() ?? '';
+      final name = cat['name']?.toString() ?? slug;
+      if (slug.isEmpty || seen.contains(slug)) continue;
+      seen.add(slug);
+      out.add({'slug': slug, 'name': name});
     }
-    final ld = p['liveDelivery'];
-    if (ld is Map) {
-      return Map<String, dynamic>.from(ld);
-    }
-    return null;
+    return out;
   }
 
-  Widget _buildLiveMap(BuildContext context) {
-    final ld = _liveDelivery;
-    if (ld == null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: 8),
-        child: PremiumInfoChip(
-          icon: Icons.local_shipping_rounded,
-          title: 'No live delivery right now',
-          body: 'When you have an active shop order, rider location will appear here.',
-          action: TextButton(
-            onPressed: widget.onOpenShopTab,
-            child: Text(
-              'Shop',
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w800,
-                color: const Color(AppConstants.primaryColor),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+  Widget _buildCategoryStrip(
+    BuildContext context, {
+    required List<Map<String, dynamic>> categories,
+    required String selectedSlug,
+    required bool loading,
+    required void Function(String slug, String name) onChanged,
+  }) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final pad = (screenWidth * 0.04).clamp(12.0, 20.0);
+    final circle = (screenWidth * 0.14).clamp(48.0, 62.0);
+    final itemW = (circle + 14).clamp(62.0, 92.0);
+    final labelFont = (screenWidth * 0.028).clamp(9.0, 12.0);
+    final labelHeight =
+        textScaler.scale(labelFont * 1.25 * 2) + 6; // 2 lines + padding
+    final stripHeight = (circle + 10 + labelHeight + 18).clamp(104.0, 176.0);
 
-    final centerRaw = ld['mapCenter'];
-    double lat = 27.7172;
-    double lng = 85.324;
-    if (centerRaw is Map) {
-      final cm = Map<String, dynamic>.from(centerRaw);
-      lat = (cm['lat'] is num) ? (cm['lat'] as num).toDouble() : lat;
-      lng = (cm['lng'] is num) ? (cm['lng'] as num).toDouble() : lng;
-    }
+    final allCats = <Map<String, dynamic>>[
+      {'slug': '', 'name': 'All'},
+      ...categories,
+    ];
 
-    final pinsRaw = ld['pins'];
-    final markers = <Marker>[];
-    if (pinsRaw is List) {
-      for (final e in pinsRaw) {
-        if (e is! Map) {
-          continue;
-        }
-        final m = Map<String, dynamic>.from(e);
-        final plat = m['lat'];
-        final plng = m['lng'];
-        if (plat is! num || plng is! num) {
-          continue;
-        }
-        markers.add(
-          Marker(
-            point: LatLng(plat.toDouble(), plng.toDouble()),
-            width: 28,
-            height: 28,
-            child: Icon(
-              Icons.delivery_dining_rounded,
-              color: Colors.orange.shade800,
-              size: 26,
-            ),
-          ),
-        );
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Live delivery',
-          style: GoogleFonts.outfit(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Rider locations for your active order',
-          style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: SizedBox(
-            height: 140,
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: LatLng(lat, lng),
-                initialZoom: 13,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.none,
-                ),
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.pawsewa.user_app',
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: LatLng(lat, lng),
-                      width: 32,
-                      height: 32,
-                      child: Icon(
-                        Icons.home_filled,
-                        color: Colors.teal.shade700,
-                        size: 28,
-                      ),
+    return SizedBox(
+      height: stripHeight,
+      child: loading && categories.isEmpty
+          ? const Center(child: PawSewaLoader())
+          : ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8),
+              itemCount: allCats.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final c = allCats[index];
+                final slug = c['slug']?.toString() ?? '';
+                final name = c['name']?.toString() ?? slug;
+                final isActive = slug == selectedSlug;
+                return GestureDetector(
+                  onTap: () => onChanged(slug, name),
+                  child: SizedBox(
+                    width: itemW,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: circle,
+                          height: circle,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isActive ? _kBrown : Colors.grey.shade300,
+                              width: isActive ? 2.5 : 1,
+                            ),
+                          ),
+                          child: ClipOval(
+                            child: slug.isEmpty
+                                ? Container(
+                                    color: const Color(0xFFF5F0EB),
+                                    child: Icon(
+                                      Icons.grid_view,
+                                      size: circle * 0.45,
+                                      color: _kBrown,
+                                    ),
+                                  )
+                                : ProductImageService.networkImage(
+                                    ProductImageService.urlForCategory(name, slug),
+                                    width: circle,
+                                    height: circle,
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Text(
+                              name,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.outfit(
+                                fontSize: labelFont,
+                                fontWeight: isActive
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                color: isActive
+                                    ? Colors.black87
+                                    : Colors.grey[700],
+                                height: 1.25,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    ...markers,
-                  ],
-                ),
-              ],
+                  ),
+                );
+              },
             ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -982,7 +895,9 @@ class _ProAppOpenAdDialog extends StatelessWidget {
                       builder: (context, constraints) {
                         return SingleChildScrollView(
                           child: ConstrainedBox(
-                            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -995,7 +910,9 @@ class _ProAppOpenAdDialog extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(28),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.10),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.10,
+                                        ),
                                         blurRadius: 18,
                                         offset: const Offset(0, 10),
                                       ),
@@ -1041,7 +958,10 @@ class _ProAppOpenAdDialog extends StatelessWidget {
                                     style: FilledButton.styleFrom(
                                       backgroundColor: _kTeal,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                        horizontal: 16,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(16),
                                       ),
@@ -1054,11 +974,14 @@ class _ProAppOpenAdDialog extends StatelessWidget {
                                       Navigator.of(context).pop();
                                       Navigator.of(context).push(
                                         MaterialPageRoute<void>(
-                                          builder: (_) => const ProComingSoonScreen(),
+                                          builder: (_) =>
+                                              const ProComingSoonScreen(),
                                         ),
                                       );
                                     },
-                                    icon: const Icon(Icons.arrow_forward_rounded),
+                                    icon: const Icon(
+                                      Icons.arrow_forward_rounded,
+                                    ),
                                     label: const Text('Upgrade Now'),
                                   ),
                                 ),
@@ -1087,7 +1010,9 @@ class _ProAppOpenAdDialog extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                        border: Border.all(
+                          color: Colors.black.withValues(alpha: 0.08),
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.08),
@@ -1125,10 +1050,7 @@ class _FeatureRow extends StatelessWidget {
         Container(
           width: 22,
           height: 22,
-          decoration: BoxDecoration(
-            color: _kTeal,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: _kTeal, shape: BoxShape.circle),
           child: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
         ),
         const SizedBox(width: 10),
@@ -1148,11 +1070,8 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-class _ProductPickCard extends StatelessWidget {
-  const _ProductPickCard({
-    required this.product,
-    required this.onAddToCart,
-  });
+class _ProductGridCard extends StatelessWidget {
+  const _ProductGridCard({required this.product, required this.onAddToCart});
 
   final Map<String, dynamic> product;
   final VoidCallback onAddToCart;
@@ -1163,46 +1082,37 @@ class _ProductPickCard extends StatelessWidget {
     final price = (product['price'] is num)
         ? (product['price'] as num).toDouble()
         : 0.0;
-    final img = product['image']?.toString() ?? '';
 
     return Container(
-      width: 150,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-            child: AspectRatio(
-              aspectRatio: 1.05,
-              child: img.startsWith('http')
-                  ? CachedNetworkImage(
-                      imageUrl: img,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(color: Colors.grey.shade200),
-                      errorWidget: (context, url, err) => Container(
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.image_not_supported_outlined),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.shopping_bag_outlined),
-                    ),
+          // Use Expanded instead of fixed AspectRatio+Spacer to avoid overflow in tight grid tiles.
+          Expanded(
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
+              child: ProductImageService.networkImage(
+                ProductImageService.urlForProduct(product),
+                width: double.infinity,
+                height: double.infinity,
+              ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 2),
             child: Text(
               name,
               maxLines: 2,
@@ -1210,24 +1120,25 @@ class _ProductPickCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                height: 1.2,
+                height: 1.15,
               ),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
               'Rs. ${price.toStringAsFixed(0)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.outfit(
                 fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 color: _kBrown,
               ),
             ),
           ),
-          const Spacer(),
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
             child: SizedBox(
               height: 32,
               child: FilledButton(
@@ -1238,7 +1149,10 @@ class _ProductPickCard extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   textStyle: GoogleFonts.outfit(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: const Text('Add to Cart'),
@@ -1250,3 +1164,143 @@ class _ProductPickCard extends StatelessWidget {
     );
   }
 }
+
+class _PromoBannerSlide extends StatelessWidget {
+  const _PromoBannerSlide({
+    required this.banner,
+    required this.onTap,
+    required this.onCta,
+  });
+
+  final _PromoBanner banner;
+  final VoidCallback onTap;
+  final VoidCallback onCta;
+
+  @override
+  Widget build(BuildContext context) {
+    const overlayStart = Color(0x00111111);
+    const overlayEnd = Color(0xB3111111);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: _HomeBannerBackground(
+                imageIndex: banner.bannerImageIndex,
+                timothyHayFoodPromo: banner.timothyHayFoodPromo,
+              ),
+            ),
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [overlayStart, overlayEnd],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Spacer(),
+                  Text(
+                    banner.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    banner.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.92),
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 36,
+                    child: FilledButton(
+                      onPressed: onCta,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: _kBrown,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        textStyle: GoogleFonts.outfit(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                      child: Text(banner.ctaLabel),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Banner-specific Unsplash images (static IDs, CDN-fast, no source.unsplash redirect) ──
+
+const List<String> _kBannerUrls = [
+  // hostel slide
+  'https://images.unsplash.com/photo-1591946614720-90a587da4a36?q=80&w=900',
+  // grooming slide
+  'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=900',
+  // shop/food slide
+  'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?q=80&w=900',
+];
+
+Widget _homeBannerShimmerFill() {
+  return const PremiumShimmer(
+    child: ColoredBox(color: Color(0xFFE8E0D8), child: SizedBox.expand()),
+  );
+}
+
+class _HomeBannerBackground extends StatelessWidget {
+  final int imageIndex;
+  final bool timothyHayFoodPromo;
+
+  const _HomeBannerBackground({
+    required this.imageIndex,
+    required this.timothyHayFoodPromo,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final idx = imageIndex.clamp(0, _kBannerUrls.length - 1);
+    final url = _kBannerUrls[idx];
+    return ProductImageService.networkImage(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      placeholder: _homeBannerShimmerFill(),
+    );
+  }
+}
+

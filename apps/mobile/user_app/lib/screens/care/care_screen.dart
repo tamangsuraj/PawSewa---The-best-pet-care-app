@@ -6,9 +6,7 @@ import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import 'care_all_services_screen.dart';
 import 'hostel_detail_screen.dart';
-import 'my_clinic_appointments_screen.dart';
 import 'pet_care_service_card.dart';
-import 'vet_clinic_booking_screen.dart';
 import '../../widgets/premium_empty_state.dart';
 import '../../widgets/premium_shimmer.dart';
 
@@ -76,7 +74,8 @@ class _CareScreenState extends State<CareScreen> {
         if (resp.data is Map && resp.data['data'] is List) {
           all[id] = List<Map<String, dynamic>>.from(
             (resp.data['data'] as List).map(
-              (e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{},
+              (e) =>
+                  e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{},
             ),
           );
         } else {
@@ -104,7 +103,10 @@ class _CareScreenState extends State<CareScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _filteredForSection(String serviceType, List<Map<String, dynamic>> raw) {
+  List<Map<String, dynamic>> _filteredForSection(
+    String serviceType,
+    List<Map<String, dynamic>> raw,
+  ) {
     var list = List<Map<String, dynamic>>.from(raw);
     if (_filterTypes != null && !_filterTypes!.contains(serviceType)) {
       return [];
@@ -137,12 +139,21 @@ class _CareScreenState extends State<CareScreen> {
         ),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ),
             child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.05),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+              position:
+                  Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
               child: child,
             ),
           );
@@ -151,7 +162,11 @@ class _CareScreenState extends State<CareScreen> {
     );
   }
 
-  void _openSeeAll(String serviceType, String header, List<Map<String, dynamic>> fullList) {
+  void _openSeeAll(
+    String serviceType,
+    String header,
+    List<Map<String, dynamic>> fullList,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -188,12 +203,18 @@ class _CareScreenState extends State<CareScreen> {
                   children: [
                     Text(
                       'Filter categories',
-                      style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.outfit(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'Choose which sections to show on Pet Care+.',
-                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -204,7 +225,10 @@ class _CareScreenState extends State<CareScreen> {
                         final label = c['header']!;
                         final on = working.contains(type);
                         return FilterChip(
-                          label: Text(label, style: GoogleFonts.outfit(fontSize: 12)),
+                          label: Text(
+                            label,
+                            style: GoogleFonts.outfit(fontSize: 12),
+                          ),
                           selected: on,
                           onSelected: (sel) {
                             setModal(() {
@@ -225,12 +249,16 @@ class _CareScreenState extends State<CareScreen> {
                       onPressed: () {
                         if (working.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Select at least one category.')),
+                            const SnackBar(
+                              content: Text('Select at least one category.'),
+                            ),
                           );
                           return;
                         }
                         setState(() {
-                          _filterTypes = working.length == allTypes.length ? null : Set<String>.from(working);
+                          _filterTypes = working.length == allTypes.length
+                              ? null
+                              : Set<String>.from(working);
                         });
                         Navigator.pop(ctx);
                       },
@@ -238,7 +266,10 @@ class _CareScreenState extends State<CareScreen> {
                         backgroundColor: primary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text('Apply', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                      child: Text(
+                        'Apply',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                      ),
                     ),
                     TextButton(
                       onPressed: () {
@@ -247,7 +278,10 @@ class _CareScreenState extends State<CareScreen> {
                       },
                       child: Text(
                         'Reset — show all',
-                        style: GoogleFonts.outfit(color: primary, fontWeight: FontWeight.w600),
+                        style: GoogleFonts.outfit(
+                          color: primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -257,85 +291,6 @@ class _CareScreenState extends State<CareScreen> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildVetClinicCard() {
-    const primary = Color(AppConstants.primaryColor);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [primary, primary.withValues(alpha: 0.85)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: primary.withValues(alpha: 0.25),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Vet clinic visits',
-              style: GoogleFonts.outfit(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Book vaccination or checkup. Track status after admin assigns a vet.',
-              style: GoogleFonts.outfit(fontSize: 13, color: Colors.white.withValues(alpha: 0.92)),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: primary,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(builder: (_) => const VetClinicBookingScreen()),
-                      );
-                    },
-                    child: Text('Book visit', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(builder: (_) => const MyClinicAppointmentsScreen()),
-                      );
-                    },
-                    child: Text('My appointments', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -353,15 +308,25 @@ class _CareScreenState extends State<CareScreen> {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Search services nearby...',
-              hintStyle: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[500]),
-              prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[600], size: 22),
+              hintStyle: GoogleFonts.outfit(
+                fontSize: 14,
+                color: Colors.grey[500],
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: Colors.grey[600],
+                size: 22,
+              ),
               filled: true,
               fillColor: const Color(0xFFF3F4F6),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(999),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 14,
+              ),
             ),
           ),
         ),
@@ -383,7 +348,11 @@ class _CareScreenState extends State<CareScreen> {
     );
   }
 
-  Widget _buildSection(String serviceType, String header, List<Map<String, dynamic>> source) {
+  Widget _buildSection(
+    String serviceType,
+    String header,
+    List<Map<String, dynamic>> source,
+  ) {
     if (_filterTypes != null && !_filterTypes!.contains(serviceType)) {
       return const SizedBox.shrink();
     }
@@ -418,7 +387,10 @@ class _CareScreenState extends State<CareScreen> {
                       ? null
                       : () => _openSeeAll(serviceType, header, source),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
@@ -454,7 +426,10 @@ class _CareScreenState extends State<CareScreen> {
                         color: primary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(Icons.search_off_rounded, color: primary),
+                      child: const Icon(
+                        Icons.search_off_rounded,
+                        color: primary,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -465,8 +440,9 @@ class _CareScreenState extends State<CareScreen> {
                         style: GoogleFonts.outfit(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: const Color(AppConstants.inkColor)
-                              .withValues(alpha: 0.70),
+                          color: const Color(
+                            AppConstants.inkColor,
+                          ).withValues(alpha: 0.70),
                         ),
                       ),
                     ),
@@ -484,7 +460,8 @@ class _CareScreenState extends State<CareScreen> {
                 separatorBuilder: (context, i) => const SizedBox(width: 14),
                 itemBuilder: (context, i) {
                   final item = filtered[i];
-                  final isFirstHostelFeatured = serviceType == 'Hostel' && i == 0;
+                  final isFirstHostelFeatured =
+                      serviceType == 'Hostel' && i == 0;
                   final cardW = isFirstHostelFeatured ? fullCardW : 272.0;
                   return PetCareServiceCard(
                     hostel: item,
@@ -514,13 +491,7 @@ class _CareScreenState extends State<CareScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: _buildVetClinicCard(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: _buildSearchRow(),
               ),
             ),
@@ -533,7 +504,10 @@ class _CareScreenState extends State<CareScreen> {
                   primaryAction: FilledButton.icon(
                     onPressed: _loadHostels,
                     style: FilledButton.styleFrom(backgroundColor: primary),
-                    icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                    ),
                     label: Text(
                       'Retry',
                       style: GoogleFonts.outfit(fontWeight: FontWeight.w700),

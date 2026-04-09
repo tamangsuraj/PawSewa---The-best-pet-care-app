@@ -16,15 +16,26 @@ Future<(bool, String?)> _verifyOnceWithOrderId(ApiClient api, String pidx) async
   try {
     final resp = await api.verifyPayment(pidx: pidx.trim());
     final data = resp.data;
-    if (data is! Map || data['success'] != true) {
+    if (data is! Map) return (false, null);
+
+    // Backend may return success:false but status:"Completed" when the payment
+    // was already verified/processed on a previous attempt. Treat that as success.
+    final backendSuccess = data['success'] == true;
+    final statusStr = (data['status'] ?? '').toString().toLowerCase();
+    final statusCompleted = statusStr == 'completed';
+
+    if (!backendSuccess && !statusCompleted) {
       return (false, null);
     }
+
+    // Extract orderId from various response shapes.
     if (data['orderId'] != null) {
       return (true, data['orderId'].toString());
     }
     final d = data['data'];
-    if (d is Map && d['orderId'] != null) {
-      return (true, d['orderId'].toString());
+    if (d is Map) {
+      if (d['orderId'] != null) return (true, d['orderId'].toString());
+      if (d['_id'] != null) return (true, d['_id'].toString());
     }
     return (true, null);
   } catch (_) {

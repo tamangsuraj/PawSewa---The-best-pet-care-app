@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +15,7 @@ import '../../cart/cart_service.dart';
 import '../../cart/saved_addresses_service.dart';
 import '../../core/api_client.dart';
 import '../../core/api_config.dart';
+import '../../core/product_image_service.dart';
 import '../../core/constants.dart';
 import '../../core/khalti_verify_helper.dart';
 import '../cart/delivery_pin_screen.dart';
@@ -70,7 +70,14 @@ Future<bool> captureHighAccuracyGpsForDelivery(BuildContext context) async {
 /// Shop tab body for [PetDashboardScreen]. Top chrome (drawer, PawSewa title, tab subtitle,
 /// messages action) is provided by the parent scaffold AppBar — same pattern as [CareScreen].
 class ShopScreen extends StatefulWidget {
-  const ShopScreen({super.key});
+  const ShopScreen({
+    super.key,
+    this.initialCategorySlug,
+    this.initialCategoryName,
+  });
+
+  final String? initialCategorySlug;
+  final String? initialCategoryName;
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
@@ -108,6 +115,28 @@ class _ShopScreenState extends State<ShopScreen> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _loadInitial();
+  }
+
+  @override
+  void didUpdateWidget(covariant ShopScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialCategorySlug != widget.initialCategorySlug) {
+      final slug = widget.initialCategorySlug;
+      if (slug == null || slug.isEmpty) {
+        // Reset to All.
+        setState(() {
+          _selectedCategorySlug = '';
+          _selectedCategoryName = 'All';
+        });
+        unawaited(_loadProductsByCategory(''));
+      } else {
+        setState(() {
+          _selectedCategorySlug = slug;
+          _selectedCategoryName = widget.initialCategoryName ?? slug;
+        });
+        unawaited(_loadProductsByCategory(slug));
+      }
+    }
   }
 
   @override
@@ -181,8 +210,9 @@ class _ShopScreenState extends State<ShopScreen> {
         _products = prods;
         _productsPage = 1;
         _hasMoreProducts = hasMore;
-        _selectedCategorySlug = '';
-        _selectedCategoryName = 'All';
+        _selectedCategorySlug = widget.initialCategorySlug ?? '';
+        _selectedCategoryName =
+            widget.initialCategoryName ?? (_selectedCategorySlug.isEmpty ? 'All' : _selectedCategorySlug);
         _loading = false;
         _favouriteIds.clear();
         _favouriteIds.addAll(favIds);
@@ -193,6 +223,12 @@ class _ShopScreenState extends State<ShopScreen> {
           _shopUserPetType = shopMeta['userPetType'];
         }
       });
+
+      // If Home asked for a specific category, immediately load it.
+      final initSlug = widget.initialCategorySlug;
+      if (initSlug != null && initSlug.isNotEmpty && mounted) {
+        unawaited(_loadProductsByCategory(initSlug));
+      }
     } catch (e) {
       if (kDebugMode && e is DioException) {
         if (e.type == DioExceptionType.badResponse) {
@@ -755,6 +791,14 @@ class _ShopScreenState extends State<ShopScreen> {
       );
       return;
     }
+
+    // Capture the navigator BEFORE showing the sheet. Closures that run
+    // asynchronously (after Khalti verification) must not rely on a ctx
+    // that may already be disposed.
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    final sheetNav = Navigator.of(context);
+    final cartService = context.read<CartService>();
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -767,12 +811,13 @@ class _ShopScreenState extends State<ShopScreen> {
             _placeOrderWithMethod(methodId, amount),
         initKhaltiFlow: () => _initKhaltiForSheet(amount),
         onOrderPlaced: (orderId) {
-          Navigator.of(ctx).pop(); // close payment sheet
-          Navigator.of(ctx).pop(); // close checkout sheet
-          context.read<CartService>().clearCart();
-          Navigator.of(context, rootNavigator: true).push<void>(
+          // Close payment sheet + checkout sheet using pre-captured navigators.
+          if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
+          if (sheetNav.canPop()) sheetNav.pop();
+          cartService.clearCart();
+          rootNav.push<void>(
             MaterialPageRoute<void>(
-              builder: (context) => OrderSuccessScreen(orderId: orderId),
+              builder: (_) => OrderSuccessScreen(orderId: orderId),
             ),
           );
         },
@@ -1005,7 +1050,6 @@ class _ShopScreenState extends State<ShopScreen> {
                       child: _CategoryCircleStrip(
                         categories: _categories,
                         selectedSlug: _selectedCategorySlug,
-                        products: _products,
                         onChanged: _loadProductsByCategory,
                       ),
                     ),
@@ -1669,30 +1713,13 @@ class _SearchFilterChip extends StatelessWidget {
 class _CategoryCircleStrip extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
   final String selectedSlug;
-  final List<Map<String, dynamic>> products;
   final ValueChanged<String> onChanged;
 
   const _CategoryCircleStrip({
     required this.categories,
     required this.selectedSlug,
-    required this.products,
     required this.onChanged,
   });
-
-  String? _firstImageForCategory(String? slug) {
-    if (slug == null || slug.isEmpty) return null;
-    for (final p in products) {
-      final cat = p['category'];
-      final catSlug = cat is Map ? cat['slug']?.toString() : null;
-      if (catSlug == slug) {
-        final imgs = p['images'] as List<dynamic>?;
-        if (imgs != null && imgs.isNotEmpty) {
-          return imgs.first.toString();
-        }
-      }
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1733,12 +1760,6 @@ class _CategoryCircleStrip extends StatelessWidget {
                 final slug = c['slug']?.toString() ?? '';
                 final name = c['name']?.toString() ?? slug;
                 final isActive = slug == selectedSlug;
-                final categoryImage = c['image']?.toString();
-                final imageUrl = slug.isEmpty
-                    ? null
-                    : (categoryImage != null && categoryImage.isNotEmpty
-                          ? categoryImage
-                          : _firstImageForCategory(slug));
                 return GestureDetector(
                   onTap: () => onChanged(slug),
                   child: SizedBox(
@@ -1758,40 +1779,22 @@ class _CategoryCircleStrip extends StatelessWidget {
                             ),
                           ),
                           child: ClipOval(
-                            child: imageUrl != null
-                                ? CachedNetworkImage(
-                                    imageUrl: imageUrl,
-                                    fit: BoxFit.cover,
-                                    width: circle,
-                                    height: circle,
-                                    placeholder: (context, url) => Container(
-                                      color: const Color(0xFFF5F0EB),
-                                      child: Icon(
-                                        Icons.pets,
-                                        size: circle * 0.45,
-                                        color: primary,
-                                      ),
-                                    ),
-                                    errorWidget: (context, error, stackTrace) =>
-                                        Container(
-                                          color: const Color(0xFFF5F0EB),
-                                          child: Icon(
-                                            Icons.pets,
-                                            size: circle * 0.45,
-                                            color: primary,
-                                          ),
-                                        ),
-                                  )
-                                : Container(
+                            child: slug.isEmpty || slug == kFavouritesSlug
+                                ? Container(
                                     color: const Color(0xFFF5F0EB),
                                     child: Icon(
                                       slug == kFavouritesSlug
                                           ? Icons.favorite_border
-                                          : slug.isEmpty
-                                          ? Icons.grid_view
-                                          : Icons.pets,
+                                          : Icons.grid_view,
                                       size: circle * 0.45,
                                       color: primary,
+                                    ),
+                                  )
+                                : ClipOval(
+                                    child: ProductImageService.networkImage(
+                                      ProductImageService.urlForCategory(name, slug),
+                                      width: circle,
+                                      height: circle,
                                     ),
                                   ),
                           ),
@@ -1866,6 +1869,24 @@ class _LoadMoreCell extends StatelessWidget {
   }
 }
 
+// ─── Shop product imagery (Unsplash by category + product name) ─────────────
+
+class _ShopProductLocalImage extends StatelessWidget {
+  const _ShopProductLocalImage({required this.product});
+
+  final Map<String, dynamic> product;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = ProductImageService.urlForProduct(product);
+    return ProductImageService.networkImage(
+      url,
+      width: double.infinity,
+      height: double.infinity,
+    );
+  }
+}
+
 // ─── Product card ───────────────────────────────────────────────────────────
 // Structure: Image -> Title -> Subtitle (e.g. size/weight) -> Price (Rs.) -> Add (+)
 // Centered contained image; bold title; regular subtitle/price; light beige/white card.
@@ -1891,8 +1912,6 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
     const imageBg = Color(0xFFF6F1EC);
-    final images = product['images'] as List<dynamic>? ?? [];
-    final imageUrl = images.isNotEmpty ? images.first.toString() : null;
     final name = product['name']?.toString() ?? 'Product';
     final desc = product['description']?.toString() ?? '';
     final price = (product['price'] as num?)?.toDouble() ?? 0;
@@ -1944,31 +1963,10 @@ class _ProductCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       alignment: Alignment.center,
-                      child: imageUrl != null
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: CachedNetworkImage(
-                                imageUrl: imageUrl,
-                                fit: BoxFit.contain,
-                                width: double.infinity,
-                                height: double.infinity,
-                                placeholder: (_, _) => Icon(
-                                  Icons.pets,
-                                  size: 28,
-                                  color: primary.withValues(alpha: 0.5),
-                                ),
-                                errorWidget: (_, _, _) => Icon(
-                                  Icons.pets,
-                                  size: 40,
-                                  color: primary.withValues(alpha: 0.5),
-                                ),
-                              ),
-                            )
-                          : Icon(
-                              Icons.pets,
-                              size: 28,
-                              color: primary.withValues(alpha: 0.5),
-                            ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _ShopProductLocalImage(product: product),
+                      ),
                     ),
                     if (personalizedBadge != null &&
                         personalizedBadge!.isNotEmpty)
@@ -2316,8 +2314,6 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
     final product = widget.product;
-    final images = product['images'] as List<dynamic>? ?? [];
-    final imageUrl = images.isNotEmpty ? images.first.toString() : null;
     final name = product['name']?.toString() ?? 'Product';
     final desc = product['description']?.toString() ?? '';
     final price = (product['price'] as num?)?.toDouble() ?? 0;
@@ -2396,41 +2392,13 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                             vertical: 8,
                           ),
                           children: [
-                            Container(
-                              height: 180,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF6F1EC),
-                                borderRadius: BorderRadius.circular(16),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: SizedBox(
+                                height: 180,
+                                width: double.infinity,
+                                child: _ShopProductLocalImage(product: product),
                               ),
-                              child: imageUrl != null
-                                  ? ClipRRect(
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: CachedNetworkImage(
-                                        imageUrl: imageUrl,
-                                        fit: BoxFit.contain,
-                                        placeholder: (context, url) => Center(
-                                          child: Icon(
-                                            Icons.pets,
-                                            color: primary,
-                                          ),
-                                        ),
-                                        errorWidget:
-                                            (context, error, stackTrace) =>
-                                                Center(
-                                                  child: Icon(
-                                                    Icons.pets,
-                                                    color: primary,
-                                                  ),
-                                                ),
-                                      ),
-                                    )
-                                  : Center(
-                                      child: Icon(
-                                        Icons.pets,
-                                        size: 80,
-                                        color: primary,
-                                      ),
-                                    ),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -4323,12 +4291,17 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             onNavigationRequest: (request) {
               final url = request.url;
               final uri = Uri.tryParse(url);
+
+              // Grab pidx from any URL that carries it (Khalti includes it in
+              // query params on both the success and callback redirects).
+              final qp = uri?.queryParameters['pidx'];
+              if (qp != null && qp.isNotEmpty) {
+                _khaltiPidx = qp;
+              }
+
+              // 1) Custom scheme deep-link (pawsewa://)
               if (uri != null && uri.scheme == 'pawsewa') {
                 if (uri.host == 'payment-success') {
-                  final qp = uri.queryParameters['pidx'];
-                  if (qp != null && qp.isNotEmpty) {
-                    _khaltiPidx = qp;
-                  }
                   if (mounted) unawaited(_onKhaltiPaymentSuccess(qp));
                   return NavigationDecision.prevent;
                 }
@@ -4337,18 +4310,36 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                   return NavigationDecision.prevent;
                 }
               }
-              final qp = uri?.queryParameters['pidx'];
-              if (qp != null && qp.isNotEmpty) {
-                _khaltiPidx = qp;
-              }
-              if (url.contains('payment-success') || url.contains(successUrl)) {
-                if (mounted) unawaited(_onKhaltiPaymentSuccess(qp));
-                return NavigationDecision.prevent;
-              }
-              if (url.contains('payment-failed')) {
+
+              // 2) Backend Khalti callback URL (e.g. /api/v1/payments/khalti/callback)
+              //    Khalti sets status=Completed on success, status=User canceled / Expired
+              //    on failure.  We intercept here so the WebView never renders the page.
+              if (uri != null &&
+                  (uri.path.contains('/payments/khalti/callback') ||
+                      uri.path.contains('/khalti/callback'))) {
+                final status =
+                    (uri.queryParameters['status'] ?? '').toLowerCase();
+                if (status == 'completed') {
+                  if (mounted) unawaited(_onKhaltiPaymentSuccess(qp ?? _khaltiPidx));
+                  return NavigationDecision.prevent;
+                }
+                // Any other status (User canceled, Expired, Refunded…) → cancel.
                 if (mounted) _onKhaltiPaymentCancel();
                 return NavigationDecision.prevent;
               }
+
+              // 3) Generic text-pattern fallbacks (keeps backward compat).
+              if (url.contains('payment-success') || url.contains(successUrl)) {
+                if (mounted) unawaited(_onKhaltiPaymentSuccess(qp ?? _khaltiPidx));
+                return NavigationDecision.prevent;
+              }
+              if (url.contains('payment-failed') ||
+                  url.contains('status=User+canceled') ||
+                  url.contains('status=Expired')) {
+                if (mounted) _onKhaltiPaymentCancel();
+                return NavigationDecision.prevent;
+              }
+
               return NavigationDecision.navigate;
             },
           ),
@@ -4383,6 +4374,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         ? pidxFromUrl
         : _khaltiPidx;
     setState(() => _phase = 'khalti_verifying');
+
     final verified = await verifyKhaltiPaymentWithRetriesAndOrderId(
       context,
       ApiClient(),
@@ -4407,14 +4399,20 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       await widget.syncPendingOrderGps(id);
     }
     if (!mounted) return;
+
+    // ── Auto-navigate to order success when verification passed ──────────────
+    if (ok && id != null && id.isNotEmpty && !deferred) {
+      widget.onOrderPlaced(id);
+      return;
+    }
+
+    // Fall back to confirm screen if verification couldn't resolve an order id
+    // (e.g. deferred checkout or network issue) so user can still confirm.
     setState(() {
       _phase = 'confirm_order';
-      if (!ok) {
-        _error =
-            'Could not confirm payment automatically. If Khalti charged you, tap confirm below — or contact support.';
-      } else {
-        _error = null;
-      }
+      _error = ok
+          ? null
+          : 'Could not confirm payment automatically. If Khalti charged you, tap confirm below — or contact support.';
     });
   }
 
@@ -4430,9 +4428,30 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     });
   }
 
-  void _onConfirmOrderAfterKhalti() {
-    if (_khaltiOrderId != null) {
+  Future<void> _onConfirmOrderAfterKhalti() async {
+    if (_khaltiOrderId != null && _khaltiOrderId!.isNotEmpty) {
       widget.onOrderPlaced(_khaltiOrderId!);
+      return;
+    }
+    // Order id wasn't available at verify time — retry once.
+    if (!mounted) return;
+    setState(() => _phase = 'khalti_verifying');
+    final verified = await verifyKhaltiPaymentWithRetriesAndOrderId(
+      context,
+      ApiClient(),
+      _khaltiPidx,
+      maxAttempts: 3,
+    );
+    if (!mounted) return;
+    final id = verified.$2 ?? _khaltiOrderId;
+    if (id != null && id.isNotEmpty) {
+      widget.onOrderPlaced(id);
+    } else {
+      setState(() {
+        _phase = 'confirm_order';
+        _error =
+            'Order ID not found. Please contact support with your Khalti transaction reference.';
+      });
     }
   }
 

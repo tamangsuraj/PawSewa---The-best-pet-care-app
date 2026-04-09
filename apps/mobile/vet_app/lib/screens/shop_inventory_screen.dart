@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/api_client.dart';
+import '../core/category_asset_fallback.dart';
 import '../core/constants.dart';
 import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
@@ -865,27 +866,19 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                         fit: BoxFit.contain,
                                                         width: double.infinity,
                                                         height: double.infinity,
+                                                        headers: const {
+                                                          'ngrok-skip-browser-warning': 'true',
+                                                        },
                                                         errorBuilder:
-                                                            (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                            ) => Icon(
-                                                              Icons.pets,
-                                                              size: 32,
-                                                              color: primary
-                                                                  .withValues(
-                                                                    alpha: 0.5,
-                                                                  ),
-                                                            ),
+                                                            (context, error, stackTrace) {
+                                                          return _CategoryAssetImage(
+                                                            category: category,
+                                                          );
+                                                        },
                                                       ),
                                                     )
-                                                  : Icon(
-                                                      Icons.pets,
-                                                      size: 32,
-                                                      color: primary.withValues(
-                                                        alpha: 0.5,
-                                                      ),
+                                                  : _CategoryAssetImage(
+                                                      category: category,
                                                     ),
                                             ),
                                           ),
@@ -1116,3 +1109,37 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     );
   }
 }
+
+class _CategoryAssetImage extends StatelessWidget {
+  const _CategoryAssetImage({required this.category});
+
+  final String category;
+
+  @override
+  Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    return FutureBuilder<String?>(
+      future: CategoryAssetFallback.pickForCategory(category),
+      builder: (context, snap) {
+        final asset = snap.data;
+        if (asset == null || asset.isEmpty) {
+          return Icon(
+            Icons.pets,
+            size: 32,
+            color: primary.withValues(alpha: 0.5),
+          );
+        }
+        return Image.asset(
+          asset,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) => Icon(
+            Icons.pets,
+            size: 32,
+            color: primary.withValues(alpha: 0.5),
+          ),
+        );
+      },
+    );
+  }
+}
+

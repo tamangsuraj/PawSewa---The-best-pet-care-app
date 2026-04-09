@@ -15,7 +15,6 @@ import '../core/storage_service.dart';
 import '../models/pet.dart';
 import '../services/pet_service.dart';
 import 'login_screen.dart';
-import 'add_pet_screen.dart';
 import 'my_requests_screen.dart';
 import 'services/services_screen.dart';
 import 'shop/shop_screen.dart';
@@ -68,6 +67,10 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
 
   /// Selected pet on Home tab (drives `GET /pets/home-dashboard/:petId`).
   int _homePetIndex = 0;
+
+  /// When Home opens Shop, optionally jump to a category.
+  String? _shopInitialCategorySlug;
+  String? _shopInitialCategoryName;
 
   @override
   void initState() {
@@ -222,16 +225,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
     Navigator.of(
       context,
     ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
-  }
-
-  Future<void> _navigateToAddPet() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AddPetScreen()),
-    );
-    if (result == true) {
-      _loadPets();
-    }
   }
 
   void _showPetDetails(Pet pet) {
@@ -945,7 +938,10 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
       case 1:
         return ServicesScreen(initialTabIndex: _servicesInitialTab);
       case 2:
-        return const ShopScreen();
+        return ShopScreen(
+          initialCategorySlug: _shopInitialCategorySlug,
+          initialCategoryName: _shopInitialCategoryName,
+        );
       case 3:
         return const MessagesHubScreen();
       case 4:
@@ -977,8 +973,10 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           _currentIndex = 1;
         });
       },
-      onOpenShopTab: () {
+      onOpenShopTab: ({String? categorySlug, String? categoryName}) {
         setState(() {
+          _shopInitialCategorySlug = categorySlug;
+          _shopInitialCategoryName = categoryName;
           _currentIndex = 2;
         });
       },
@@ -987,125 +985,6 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           _currentIndex = 4;
         });
       },
-    );
-  }
-
-  PreferredSizeWidget _homeShellAppBar(BuildContext context) {
-    return AppBar(
-      automaticallyImplyLeading: false,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.transparent,
-      toolbarHeight: kToolbarHeight,
-      flexibleSpace: SafeArea(
-        bottom: false,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.menu, size: 22),
-              color: Colors.black87,
-              onPressed: () {
-                _shellScaffoldKey.currentState?.openDrawer();
-              },
-              tooltip: 'Menu',
-            ),
-            const Expanded(
-              child: Center(
-                child: PawSewaBrandLogo(height: 28),
-              ),
-            ),
-            Consumer2<NotificationUnreadNotifyService, OngoingCallService>(
-              builder: (context, nUnread, ongoing, _) {
-                final bell = Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.notifications_none_rounded, size: 22),
-                      color: Colors.black87,
-                      onPressed: () async {
-                        await Navigator.push<void>(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const NotificationsScreen(),
-                          ),
-                        );
-                        if (context.mounted) {
-                          unawaited(nUnread.refreshFromApi());
-                        }
-                      },
-                      tooltip: 'Notifications',
-                    ),
-                    if (ongoing.active)
-                      Positioned(
-                        right: 2,
-                        top: 4,
-                        child: IgnorePointer(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'LIVE',
-                              style: GoogleFonts.outfit(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-                final c = nUnread.unreadCount;
-                if (c <= 0) {
-                  return bell;
-                }
-                return Badge.count(
-                  count: c > 99 ? 99 : c,
-                  child: bell,
-                );
-              },
-            ),
-            Consumer<ChatUnreadNotifyService>(
-              builder: (context, unread, _) {
-                final c = unread.totalUnread;
-                final btn = IconButton(
-                  icon: Icon(
-                    _currentIndex == 3
-                        ? Icons.chat_bubble
-                        : Icons.chat_bubble_outline,
-                    color: _currentIndex == 3
-                        ? const Color(AppConstants.primaryColor)
-                        : Colors.grey[700],
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _currentIndex = 3;
-                    });
-                  },
-                  tooltip: 'Messages',
-                );
-                if (c <= 0) {
-                  return btn;
-                }
-                return Badge.count(
-                  count: c > 99 ? 99 : c,
-                  child: btn,
-                );
-              },
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1355,9 +1234,8 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           ? const Color(0xFFF8F9FA)
           : const Color(AppConstants.secondaryColor),
       drawer: _buildDrawer(context),
-      appBar: _currentIndex == 0
-          ? _homeShellAppBar(context)
-          : _standardShellAppBar(context),
+      // Use the same top nav style across all tabs (Home/Services/Shop/Care/My Pets).
+      appBar: _standardShellAppBar(context),
       body: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -1391,21 +1269,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           ),
         ],
       ),
-      floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton.extended(
-              heroTag: 'fab_add_pet',
-              onPressed: _navigateToAddPet,
-              backgroundColor: const Color(AppConstants.primaryColor),
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: Text(
-                'Add Pet',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          : null,
+      floatingActionButton: null,
       bottomNavigationBar: _buildBottomNavBar(),
     );
   }

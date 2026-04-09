@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../core/api_client.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
+import 'login_screen.dart';
 import 'package:http/http.dart' as http;
 
 class ProfileEditorScreen extends StatefulWidget {
@@ -33,6 +34,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   String? _profilePictureUrl;
   File? _selectedImage;
   String? _selectedSpecialty;
+  String _roleLabel = 'Partner';
 
   final List<String> _specialties = [
     'General Practitioner',
@@ -70,6 +72,10 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
           _bioController.text = data['bio'] ?? '';
           _selectedSpecialty = data['specialty'] ?? data['specialization'];
           _profilePictureUrl = data['profilePicture'];
+          final r = (data['role'] ?? '').toString().trim();
+          if (r.isNotEmpty) {
+            _roleLabel = r;
+          }
         });
       }
     } catch (e) {
@@ -77,6 +83,15 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         debugPrint('Error loading profile: $e');
       }
     }
+  }
+
+  Future<void> _logout() async {
+    await _storage.clearAll();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
   }
 
   Future<void> _pickImage() async {
@@ -204,7 +219,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Edit Partner Profile',
@@ -224,6 +239,24 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                _nameController.text.trim().isEmpty ? 'Profile' : _nameController.text.trim(),
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _roleLabel,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(AppConstants.primaryColor),
+                ),
+              ),
+              const SizedBox(height: 18),
               // Profile Picture
               Center(
                 child: GestureDetector(
@@ -345,6 +378,26 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                             color: Colors.white,
                           ),
                         ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _logout,
+                  icon: const Icon(Icons.logout_rounded),
+                  label: Text(
+                    'Logout',
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade700,
+                    side: BorderSide(color: Colors.red.shade200),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                 ),
               ),
             ],
