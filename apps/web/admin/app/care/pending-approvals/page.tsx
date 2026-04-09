@@ -28,9 +28,10 @@ export default function PendingApprovalsPage() {
       setError('');
       const resp = await api.get('/provider-applications/pending');
       setApps(resp.data?.data ?? []);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to load pending applications';
-      const is404 = err.response?.status === 404;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string }; status?: number }; message?: string };
+      const msg = e.response?.data?.message || e.message || 'Failed to load pending applications';
+      const is404 = e.response?.status === 404;
       setError(is404
         ? `${msg}. Ensure the backend is running (cd backend && npm run dev) and has been restarted with the latest code.`
         : msg);
@@ -52,8 +53,9 @@ export default function PendingApprovalsPage() {
       });
       toast.success(approve ? 'Application approved' : 'Application rejected');
       load();
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to update');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e.response?.data?.message || 'Failed to update');
     } finally {
       setRejecting(null);
     }

@@ -27,6 +27,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   LatLng? _vetLocation;
   StreamSubscription<Position>? _positionSub;
   final LocationService _locationService = LocationService();
+  bool _isMapReady = false;
 
   @override
   void initState() {
@@ -78,6 +79,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
           distanceFilter: 10,
         ),
       ).listen((pos) {
+        if (!mounted) return;
         setState(() {
           _vetLocation = LatLng(pos.latitude, pos.longitude);
         });
@@ -87,9 +89,14 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
     }
 
     if (mounted && _customerLocation != null) {
-      _mapController.move(_customerLocation!, 14);
       setState(() {});
+      _syncMapToCustomer();
     }
+  }
+
+  void _syncMapToCustomer() {
+    if (!_isMapReady || _customerLocation == null) return;
+    _mapController.move(_customerLocation!, 14);
   }
 
   Future<void> _callOwner(String phone) async {
@@ -291,11 +298,15 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                     children: [
                       const Icon(Icons.person, size: 18, color: Color(AppConstants.primaryColor)),
                       const SizedBox(width: 8),
-                      Text(
-                        owner?['name'] ?? 'Unknown Owner',
-                        style: GoogleFonts.outfit(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          owner?['name'] ?? 'Unknown Owner',
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -364,6 +375,14 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                           options: MapOptions(
                             initialCenter: _customerLocation!,
                             initialZoom: 14,
+                            onMapReady: () {
+                              if (!mounted) return;
+                              setState(() => _isMapReady = true);
+                              debugPrint(
+                                '[SUCCESS] Map successfully mounted and controller attached.',
+                              );
+                              _syncMapToCustomer();
+                            },
                           ),
                           children: [
                             TileLayer(

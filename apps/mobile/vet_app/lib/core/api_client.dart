@@ -24,7 +24,12 @@ class ApiClient {
   /// Initialize with configurable base URL (ApiConfig — single source of truth).
   Future<void> initialize() async {
     final baseUrl = await ApiConfig.getBaseUrl();
-    if (kDebugMode) debugPrint('[API] Using base URL: $baseUrl');
+    if (kDebugMode) {
+      debugPrint('[API] Using base URL: $baseUrl');
+      if (baseUrl.toLowerCase().contains('ngrok')) {
+        debugPrint('[SUCCESS] Base URL updated to Ngrok tunnel.');
+      }
+    }
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
@@ -33,6 +38,7 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
           ...ApiConfig.ngrokHeadersForBaseUrl(baseUrl),
         },
       ),
@@ -42,6 +48,9 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          if (ApiConfig.looksLikeNgrokUrl(options.uri.toString())) {
+            options.headers['ngrok-skip-browser-warning'] = 'true';
+          }
           // For FormData (e.g. product with images), remove Content-Type so Dio sets multipart/form-data.
           // BaseOptions use application/json; sending that with FormData would break server parsing.
           if (options.data is FormData) {
@@ -87,7 +96,7 @@ class ApiClient {
               error.type == DioExceptionType.connectionTimeout) {
             _log(
               '[API] [DEBUG] Connection failed. Ensure: (1) Backend is running, '
-              '(2) Device and PC are on same Wi‑Fi, (3) API host is correct. '
+              '(2) Device and PC are on same Wi-Fi, (3) API host is correct. '
               'Override: flutter run --dart-define=API_HOST=YOUR_PC_IP',
             );
           }
@@ -108,8 +117,7 @@ class ApiClient {
             final isAuthAttempt =
                 p.contains('login') ||
                 p.contains('register') ||
-                p.contains('verify-otp') ||
-                p.contains('google');
+                p.contains('verify-otp');
             if (!isAuthAttempt) {
               await _storage.clearAll();
               final nav = appNavigatorKey.currentState;
@@ -151,32 +159,15 @@ class ApiClient {
     if (ng.isNotEmpty) _dio.options.headers.addAll(ng);
   }
 
-  // Login
+  /// Partner app (vet_app): server enforces partner-eligible roles when [forPartnerApp] is true.
   Future<Response> login(String email, String password) async {
     return await _dio.post(
       '/users/login',
-      data: {'email': email, 'password': password},
-    );
-  }
-
-  Future<Response> sendLoginOtp(
-    String email, {
-    String appContext = 'partner',
-  }) async {
-    return await _dio.post(
-      '/auth/send-otp',
-      data: {'email': email, 'appContext': appContext},
-    );
-  }
-
-  Future<Response> verifyLoginOtp(
-    String email,
-    String otp, {
-    String appContext = 'partner',
-  }) async {
-    return await _dio.post(
-      '/auth/verify-otp',
-      data: {'email': email, 'otp': otp, 'appContext': appContext},
+      data: <String, dynamic>{
+        'email': email,
+        'password': password,
+        'forPartnerApp': true,
+      },
     );
   }
 
@@ -520,9 +511,11 @@ class ApiClient {
     required String plan,
     required String billingCycle,
   }) async {
+    final publicApiBase = await ApiConfig.paymentPublicOrigin();
     return await _dio.post('/subscriptions/initiate', data: {
       'plan': plan,
       'billingCycle': billingCycle,
+      'publicApiBase': publicApiBase,
     });
   }
 

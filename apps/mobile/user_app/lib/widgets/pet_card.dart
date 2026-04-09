@@ -178,44 +178,50 @@ class PetCard extends StatelessWidget {
                   // Species and Age
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(AppConstants.primaryColor)
-                              .withValues(alpha: 26 / 255),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          pet.species,
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            color: const Color(AppConstants.primaryColor),
-                            fontWeight: FontWeight.w500,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (pet.age != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
+                      Flexible(
+                        child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.grey[200],
+                            color: const Color(AppConstants.primaryColor)
+                                .withValues(alpha: 26 / 255),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${pet.age} ${pet.age == 1 ? 'year' : 'years'}',
+                            pet.species,
                             style: GoogleFonts.outfit(
                               fontSize: 12,
-                              color: Colors.grey[700],
+                              color: const Color(AppConstants.primaryColor),
                               fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      if (pet.age != null) ...[
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${pet.age} ${pet.age == 1 ? 'year' : 'years'}',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),

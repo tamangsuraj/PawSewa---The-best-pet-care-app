@@ -22,6 +22,11 @@ const paymentSchema = new mongoose.Schema(
       ref: 'CareBooking',
       required: false,
     },
+    unifiedAppointment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AppointmentUnified',
+      required: false,
+    },
     subscription: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subscription',
@@ -33,7 +38,7 @@ const paymentSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['service', 'care', 'care_booking', 'subscription', 'shop_order'],
+      enum: ['service', 'care', 'care_booking', 'subscription', 'shop_order', 'clinic_appointment'],
       required: true,
     },
     amount: {

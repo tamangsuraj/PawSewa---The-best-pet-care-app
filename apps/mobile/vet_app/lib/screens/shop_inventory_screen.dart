@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -46,6 +47,32 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
   final _categoryNameController = TextEditingController();
   XFile? _categoryImage;
   bool _creatingCategory = false;
+
+  static const String _productPlaceholder =
+      'https://source.unsplash.com/featured/?pet-food,dog-toy';
+
+  static bool _isHttpUrl(String? v) {
+    if (v == null) return false;
+    final s = v.trim();
+    return s.startsWith('http://') || s.startsWith('https://');
+  }
+
+  String _cacheBusted(String url, Map<String, dynamic> product) {
+    try {
+      final u = Uri.parse(url);
+      final updatedAt =
+          product['updatedAt']?.toString() ?? product['updated_at']?.toString();
+      final v = (updatedAt != null && updatedAt.trim().isNotEmpty)
+          ? updatedAt.trim()
+          : DateTime.now().millisecondsSinceEpoch.toString();
+      final qp = Map<String, String>.from(u.queryParameters);
+      qp['v'] = v;
+      return u.replace(queryParameters: qp).toString();
+    } catch (_) {
+      final sep = url.contains('?') ? '&' : '?';
+      return '$url${sep}v=${DateTime.now().millisecondsSinceEpoch}';
+    }
+  }
 
   void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
     if (event != 'order:assigned_seller' && event != 'orderUpdate') return;
@@ -719,9 +746,13 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                     });
                                   },
                                 ),
-                                Text(
-                                  'Active / visible in apps',
-                                  style: GoogleFonts.outfit(fontSize: 13),
+                                Expanded(
+                                  child: Text(
+                                    'Active / visible in apps',
+                                    style: GoogleFonts.outfit(fontSize: 13),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -812,9 +843,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                       '0';
                                   final images =
                                       product['images'] as List<dynamic>? ?? [];
-                                  final imageUrl = images.isNotEmpty
-                                      ? images.first.toString()
-                                      : null;
+                                  final raw = images.isNotEmpty ? images.first?.toString() : null;
+                                  final imageUrl = _isHttpUrl(raw) ? raw!.trim() : null;
                                   final category = product['category'] is Map
                                       ? (product['category']?['name'] ?? '')
                                             .toString()
@@ -854,39 +884,60 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                     BorderRadius.circular(8),
                                               ),
                                               alignment: Alignment.center,
-                                              child: imageUrl != null
-                                                  ? ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                      child: Image.network(
-                                                        imageUrl,
-                                                        fit: BoxFit.contain,
-                                                        width: double.infinity,
-                                                        height: double.infinity,
-                                                        errorBuilder:
-                                                            (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                            ) => Icon(
-                                                              Icons.pets,
-                                                              size: 32,
-                                                              color: primary
-                                                                  .withValues(
-                                                                    alpha: 0.5,
-                                                                  ),
-                                                            ),
-                                                      ),
-                                                    )
-                                                  : Icon(
-                                                      Icons.pets,
-                                                      size: 32,
-                                                      color: primary.withValues(
-                                                        alpha: 0.5,
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: CachedNetworkImage(
+                                                  imageUrl: _cacheBusted(
+                                                    imageUrl ?? _productPlaceholder,
+                                                    product,
+                                                  ),
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                  placeholder: (_, _) => Container(
+                                                    color: const Color(0xFFF6F1EC),
+                                                    child: const Center(
+                                                      child: SizedBox(
+                                                        width: 28,
+                                                        height: 28,
+                                                        child: PawSewaLoader(
+                                                          width: 32,
+                                                          center: false,
+                                                        ),
                                                       ),
                                                     ),
+                                                  ),
+                                                  errorWidget: (_, _, _) {
+                                                    if (id.isNotEmpty) {
+                                                      debugPrint(
+                                                        '[INFO] Applying dynamic image fallback for Product: $id.',
+                                                      );
+                                                    }
+                                                    return CachedNetworkImage(
+                                                      imageUrl: _cacheBusted(
+                                                        _productPlaceholder,
+                                                        product,
+                                                      ),
+                                                      fit: BoxFit.cover,
+                                                      width: double.infinity,
+                                                      height: double.infinity,
+                                                      errorWidget: (_, _, _) {
+                                                        debugPrint(
+                                                          '[ERROR] Network timeout while fetching placeholder image.',
+                                                        );
+                                                        return Icon(
+                                                          Icons.pets,
+                                                          size: 32,
+                                                          color: primary.withValues(
+                                                            alpha: 0.5,
+                                                          ),
+                                                        );
+                                                      },
+                                                    );
+                                                  },
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         ),

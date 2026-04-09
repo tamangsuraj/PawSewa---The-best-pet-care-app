@@ -315,15 +315,16 @@ export default function DashboardPage() {
                   ) : shopRecActivity.length === 0 ? (
                     <p className="text-gray-500 text-center py-6">No recommendation events yet</p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
+                    <div className="admin-table-scroll overflow-x-auto rounded-lg">
+                      <div className="admin-data-table-inner">
+                        <table className="admin-table-sticky-first admin-table-sticky-last min-w-full text-sm">
                         <thead>
                           <tr className="border-b border-gray-200 text-left text-gray-500">
                             <th className="py-2 pr-4 font-medium">When</th>
                             <th className="py-2 pr-4 font-medium">Customer</th>
                             <th className="py-2 pr-4 font-medium">Product</th>
                             <th className="py-2 pr-4 font-medium">Action</th>
-                            <th className="py-2 font-medium">Match</th>
+                            <th className="py-2 pl-2 text-right font-medium">Match</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -352,7 +353,7 @@ export default function DashboardPage() {
                               <td className="py-3 pr-4 text-gray-600 capitalize">
                                 {(row.action ?? 'add_to_cart').replace(/_/g, ' ')}
                               </td>
-                              <td className="py-3">
+                              <td className="py-3 pl-2 text-right">
                                 {row.personalizedMatch ? (
                                   <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800 border border-emerald-200">
                                     Pet match
@@ -365,7 +366,8 @@ export default function DashboardPage() {
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -381,15 +383,16 @@ export default function DashboardPage() {
                   ) : recentOrders.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">No orders yet</p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
+                    <div className="admin-table-scroll overflow-x-auto rounded-lg">
+                      <div className="admin-data-table-inner">
+                        <table className="admin-table-sticky-first admin-table-sticky-last min-w-full text-sm">
                         <thead>
                           <tr className="border-b border-gray-200 text-left text-gray-500">
                             <th className="py-2 pr-4 font-medium">Order</th>
                             <th className="py-2 pr-4 font-medium">Customer</th>
                             <th className="py-2 pr-4 font-medium">Address</th>
                             <th className="py-2 pr-4 font-medium">Total</th>
-                            <th className="py-2 font-medium">Status</th>
+                            <th className="py-2 pl-2 text-right font-medium">Status</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -424,14 +427,15 @@ export default function DashboardPage() {
                                 <td className="py-3 pr-4 font-medium text-gray-900">
                                   NPR {Number(o.totalAmount).toFixed(0)}
                                 </td>
-                                <td className="py-3 text-gray-600 capitalize">
+                                <td className="py-3 pl-2 text-right text-gray-600 capitalize">
                                   {o.status?.replace(/_/g, ' ') ?? '—'}
                                 </td>
                               </tr>
                             );
                           })}
                         </tbody>
-                      </table>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </div>

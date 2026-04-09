@@ -89,7 +89,7 @@ function registerChatHandler(io) {
         await socket.join(room);
         callback?.({ success: true, room, readOnly });
       } catch (err) {
-        console.error('[chatHandler] join_request_room error:', err?.message);
+        logger.error('chatHandler: join_request_room failed:', err?.message);
         callback?.({ success: false, message: err?.message || 'Server error' });
       }
     });
@@ -255,7 +255,7 @@ function registerChatHandler(io) {
           }
         });
       } catch (err) {
-        console.error('[chatHandler] send_message error:', err?.message);
+        logger.error('chatHandler: send_message failed:', err?.message);
         callback?.({ success: false, message: err?.message || 'Server error' });
       }
     });

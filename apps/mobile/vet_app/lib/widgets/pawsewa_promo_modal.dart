@@ -259,13 +259,13 @@ class _CtaButton extends StatelessWidget {
     final ink = const Color(AppConstants.inkColor);
     return SizedBox(
       width: double.infinity,
-      height: 48,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: ink,
           elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: BorderSide(color: ink.withValues(alpha: 0.22)),
@@ -275,12 +275,17 @@ class _CtaButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              text,
-              style: GoogleFonts.outfit(
-                fontSize: 14.5,
-                fontWeight: FontWeight.w700,
-                color: ink,
+            Flexible(
+              child: Text(
+                text,
+                style: GoogleFonts.outfit(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: ink,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ),
             const SizedBox(width: 10),

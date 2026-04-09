@@ -637,25 +637,33 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 13,
-              color: Colors.grey[700],
+          Flexible(
+            flex: 2,
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                color: Colors.grey[700],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          Flexible(
+            flex: 3,
             child: Text(
               value,
-              textAlign: TextAlign.right,
+              textAlign: TextAlign.end,
               style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: bold ? FontWeight.w600 : FontWeight.normal,
                 color: Colors.grey[900],
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

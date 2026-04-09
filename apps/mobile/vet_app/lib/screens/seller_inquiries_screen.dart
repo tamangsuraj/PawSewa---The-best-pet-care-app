@@ -10,7 +10,7 @@ import '../widgets/partner_scaffold.dart';
 import 'partner_marketplace_chat_screen.dart';
 import 'partner_support_chat_screen.dart';
 
-/// Customer inquiries for shop owners (Daraz-style inbox).
+/// Customer inquiries for shop owners (product chat inbox).
 class SellerInquiriesScreen extends StatefulWidget {
   const SellerInquiriesScreen({super.key});
 

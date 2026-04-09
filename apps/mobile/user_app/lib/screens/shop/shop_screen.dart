@@ -36,6 +36,17 @@ const double kFreeDeliveryAbove = 1000;
 // Hardcoded Favourites "category" – cannot be created/destroyed from admin
 const String kFavouritesSlug = '__favourites__';
 
+String? sellerIdFromProductJson(Map<dynamic, dynamic>? p) {
+  if (p == null) return null;
+  final s = p['seller'];
+  if (s is Map && s['_id'] != null) return s['_id'].toString();
+  if (s is String && s.isNotEmpty) return s;
+  final v = p['vendorId'];
+  if (v is Map && v['_id'] != null) return v['_id'].toString();
+  if (v is String && v.isNotEmpty) return v;
+  return null;
+}
+
 /// High-accuracy device position for checkout; keeps the saved address text, updates lat/lng.
 Future<bool> captureHighAccuracyGpsForDelivery(BuildContext context) async {
   final cart = context.read<CartService>();
@@ -672,8 +683,16 @@ class _ShopScreenState extends State<ShopScreen> {
             final id = product['_id']?.toString() ?? '';
             final name = product['name']?.toString() ?? 'Product';
             final price = (product['price'] as num?)?.toDouble() ?? 0;
+            final sid = sellerIdFromProductJson(
+              Map<dynamic, dynamic>.from(product as Map),
+            );
             for (var i = 0; i < qty; i++) {
-              cart.addItem(productId: id, name: name, price: price);
+              cart.addItem(
+                productId: id,
+                name: name,
+                price: price,
+                sellerId: sid,
+              );
             }
             _maybeLogRecommendationAddToCart(product);
           }
@@ -789,7 +808,14 @@ class _ShopScreenState extends State<ShopScreen> {
     final address = cart.deliveryAddress!;
     final payload = <String, dynamic>{
       'items': cart.items.values
-          .map((e) => {'productId': e.productId, 'quantity': e.quantity})
+          .map(
+            (e) => {
+              'productId': e.productId,
+              'quantity': e.quantity,
+              if (e.sellerId != null && e.sellerId!.isNotEmpty)
+                'sellerId': e.sellerId,
+            },
+          )
           .toList(),
       'deliveryLocation': {
         'address': address,
@@ -1142,10 +1168,16 @@ class _ShopScreenState extends State<ShopScreen> {
                                                 (p['price'] as num?)
                                                     ?.toDouble() ??
                                                 0;
+                                            final sid = sellerIdFromProductJson(
+                                              Map<dynamic, dynamic>.from(
+                                                p as Map,
+                                              ),
+                                            );
                                             cart.addItem(
                                               productId: productId,
                                               name: name,
                                               price: price,
+                                              sellerId: sid,
                                             );
                                             _maybeLogRecommendationAddToCart(p);
                                           }
@@ -1256,7 +1288,7 @@ class _ShopScreenState extends State<ShopScreen> {
           controller: _searchController,
           onSubmitted: (_) => _runSearch(),
           decoration: InputDecoration(
-            hintText: 'Search products',
+            hintText: 'Search for pet supplies',
             hintStyle: GoogleFonts.outfit(
               fontSize: 14,
               color: Colors.grey[600],
@@ -1893,6 +1925,9 @@ class _ProductCard extends StatelessWidget {
     const imageBg = Color(0xFFF6F1EC);
     final images = product['images'] as List<dynamic>? ?? [];
     final imageUrl = images.isNotEmpty ? images.first.toString() : null;
+    final id = product['_id']?.toString() ?? '';
+    final fallbackUrl =
+        'https://source.unsplash.com/featured/?pet-food,dog-toy';
     final name = product['name']?.toString() ?? 'Product';
     final desc = product['description']?.toString() ?? '';
     final price = (product['price'] as num?)?.toDouble() ?? 0;
@@ -1944,12 +1979,12 @@ class _ProductCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       alignment: Alignment.center,
-                      child: imageUrl != null
+                      child: (imageUrl != null && imageUrl.trim().isNotEmpty)
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: CachedNetworkImage(
                                 imageUrl: imageUrl,
-                                fit: BoxFit.contain,
+                                fit: BoxFit.cover,
                                 width: double.infinity,
                                 height: double.infinity,
                                 placeholder: (_, _) => Icon(
@@ -1957,17 +1992,46 @@ class _ProductCard extends StatelessWidget {
                                   size: 28,
                                   color: primary.withValues(alpha: 0.5),
                                 ),
-                                errorWidget: (_, _, _) => Icon(
-                                  Icons.pets,
-                                  size: 40,
-                                  color: primary.withValues(alpha: 0.5),
-                                ),
+                                errorWidget: (_, _, _) {
+                                  if (id.isNotEmpty) {
+                                    debugPrint(
+                                      '[INFO] Applying dynamic image fallback for Product: $id.',
+                                    );
+                                  }
+                                  return CachedNetworkImage(
+                                    imageUrl: fallbackUrl,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    errorWidget: (_, _, _) {
+                                      debugPrint(
+                                        '[ERROR] Network timeout while fetching placeholder image.',
+                                      );
+                                      return Icon(
+                                        Icons.pets,
+                                        size: 40,
+                                        color: primary.withValues(alpha: 0.5),
+                                      );
+                                    },
+                                  );
+                                },
                               ),
                             )
-                          : Icon(
-                              Icons.pets,
-                              size: 28,
-                              color: primary.withValues(alpha: 0.5),
+                          : CachedNetworkImage(
+                              imageUrl: fallbackUrl,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorWidget: (_, _, _) {
+                                debugPrint(
+                                  '[ERROR] Network timeout while fetching placeholder image.',
+                                );
+                                return Icon(
+                                  Icons.pets,
+                                  size: 28,
+                                  color: primary.withValues(alpha: 0.5),
+                                );
+                              },
                             ),
                     ),
                     if (personalizedBadge != null &&
@@ -3123,16 +3187,6 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   style: GoogleFonts.outfit(fontSize: 12),
                 ),
               ),
-              TextButton(
-                onPressed: _checkoutGpsLoading ? null : _refreshCheckoutGps,
-                child: Text(
-                  'Refresh',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -3170,6 +3224,40 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _checkoutGpsLoading ? null : _refreshCheckoutGps,
+              icon: _checkoutGpsLoading
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: PawSewaLoader(width: 32, center: false),
+                    )
+                  : const Icon(Icons.my_location, size: 20),
+              label: Text(
+                _checkoutGpsLoading
+                    ? 'Getting precise location…'
+                    : 'Use current location',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primary,
+                side: BorderSide(color: primary),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -3472,6 +3560,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   final MapController _mapController = MapController();
   List<_PlaceSuggestion> _locationSuggestions = [];
   bool _locationSearching = false;
+  bool _gpsFetching = false;
   late final Dio _nominatimDio;
 
   @override
@@ -3609,6 +3698,67 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     _reverseGeocode(point);
   }
 
+  Future<void> _useCurrentLocationForPin() async {
+    if (_gpsFetching) return;
+    setState(() => _gpsFetching = true);
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Location services are disabled.',
+                style: GoogleFonts.outfit(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Location permission is required for current location.',
+                style: GoogleFonts.outfit(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final p = LatLng(pos.latitude, pos.longitude);
+      if (!mounted) return;
+      setState(() => _pin = p);
+      _mapController.move(p, 15);
+      await _reverseGeocode(p);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not get location: $e',
+              style: GoogleFonts.outfit(),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gpsFetching = false);
+    }
+  }
+
   void _saveAddress() {
     if (_addressTitleController.text.trim().isEmpty ||
         _nameController.text.trim().isEmpty ||
@@ -3701,7 +3851,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                       controller: _locationSearchController,
                       focusNode: _locationSearchFocus,
                       decoration: InputDecoration(
-                        hintText: 'Search e.g. Putalisadak, Kathmandu',
+                        hintText: 'Search area or landmark (e.g. Putalisadak, Kathmandu)',
                         hintStyle: GoogleFonts.outfit(color: Colors.grey),
                         prefixIcon: const Icon(Icons.search),
                         suffixIcon: _locationSearching
@@ -3812,6 +3962,40 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                               ],
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _gpsFetching ? null : _useCurrentLocationForPin,
+                        icon: _gpsFetching
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: PawSewaLoader(width: 32, center: false),
+                              )
+                            : const Icon(Icons.my_location),
+                        label: Text(
+                          _gpsFetching
+                              ? 'Getting precise location…'
+                              : 'Use current location',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primary,
+                          side: BorderSide(color: primary),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -4318,11 +4502,39 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       final successUrl = result['successUrl'] ?? 'payment-success';
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setUserAgent('PawSewaMobile/1.0 (KhaltiRedirectBypass)')
         ..setNavigationDelegate(
           NavigationDelegate(
             onNavigationRequest: (request) {
               final url = request.url;
               final uri = Uri.tryParse(url);
+
+              // Intercept the backend Khalti callback URL regardless of host
+              // (localhost, LAN IP, or ngrok). Extract pidx and handle natively.
+              if (uri != null &&
+                  (uri.path.contains('/payments/khalti/callback') ||
+                   uri.path.contains('/api/v1/payments/khalti/callback'))) {
+                final pidxFromCb = uri.queryParameters['pidx'] ?? '';
+                final cbStatus = uri.queryParameters['status'] ?? '';
+                if (kDebugMode) {
+                  debugPrint('[INFO] Khalti callback intercepted in WebView. PIDX: $pidxFromCb');
+                }
+                if (pidxFromCb.isNotEmpty) {
+                  _khaltiPidx = pidxFromCb;
+                }
+                if (cbStatus.toLowerCase().contains('fail') ||
+                    cbStatus.toLowerCase() == 'canceled' ||
+                    cbStatus.toLowerCase() == 'expired') {
+                  if (mounted) _onKhaltiPaymentCancel();
+                } else {
+                  if (mounted) {
+                    unawaited(_onKhaltiPaymentSuccess(
+                        pidxFromCb.isNotEmpty ? pidxFromCb : _khaltiPidx));
+                  }
+                }
+                return NavigationDecision.prevent;
+              }
+
               if (uri != null && uri.scheme == 'pawsewa') {
                 if (uri.host == 'payment-success') {
                   final qp = uri.queryParameters['pidx'];

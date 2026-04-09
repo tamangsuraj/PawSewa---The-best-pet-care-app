@@ -509,11 +509,15 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
                                       color: Colors.grey[700],
                                     ),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      assignedVet['phone'],
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 12,
-                                        color: Colors.grey[800],
+                                    Expanded(
+                                      child: Text(
+                                        assignedVet['phone'],
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          color: Colors.grey[800],
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],

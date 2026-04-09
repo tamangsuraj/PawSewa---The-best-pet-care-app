@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Pet = require('../models/Pet');
 const asyncHandler = require('express-async-handler');
 const { normalizeRole } = require('../middleware/authMiddleware');
+const logger = require('../utils/logger');
 
 /**
  * @desc    Create a new case (User submits request)
@@ -11,7 +12,7 @@ const { normalizeRole } = require('../middleware/authMiddleware');
  */
 const createCase = asyncHandler(async (req, res) => {
   const userAgent = req.headers['user-agent'] || 'unknown';
-  console.log('New Request from', userAgent + ':', JSON.stringify(req.body || {}, null, 2));
+  logger.debug('Request: POST /cases userAgent=', userAgent);
 
   const body = req.body || {};
   const petId = body.petId ?? body.pet_id;
@@ -58,15 +59,14 @@ const createCase = asyncHandler(async (req, res) => {
       .populate('customer', 'name email phone')
       .populate('pet', 'name breed age image pawId');
 
-    console.log('[POST /cases] Created case', newCase._id, 'for user', req.user._id);
+    logger.info('Cases: created', newCase._id, 'user=', req.user._id);
     return res.status(201).json({
       success: true,
       message: 'Case submitted! Our team is assigning the best available Veterinarian to you.',
       data: populatedCase,
     });
   } catch (error) {
-    console.error('[POST /cases] error:', error?.message ?? error);
-    console.error('[POST /cases] stack:', error?.stack);
+    logger.error('Cases: create failed:', error?.message ?? error);
     if (error.name === 'ValidationError') {
       return res.status(400).json({ success: false, message: error.message || 'Validation failed' });
     }

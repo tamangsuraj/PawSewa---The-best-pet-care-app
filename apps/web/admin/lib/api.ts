@@ -1,5 +1,9 @@
 import axios from 'axios';
-import { getAdminApiBaseUrl, getNgrokBrowserBypassHeaders } from './apiConfig';
+import {
+  getAdminApiBaseUrl,
+  getNgrokBrowserBypassHeaders,
+  warnIfNgrokApiUrlMisconfigured,
+} from './apiConfig';
 import { clearStoredAdminAuth, getStoredAdminToken } from './authStorage';
 
 const baseURL = getAdminApiBaseUrl();
@@ -9,6 +13,7 @@ if (typeof window !== 'undefined' && !baseURL) {
     '[PawSewa Admin] NEXT_PUBLIC_API_URL is missing. Set it to your API base (e.g. http://localhost:3000/api/v1).',
   );
 }
+warnIfNgrokApiUrlMisconfigured();
 
 /**
  * Admin REST client. Must target the same Node API as user_app / vet_app / website
@@ -19,12 +24,17 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
     ...getNgrokBrowserBypassHeaders(),
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
 // Request interceptor to attach JWT token and fix FormData uploads
 api.interceptors.request.use(
   (config) => {
+    const ngrok = getNgrokBrowserBypassHeaders();
+    Object.assign(config.headers, ngrok);
+    config.headers['ngrok-skip-browser-warning'] = 'true';
+
     const token = getStoredAdminToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

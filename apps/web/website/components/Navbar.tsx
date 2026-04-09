@@ -181,7 +181,7 @@ export function Navbar() {
                   }}
                   className="shrink-0 whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold tracking-tight text-paw-bark/90 hover:bg-paw-bark/[0.07]"
                 >
-                  Inbox
+                  Message Center
                 </button>
                 <Link
                   href="/my-pets"

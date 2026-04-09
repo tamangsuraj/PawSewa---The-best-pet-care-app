@@ -30,7 +30,7 @@ class SocketService {
   /// Rider/seller shop fulfillment: job:available, order:assigned_rider, order:assigned_seller
   final List<void Function(String event, Map<String, dynamic> payload)?>
       _shopOrderListeners = [];
-  /// Admin care dispatch → partner My Business
+  /// Admin care dispatch > partner My Business
   final List<void Function(String event, Map<String, dynamic> payload)?>
       _careBookingListeners = [];
   final List<void Function(Map<String, dynamic>)?> _appointmentUpdateListeners = [];
@@ -45,7 +45,7 @@ class SocketService {
     if (_connecting || (_socket != null && _socket!.connected)) return;
     final token = await _storage.getToken();
     if (token == null || token.isEmpty) {
-      if (kDebugMode) debugPrint('[SocketService] No token, skip connect');
+      if (kDebugMode) debugPrint('[SocketService] No token. Skip connect.');
       return;
     }
 

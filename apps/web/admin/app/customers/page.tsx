@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { Eye, X, Users } from 'lucide-react';
+import { Eye, Users } from 'lucide-react';
 
 interface Customer {
   _id: string;
@@ -17,14 +17,12 @@ interface Customer {
 }
 
 export default function CustomersPage() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -46,11 +44,22 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     try {
       const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const petOwners = allUsers.filter((u: any) => u.role === 'pet_owner');
+      const raw = response.data?.data as unknown;
+      const rows = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
+      const petOwners = rows
+        .filter((u) => u.role === 'pet_owner' || u.role === 'CUSTOMER' || u.role === 'customer')
+        .map((u) => ({
+          _id: String(u._id ?? ''),
+          name: String(u.name ?? u.email ?? 'Customer'),
+          email: String(u.email ?? ''),
+          phone: u.phone ? String(u.phone) : undefined,
+          location: u.location ? String(u.location) : undefined,
+          isVerified: typeof u.isVerified === 'boolean' ? u.isVerified : undefined,
+          createdAt: String(u.createdAt ?? ''),
+        }));
       setCustomers(petOwners);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
+    } catch {
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
@@ -79,20 +88,11 @@ export default function CustomersPage() {
       
       // Refresh customers list
       fetchCustomers();
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Failed to create customer');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to create customer');
     } finally {
       setFormLoading(false);
-    }
-  };
-
-  const handleViewDetails = async (customerId: string) => {
-    try {
-      const response = await api.get(`/users/${customerId}`);
-      setSelectedCustomer(response.data.data);
-      setShowDetailsModal(true);
-    } catch (error) {
-      console.error('Error fetching customer details:', error);
     }
   };
 
@@ -102,8 +102,8 @@ export default function CustomersPage() {
     try {
       await api.delete(`/users/${id}`);
       fetchCustomers();
-    } catch (error) {
-      console.error('Error deleting customer:', error);
+    } catch {
+      // ignore
     }
   };
 
@@ -339,88 +339,7 @@ export default function CustomersPage() {
               </div>
             )}
 
-            {/* Customer Details Modal */}
-            {showDetailsModal && selectedCustomer && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-xl shadow-xl p-8 max-w-lg w-full mx-4 border border-gray-200">
-                  <div className="flex justify-between items-start mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900">Customer Details</h2>
-                    <button
-                      onClick={() => {
-                        setShowDetailsModal(false);
-                        setSelectedCustomer(null);
-                      }}
-                      className="text-gray-400 hover:text-gray-700 transition-colors"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm text-gray-500">Name</label>
-                      <p className="text-gray-900 font-medium">{selectedCustomer.name}</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-500">Email</label>
-                      <p className="text-gray-900 font-medium">{selectedCustomer.email}</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-500">Phone</label>
-                      <p className="text-gray-900 font-medium">{selectedCustomer.phone || 'Not provided'}</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-500">Location</label>
-                      <p className="text-gray-900 font-medium">{selectedCustomer.location || 'Not provided'}</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-500">Verification Status</label>
-                      <div className="mt-1">
-                        {selectedCustomer.isVerified ? (
-                          <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
-                            ✓ Verified
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium border border-amber-200">
-                            Pending verification
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-500">Account Status</label>
-                      <p className="text-green-600 font-medium">Active</p>
-                    </div>
-
-                    <div>
-                      <label className="text-sm text-gray-500">Member Since</label>
-                      <p className="text-gray-900 font-medium">
-                        {new Date(selectedCustomer.createdAt).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setShowDetailsModal(false);
-                      setSelectedCustomer(null);
-                    }}
-                    className="w-full mt-6 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Details are available on `/customers/[id]`. */}
     </>
   );
 }

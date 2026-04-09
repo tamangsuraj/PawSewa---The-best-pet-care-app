@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/partner_scaffold.dart';
-import 'rider_delivery_orders_screen.dart';
+import 'partner_rider_order_history_screen.dart';
 
-/// Dedicated history view (delivered deliveries) without placeholder screens.
+/// Side menu / hub: current and past rider assignments (cluster data).
 class RiderHistoryScreen extends StatelessWidget {
   const RiderHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return PartnerScaffold(
-      title: 'Delivery history',
-      subtitle: 'Delivered drops & receipts',
-      body: const RiderDeliveryOrdersScreen(),
-    );
+    return const PartnerRiderOrderHistoryScreen();
   }
 }
 

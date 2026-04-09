@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:user_app/widgets/paw_sewa_loader.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 import '../core/api_client.dart';
 import '../core/api_config.dart';
 import '../core/storage_service.dart';
@@ -315,7 +317,6 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await _googleAuth.signInWithGoogle();
 
       if (result == null) {
-        // User cancelled
         return;
       }
 
@@ -324,16 +325,31 @@ class _LoginScreenState extends State<LoginScreen> {
       final Map<String, dynamic> merged = raw['user'] is Map
           ? {
               ...Map<String, dynamic>.from(raw['user'] as Map),
-              'token': ?token,
+              if (token != null && token.isNotEmpty) 'token': token,
             }
           : raw;
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         await _completeCustomerLogin(merged);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not complete sign-in. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      if (e.code != GoogleSignIn.kSignInCanceledError && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message ?? 'Google Sign-In was interrupted.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage =
-            _messageFromDio(e) ?? 'Google Sign-In failed';
+        String errorMessage = _messageFromDio(e) ?? 'Google Sign-In failed';
 
         final isConnErr = e.toString().contains('connection timeout') ||
             e.toString().contains('SocketException');
@@ -375,11 +391,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final primary = const Color(AppConstants.primaryColor);
     final ink = const Color(AppConstants.inkColor);
     return Scaffold(
-      body: EditorialCanvas(
-        variant: EditorialSurfaceVariant.customer,
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          EditorialCanvas(
+            variant: EditorialSurfaceVariant.customer,
+            child: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
                 horizontal: padding,
                 vertical: padding * 1.2,
@@ -742,17 +761,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         backgroundColor: Colors.white.withValues(alpha: 0.85),
                       ),
-                      icon: _isGoogleLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: PawSewaLoader(width: 32, center: false),
-                            )
-                          : const Icon(
-                              Icons.g_mobiledata,
-                              size: 28,
-                              color: Colors.redAccent,
-                            ),
+                      icon: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: _isGoogleLoading
+                            ? const SizedBox.shrink()
+                            : const Icon(
+                                Icons.g_mobiledata,
+                                size: 28,
+                                color: Colors.redAccent,
+                              ),
+                      ),
                       label: Text(
                         'Continue with Google',
                         style: GoogleFonts.outfit(
@@ -772,6 +791,37 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+          if (_isGoogleLoading)
+            Positioned.fill(
+              child: AbsorbPointer(
+                child: Material(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const PawSewaLoader(),
+                          const SizedBox(height: 20),
+                          Text(
+                            'Complete sign-in in the Google window…',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: ink.withValues(alpha: 0.75),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

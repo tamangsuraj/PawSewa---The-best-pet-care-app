@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
 import { Megaphone, Send, Search, RefreshCw } from 'lucide-react';
 
@@ -22,25 +22,23 @@ export default function CommunicationCenterPage() {
   const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [search, setSearch] = useState('');
 
-  const loadHistory = async (q?: string) => {
+  const loadHistory = useCallback(async (q?: string) => {
     try {
       setLoading(true);
       const resp = await api.get('/notifications/broadcast/history', {
         params: q && q.trim() ? { search: q.trim() } : undefined,
       });
       setLogs(resp.data?.data || []);
-    } catch (e) {
+    } catch {
       setLogs([]);
-      // eslint-disable-next-line no-console
-      console.error('Failed to load broadcast history', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [loadHistory]);
 
   const filtered = useMemo(() => logs, [logs]);
 
@@ -60,8 +58,9 @@ export default function CommunicationCenterPage() {
       setTitle('');
       setMessage('');
       await loadHistory();
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Broadcast failed.';
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      const msg = e?.response?.data?.message || 'Broadcast failed.';
       setStatus(msg);
     } finally {
       setSending(false);

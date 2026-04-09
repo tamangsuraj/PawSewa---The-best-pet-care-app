@@ -14,6 +14,7 @@ const {
   updateUserRole,
   getDashboardStats,
   adminCreateUser,
+  adminListVeterinariansWithMetrics,
   getUserById,
   getUserFullProfile,
   updateStaffProfile,
@@ -51,6 +52,7 @@ router.put('/me/addresses', protect, putMyAddresses);
 // Admin routes
 router.get('/admin/stats', protect, admin, getDashboardStats);
 router.post('/admin/create', protect, admin, adminCreateUser); // Admin creates any role
+router.get('/admin/veterinarians', protect, admin, adminListVeterinariansWithMetrics);
 router.get('/admin/:id/full-profile', protect, admin, getUserFullProfile); // Get user with pets
 router.get('/:id', protect, admin, getUserById); // Get user by ID
 router.get('/', protect, admin, getAllUsers);

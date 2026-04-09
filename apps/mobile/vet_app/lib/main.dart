@@ -42,18 +42,13 @@ Future<void> _logHealthCheck() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  if (kDebugMode) {
-    debugPrint('[INFO] FCM initialized for Vet App.');
-    debugPrint('[SUCCESS] Firebase successfully linked to Vet App via google-services.json.');
-    debugPrint('[SUCCESS] Brand Deployed: PawSewa Partner App (launcher, splash, headers).');
-  }
   await ApiClient().initialize();
   await PushNotificationService.instance.initialize();
   await PushNotificationService.instance.registerFcmTokenWithBackend();
   await _logHealthCheck();
   if (kDebugMode) {
     debugPrint(
-      '[SUCCESS] Brand Assets Updated: New PawSewa Logo implemented across 4 platforms.',
+      '[INFO] Partner app initialized (FCM, Firebase, API, brand assets).',
     );
   }
   runApp(
@@ -131,72 +126,50 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF4A3A30),
-              Color(AppConstants.primaryColor),
-              Color(AppConstants.inkColor),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: 1),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: Container(
-                      width: 132,
-                      height: 132,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.transparent,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.12),
-                            blurRadius: 28,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: const PawSewaBrandLogo(height: 96),
+      backgroundColor: const Color(AppConstants.secondaryColor),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 800),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: Container(
+                    width: 132,
+                    height: 132,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
+                          blurRadius: 28,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
-                  );
-                },
+                    child: const PawSewaBrandLogo(height: 96),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 28),
+            Text(
+              AppConstants.appName,
+              style: GoogleFonts.fraunces(
+                fontSize: 34,
+                fontWeight: FontWeight.w600,
+                color: const Color(AppConstants.inkColor),
+                height: 1.1,
               ),
-              const SizedBox(height: 28),
-              Text(
-                AppConstants.appName,
-                style: GoogleFonts.fraunces(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                  height: 1.1,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Clinical tools · one brand',
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  color: Colors.white.withValues(alpha: 0.88),
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.02,
-                ),
-              ),
-              const SizedBox(height: 40),
-              const PawSewaLogoSpinner(size: 44),
-            ],
-          ),
+            ),
+            const SizedBox(height: 40),
+            const PawSewaLogoSpinner(size: 44),
+          ],
         ),
       ),
     );

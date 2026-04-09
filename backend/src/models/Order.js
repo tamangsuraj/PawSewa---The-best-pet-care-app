@@ -19,6 +19,12 @@ const orderSchema = new mongoose.Schema(
       ref: 'User',
       default: null,
     },
+    /** Same as assignedSeller; set automatically from product ownership at checkout. */
+    sellerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     items: [
       {
         product: {
@@ -29,6 +35,11 @@ const orderSchema = new mongoose.Schema(
         name: String,
         price: Number,
         quantity: Number,
+        sellerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          default: null,
+        },
       },
     ],
     totalAmount: {
@@ -194,6 +205,7 @@ orderSchema.index({ shopId: 1, status: 1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 orderSchema.index({ assignedRider: 1, status: 1 });
 orderSchema.index({ assignedSeller: 1, status: 1 });
+orderSchema.index({ sellerId: 1, status: 1 });
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ 'deliveryLocation.point': '2dsphere' });
 
@@ -204,6 +216,15 @@ orderSchema.pre('save', function () {
   }
   if (this.assignedSeller && !this.shopId) {
     this.shopId = this.assignedSeller;
+  }
+  if (this.assignedSeller && !this.sellerId) {
+    this.sellerId = this.assignedSeller;
+  }
+  if (this.sellerId && !this.assignedSeller) {
+    this.assignedSeller = this.sellerId;
+  }
+  if (this.sellerId && !this.shopId) {
+    this.shopId = this.sellerId;
   }
   const coords = this.deliveryLocation?.point?.coordinates;
   if (Array.isArray(coords) && coords.length >= 2) {

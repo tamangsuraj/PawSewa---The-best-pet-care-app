@@ -38,8 +38,9 @@ export default function PromocodesPage() {
       setError('');
       const resp = await api.get('/promocodes');
       setPromos(resp.data?.data ?? []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load promocodes');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to load promocodes');
     } finally {
       setLoading(false);
     }
@@ -93,8 +94,9 @@ export default function PromocodesPage() {
       setExpiryDate('');
       setUsageLimit('100');
       await loadPromos();
-    } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Failed to create promo code');
+    } catch (err: unknown) {
+      const e2 = err as { response?: { data?: { message?: string } } };
+      setFormError(e2.response?.data?.message || 'Failed to create promo code');
     } finally {
       setSubmitting(false);
     }
@@ -104,8 +106,9 @@ export default function PromocodesPage() {
     try {
       await api.patch(`/promocodes/${id}`, { isActive: !isActive });
       await loadPromos();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to update');
+    } catch (err: unknown) {
+      const e3 = err as { response?: { data?: { message?: string } } };
+      setError(e3.response?.data?.message || 'Failed to update');
     }
   };
 
@@ -114,8 +117,9 @@ export default function PromocodesPage() {
     try {
       await api.delete(`/promocodes/${id}`);
       await loadPromos();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete');
+    } catch (err: unknown) {
+      const e4 = err as { response?: { data?: { message?: string } } };
+      setError(e4.response?.data?.message || 'Failed to delete');
     }
   };
 

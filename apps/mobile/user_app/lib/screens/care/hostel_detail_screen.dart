@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../core/constants.dart';
+import '../../utils/map_launcher.dart';
 import 'care_booking_screen.dart';
 import 'grooming_booking_screen.dart';
 
@@ -68,6 +69,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
     final address = h['location'] is Map && h['location']['address'] != null
         ? h['location']['address'].toString()
         : '';
+    final pinned = parsePinnedCoordinates(Map<String, dynamic>.from(h));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -278,7 +280,7 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                       ),
                     ),
                   ],
-                  if (address.isNotEmpty) ...[
+                  if (address.isNotEmpty || pinned != null) ...[
                     const SizedBox(height: 20),
                     Text(
                       'Location',
@@ -289,17 +291,57 @@ class _HostelDetailScreenState extends State<HostelDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, size: 18, color: primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            address,
-                            style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: pinned == null
+                            ? null
+                            : () async {
+                                await openMap(
+                                  context,
+                                  latitude: pinned.latitude,
+                                  longitude: pinned.longitude,
+                                  label: h['name']?.toString() ?? 'PawSewa',
+                                );
+                              },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.location_on, size: 18, color: primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      address.isNotEmpty
+                                          ? address
+                                          : 'Care centre location — tap to open in Maps',
+                                      style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
+                                    ),
+                                    if (pinned != null) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Open in Google Maps',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (pinned != null)
+                                Icon(Icons.open_in_new_rounded, size: 18, color: primary),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                   if (rating > 0 || reviewCount > 0) ...[

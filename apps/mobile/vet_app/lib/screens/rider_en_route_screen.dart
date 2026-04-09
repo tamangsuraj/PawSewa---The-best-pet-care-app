@@ -14,8 +14,8 @@ import '../core/constants.dart';
 import '../services/location_service.dart';
 import 'rider_proof_of_delivery_screen.dart';
 
-/// Full-screen en-route view after rider taps "On the way": map, distance,
-/// directions link, call customer, order total & payment info, Mark delivered.
+/// Full-screen en-route view after the rider marks an order out for delivery: map, distance,
+/// directions link, call customer, order total and payment info, mark delivered.
 class RiderEnRouteScreen extends StatefulWidget {
   const RiderEnRouteScreen({super.key, required this.order});
 
@@ -34,6 +34,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   StreamSubscription<Position>? _positionSub;
   bool _loadingLocation = true;
   String? _updatingOrderId;
+  bool _isMapReady = false;
 
   double? _distanceKm;
   bool _itemsExpanded = false;
@@ -47,6 +48,8 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   @override
   void initState() {
     super.initState();
+    final id = widget.order['_id']?.toString() ?? 'unknown';
+    debugPrint('[INFO] Initializing MapController for Delivery ID: $id');
     _parseCustomerLocation();
     _startLocationUpdates();
   }
@@ -107,7 +110,16 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     }
     if (lat == null || lng == null) return;
     _customerLatLng = LatLng(lat, lng);
-    _mapController.move(_customerLatLng!, 14);
+  }
+
+  void _applyMapCameraIfReady() {
+    if (!_isMapReady) return;
+    if (_customerLatLng == null) return;
+    if (_riderLatLng != null) {
+      _fitBoundsIfPossible();
+    } else {
+      _mapController.move(_customerLatLng!, 14);
+    }
   }
 
   Future<void> _startLocationUpdates() async {
@@ -130,7 +142,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
           _updateDistance();
           _loadingLocation = false;
         });
-        _fitBoundsIfPossible();
+        _applyMapCameraIfReady();
       }
 
       _positionSub =
@@ -163,6 +175,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   }
 
   void _fitBoundsIfPossible() {
+    if (!_isMapReady) return;
     if (_customerLatLng == null || _riderLatLng == null) return;
     final bounds = LatLngBounds.fromPoints([_customerLatLng!, _riderLatLng!]);
     _mapController.fitCamera(
@@ -292,6 +305,14 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                 interactionOptions: const InteractionOptions(
                   flags: InteractiveFlag.all,
                 ),
+                onMapReady: () {
+                  if (!mounted) return;
+                  setState(() => _isMapReady = true);
+                  debugPrint(
+                    '[SUCCESS] Map successfully mounted and controller attached.',
+                  );
+                  _applyMapCameraIfReady();
+                },
               ),
               children: [
                 TileLayer(
@@ -527,15 +548,19 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                             color: primary,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Total NPR ${total.toStringAsFixed(0)}',
-                            style: GoogleFonts.outfit(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: isDark ? Colors.white : Colors.black87,
+                          Expanded(
+                            child: Text(
+                              'Total NPR ${total.toStringAsFixed(0)}',
+                              style: GoogleFonts.outfit(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -576,30 +601,38 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               color: Colors.grey[600],
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              _distanceKm! < 1
-                                  ? '${(_distanceKm! * 1000).toStringAsFixed(0)} m away'
-                                  : '${_distanceKm!.toStringAsFixed(1)} km away',
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : Colors.black87,
+                            Flexible(
+                              child: Text(
+                                _distanceKm! < 1
+                                    ? '${(_distanceKm! * 1000).toStringAsFixed(0)} m away'
+                                    : '${_distanceKm!.toStringAsFixed(1)} km away',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (_etaMinutes != null) ...[
-                              const SizedBox(width: 16),
+                              const SizedBox(width: 12),
                               Icon(
                                 Icons.schedule_rounded,
                                 size: 18,
                                 color: Colors.grey[600],
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '~$_etaMinutes min',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: primary,
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  '~$_etaMinutes min',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: primary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -646,14 +679,18 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                   color: primary,
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  _itemsExpanded
-                                      ? 'Hide items'
-                                      : 'View items (${(widget.order['items'] is List ? (widget.order['items'] as List).length : 0)})',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: primary,
+                                Expanded(
+                                  child: Text(
+                                    _itemsExpanded
+                                        ? 'Hide items'
+                                        : 'View items (${(widget.order['items'] is List ? (widget.order['items'] as List).length : 0)})',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: primary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],

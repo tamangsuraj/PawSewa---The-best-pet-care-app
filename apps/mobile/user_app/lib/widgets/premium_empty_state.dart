@@ -56,15 +56,7 @@ class PremiumEmptyState extends StatelessWidget {
                       width: 78,
                       height: 78,
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            cream,
-                            primary.withValues(alpha: 0.10),
-                            const Color(AppConstants.sandColor),
-                          ],
-                        ),
+                        color: cream,
                         borderRadius: BorderRadius.circular(26),
                         border: Border.all(color: primary.withValues(alpha: 0.12)),
                       ),

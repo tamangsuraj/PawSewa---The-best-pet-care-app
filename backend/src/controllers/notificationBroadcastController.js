@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const NotificationLog = require('../models/NotificationLog');
 const logger = require('../utils/logger');
 const { isFcmConfigured, sendMulticastNotification } = require('../config/fcm');
@@ -52,6 +53,37 @@ const broadcastNotification = asyncHandler(async (req, res) => {
     failureCount: 0,
   });
 
+  let inAppCreated = 0;
+  try {
+    const batchSize = 1000;
+    let batch = [];
+    const cursor = User.find({}).select('_id').lean().cursor();
+    // eslint-disable-next-line no-restricted-syntax
+    for await (const u of cursor) {
+      batch.push({
+        user: u._id,
+        title: t,
+        message: m,
+        type: 'broadcast',
+        isRead: false,
+        broadcastLog: log._id,
+      });
+      if (batch.length >= batchSize) {
+        // eslint-disable-next-line no-await-in-loop
+        await Notification.insertMany(batch, { ordered: false });
+        inAppCreated += batch.length;
+        batch = [];
+      }
+    }
+    if (batch.length) {
+      await Notification.insertMany(batch, { ordered: false });
+      inAppCreated += batch.length;
+    }
+    logger.info(`Broadcast in-app rows created: ${inAppCreated}`);
+  } catch (e) {
+    logger.warn('Broadcast in-app Notification.insertMany failed:', e?.message || String(e));
+  }
+
   let successCount = 0;
   let failureCount = 0;
 
@@ -80,6 +112,7 @@ const broadcastNotification = asyncHandler(async (req, res) => {
     data: {
       id: log._id,
       targetCount,
+      inAppCreated,
       successCount,
       failureCount,
       createdAt: log.createdAt,

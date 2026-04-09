@@ -24,9 +24,10 @@ export default function ProviderRevenuePage() {
       setError('');
       const resp = await api.get('/admin/provider-revenue');
       setData(resp.data?.data ?? null);
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || 'Failed to load revenue data';
-      const is404 = err.response?.status === 404;
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string }; status?: number }; message?: string };
+      const msg = e.response?.data?.message || e.message || 'Failed to load revenue data';
+      const is404 = e.response?.status === 404;
       setError(is404
         ? `${msg}. Ensure the backend is running (cd backend && npm run dev) and has been restarted with the latest code.`
         : msg);

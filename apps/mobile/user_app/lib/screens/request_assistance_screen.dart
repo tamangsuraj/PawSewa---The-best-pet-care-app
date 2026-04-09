@@ -517,7 +517,7 @@ class _RequestAssistanceScreenState extends State<RequestAssistanceScreen> {
                     style: GoogleFonts.outfit(fontSize: 14),
                     decoration: InputDecoration(
                       hintText:
-                          'Please describe what\'s wrong with your pet in detail...',
+                          'Provide details about the emergency and what your pet needs...',
                       hintStyle: GoogleFonts.outfit(
                         fontSize: 14,
                         color: Colors.grey[500],

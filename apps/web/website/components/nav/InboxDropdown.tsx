@@ -41,7 +41,7 @@ export function InboxDropdown() {
         href="/login?next=/"
         className="text-[#703418]/90 hover:text-[#2e2118] text-sm font-semibold px-3.5 py-2 rounded-full hover:bg-[#703418]/[0.07] transition-colors"
       >
-        Inbox
+        Message Center
       </a>
     );
   }
@@ -59,14 +59,14 @@ export function InboxDropdown() {
         onClick={() => setOpen((v) => !v)}
         className={`relative flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-full transition-all border ${
           open || hubOpen
-            ? 'text-[#FAF7F2] bg-gradient-to-br from-[#703418] to-[#5c2c14] border-[#703418]/25 shadow-[0_4px_14px_rgba(112,52,24,0.2)]'
+            ? 'text-[#FAF7F2] bg-[#703418] border-[#703418]/25 shadow-[0_4px_14px_rgba(112,52,24,0.2)]'
             : 'text-[#703418]/90 border-transparent hover:bg-[#703418]/[0.07]'
         }`}
         aria-expanded={open}
         aria-haspopup="true"
       >
         <Inbox className="w-4 h-4" />
-        Inbox
+        Message Center
         {chatUnreadTotal > 0 ? (
           <span className="absolute -top-0.5 -right-0.5 min-w-[1.125rem] h-[1.125rem] px-1 flex items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white leading-none">
             {chatUnreadTotal > 99 ? '99+' : chatUnreadTotal}
@@ -79,9 +79,9 @@ export function InboxDropdown() {
         <div className="absolute right-0 mt-2 w-80 max-h-[min(70vh,24rem)] overflow-y-auto rounded-2xl border border-[#703418]/15 bg-[#FAF7F2] shadow-[0_24px_60px_rgba(112,52,24,0.18)] z-[60] py-2">
           <div className="px-3 pb-2 border-b border-[#703418]/10 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-[#703418]/70">
-              Messages
+              PawSewa Inbox
             </span>
-            <span className="text-[10px] text-[#0d9488]">Socket.io · realtime</span>
+            <span className="text-[10px] text-[#0d9488]">Live updates</span>
           </div>
           {inboxLoading ? (
             <div className="flex flex-col items-center gap-2 p-6">
@@ -134,7 +134,7 @@ export function InboxDropdown() {
               }}
               className="w-full text-center text-sm font-semibold text-[#0d9488] hover:underline"
             >
-              Open full inbox
+              Open Message Center
             </button>
           </div>
         </div>

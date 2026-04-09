@@ -10,6 +10,66 @@ const { sendMulticastToUser } = require('../utils/fcm');
 const MarketplaceConversation = require('../models/MarketplaceConversation');
 
 /**
+ * Parse GeoJSON or legacy body into { lng, lat, address }.
+ * Accepts: { type: 'Point', coordinates: [lng, lat], address },
+ * or { address, coordinates: [lng, lat] }, or { address, lat, lng }.
+ */
+function parsePickupCoordinates(pa) {
+  if (!pa || typeof pa !== 'object') return null;
+  if (pa.type === 'Point' && Array.isArray(pa.coordinates) && pa.coordinates.length >= 2) {
+    const lng = Number(pa.coordinates[0]);
+    const lat = Number(pa.coordinates[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lng, lat, address: String(pa.address || '').trim() };
+    }
+    return null;
+  }
+  const nested = pa.point;
+  if (
+    nested &&
+    typeof nested === 'object' &&
+    nested.type === 'Point' &&
+    Array.isArray(nested.coordinates) &&
+    nested.coordinates.length >= 2
+  ) {
+    const lng = Number(nested.coordinates[0]);
+    const lat = Number(nested.coordinates[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lng, lat, address: String(pa.address || '').trim() };
+    }
+  }
+  const coords = pa.coordinates || pa.coords;
+  if (Array.isArray(coords) && coords.length === 2) {
+    const lng = Number(coords[0]);
+    const lat = Number(coords[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lng, lat, address: String(pa.address || '').trim() };
+    }
+  }
+  const lat = Number(pa.lat);
+  const lng = Number(pa.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { lng, lat, address: String(pa.address || '').trim() };
+  }
+  return null;
+}
+
+function pickupAddressFromHostel(hostel) {
+  const loc = hostel && hostel.location;
+  if (!loc || typeof loc !== 'object') return null;
+  const addr = String(loc.address || '').trim();
+  const c = loc.coordinates;
+  if (!c || typeof c !== 'object') return null;
+  const lat = Number(c.lat);
+  const lng = Number(c.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return {
+    address: addr || 'Care centre location',
+    point: { type: 'Point', coordinates: [lng, lat] },
+  };
+}
+
+/**
  * @desc    Create a care booking (pet owner)
  * @route   POST /api/v1/care-bookings
  * @access  Private
@@ -26,27 +86,6 @@ const createCareBooking = asyncHandler(async (req, res) => {
   const deliveryRaw = (body.serviceDelivery || '').toString().trim().toLowerCase();
   const logisticsType =
     logisticsRaw === 'pickup' || deliveryRaw === 'home_visit' ? 'pickup' : 'self_drop';
-
-  let pickupAddress = null;
-  if (logisticsType === 'pickup') {
-    const pa = body.pickupAddress || body.pickup_address;
-    const addr = pa && typeof pa === 'object' ? String(pa.address || '').trim() : '';
-    const coords = pa && typeof pa === 'object' ? pa.coordinates || pa.coords || null : null;
-    let lat;
-    let lng;
-    if (Array.isArray(coords) && coords.length === 2) {
-      lng = Number(coords[0]);
-      lat = Number(coords[1]);
-    } else if (pa && typeof pa === 'object') {
-      lat = Number(pa.lat);
-      lng = Number(pa.lng);
-    }
-    if (!addr || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      res.status(400);
-      throw new Error('pickupAddress with address + coordinates is required for pickup logistics');
-    }
-    pickupAddress = { address: addr, point: { type: 'Point', coordinates: [lng, lat] } };
-  }
 
   if (!hostelId || !petId || !checkIn || !checkOut) {
     res.status(400);
@@ -112,6 +151,40 @@ const createCareBooking = asyncHandler(async (req, res) => {
   const tax = Math.round((subtotal + cleaningFee + serviceFee + platformFee) * 0.13 * 100) / 100;
   const totalAmount = subtotal + cleaningFee + serviceFee + platformFee + tax;
 
+  const paBody = body.pickupAddress || body.pickup_address;
+  let pickupAddress = null;
+  if (logisticsType === 'pickup') {
+    const parsed = parsePickupCoordinates(paBody);
+    const addr =
+      (parsed && parsed.address) ||
+      (paBody && typeof paBody === 'object' ? String(paBody.address || '').trim() : '');
+    if (!parsed || !addr) {
+      res.status(400);
+      console.error('[ERROR] GeoJSON validation failed: coordinates missing.');
+      throw new Error('pickupAddress with address and valid coordinates is required for pickup logistics');
+    }
+    pickupAddress = {
+      address: addr,
+      point: { type: 'Point', coordinates: [parsed.lng, parsed.lat] },
+    };
+  } else {
+    const parsed = parsePickupCoordinates(paBody);
+    if (parsed) {
+      const fallback = pickupAddressFromHostel(hostel);
+      const addr = parsed.address || (fallback ? fallback.address : 'Care centre location');
+      pickupAddress = {
+        address: addr || 'Care centre location',
+        point: { type: 'Point', coordinates: [parsed.lng, parsed.lat] },
+      };
+    } else {
+      pickupAddress = pickupAddressFromHostel(hostel);
+    }
+  }
+
+  console.log(
+    `[INFO] Create care booking: hostelId=${hostelId} petId=${petId} logistics=${logisticsType}`
+  );
+
   const booking = await CareBooking.create({
     hostelId,
     centreId: hostelId,
@@ -171,6 +244,8 @@ const createCareBooking = asyncHandler(async (req, res) => {
       careBookingId: String(booking._id),
     },
   }).catch(() => {});
+
+  console.log('[SUCCESS] Hostel booking record created in PawSewa-Cluster.');
 
   res.status(201).json({
     success: true,
@@ -492,6 +567,7 @@ const initiateCareBookingPayment = asyncHandler(async (req, res) => {
   const result = await initiateCareBookingKhalti({
     userId: req.user._id,
     careBookingId: req.params.id,
+    req,
   });
   res.json({
     success: true,

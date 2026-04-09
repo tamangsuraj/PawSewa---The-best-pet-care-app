@@ -1,12 +1,8 @@
 class AppConstants {
-  // Default API/Socket host: lib/config/app_config.dart (ngrok + PAWSEWA_BASE_URL).
-  // API Configuration
+  // Live API base: [ApiConfig] / [AppConfig] (PAWSEWA_BASE_URL, BASE_URL, or LAN host).
+  // For Khalti callbacks on a device, prefer a public tunnel (ngrok) via dart-define or host override.
   //
-  // Use the SAME host as the customer app so both hit the same backend.
-  // - Physical device: your PC's LAN IP (run `ipconfig` on Windows to find it)
-  // - Android emulator: use 10.0.2.2 to reach host machine's localhost
-  //
-  // Override at runtime: flutter run --dart-define=API_HOST=192.168.1.10
+  // Legacy string (avoid for new code; use ApiClient / ApiConfig.getBaseUrl()).
   static const bool kUseEmulator = false;
   static const String _host = String.fromEnvironment(
     'API_HOST',

@@ -55,5 +55,10 @@
 		<string>PawSewa Partner uses the microphone for voice and video calls with pet owners.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>PawSewa Partner uses the camera for video calls with pet owners.</string>
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>comgooglemaps</string>
+			<string>https</string>
+		</array>
 	</dict>
 </plist>

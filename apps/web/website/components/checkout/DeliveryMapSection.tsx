@@ -153,7 +153,7 @@ export function DeliveryMapSection({
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search e.g. Putalisadak, Kathmandu"
+          placeholder="Search area or landmark (e.g. Putalisadak, Kathmandu)"
           className="w-full rounded-xl border-2 border-transparent bg-[#f3ebe2]/80 py-3 pl-10 pr-10 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-[#703418]/40 focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
           autoComplete="off"
         />

@@ -1,6 +1,7 @@
 const multer = require('multer');
 const { CloudinaryStorage } = require('./cloudinaryMulterStorage');
 const cloudinary = require('../config/cloudinary');
+const logger = require('../utils/logger');
 
 const allowedMimeTypes = [
   'image/jpeg',
@@ -23,7 +24,7 @@ const imageFileFilter = (req, file, cb) => {
   if (isImageMime || isImageFilename) {
     cb(null, true);
   } else {
-    console.error('Rejected file with mimetype:', file.mimetype, 'originalname:', file.originalname);
+    logger.warn('Upload rejected. mimetype=', file.mimetype, 'originalname=', file.originalname);
     cb(new Error('Only image files are allowed'), false);
   }
 };
@@ -37,7 +38,7 @@ const productImageFileFilter = (req, file, cb) => {
   if (isImageMime || isImageFilename || isOctetStream) {
     cb(null, true);
   } else {
-    console.error('Rejected product image:', file.mimetype, file.originalname);
+    logger.warn('Product image upload rejected. mimetype=', file.mimetype, 'originalname=', file.originalname);
     cb(new Error('Only image files are allowed'), false);
   }
 };

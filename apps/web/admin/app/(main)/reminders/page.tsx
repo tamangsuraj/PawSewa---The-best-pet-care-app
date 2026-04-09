@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
 import { BellRing, CalendarDays, PhoneCall, CheckCircle2, RefreshCw } from 'lucide-react';
 
@@ -36,27 +36,24 @@ export default function RemindersPage() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(7);
 
-  const fetchRows = async () => {
+  const fetchRows = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const endpoint = tab === 'today' ? '/reminders/admin/today' : '/reminders/admin/upcoming';
       const resp = await api.get(endpoint, tab === 'upcoming' ? { params: { days } } : undefined);
       setRows(resp.data?.data || []);
-    } catch (e) {
+    } catch {
       setRows([]);
       setError('Failed to load reminders.');
-      // eslint-disable-next-line no-console
-      console.error('Error fetching reminders:', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [tab, days]);
 
   useEffect(() => {
     fetchRows();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, days]);
+  }, [fetchRows]);
 
   const grouped = useMemo(() => {
     const byDate: Record<string, ReminderRow[]> = {};
@@ -68,7 +65,7 @@ export default function RemindersPage() {
     return Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b));
   }, [rows]);
 
-  const patchReminder = async (petId: string, reminderId: string, body: any) => {
+  const patchReminder = async (petId: string, reminderId: string, body: Record<string, unknown>) => {
     await api.patch(`/reminders/pets/${petId}/${reminderId}`, body);
     await fetchRows();
   };

@@ -7,6 +7,7 @@ import { ChatHubProvider } from "@/context/ChatHubContext";
 import { Navbar } from "@/components/Navbar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { OptionalGoogleOAuthProvider } from '@/components/OptionalGoogleOAuthProvider';
+import { PromoModalHost } from '@/components/PromoModalHost';
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -44,6 +45,7 @@ export default function RootLayout({
               <ChatHubProvider>
                 <div className="relative z-[1] flex min-h-dvh flex-col">
                   <Navbar />
+                  <PromoModalHost />
                   <div className="flex-1">{children}</div>
                   <SiteFooter />
                 </div>

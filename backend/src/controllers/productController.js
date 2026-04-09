@@ -83,7 +83,7 @@ const createCategory = asyncHandler(async (req, res) => {
       data: category,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Categories: create failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to create category',
@@ -129,7 +129,7 @@ function uploadProductImageBuffer(buffer, mimetype) {
       },
       (err, result) => {
         if (err) {
-          console.error('[Product image upload]', err.message);
+          logger.error('Product image upload failed:', err.message);
           return resolve({ url: null, error: err.message });
         }
         resolve({
@@ -160,7 +160,7 @@ function uploadCategoryImageBuffer(buffer, mimetype) {
       },
       (err, result) => {
         if (err) {
-          console.error('[Category image upload]', err.message);
+          logger.error('Category image upload failed:', err.message);
           return resolve({ url: null, error: err.message });
         }
         resolve({
@@ -229,7 +229,9 @@ const createProduct = asyncHandler(async (req, res) => {
   if (files.length > 0) {
     const withBuffer = files.filter((f) => f.buffer);
     if (withBuffer.length === 0) {
-      console.warn('[Product create] Received', files.length, 'files but none have buffer (field name must be "images"). Check client sends multipart/form-data with boundary, not Content-Type: application/json or plain multipart/form-data.');
+      logger.warn(
+        'Product create: received files but none have buffer. Field name must be "images". Check multipart boundary and ensure Content-Type is not application/json.'
+      );
     }
     for (const file of files) {
       if (file.path) {
@@ -242,19 +244,27 @@ const createProduct = asyncHandler(async (req, res) => {
         } else {
           uploadWarnings.push(file.originalname || 'image');
           if (error && !firstUploadError) firstUploadError = error;
-          console.warn('[Product create] Image upload failed:', file.originalname, error);
+          logger.warn('Product create: image upload failed:', file.originalname, error);
         }
       }
     }
   } else {
-    console.warn('[Product create] No files in req.files. Client must send FormData with field "images" and must not set Content-Type to application/json.');
+    logger.warn('Product create: no files in req.files. Client must send FormData field "images" and must not set Content-Type to application/json.');
   }
 
   let sellerRef = null;
   if (req.user?.role === 'shop_owner') {
     sellerRef = req.user._id;
-  } else if (req.body?.seller && mongoose.Types.ObjectId.isValid(String(req.body.seller))) {
+  } else if (
+    req.body?.seller &&
+    mongoose.Types.ObjectId.isValid(String(req.body.seller))
+  ) {
     sellerRef = req.body.seller;
+  } else if (
+    req.body?.sellerId &&
+    mongoose.Types.ObjectId.isValid(String(req.body.sellerId))
+  ) {
+    sellerRef = req.body.sellerId;
   } else {
     const so = await User.findOne({ role: 'shop_owner' }).sort({ createdAt: 1 }).select('_id').lean();
     sellerRef = so?._id || req.user?._id || null;
@@ -267,6 +277,7 @@ const createProduct = asyncHandler(async (req, res) => {
     stockQuantity: numericStock,
     category,
     seller: sellerRef || undefined,
+    vendorId: sellerRef || undefined,
     images,
     targetPets,
     tags,
@@ -280,9 +291,17 @@ const createProduct = asyncHandler(async (req, res) => {
         : Boolean(isAvailable),
   });
 
+  if (String(req.user?.role || '').toLowerCase() === 'admin' && sellerRef) {
+    logger.info(
+      '[DEBUG] Verifying seller-product mapping for automated routing. productId=%s sellerId=%s',
+      String(product._id),
+      String(sellerRef)
+    );
+  }
+
   const populated = await Product.findById(product._id)
     .populate('category', 'name slug')
-    .populate('seller', 'name profilePicture email');
+    .populate('seller', 'name profilePicture email shopName');
 
   let message = 'Product created successfully';
   if (uploadWarnings.length > 0) {
@@ -302,7 +321,7 @@ const createProduct = asyncHandler(async (req, res) => {
     }),
   });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Products: create failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to create product',
@@ -367,6 +386,24 @@ const updateProduct = asyncHandler(async (req, res) => {
       typeof isAvailable === 'string' ? isAvailable === 'true' : Boolean(isAvailable);
   }
 
+  if (req.user?.role === 'admin') {
+    const rawSeller =
+      req.body?.seller ?? req.body?.sellerId ?? req.body?.vendorId;
+    if (rawSeller !== undefined) {
+      const s =
+        rawSeller === '' || rawSeller === null || rawSeller === 'null'
+          ? null
+          : String(rawSeller).trim();
+      if (!s) {
+        product.seller = null;
+        product.vendorId = null;
+      } else if (mongoose.Types.ObjectId.isValid(s)) {
+        product.seller = s;
+        product.vendorId = s;
+      }
+    }
+  }
+
   if (
     req.body?.targetPets !== undefined ||
     req.body?.targetPetsUniversal !== undefined ||
@@ -405,7 +442,7 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   const populated = await Product.findById(product._id)
     .populate('category', 'name slug')
-    .populate('seller', 'name profilePicture email');
+    .populate('seller', 'name profilePicture email shopName');
 
   res.status(200).json({
     success: true,
@@ -413,7 +450,7 @@ const updateProduct = asyncHandler(async (req, res) => {
     data: populated,
   });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Products: update failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to update product',
@@ -444,7 +481,7 @@ const deleteProduct = asyncHandler(async (req, res) => {
       message: 'Product deleted successfully',
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Products: delete failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete product',
@@ -470,11 +507,17 @@ const getProducts = asyncHandler(async (req, res) => {
       userPetType: userPetTypeQuery,
     } = req.query;
 
+    const isAdminCatalog =
+      req.user &&
+      String(req.user.role || '').toLowerCase() === 'admin';
+
     const andConditions = [];
 
-    andConditions.push({
-      $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
-    });
+    if (!isAdminCatalog) {
+      andConditions.push({
+        $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
+      });
+    }
 
     if (category && category.toString().trim() !== '') {
       const cat = await Category.findOne({ slug: category.toString().trim() }).select('_id');
@@ -525,20 +568,27 @@ const getProducts = asyncHandler(async (req, res) => {
       andConditions.push({ $text: { $search: searchTrim } });
     }
 
-    const findQuery = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+    const findQuery =
+      andConditions.length === 0
+        ? {}
+        : andConditions.length === 1
+          ? andConditions[0]
+          : { $and: andConditions };
 
     let userPetNorm = null;
     let primaryPetName = null;
-    if (userPetTypeQuery && String(userPetTypeQuery).trim()) {
-      userPetNorm = String(userPetTypeQuery).trim().toUpperCase();
-    } else if (req.user?._id) {
-      const pet = await Pet.findOne({ owner: req.user._id })
-        .sort({ updatedAt: -1 })
-        .select('name species')
-        .lean();
-      if (pet) {
-        primaryPetName = pet.name || null;
-        userPetNorm = petSpeciesToTargetPetType(pet.species);
+    if (!isAdminCatalog) {
+      if (userPetTypeQuery && String(userPetTypeQuery).trim()) {
+        userPetNorm = String(userPetTypeQuery).trim().toUpperCase();
+      } else if (req.user?._id) {
+        const pet = await Pet.findOne({ owner: req.user._id })
+          .sort({ updatedAt: -1 })
+          .select('name species')
+          .lean();
+        if (pet) {
+          primaryPetName = pet.name || null;
+          userPetNorm = petSpeciesToTargetPetType(pet.species);
+        }
       }
     }
 
@@ -550,7 +600,9 @@ const getProducts = asyncHandler(async (req, res) => {
 
     const sortKey = sort ? sort.toString() : 'newest';
     const pageNum = Math.max(1, Number(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, Number(limit) || 24));
+    const limitNum = isAdminCatalog
+      ? Math.min(500, Math.max(1, Number(limit) || 500))
+      : Math.min(100, Math.max(1, Number(limit) || 24));
 
     const pipeline = [{ $match: findQuery }];
 
@@ -612,7 +664,7 @@ const getProducts = asyncHandler(async (req, res) => {
       ids.length > 0
         ? await Product.find({ _id: { $in: ids } })
             .populate('category', 'name slug')
-            .populate('seller', 'name profilePicture')
+            .populate('seller', 'name profilePicture email shopName')
             .lean()
         : [];
 
@@ -645,10 +697,9 @@ const getProducts = asyncHandler(async (req, res) => {
         primaryPetName,
       },
     });
-    logger.info('[SUCCESS] Returned', count, 'products to client.');
+    logger.info('Products: returned', count, 'items.');
   } catch (err) {
-    console.error('SERVER CRASH:', err);
-    logger.info('[SUCCESS] Returned 0 products to client.');
+    logger.error('Products: list failed:', err?.message ?? err);
     res.status(200).json({
       success: true,
       data: [],
@@ -667,14 +718,14 @@ const getProductById = asyncHandler(async (req, res) => {
     }
     const product = await Product.findById(id)
       .populate('category', 'name slug')
-      .populate('seller', 'name profilePicture email')
+      .populate('seller', 'name profilePicture email shopName')
       .lean();
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
     res.status(200).json({ success: true, data: product });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Products: get by id failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to get product',
@@ -689,7 +740,7 @@ const getCategories = asyncHandler(async (req, res) => {
     const categories = await Category.find({}).sort({ name: 1 }).lean();
     res.status(200).json({ success: true, data: categories ?? [] });
   } catch (err) {
-    console.error('SERVER CRASH:', err);
+    logger.error('Categories: list failed:', err?.message ?? err);
     res.status(200).json({ success: true, data: [] });
   }
 });

@@ -904,7 +904,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           {
             'icon': Icons.chat_bubble_outline,
             'title': 'Customer Inquiries',
-            'subtitle': 'Daraz-style chats about your products',
+            'subtitle': 'Chats about your products',
             'route': 'seller_inquiries',
             'badge': 0,
           },
@@ -980,7 +980,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           {
             'icon': Icons.local_shipping_outlined,
             'title': 'Current deliveries',
-            'subtitle': 'Processing → On the way → Delivered',
+            'subtitle': 'Processing > On the way > Delivered',
             'route': 'rider_deliveries',
             'badge': 0,
           },
@@ -1305,6 +1305,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     'You have $_newAssignmentsCount ${_newAssignmentsCount == 1 ? 'case' : 'cases'} waiting for you',
@@ -1314,6 +1316,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                         alpha: 0.9,
                                       ),
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
@@ -1390,6 +1394,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                       fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
                                     'You have $_ongoingCasesCount ${_ongoingCasesCount == 1 ? 'case' : 'cases'} in progress',
@@ -1399,6 +1405,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                         alpha: 0.9,
                                       ),
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
@@ -2016,9 +2024,12 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                             fontWeight: FontWeight.w600,
                             color: const Color(AppConstants.accentColor),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (badge > 0)
+                      if (badge > 0) ...[
+                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -2029,7 +2040,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            badge.toString(),
+                            badge > 99 ? '99+' : badge.toString(),
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -2037,6 +2048,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                             ),
                           ),
                         ),
+                      ],
                     ],
                   ),
                   Text(

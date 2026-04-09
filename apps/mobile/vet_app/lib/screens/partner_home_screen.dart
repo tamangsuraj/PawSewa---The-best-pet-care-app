@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/constants.dart';
 import '../core/partner_role.dart';
 import '../core/storage_service.dart';
+import '../services/promotion_modal_service.dart';
 import '../widgets/partner_scaffold.dart';
 import 'clinic_queue_screen.dart';
 import 'earnings_screen.dart';
@@ -19,13 +20,14 @@ import 'seller_inquiries_screen.dart';
 import 'seller_new_orders_screen.dart';
 import 'shop_inventory_screen.dart';
 import 'shop_analytics_screen.dart';
+import 'partner_seller_order_history_screen.dart';
 import 'vet_clinic_assignments_screen.dart';
 import 'care_calendar_screen.dart';
 import 'care_pet_records_screen.dart';
 import 'care_staff_tasks_screen.dart';
 import 'unified_inbox_screen.dart';
 import 'my_business_screen.dart';
-import 'profile_editor_screen.dart';
+import 'partner_profile_screen.dart';
 
 class PartnerHomeScreen extends StatefulWidget {
   const PartnerHomeScreen({super.key});
@@ -47,6 +49,9 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   void initState() {
     super.initState();
     _hydrate();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PromotionModalService.maybeShow(context);
+    });
   }
 
   Future<void> _hydrate() async {
@@ -130,14 +135,10 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               role: _role,
               onOpen: (screen) => _push(context, screen),
             ),
-            _ProfileHub(
-              role: _role,
-              name: _userName,
-              subtitle: _userSubtitle,
+            PartnerProfileScreen(
               canSwitchPanel:
                   allowedPartnerPanelsForServerRole(_userSubtitle).length > 1,
               onRoleTap: () => _showRoleSheet(context),
-              onOpen: (screen) => _push(context, screen),
             ),
           ],
         ),
@@ -147,7 +148,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
         onDestinationSelected: (i) => setState(() => _tab = i),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.inbox_rounded), label: 'Inbox'),
+          NavigationDestination(icon: Icon(Icons.inbox_rounded), label: 'Message Center'),
           NavigationDestination(icon: Icon(Icons.task_alt_rounded), label: 'Tasks'),
           NavigationDestination(icon: Icon(Icons.query_stats_rounded), label: 'Analytics'),
           NavigationDestination(icon: Icon(Icons.person_rounded), label: 'Profile'),
@@ -372,7 +373,7 @@ class _RoleHome extends StatelessWidget {
           _ActionTileModel(
             icon: Icons.groups_rounded,
             title: 'Clinic queue',
-            subtitle: 'Triage → diagnosis → prescribed',
+            subtitle: 'Triage > diagnosis > prescribed',
             onTap: () => onOpen(const ClinicQueueScreen()),
           ),
           _ActionTileModel(
@@ -397,8 +398,8 @@ class _RoleHome extends StatelessWidget {
       PartnerRole.rider => <_ActionTileModel>[
           _ActionTileModel(
             icon: Icons.local_shipping_rounded,
-            title: 'Delivery jobs',
-            subtitle: 'Accept → pickup → deliver',
+            title: 'Order progress',
+            subtitle: 'Assigned pickups and live delivery status',
             onTap: () => onOpen(const RiderDeliveryOrdersScreen()),
           ),
           _ActionTileModel(
@@ -432,6 +433,12 @@ class _RoleHome extends StatelessWidget {
             title: 'Shop analytics',
             subtitle: 'KPIs & low stock',
             onTap: () => onOpen(const ShopAnalyticsScreen()),
+          ),
+          _ActionTileModel(
+            icon: Icons.receipt_long_rounded,
+            title: 'Order history',
+            subtitle: 'Current and past shop orders',
+            onTap: () => onOpen(const PartnerSellerOrderHistoryScreen()),
           ),
           _ActionTileModel(
             icon: Icons.question_answer_rounded,
@@ -677,8 +684,8 @@ class _InboxHub extends StatelessWidget {
     final tiles = <_HubTile>[
       _HubTile(
         icon: Icons.chat_bubble_rounded,
-        title: 'Unified inbox',
-        subtitle: 'Customer chats, support, calls, notifications',
+        title: 'PawSewa Inbox',
+        subtitle: 'Customer threads, support, calls, notifications',
         onTap: () => onOpen(const UnifiedInboxScreen()),
       ),
       _HubTile(
@@ -696,8 +703,8 @@ class _InboxHub extends StatelessWidget {
     ];
 
     return _HubScaffold(
-      title: 'Inbox',
-      subtitle: 'Messages and updates',
+      title: 'Message Center',
+      subtitle: 'PawSewa Inbox and partner alerts',
       tiles: tiles,
     );
   }
@@ -722,8 +729,8 @@ class _TasksHub extends StatelessWidget {
       PartnerRole.rider => <_HubTile>[
           _HubTile(
             icon: Icons.local_shipping_rounded,
-            title: 'Delivery jobs',
-            subtitle: 'Assigned orders + status flow',
+            title: 'Order progress',
+            subtitle: 'Assigned orders and delivery status',
             onTap: () => onOpen(const RiderDeliveryOrdersScreen()),
           ),
           _HubTile(
@@ -839,121 +846,6 @@ class _AnalyticsHub extends StatelessWidget {
   }
 }
 
-class _ProfileHub extends StatelessWidget {
-  const _ProfileHub({
-    required this.role,
-    required this.name,
-    required this.subtitle,
-    required this.canSwitchPanel,
-    required this.onRoleTap,
-    required this.onOpen,
-  });
-
-  final String role;
-  final String name;
-  final String subtitle;
-  final bool canSwitchPanel;
-  final VoidCallback onRoleTap;
-  final void Function(Widget screen) onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final ink = const Color(AppConstants.inkColor);
-
-    return PartnerScaffold(
-      title: 'Profile',
-      subtitle: 'Account and preferences',
-      actions: [
-        if (canSwitchPanel)
-          IconButton(
-            tooltip: 'Switch panel',
-            onPressed: onRoleTap,
-            icon: const Icon(Icons.swap_horiz_rounded),
-          ),
-      ],
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: primary.withValues(alpha: 0.10)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(Icons.person_rounded, color: primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: GoogleFonts.outfit(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: ink.withValues(alpha: 0.65),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _SettingsTile(
-            icon: Icons.edit_rounded,
-            title: 'Edit profile',
-            subtitle: 'Clinic, payout, identity',
-            onTap: () => onOpen(const ProfileEditorScreen()),
-          ),
-          if (canSwitchPanel)
-            _SettingsTile(
-              icon: Icons.swap_horiz_rounded,
-              title: 'Switch panel',
-              subtitle: 'Vet / Rider / Seller / Care',
-              onTap: onRoleTap,
-            ),
-          _SettingsTile(
-            icon: Icons.notifications_rounded,
-            title: 'Notifications',
-            subtitle: 'Updates and alerts',
-            onTap: () => onOpen(const NotificationsScreen()),
-          ),
-          const SizedBox(height: 8),
-          PartnerEmptyState(
-            title: 'Compliance & payouts',
-            body:
-                'KYC and payout banking are coordinated with PawSewa support when you enable paid payouts on your partner account.',
-            icon: Icons.verified_user_outlined,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _HubTile {
   _HubTile({
     required this.icon,
@@ -1023,6 +915,8 @@ class _HubScaffold extends StatelessWidget {
                               fontWeight: FontWeight.w800,
                               color: ink,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -1032,6 +926,8 @@ class _HubScaffold extends StatelessWidget {
                               fontWeight: FontWeight.w500,
                               color: ink.withValues(alpha: 0.65),
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -1044,80 +940,6 @@ class _HubScaffold extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _SettingsTile extends StatelessWidget {
-  const _SettingsTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final ink = const Color(AppConstants.inkColor);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(icon, color: primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.outfit(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w800,
-                          color: ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: ink.withValues(alpha: 0.65),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Icon(Icons.chevron_right_rounded, color: ink.withValues(alpha: 0.45)),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

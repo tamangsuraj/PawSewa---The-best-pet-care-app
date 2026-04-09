@@ -10,8 +10,9 @@ import '../core/constants.dart';
 class AppConfig {
   AppConfig._();
 
-  /// Replace with your active ngrok HTTPS origin for cross-device testing.
-  static const String ngrokDefaultOrigin = 'https://your-id.ngrok-free.app';
+  /// Default ngrok HTTPS origin (same tunnel as backend `BASE_URL` / `PUBLIC_API_BASE_URL`).
+  static const String ngrokDefaultOrigin =
+      'https://foveal-gummatous-karyn.ngrok-free.dev';
 
   static const String _dartDefineOrigin = String.fromEnvironment(
     'PAWSEWA_BASE_URL',

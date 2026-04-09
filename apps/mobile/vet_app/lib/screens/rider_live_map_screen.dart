@@ -64,7 +64,6 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
       );
       if (!mounted) return;
       _me = LatLng(pos.latitude, pos.longitude);
-      _map.move(_me!, 15);
 
       _sub?.cancel();
       _sub = Geolocator.getPositionStream(
@@ -219,6 +218,16 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
                                 interactionOptions: const InteractionOptions(
                                   flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                                 ),
+                                onMapReady: () {
+                                  if (!mounted) return;
+                                  debugPrint(
+                                    '[SUCCESS] Map successfully mounted and controller attached.',
+                                  );
+                                  final me = _me;
+                                  if (me != null) {
+                                    _map.move(me, 15);
+                                  }
+                                },
                               ),
                               children: [
                                 TileLayer(

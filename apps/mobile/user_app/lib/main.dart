@@ -53,7 +53,7 @@ void main() async {
   await savedAddresses.load();
 
   if (kDebugMode) {
-    debugPrint('[SUCCESS] Brand Deployed: PawSewa User App (launcher, splash, Customer Care avatar).');
+    debugPrint('[SUCCESS] Brand assets loaded for user app.');
   }
 
   runApp(
@@ -138,52 +138,39 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(AppConstants.secondaryColor),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFDF9F4),
-              Color(AppConstants.secondaryColor),
-              Color(0xFFF0E6DA),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 132,
-                height: 132,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
-                      blurRadius: 28,
-                      offset: const Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: const PawSewaBrandLogo(height: 96),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 132,
+              height: 132,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(AppConstants.primaryColor).withValues(alpha: 0.12),
+                    blurRadius: 28,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              Text(
-                'PawSewa',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontSize: 34,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(AppConstants.inkColor),
-                    ),
-              ),
-              const SizedBox(height: 24),
-              const PawSewaLogoSpinner(size: 48),
-            ],
-          ),
+              child: const PawSewaBrandLogo(height: 96),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'PawSewa',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(AppConstants.inkColor),
+                  ),
+            ),
+            const SizedBox(height: 24),
+            const PawSewaLogoSpinner(size: 48),
+          ],
         ),
       ),
     );

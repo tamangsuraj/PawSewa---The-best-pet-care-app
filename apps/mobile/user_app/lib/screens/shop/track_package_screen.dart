@@ -112,7 +112,7 @@ class TrackPackageScreen extends StatelessWidget {
       'Shop prepares items',
       'Ready for rider',
       'Rider assigned',
-      'On the way',
+      'En route to you',
       'Delivered',
     ];
     final idx = _stepIndex(status);
@@ -124,7 +124,7 @@ class TrackPackageScreen extends StatelessWidget {
         backgroundColor: primary,
         foregroundColor: Colors.white,
         title: Text(
-          'Track package',
+          'Order progress',
           style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
         ),
       ),

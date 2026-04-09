@@ -24,6 +24,8 @@ const {
   adminCareBookingReassignCentre,
   adminGetCareBookingChat,
 } = require('../controllers/careBookingController');
+const { getAdminLiveOrders } = require('../controllers/adminLiveOrdersController');
+const { getAdminLiveCases } = require('../controllers/adminLiveCasesController');
 const {
   ensureDefaultCustomerCareConversation,
   toClientConversationShape,
@@ -32,6 +34,18 @@ const { formatRoleLabel } = require('../utils/roleLabels');
 const { findUserByEmail } = require('../controllers/chatController');
 const CallSession = require('../models/CallSession');
 const { normalizeRole } = require('../middleware/authMiddleware');
+const { uploadCategoryImage } = require('../middleware/upload');
+const {
+  listPromotions,
+  upsertActivePromotion,
+  updatePromotion,
+} = require('../controllers/promotionController');
+const {
+  adminListPartners,
+  adminProvisionPartner,
+  adminResetPartnerPassword,
+  adminSetPartnerAccountActive,
+} = require('../controllers/adminPartnerController');
 
 const DISPATCH_RIDER_ROLES = ['rider'];
 const DISPATCH_SELLER_ROLES = ['shop_owner'];
@@ -352,6 +366,98 @@ router.get('/payment-logs', protect, authorize('admin'), async (req, res, next) 
   }
 });
 
+// GET /api/v1/admin/payment-logs/:id/receipt — Khalti txn id + linked shop order (pet hints) for receipt view
+router.get('/payment-logs/:id/receipt', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(String(id))) {
+      return res.status(400).json({ success: false, message: 'Invalid log id' });
+    }
+    const log = await PaymentLog.findById(id).lean();
+    if (!log) {
+      return res.status(404).json({ success: false, message: 'Log not found' });
+    }
+
+    const khaltiTransactionId =
+      log.rawPayload?.transaction_id ||
+      log.rawPayload?.idx ||
+      log.pidx;
+
+    const loadOrder = async (orderId) => {
+      if (!mongoose.Types.ObjectId.isValid(String(orderId))) return null;
+      return Order.findById(orderId)
+        .populate('user', 'name email phone')
+        .populate('items.product', 'name images targetPets')
+        .lean();
+    };
+
+    let order = null;
+    if (log.purchaseOrderId) {
+      order = await loadOrder(log.purchaseOrderId);
+      if (!order) {
+        const pay = await Payment.findById(log.purchaseOrderId).lean();
+        if (pay?.metadata?.orderId) {
+          order = await loadOrder(pay.metadata.orderId);
+        }
+      }
+    }
+    if (!order && log.pidx) {
+      const pay = await Payment.findOne({ gatewayTransactionId: log.pidx }).lean();
+      if (pay?.metadata?.orderId) {
+        order = await loadOrder(pay.metadata.orderId);
+      }
+    }
+
+    const items = order
+      ? (order.items || []).map((line) => ({
+          name: line.name || line.product?.name || 'Item',
+          quantity: line.quantity,
+          unitPrice: line.price,
+          lineTotal: (Number(line.price) || 0) * (Number(line.quantity) || 0),
+          productHint: line.product?.targetPets?.length
+            ? `Pets: ${line.product.targetPets.join(', ')}`
+            : '',
+        }))
+      : [];
+
+    res.json({
+      success: true,
+      data: {
+        log: {
+          pidx: log.pidx,
+          amount: log.amount,
+          status: log.status,
+          type: log.type,
+          createdAt: log.createdAt,
+          purchaseOrderId: log.purchaseOrderId,
+        },
+        khaltiTransactionId: khaltiTransactionId ? String(khaltiTransactionId) : '',
+        order: order
+          ? {
+              receiptNo: String(order._id).slice(-8).toUpperCase(),
+              issuedAt: order.updatedAt || order.createdAt,
+              customer: {
+                name: order.user?.name,
+                email: order.user?.email,
+                phone: order.user?.phone,
+              },
+              deliveryAddress: order.deliveryLocation?.address || order.location?.address,
+              paymentMethod: order.paymentMethod || 'khalti',
+              khaltiTransactionId:
+                order.khaltiTransactionId ||
+                (khaltiTransactionId ? String(khaltiTransactionId) : ''),
+              items,
+              totalAmount: order.totalAmount,
+              orderId: String(order._id),
+            }
+          : null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/v1/admin/provider-revenue
 // Platform fees from care bookings (provider subscription commission)
 router.get('/provider-revenue', protect, authorize('admin'), async (req, res, next) => {
@@ -509,6 +615,10 @@ router.get('/dispatch-operators', protect, authorize('admin'), async (req, res, 
 });
 
 // PATCH /api/v1/admin/care-bookings/:id/assign-partner
+// GET /api/v1/admin/live-orders?scope=live|past — Grooming, Training, Hostel only
+router.get('/live-orders', protect, authorize('admin'), getAdminLiveOrders);
+router.get('/live-cases', protect, authorize('admin'), getAdminLiveCases);
+
 router.patch(
   '/care-bookings/:id/assign-partner',
   protect,
@@ -638,6 +748,17 @@ router.get('/payment-gateway-status', protect, authorize('admin'), (req, res) =>
   });
 });
 
+// Promotions management (global promo modal)
+router.get('/promotions', protect, authorize('admin'), listPromotions);
+router.put(
+  '/promotions/active',
+  protect,
+  authorize('admin'),
+  uploadCategoryImage.single('image'),
+  upsertActivePromotion
+);
+router.patch('/promotions/:id', protect, authorize('admin'), updatePromotion);
+
 // Agora call logs (linked to appointment / care booking when provided by clients)
 router.get('/call-sessions', protect, authorize('admin'), async (req, res, next) => {
   try {
@@ -741,6 +862,12 @@ router.get('/financials/receipt/:orderId', protect, authorize('admin'), async (r
     next(e);
   }
 });
+
+// Partner Management (vet_app accounts: shop, vet, rider, petcare / care_service)
+router.get('/partners', protect, authorize('admin'), adminListPartners);
+router.post('/partners', protect, authorize('admin'), adminProvisionPartner);
+router.patch('/partners/:id/password', protect, authorize('admin'), adminResetPartnerPassword);
+router.patch('/partners/:id/active', protect, authorize('admin'), adminSetPartnerAccountActive);
 
 module.exports = router;
 

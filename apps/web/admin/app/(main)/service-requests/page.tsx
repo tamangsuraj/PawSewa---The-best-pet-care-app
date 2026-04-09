@@ -105,10 +105,10 @@ export default function ServiceRequestsPage() {
       // No platform/source filter — includes requests from both Website and Mobile app
       const resp = await api.get('/service-requests');
       const data = resp.data?.data ?? [];
-      console.log('Admin UI received data:', { count: data.length, requests: data });
-      setRequests(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load service requests');
+      setRequests(Array.isArray(data) ? (data as ServiceRequest[]) : []);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to load service requests');
     } finally {
       setLoading(false);
     }
@@ -120,8 +120,8 @@ export default function ServiceRequestsPage() {
         params: { role: 'veterinarian' },
       });
       setVets(resp.data.data || resp.data || []);
-    } catch (err) {
-      console.error('Failed to load vets', err);
+    } catch {
+      setVets([]);
     }
   };
 
@@ -236,8 +236,9 @@ export default function ServiceRequestsPage() {
       setSelectedRequest(null);
       await fetchRequests();
       alert('Doctor assigned. The vet will receive the case in their app.');
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign request');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      alert(e.response?.data?.message || 'Failed to assign request');
     } finally {
       setAssigning(false);
     }

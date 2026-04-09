@@ -25,6 +25,9 @@ const logger = {
   info(...args) {
     console.log(format('INFO', ...args));
   },
+  debug(...args) {
+    console.log(format('DEBUG', ...args));
+  },
   success(...args) {
     console.log(format('SUCCESS', ...args));
   },

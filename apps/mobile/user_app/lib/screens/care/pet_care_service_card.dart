@@ -27,6 +27,8 @@ class PetCareServiceCard extends StatelessWidget {
     const primary = Color(AppConstants.primaryColor);
     final images = hostel['images'] is List ? hostel['images'] as List : <dynamic>[];
     final imgUrl = images.isNotEmpty && images[0] != null ? images[0].toString() : null;
+    final id = hostel['_id']?.toString() ?? '';
+    const fallbackUrl = 'https://source.unsplash.com/featured/?pet-hotel,dog-daycare';
     final name = hostel['name']?.toString() ?? 'Care Service';
     final loc = hostel['location'] is Map && hostel['location']['address'] != null
         ? hostel['location']['address'].toString()
@@ -89,9 +91,8 @@ class PetCareServiceCard extends StatelessWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (imgUrl != null && imgUrl.isNotEmpty)
-                        CachedNetworkImage(
-                          imageUrl: imgUrl,
+                      CachedNetworkImage(
+                          imageUrl: (imgUrl != null && imgUrl.isNotEmpty) ? imgUrl : fallbackUrl,
                           fit: BoxFit.cover,
                           memCacheWidth: (cardWidth * MediaQuery.devicePixelRatioOf(context)).round().clamp(200, 800),
                           placeholder: (context, url) => Container(
@@ -104,15 +105,31 @@ class PetCareServiceCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          errorWidget: (context, url, err) => Container(
-                            color: const Color(0xFFF3F4F6),
-                            child: Icon(Icons.pets, size: 48, color: primary.withValues(alpha: 0.5)),
-                          ),
-                        )
-                      else
-                        Container(
-                          color: const Color(0xFFF3F4F6),
-                          child: Icon(Icons.pets, size: 48, color: primary.withValues(alpha: 0.5)),
+                          errorWidget: (context, url, err) {
+                            if (imgUrl != null && imgUrl.isNotEmpty && id.isNotEmpty) {
+                              debugPrint(
+                                '[INFO] Applying dynamic image fallback for Product: $id.',
+                              );
+                            }
+                            return CachedNetworkImage(
+                              imageUrl: fallbackUrl,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: const Color(0xFFF3F4F6),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: PawSewaLoader(width: 32, center: false),
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, err) => Container(
+                                color: const Color(0xFFF3F4F6),
+                                child: Icon(Icons.pets, size: 48, color: primary.withValues(alpha: 0.5)),
+                              ),
+                            );
+                          },
                         ),
                       if (hostel['isVerified'] == true || hostel['isFeatured'] == true)
                         Positioned(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { CreditCard, RefreshCw, CheckCircle, XCircle, Clock } from 'lucide-react';
 
@@ -23,7 +23,7 @@ export default function TransactionsPage() {
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
 
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -31,16 +31,17 @@ export default function TransactionsPage() {
       if (statusFilter) params.status = statusFilter;
       const resp = await api.get('/admin/transactions', { params });
       setTransactions(resp.data?.data ?? []);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load transactions');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Failed to load transactions');
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     loadTransactions();
-  }, [statusFilter]);
+  }, [loadTransactions]);
 
   const statusBadge = (status: string) => {
     switch (status) {

@@ -8,7 +8,7 @@ import '../../core/constants.dart';
 import 'messages_screen.dart';
 import 'marketplace_thread_screen.dart';
 
-/// Inbox with Support (Customer Care), Sellers, and Delivery groupings.
+/// PawSewa Message Center: Support (Customer Care), care centres, sellers, and delivery threads.
 class MessagesHubScreen extends StatefulWidget {
   const MessagesHubScreen({super.key});
 
@@ -66,7 +66,9 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
         });
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[Inbox] marketplace load: $e');
+      if (kDebugMode) {
+        debugPrint('[DEBUG] Message Center marketplace inbox load failed: $e');
+      }
     } finally {
       if (mounted) setState(() => _loadingMp = false);
     }
@@ -127,7 +129,7 @@ class _MessagesHubScreenState extends State<MessagesHubScreen>
           conversationId: id,
           threadType: 'DELIVERY',
           peerName: name,
-          peerSubtitle: 'Order delivery',
+          peerSubtitle: 'Order progress',
           productIdForFirstMessage: null,
           highContrast: true,
         ),

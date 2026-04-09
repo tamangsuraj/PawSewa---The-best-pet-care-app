@@ -6,9 +6,7 @@ import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import 'care_all_services_screen.dart';
 import 'hostel_detail_screen.dart';
-import 'my_clinic_appointments_screen.dart';
 import 'pet_care_service_card.dart';
-import 'vet_clinic_booking_screen.dart';
 import '../../widgets/premium_empty_state.dart';
 import '../../widgets/premium_shimmer.dart';
 
@@ -260,85 +258,6 @@ class _CareScreenState extends State<CareScreen> {
     );
   }
 
-  Widget _buildVetClinicCard() {
-    const primary = Color(AppConstants.primaryColor);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [primary, primary.withValues(alpha: 0.85)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: primary.withValues(alpha: 0.25),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Vet clinic visits',
-              style: GoogleFonts.outfit(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Book vaccination or checkup. Track status after admin assigns a vet.',
-              style: GoogleFonts.outfit(fontSize: 13, color: Colors.white.withValues(alpha: 0.92)),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: primary,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(builder: (_) => const VetClinicBookingScreen()),
-                      );
-                    },
-                    child: Text('Book visit', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(builder: (_) => const MyClinicAppointmentsScreen()),
-                      );
-                    },
-                    child: Text('My appointments', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSearchRow() {
     const primary = Color(AppConstants.primaryColor);
     return Row(
@@ -514,13 +433,7 @@ class _CareScreenState extends State<CareScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(top: 16),
-                child: _buildVetClinicCard(),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: _buildSearchRow(),
               ),
             ),

@@ -16,6 +16,7 @@ import {
   History,
   Tag,
   Package,
+  PackagePlus,
   CreditCard,
   FileText,
   ChevronDown,
@@ -25,10 +26,11 @@ import {
   CalendarCheck,
   BellRing,
   Megaphone,
-  Calendar,
   MessageCircle,
   Map,
   PawPrint,
+  Gift,
+  ShoppingBag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminChatUnread } from '@/context/AdminChatUnreadContext';
@@ -65,31 +67,41 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const appointmentsGroup: NavGroup = {
-  label: 'Appointments',
-  icon: Calendar,
+const liveCareCentersGroup: NavGroup = {
+  label: 'Live Care Centers',
+  icon: Home,
   children: [
-    { name: 'Appointment desk', href: '/appointments-desk', icon: CalendarCheck },
-    { name: 'Calendar', href: '/appointments', icon: Calendar },
+    { name: 'Centers map and list', href: '/care/live-centers', icon: Map },
   ],
 };
 
-const careManagementGroup: NavGroup = {
-  label: 'Care Management',
-  icon: Home,
+
+const partnerManagementGroup: NavGroup = {
+  label: 'Partner Management',
+  icon: UserPlus,
   children: [
-    { name: 'Care Hostels', href: '/care/hostels', icon: Home },
-    { name: 'Service Providers', href: '/care/service-providers', icon: UserCheck },
-    { name: 'Provider Revenue', href: '/care/provider-revenue', icon: DollarSign },
-    { name: 'Pending Approvals', href: '/care/pending-approvals', icon: UserPlus },
-    { name: 'Care Bookings', href: '/care/bookings', icon: CalendarCheck },
+    { name: 'Overview', href: '/partner-management', icon: UserPlus },
+    { name: 'Veterinarians', href: '/veterinarians', icon: UserCheck },
+    { name: 'Shop Owners', href: '/shops', icon: Store },
+    { name: 'Riders', href: '/riders', icon: Bike },
+  ],
+};
+
+const shopManagementGroup: NavGroup = {
+  label: 'Shop Management',
+  icon: ShoppingBag,
+  children: [
+    { name: 'All Products', href: '/shop-products', icon: Package },
+    { name: 'Add New Product', href: '/shop-products/new', icon: PackagePlus },
+    { name: 'Categories', href: '/shop-products/categories', icon: Tag },
   ],
 };
 
 const collapsibleNavGroups: NavGroup[] = [
+  partnerManagementGroup,
+  shopManagementGroup,
   ...navGroups,
-  appointmentsGroup,
-  careManagementGroup,
+  liveCareCentersGroup,
 ];
 
 const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -97,14 +109,11 @@ const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ cl
   { name: 'Live map', href: '/live-map', icon: Map },
   { name: 'Reminders', href: '/reminders', icon: BellRing },
   { name: 'Communication Center', href: '/communication-center', icon: Megaphone },
+  { name: 'Promotions', href: '/promotions', icon: Gift },
   { name: 'Support Hub', href: '/customer-chats', icon: MessageCircle },
   { name: 'Marketplace Chats', href: '/marketplace-chats', icon: MessageCircle },
   { name: 'Customers', href: '/customers', icon: Users },
   { name: 'Pets', href: '/pets', icon: PawPrint },
-  { name: 'Veterinarians', href: '/veterinarians', icon: UserCheck },
-  { name: 'Shop Owners', href: '/shops', icon: Store },
-  { name: 'Care Services', href: '/care-services', icon: Home },
-  { name: 'Riders', href: '/riders', icon: Bike },
   { name: 'Promocodes', href: '/promocodes', icon: Tag },
   { name: 'Transactions', href: '/transactions', icon: CreditCard },
   { name: 'Financials', href: '/financials', icon: DollarSign },
@@ -141,6 +150,22 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   const pathname = usePathname();
   const { totalUnread } = useAdminChatUnread();
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('pawsewa_shop_sidebar_info') === '1') {
+        return;
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('pawsewa_shop_sidebar_info', '1');
+      }
+    } catch {
+      /* ignore */
+    }
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[INFO] Restoring Shop Management module in Admin Sidebar.');
+    }
+  }, []);
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};

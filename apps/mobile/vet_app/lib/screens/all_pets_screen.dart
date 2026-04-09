@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
-
+import '../utils/map_launcher.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import 'service_task_detail_screen.dart';
@@ -119,43 +118,28 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
   ).length;
 
   bool _hasCoordinates(Map<String, dynamic> caseData) {
-    final loc = caseData['location'];
-    if (loc is Map && loc['coordinates'] != null) {
-      final coords = loc['coordinates'];
-      final lat = coords['lat'];
-      final lng = coords['lng'];
-      return lat != null && lng != null;
-    }
-    return false;
+    return parsePinnedCoordinates(caseData) != null;
   }
 
   Future<void> _openInMaps(Map<String, dynamic> caseData) async {
-    final loc = caseData['location'];
-    if (loc is! Map || loc['coordinates'] == null) return;
-    final coords = loc['coordinates'] as Map<String, dynamic>;
-    final lat = coords['lat'] as num?;
-    final lng = coords['lng'] as num?;
-    if (lat == null || lng == null) return;
-
-    final latStr = lat.toString();
-    final lngStr = lng.toString();
-
-    // OpenStreetMap URL with marker
-    final uri = Uri.parse(
-      'https://www.openstreetmap.org/?mlat=$latStr&mlon=$lngStr#map=16/$latStr/$lngStr',
-    );
-
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+    final p = parsePinnedCoordinates(caseData);
+    if (p == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Could not open maps app',
+            'Location coordinates not available for this case.',
             style: GoogleFonts.outfit(),
           ),
         ),
       );
+      return;
     }
+    await openMap(
+      context,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    );
   }
 
   // Calculate urgency based on how long ago the case was assigned
@@ -683,24 +667,28 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
 
             // Status + Paid Badges
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 26 / 255),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    statusText,
-                    style: GoogleFonts.outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 26 / 255),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      statusText,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
-                if (isPaid)
+                if (isPaid) ...[
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -716,6 +704,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -756,6 +745,8 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                           fontWeight: FontWeight.w600,
                           color: const Color(AppConstants.accentColor),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         '${pet?['breed'] ?? 'Unknown'} • ${pet?['age'] ?? '?'} years',
@@ -763,6 +754,8 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                           fontSize: 13,
                           color: Colors.grey[600],
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -785,11 +778,15 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                     children: [
                       const Icon(Icons.person, size: 16, color: Color(AppConstants.primaryColor)),
                       const SizedBox(width: 8),
-                      Text(
-                        owner?['name'] ?? 'Unknown',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          owner?['name'] ?? 'Unknown',
+                          style: GoogleFonts.outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -800,9 +797,13 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       children: [
                         const Icon(Icons.phone, size: 16, color: Color(AppConstants.primaryColor)),
                         const SizedBox(width: 8),
-                        Text(
-                          owner['phone'],
-                          style: GoogleFonts.outfit(fontSize: 13),
+                        Expanded(
+                          child: Text(
+                            owner['phone'],
+                            style: GoogleFonts.outfit(fontSize: 13),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),

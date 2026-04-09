@@ -1,7 +1,7 @@
 /**
  * Unified Order model for pawsewa_production.
  * Collection: orders
- * E-commerce shop transactions.
+ * PawSewa shop orders (pet supplies marketplace).
  */
 const mongoose = require('mongoose');
 

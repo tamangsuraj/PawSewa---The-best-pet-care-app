@@ -25,7 +25,7 @@ async function resolveDefaultSellerId() {
 }
 
 async function resolveProductSellerId(product) {
-  const vendorRef = product.seller || product.vendorId;
+  const vendorRef = product.seller || product.vendorId || product.addedBy;
   if (vendorRef) return vendorRef;
   const sid = await resolveDefaultSellerId();
   if (sid && product._id) {
@@ -336,11 +336,11 @@ async function appendMessageAndNotify({
   let title = 'PawSewa';
   let body = preview;
   if (convDoc.type === 'DELIVERY') {
-    title = sender?.role === 'rider' ? 'Delivery' : 'Customer';
+    title = sender?.role === 'rider' ? 'Delivery update' : 'Order message';
     body =
       sender?.role === 'rider'
         ? `Rider: ${preview}`
-        : `Customer message: ${preview}`;
+        : `Customer: ${preview}`;
   } else if (convDoc.type === 'CARE') {
     if (String(senderId) === custId) {
       title = 'Care booking message';

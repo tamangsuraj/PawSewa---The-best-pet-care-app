@@ -108,7 +108,7 @@ const createPet = asyncHandler(async (req, res) => {
       data: pet,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: create failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to create pet',
@@ -127,7 +127,7 @@ const getMyPets = asyncHandler(async (req, res) => {
     if (!req.user || !req.user._id) {
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
-    console.log('[Pets] /api/v1/pets/my-pets request at', new Date().toISOString(), 'user:', req.user._id.toString());
+    logger.debug('Pets: list my-pets user=', req.user._id.toString());
 
     let pets = await Pet.find({ owner: req.user._id })
       .sort({ createdAt: -1 })
@@ -173,7 +173,7 @@ const getMyPets = asyncHandler(async (req, res) => {
       data: safePets,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: list my-pets failed:', error?.message ?? error);
     return res.status(200).json({
       success: true,
       count: 0,
@@ -212,7 +212,7 @@ const getAllPets = asyncHandler(async (req, res) => {
       data: list,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: admin list failed:', error?.message ?? error);
     res.status(200).json({
       success: true,
       count: 0,
@@ -251,7 +251,7 @@ const getPetById = asyncHandler(async (req, res) => {
       data: pet,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: get detail failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -499,7 +499,7 @@ const getPetMedicalHistory = asyncHandler(async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: medical history failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -655,7 +655,7 @@ const getPetHealthSummary = asyncHandler(async (req, res) => {
       data: payload,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: health summary failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -708,7 +708,7 @@ const updatePet = asyncHandler(async (req, res) => {
         try {
           await cloudinary.uploader.destroy(pet.cloudinaryPublicId);
         } catch (e) {
-          console.error('Error deleting old image:', e);
+          logger.warn('Pets: delete old image failed:', e?.message ?? e);
         }
       }
       pet.photoUrl = req.file.path;
@@ -759,7 +759,7 @@ const updatePet = asyncHandler(async (req, res) => {
       data: pet,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: update failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to update pet',
@@ -793,7 +793,7 @@ const deletePet = asyncHandler(async (req, res) => {
       try {
         await cloudinary.uploader.destroy(pet.cloudinaryPublicId);
       } catch (e) {
-        console.error('Error deleting image from Cloudinary:', e);
+        logger.warn('Pets: delete Cloudinary image failed:', e?.message ?? e);
       }
     }
 
@@ -804,7 +804,7 @@ const deletePet = asyncHandler(async (req, res) => {
       message: 'Pet deleted successfully',
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: delete failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to delete pet',
@@ -890,7 +890,7 @@ const adminCreatePetForCustomer = asyncHandler(async (req, res) => {
       data: pet,
     });
   } catch (error) {
-    console.error('SERVER CRASH:', error);
+    logger.error('Pets: admin create failed:', error?.message ?? error);
     res.status(500).json({
       success: false,
       message: 'Failed to create pet for customer',

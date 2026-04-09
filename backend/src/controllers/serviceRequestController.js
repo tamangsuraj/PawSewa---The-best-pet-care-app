@@ -62,8 +62,7 @@ async function validateKathmanduAddressWithNominatim({ address, lat, lng }) {
   } catch (err) {
     // Swallow network / parsing errors – we still rely on coordinate geofence below.
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
-      console.error('Nominatim validation failed:', err.message || err);
+      logger.warn('Nominatim validation failed:', err.message || err);
     }
   }
 }
@@ -75,8 +74,7 @@ async function validateKathmanduAddressWithNominatim({ address, lat, lng }) {
  */
 const createServiceRequest = asyncHandler(async (req, res) => {
   const userAgent = req.headers['user-agent'] || 'unknown';
-  console.log('New Request from', userAgent + ':', JSON.stringify(req.body || {}, null, 2));
-  console.log('Incoming Request Body:', JSON.stringify(req.body || {}, null, 2));
+  logger.debug('Request: POST /service-requests userAgent=', userAgent);
 
   try {
     if (!req.user || !req.user._id) {
@@ -204,7 +202,7 @@ const createServiceRequest = asyncHandler(async (req, res) => {
       .populate('user', 'name email phone')
       .populate('pet', 'name breed age photoUrl pawId');
 
-    console.log('[POST /service-requests] Created request', serviceRequest._id, 'status:', serviceRequest.status, 'user:', req.user._id);
+    logger.info('ServiceRequest: created', serviceRequest._id, 'status=', serviceRequest.status, 'user=', req.user._id);
 
     res.status(201).json({
       success: true,
@@ -212,8 +210,7 @@ const createServiceRequest = asyncHandler(async (req, res) => {
       data: populatedRequest,
     });
   } catch (error) {
-    console.error('[POST /service-requests] error:', error?.message ?? error);
-    console.error('[POST /service-requests] stack:', error?.stack);
+    logger.error('ServiceRequest: create failed:', error?.message ?? error);
 
     // Pre-save middleware or our validation: return 400 with message
     if (error.statusCode === 400) {
@@ -278,7 +275,16 @@ const getAllServiceRequests = asyncHandler(async (req, res) => {
     .populate('assignedStaff', 'name email phone specialty specialization')
     .sort({ createdAt: -1 });
 
-  console.log('Admin fetching orders:', requests.length, { status: filter.status, serviceType: filter.serviceType, date: filter.preferredDate ? 'set' : 'any' });
+  logger.debug(
+    'Admin: fetching service requests count=',
+    requests.length,
+    'status=',
+    filter.status,
+    'serviceType=',
+    filter.serviceType,
+    'preferredDate=',
+    filter.preferredDate ? 'set' : 'any'
+  );
 
   res.json({
     success: true,
@@ -530,7 +536,7 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('[assignServiceRequest] chat upsert failed:', err?.message || err);
+    logger.warn('ServiceRequest: assign chat upsert failed:', err?.message || err);
   }
 
   // Populate for response
@@ -690,7 +696,7 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
   } catch (err) {
     if (process.env.NODE_ENV === 'development') {
       // eslint-disable-next-line no-console
-      console.error('Failed to push visit notes to pet history:', err.message || err);
+      logger.warn('ServiceRequest: push visit notes to pet history failed:', err.message || err);
     }
   }
 
@@ -828,7 +834,7 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     } catch (err) {
       if (process.env.NODE_ENV === 'development') {
         // eslint-disable-next-line no-console
-        console.error('Failed to push visit notes to pet history (generic status):', err.message || err);
+        logger.warn('ServiceRequest: push generic visit notes failed:', err.message || err);
       }
     }
   }

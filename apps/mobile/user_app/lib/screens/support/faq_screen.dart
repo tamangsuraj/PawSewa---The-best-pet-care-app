@@ -15,22 +15,22 @@ class FaqScreen extends StatelessWidget {
       (
         q: 'How do I book a vet appointment?',
         a:
-            'Go to Services → choose Vet/Clinic → pick a time window → submit. You can track progress from your Requests screen.',
+            'Go to Services > choose Vet/Clinic > pick a time window > submit. You can track progress from your Requests screen.',
       ),
       (
         q: 'Where can I see my orders?',
         a:
-            'Open Shop → My Orders. You’ll see all orders with live status updates and delivery chat when available.',
+            'Open Shop > My Orders. You will see all orders with live status updates and delivery chat when available.',
       ),
       (
         q: 'How do I contact support?',
         a:
-            'Open Messages → Customer Care. You can share text, photos, or videos to explain an issue faster.',
+            'Open Messages > Customer Care. You can share text, photos, or videos to explain an issue faster.',
       ),
       (
         q: 'Why can’t I see products or care centers?',
         a:
-            'This is usually a network or server base URL issue. On Login you can set the server IP (recommended on local Wi‑Fi) instead of ngrok for more stable loading.',
+            'This is usually a network or server base URL issue. On Login you can set the server IP (recommended on local Wi-Fi) instead of ngrok for more stable loading.',
       ),
       (
         q: 'Can I cancel a booking/request?',

@@ -418,13 +418,13 @@ export default function CareBookingsPage() {
               <h2 className="font-semibold text-gray-900">Care chat transcript</h2>
               <button
                 type="button"
-                className="text-gray-500 hover:text-gray-800"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 px-2 py-1 rounded-md hover:bg-gray-100"
                 onClick={() => {
                   setTranscriptBookingId(null);
                   setTranscriptData(null);
                 }}
               >
-                ✕
+                Close
               </button>
             </div>
             <div className="overflow-y-auto flex-1 p-4 text-sm">

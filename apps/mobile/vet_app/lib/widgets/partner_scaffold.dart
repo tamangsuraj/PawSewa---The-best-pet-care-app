@@ -35,6 +35,7 @@ class PartnerScaffold extends StatelessWidget {
         titleSpacing: 16,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               title,
@@ -44,6 +45,8 @@ class PartnerScaffold extends StatelessWidget {
                 color: ink,
                 height: 1.1,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (subtitle != null && subtitle!.trim().isNotEmpty)
               Padding(
@@ -55,6 +58,8 @@ class PartnerScaffold extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                     color: ink.withValues(alpha: 0.6),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
           ],
@@ -70,15 +75,7 @@ class PartnerScaffold extends StatelessWidget {
           child: Container(
             height: 1,
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  primary.withValues(alpha: 0.0),
-                  primary.withValues(alpha: 0.20),
-                  primary.withValues(alpha: 0.0),
-                ],
-              ),
-            ),
+            color: primary.withValues(alpha: 0.12),
           ),
         ),
       ),

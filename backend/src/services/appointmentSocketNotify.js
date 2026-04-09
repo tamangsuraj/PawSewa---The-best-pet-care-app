@@ -30,6 +30,11 @@ async function broadcastAppointment(appointmentId, kind = 'update') {
   const payload = { appointment, kind };
 
   io.to('admin_room').emit('appointment:update', payload);
+  io.emit('case_status_change', {
+    source: 'clinic_appointment',
+    appointmentId: String(appointmentId),
+    kind,
+  });
 
   const vetId =
     appointment.vetId?._id?.toString?.() ||

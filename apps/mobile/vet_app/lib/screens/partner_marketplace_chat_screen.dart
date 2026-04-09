@@ -558,6 +558,7 @@ class _PartnerMarketplaceChatScreenState
         foregroundColor: fg,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               widget.peerName,
@@ -565,11 +566,15 @@ class _PartnerMarketplaceChatScreenState
                 fontWeight: FontWeight.w600,
                 color: fg,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
               Text(
                 widget.peerSubtitle!,
                 style: GoogleFonts.outfit(fontSize: 11, color: subColor),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
