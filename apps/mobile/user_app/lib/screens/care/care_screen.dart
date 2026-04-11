@@ -1,3 +1,5 @@
+import 'dart:math' show max;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -359,8 +361,13 @@ class _CareScreenState extends State<CareScreen> {
     const primary = Color(AppConstants.primaryColor);
     final filtered = _filteredForSection(serviceType, source);
     final width = MediaQuery.sizeOf(context).width;
-    final sidePad = 20.0;
+    const sidePad = 20.0;
     final fullCardW = width - sidePad * 2;
+    // Hostel can show a full-width featured first card; other sections use fixed 272px
+    // width — row height must match the widest card or the strip looks too tall.
+    final listRowHeight = serviceType == 'Hostel'
+        ? PetCareServiceCard.totalHeightForWidth(max(fullCardW, 272.0)) + 4
+        : PetCareServiceCard.totalHeightForWidth(272.0) + 4;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
@@ -452,7 +459,7 @@ class _CareScreenState extends State<CareScreen> {
             )
           else
             SizedBox(
-              height: fullCardW * 1.22 + 4,
+              height: listRowHeight,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),

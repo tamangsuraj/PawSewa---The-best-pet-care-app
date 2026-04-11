@@ -26,7 +26,7 @@ export default function AdminMainLayout({
         </aside>
         <div className="flex min-h-dvh min-w-0 flex-1 flex-col self-stretch">
           <Header />
-          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-8 pt-6 sm:px-6">
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-auto px-4 pb-8 pt-6 sm:px-6">
             {children}
           </main>
         </div>

@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import ScrollableTableWrapper from '@/components/ui/ScrollableTableWrapper';
 
 interface ShopOwner {
   _id: string;
@@ -106,6 +107,8 @@ export default function ShopOwnersPage() {
   const [universalProduct, setUniversalProduct] = useState(true);
   const [productTags, setProductTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState('');
+  /** Optional https image when not uploading files (sent as primaryImageUrl). */
+  const [productImageUrl, setProductImageUrl] = useState('');
 
   const {
     register: registerProduct,
@@ -232,6 +235,7 @@ export default function ShopOwnersPage() {
     setUniversalProduct(true);
     setProductTags([]);
     setTagDraft('');
+    setProductImageUrl('');
     setProductError('');
     setProductFormOpen(true);
   };
@@ -253,6 +257,7 @@ export default function ShopOwnersPage() {
     setUniversalProduct(isUniversal);
     setProductTags(Array.isArray(product.tags) ? product.tags : []);
     setTagDraft('');
+    setProductImageUrl('');
     setProductError('');
     setProductFormOpen(true);
   };
@@ -293,6 +298,10 @@ export default function ShopOwnersPage() {
         Array.from(images).forEach((file) => {
           formData.append('images', file);
         });
+      }
+      const urlTrim = productImageUrl.trim();
+      if (urlTrim && /^https?:\/\//i.test(urlTrim)) {
+        formData.append('primaryImageUrl', urlTrim);
       }
 
       // Do not set Content-Type: axios will set multipart/form-data with boundary.
@@ -393,8 +402,9 @@ export default function ShopOwnersPage() {
       </div>
 
       {/* Shop owners table */}
-      <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm mb-10">
-        <table className="w-full">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-10">
+        <ScrollableTableWrapper>
+        <table className="w-full min-w-[920px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Name</th>
@@ -446,10 +456,11 @@ export default function ShopOwnersPage() {
             )}
           </tbody>
         </table>
+        </ScrollableTableWrapper>
       </div>
 
       {/* Products table */}
-      <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm mb-10">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-10">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <PackagePlus className="w-5 h-5 text-primary" />
@@ -457,7 +468,8 @@ export default function ShopOwnersPage() {
           </h2>
           <span className="text-sm text-gray-500">{products.length} items</span>
         </div>
-        <table className="w-full">
+        <ScrollableTableWrapper>
+        <table className="w-full min-w-[1100px]">
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Name</th>
@@ -532,6 +544,7 @@ export default function ShopOwnersPage() {
             )}
           </tbody>
         </table>
+        </ScrollableTableWrapper>
       </div>
 
       {/* Create Shop Owner Modal */}
@@ -1000,6 +1013,20 @@ export default function ShopOwnersPage() {
                 <p className="mt-1 text-xs text-gray-500">
                   You can upload up to 5 images. Existing images will be replaced if you upload new
                   ones while editing.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mt-4 mb-1">
+                  Or image URL (optional)
+                </label>
+                <input
+                  type="url"
+                  value={productImageUrl}
+                  onChange={(e) => setProductImageUrl(e.target.value)}
+                  placeholder="https://… (used if no file upload, or merged with uploads)"
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  When editing, leave empty to keep stored images unless you upload new files or set a
+                  replacement URL.
                 </p>
               </div>
 

@@ -27,6 +27,7 @@ import {
   PAW_DECO_IMAGES,
   PAW_SHOWCASE_IMAGES,
 } from '@/lib/pawImageAssets';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 const CAT_HERO = PAW_CAT_HERO;
 
@@ -87,16 +88,19 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL || '';
+    const base = getWebsiteApiBase();
     (async () => {
       try {
-        const v = await axios.get(`${base}/vets/public`);
+        const v = await axios.get(`${base}/vets/public`, { headers: ngrokBrowserBypassHeaders });
         if (v.data?.success) setVets((v.data.data || []).slice(0, 6));
       } catch {
         setVets([]);
       }
       try {
-        const p = await axios.get(`${base}/products`, { params: { limit: 24 } });
+        const p = await axios.get(`${base}/products`, {
+          params: { limit: 24 },
+          headers: ngrokBrowserBypassHeaders,
+        });
         if (p.data?.success) setProducts(p.data.data || []);
       } catch {
         setProducts([]);
@@ -112,9 +116,12 @@ export default function HomePage() {
     let cancelled = false;
     (async () => {
       try {
-        const base = process.env.NEXT_PUBLIC_API_URL || '';
+        const base = getWebsiteApiBase();
         const res = await axios.get(`${base}/service-requests/my/requests`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: {
+            ...ngrokBrowserBypassHeaders,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         });
         if (!cancelled && res.data?.success) {
           setAppointments(res.data.data || []);

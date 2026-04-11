@@ -9,6 +9,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((m) => m.MapContainer),
@@ -62,10 +63,10 @@ export default function NearbyVetsMapPage() {
     setLoading(true);
     setErr('');
     try {
-      const base =
-        process.env.NEXT_PUBLIC_API_URL || '';
+      const base = getWebsiteApiBase();
       const resp = await axios.get<{ success?: boolean; data?: unknown[] }>(
-        `${base}/vets/public`
+        `${base}/vets/public`,
+        { headers: ngrokBrowserBypassHeaders }
       );
       const list = Array.isArray(resp.data?.data) ? resp.data!.data! : [];
       setVets(list.filter((v) => v && typeof v === 'object') as Record<

@@ -6,16 +6,15 @@ class AppConstants {
   // - Physical device: your PC's LAN IP (run `ipconfig` on Windows to find it)
   // - Android emulator: use 10.0.2.2 to reach host machine's localhost
   //
-  // Override at runtime: flutter run --dart-define=API_HOST=192.168.1.10
   static const bool kUseEmulator = false;
   static const String _host = String.fromEnvironment(
     'API_HOST',
-    defaultValue: '192.168.1.5',
+    defaultValue: '',
   );
 
-  static const String baseUrl = kUseEmulator
-      ? "http://10.0.2.2:3000/api/v1"
-      : "http://$_host:3000/api/v1";
+  static String get baseUrl => kUseEmulator
+      ? 'http://10.0.2.2:3000/api/v1'
+      : (_host.isNotEmpty ? 'http://$_host:3000/api/v1' : '');
 
   // App Identity
   static const String appName = "PawSewa Partner";

@@ -14,6 +14,49 @@ const {
   recommendationTierForProduct,
 } = require('../utils/productPersonalization');
 
+/**
+ * Remote image URLs from multipart/json body (when not uploading files).
+ * Accepts primaryImageUrl, imageUrl, or imageUrls as JSON array string.
+ */
+function parseRemoteImageUrlsFromBody(body) {
+  if (!body || typeof body !== 'object') return [];
+  const out = [];
+  const push = (u) => {
+    const s = String(u || '').trim();
+    if (!s) return;
+    if (/^https?:\/\//i.test(s)) out.push(s);
+  };
+  if (body.primaryImageUrl) push(body.primaryImageUrl);
+  if (!body.primaryImageUrl && body.imageUrl) push(body.imageUrl);
+  const rawList = body.imageUrls;
+  if (rawList != null) {
+    if (Array.isArray(rawList)) {
+      rawList.forEach(push);
+    } else if (typeof rawList === 'string') {
+      try {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed)) parsed.forEach(push);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return [...new Set(out)].slice(0, 5);
+}
+
+function mergeDedupedImageList(fileUrls, extraUrls, max = 5) {
+  const merged = [];
+  const seen = new Set();
+  for (const u of [...(fileUrls || []), ...(extraUrls || [])]) {
+    const s = String(u || '').trim();
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    merged.push(s);
+    if (merged.length >= max) break;
+  }
+  return merged;
+}
+
 function parseVariantsFromBody(body) {
   if (!body || body.variants === undefined) return undefined;
   let raw = body.variants;
@@ -250,6 +293,9 @@ const createProduct = asyncHandler(async (req, res) => {
     console.warn('[Product create] No files in req.files. Client must send FormData with field "images" and must not set Content-Type to application/json.');
   }
 
+  const remoteUrls = parseRemoteImageUrlsFromBody(req.body);
+  const imagesFinal = mergeDedupedImageList(images, remoteUrls, 5);
+
   let sellerRef = null;
   if (req.user?.role === 'shop_owner') {
     sellerRef = req.user._id;
@@ -267,7 +313,7 @@ const createProduct = asyncHandler(async (req, res) => {
     stockQuantity: numericStock,
     category,
     seller: sellerRef || undefined,
-    images,
+    images: imagesFinal,
     targetPets,
     tags,
     petTypes,
@@ -388,17 +434,23 @@ const updateProduct = asyncHandler(async (req, res) => {
   }
 
   if (Array.isArray(req.files) && req.files.length > 0) {
-    const images = [];
+    const fileUrls = [];
     for (const file of req.files) {
       if (file.path) {
-        images.push(file.path);
+        fileUrls.push(file.path);
       } else if (file.buffer) {
         const mimetype = inferImageMime(file.mimetype, file.originalname);
         const { url } = await uploadProductImageBuffer(file.buffer, mimetype);
-        if (url) images.push(url);
+        if (url) fileUrls.push(url);
       }
     }
-    product.images = images;
+    const remoteExtras = parseRemoteImageUrlsFromBody(req.body);
+    product.images = mergeDedupedImageList(fileUrls, remoteExtras, 5);
+  } else {
+    const remoteUrls = parseRemoteImageUrlsFromBody(req.body);
+    if (remoteUrls.length > 0) {
+      product.images = remoteUrls.slice(0, 5);
+    }
   }
 
   await product.save();

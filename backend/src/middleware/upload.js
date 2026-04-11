@@ -73,7 +73,24 @@ const uploadCategoryImage = multer({
   fileFilter: productImageFileFilter,
 });
 
+// Veterinarian profile photos: stream directly to Cloudinary (separate folder)
+const vetPhotoStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'pawsewa/vets',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 900, height: 900, crop: 'limit' }],
+  },
+});
+
+const uploadVetProfilePhoto = multer({
+  storage: vetPhotoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+});
+
 module.exports = upload;
 module.exports.uploadProductImages = uploadProductImages;
 module.exports.uploadCategoryImage = uploadCategoryImage;
+module.exports.uploadVetProfilePhoto = uploadVetProfilePhoto;
 module.exports.allowedMimeTypes = allowedMimeTypes;

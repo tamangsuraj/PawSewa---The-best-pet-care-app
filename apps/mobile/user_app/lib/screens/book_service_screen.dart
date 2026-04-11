@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/geocoding_service.dart';
+import '../widgets/map_pin_marker.dart';
 
 class BookServiceScreen extends StatefulWidget {
   /// If set, this pet is pre-selected when the screen loads (e.g. from Pet Details "Book Vet Visit").
@@ -857,9 +858,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                             Marker(
                               point: _confirmedLatLng!,
                               width: 30,
-                              height: 30,
-                              child: const Icon(
-                                Icons.location_on,
+                              height: 38,
+                              alignment: Alignment.bottomCenter,
+                              child: const MapPinMarker(
                                 color: Color(AppConstants.primaryColor),
                                 size: 30,
                               ),
@@ -872,10 +873,9 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                   IgnorePointer(
                     child: Center(
                       child: Transform.translate(
-                        offset: const Offset(0, -18),
-                        child: Icon(
-                          Icons.location_on,
-                          color: const Color(AppConstants.primaryColor),
+                        offset: const Offset(0, -22),
+                        child: const MapPinMarker(
+                          color: Color(AppConstants.primaryColor),
                           size: 34,
                         ),
                       ),

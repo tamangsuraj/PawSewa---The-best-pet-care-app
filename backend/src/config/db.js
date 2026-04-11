@@ -76,6 +76,20 @@ function getConnectionUri() {
  * path (or only a trailing slash). Prevents drivers/tools from assuming `test`.
  * If the URI path disagrees with DB_NAME, we warn; Mongoose still uses `dbName` option.
  */
+/**
+ * Ensures Atlas-friendly write concern query params (merged with any existing ?appName=… etc.).
+ * Reminder: In Atlas → Network Access, allow 0.0.0.0/0 for dev or your current IP for production.
+ */
+function ensureAtlasWriteConcernQuery(rawUri) {
+  const qIndex = rawUri.indexOf('?');
+  const base = qIndex >= 0 ? rawUri.slice(0, qIndex) : rawUri;
+  const qs = qIndex >= 0 ? rawUri.slice(qIndex + 1) : '';
+  const params = new URLSearchParams(qs);
+  params.set('retryWrites', 'true');
+  params.set('w', 'majority');
+  return `${base}?${params.toString()}`;
+}
+
 function withExplicitDatabasePathInUri(rawUri, logicalDbName) {
   const qIndex = rawUri.indexOf('?');
   const query = qIndex >= 0 ? rawUri.slice(qIndex) : '';
@@ -106,17 +120,23 @@ function getMongooseConnectionOptions(uri) {
     dbName: getConfiguredDbName(),
     tls: uri.startsWith('mongodb+srv'),
     tlsAllowInvalidCertificates: true,
+    serverSelectionTimeoutMS: 8000,
+    connectTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
   };
 }
 
 const connectDB = async (retries = 3) => {
   const rawUri = getConnectionUri();
   const logicalDb = getConfiguredDbName();
-  const uri = withExplicitDatabasePathInUri(rawUri, logicalDb);
+  const withPath = withExplicitDatabasePathInUri(rawUri, logicalDb);
+  const uri = ensureAtlasWriteConcernQuery(withPath);
   const opts = getMongooseConnectionOptions(rawUri);
   for (let attempt = 1; attempt <= retries; attempt += 1) {
     try {
       await mongoose.connect(uri, opts);
+      // eslint-disable-next-line no-console
+      console.log('[DB] Connected to PawSewa-Cluster (Global Access Active).');
       const connectedDb = mongoose.connection.db?.databaseName || 'unknown';
       logger.info('MongoDB connection initialized.');
       logger.info(`Database Name: ${mongoose.connection.name || connectedDb}`);
@@ -137,8 +157,6 @@ const connectDB = async (retries = 3) => {
         logger.error(
           'Cannot connect to Atlas. Verify: MONGO_URI user/password, cluster host, DB_NAME=pawsewa_core, and Network Access allows your IP (or 0.0.0.0/0 for dev).',
         );
-        // DEV SAFETY: keep the API process alive so clients get a fast 503 instead of hanging.
-        // Production should still crash fast so the platform restarts it.
         if (String(process.env.NODE_ENV || '').toLowerCase() === 'development') {
           logger.warn('MongoDB: continuing without connection (development). DB-backed routes will return 503.');
           return null;
@@ -150,8 +168,48 @@ const connectDB = async (retries = 3) => {
   }
 };
 
+/**
+ * Background reconnect loop — called after initial connectDB fails.
+ * Keeps trying every INTERVAL until Atlas is reachable (e.g. after whitelisting the IP).
+ * Stops once readyState === 1 (connected) or the process exits.
+ */
+const RECONNECT_INTERVAL_MS = 20000; // 20 s
+function startBackgroundReconnect() {
+  if (mongoose.connection.readyState === 1) return;
+  logger.info('[INFO] Re-establishing database handshake (background reconnect loop started).');
+  const timer = setInterval(async () => {
+    if (mongoose.connection.readyState === 1) {
+      logger.success('[SUCCESS] Database handshake re-established — API back to full operation.');
+      clearInterval(timer);
+      return;
+    }
+    logger.info('[INFO] Re-establishing database handshake…');
+    try {
+      const rawUri = getConnectionUri();
+      const logicalDb = getConfiguredDbName();
+      const withPath = withExplicitDatabasePathInUri(rawUri, logicalDb);
+      const uri = ensureAtlasWriteConcernQuery(withPath);
+      const opts = getMongooseConnectionOptions(rawUri);
+      // Close any existing broken connection before re-connecting.
+      if (mongoose.connection.readyState !== 0) {
+        await mongoose.connection.close().catch(() => {});
+      }
+      await mongoose.connect(uri, opts);
+      // eslint-disable-next-line no-console
+      console.log('[DB] Connected to PawSewa-Cluster (Global Access Active).');
+      const connectedDb = mongoose.connection.db?.databaseName || 'unknown';
+      logger.success(`[SUCCESS] MongoDB re-connected — database: ${connectedDb}`);
+      clearInterval(timer);
+    } catch (err) {
+      logger.warn(`[WARN] Background reconnect attempt failed: ${err.message}`);
+    }
+  }, RECONNECT_INTERVAL_MS);
+}
+
 module.exports = connectDB;
+module.exports.startBackgroundReconnect = startBackgroundReconnect;
 module.exports.getConnectionUri = getConnectionUri;
 module.exports.withExplicitDatabasePathInUri = withExplicitDatabasePathInUri;
+module.exports.ensureAtlasWriteConcernQuery = ensureAtlasWriteConcernQuery;
 module.exports.getConfiguredDbName = getConfiguredDbName;
 module.exports.getMongooseConnectionOptions = getMongooseConnectionOptions;

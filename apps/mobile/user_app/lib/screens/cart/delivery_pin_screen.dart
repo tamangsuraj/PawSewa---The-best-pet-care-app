@@ -12,6 +12,7 @@ import '../../core/api_client.dart';
 import '../../core/constants.dart';
 import '../../services/geocoding_service.dart';
 import '../../widgets/editorial_canvas.dart';
+import '../../widgets/map_pin_marker.dart';
 
 /// One place result from Nominatim search.
 class _PlaceResult {
@@ -501,11 +502,11 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
                           Marker(
                             point: pin,
                             width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.location_on,
+                            height: 50,
+                            alignment: Alignment.bottomCenter,
+                            child: const MapPinMarker(
                               color: Color(AppConstants.primaryColor),
-                              size: 36,
+                              size: 40,
                             ),
                           ),
                         ],

@@ -24,6 +24,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ScrollableTableWrapper from '@/components/ui/ScrollableTableWrapper';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((m) => m.MapContainer),
@@ -50,7 +51,12 @@ interface Order {
   _id: string;
   assignmentStatus?: string;
   user?: { _id: string; name: string; email?: string; phone?: string };
-  items: Array<{ name: string; price: number; quantity: number }>;
+  items: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+    product?: { _id?: string; images?: string[] };
+  }>;
   totalAmount: number;
   status: string;
   paymentStatus?: string;
@@ -470,11 +476,24 @@ function OrderDetailModal({
               Items
             </h3>
             <ul className="space-y-1 text-sm text-gray-700">
-              {order.items.map((it, idx) => (
-                <li key={idx}>
-                  {it.name} × {it.quantity} — NPR {(it.price * it.quantity).toFixed(0)}
-                </li>
-              ))}
+              {order.items.map((it, idx) => {
+                const thumb = it.product?.images?.[0];
+                return (
+                  <li key={idx} className="flex items-center gap-2">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt=""
+                        className="w-9 h-9 rounded-md object-cover border border-gray-200 shrink-0 bg-gray-50"
+                      />
+                    ) : null}
+                    <span>
+                      {it.name} × {it.quantity} — NPR {(it.price * it.quantity).toFixed(0)}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
             <p className="mt-2 font-semibold text-gray-900">
               Total: NPR {order.totalAmount.toFixed(0)}
@@ -976,11 +995,12 @@ export default function LiveSuppliesPage() {
               </button>
             </div>
           )}
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <ScrollableTableWrapper>
+            <table className="w-full min-w-[1200px] divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left">
+                  <th className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-left w-10">
                     <input
                       type="checkbox"
                       checked={
@@ -991,34 +1011,34 @@ export default function LiveSuppliesPage() {
                       className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="sticky left-10 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
                     Order ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
                     Customer
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
                     Rider
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
                     Payment
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
                     Items
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[90px]">
                     Total
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[250px]">
                     Address
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="sticky right-0 z-10 bg-gray-50 px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                     Actions
                   </th>
                 </tr>
@@ -1026,7 +1046,7 @@ export default function LiveSuppliesPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {orders.map((o) => (
                   <tr key={o._id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4">
+                    <td className="sticky left-0 z-10 bg-white px-4 py-4">
                       <input
                         type="checkbox"
                         checked={selectedIds.has(o._id)}
@@ -1034,7 +1054,7 @@ export default function LiveSuppliesPage() {
                         className="rounded border-gray-300 text-primary focus:ring-primary"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
+                    <td className="sticky left-10 z-10 bg-white px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-500">
                       #{o._id.slice(-6)}
                     </td>
                     <td className="px-6 py-4">
@@ -1074,12 +1094,27 @@ export default function LiveSuppliesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
-                      <ul className="list-disc list-inside space-y-0.5">
-                        {o.items.map((it, idx) => (
-                          <li key={idx}>
-                            {it.name} × {it.quantity}
-                          </li>
-                        ))}
+                      <ul className="space-y-1">
+                        {o.items.map((it, idx) => {
+                          const thumb = it.product?.images?.[0];
+                          return (
+                            <li key={idx} className="flex items-center gap-2 text-sm">
+                              {thumb ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={thumb}
+                                  alt=""
+                                  className="w-8 h-8 rounded object-cover border border-gray-200 shrink-0 bg-gray-50"
+                                />
+                              ) : (
+                                <span className="w-8 h-8 rounded bg-gray-100 shrink-0 inline-block" aria-hidden />
+                              )}
+                              <span>
+                                {it.name} × {it.quantity}
+                              </span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
@@ -1123,7 +1158,7 @@ export default function LiveSuppliesPage() {
                         minute: '2-digit',
                       })}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="sticky right-0 z-10 bg-white px-6 py-4 text-right">
                       <button
                         onClick={() => setDetailOrder(o)}
                         className="text-primary font-medium text-sm hover:underline"
@@ -1135,6 +1170,7 @@ export default function LiveSuppliesPage() {
                 ))}
               </tbody>
             </table>
+            </ScrollableTableWrapper>
             {pagination && pagination.pages > 1 && (
               <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
                 <p className="text-sm text-gray-600">

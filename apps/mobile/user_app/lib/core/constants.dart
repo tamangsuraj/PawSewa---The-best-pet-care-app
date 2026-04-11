@@ -4,21 +4,21 @@ class AppConstants {
   // • Physical device: use your PC's IPv4 (same Wi‑Fi as phone). Run `ipconfig` (Windows) to find it.
   // • Android emulator: set kUseEmulator = true to use 10.0.2.2 (emulator's alias for host localhost).
   //
-  // Override at runtime: flutter run --dart-define=API_HOST=192.168.1.10
+  // Prefer lib/config/app_config.dart + ApiConfig; this mirrors compile-time API_HOST only.
   static const bool kUseEmulator =
       false; // true = Android emulator (10.0.2.2), false = physical device
   static const String _host = String.fromEnvironment(
     'API_HOST',
-    defaultValue: '192.168.1.5',
+    defaultValue: '',
   );
-  static const String baseUrl = kUseEmulator
-      ? "http://10.0.2.2:3000/api/v1"
-      : "http://$_host:3000/api/v1";
+  static String get baseUrl => kUseEmulator
+      ? 'http://10.0.2.2:3000/api/v1'
+      : (_host.isNotEmpty ? 'http://$_host:3000/api/v1' : '');
 
   /// Socket.io server URL (same host as API, no path).
-  static const String socketUrl = kUseEmulator
-      ? "http://10.0.2.2:3000"
-      : "http://$_host:3000";
+  static String get socketUrl => kUseEmulator
+      ? 'http://10.0.2.2:3000'
+      : (_host.isNotEmpty ? 'http://$_host:3000' : '');
 
   // App Identity
   static const String appName = "PawSewa";

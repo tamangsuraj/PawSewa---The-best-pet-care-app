@@ -19,6 +19,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 interface Vet {
   _id: string;
@@ -49,8 +50,10 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
   const fetchVet = useCallback(async () => {
     try {
       setLoading(true);
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await axios.get(`${apiBase}/vets/public/${vetId}`);
+      const apiBase = getWebsiteApiBase();
+      const response = await axios.get(`${apiBase}/vets/public/${vetId}`, {
+        headers: ngrokBrowserBypassHeaders,
+      });
       if (response.data.success) {
         setVet(response.data.data);
       }

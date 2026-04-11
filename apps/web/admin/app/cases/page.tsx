@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import ScrollableTableWrapper from '@/components/ui/ScrollableTableWrapper';
 
 interface CaseItem {
   _id: string;
@@ -79,10 +80,21 @@ export default function LiveCasesPage() {
   }, [filterStatus]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onRefresh = () => fetchAll();
+    window.addEventListener('pawsewa:admin-data-refresh', onRefresh);
+    return () => window.removeEventListener('pawsewa:admin-data-refresh', onRefresh);
+  }, [filterStatus]);
+
+  useEffect(() => {
     const token = getStoredAdminToken();
     if (!token) return;
-    const socket: Socket = io(getAdminSocketUrl(), {
+    const socketUrl = getAdminSocketUrl();
+    if (!socketUrl) return;
+    const extraHeaders = { 'ngrok-skip-browser-warning': 'true' };
+    const socket: Socket = io(socketUrl, {
       auth: { token },
+      extraHeaders,
       transports: ['websocket', 'polling'],
     });
     socket.on('case_status_change', () => {
@@ -139,7 +151,31 @@ export default function LiveCasesPage() {
       const merged: LiveCaseRow[] = [...unassignedPending, ...rest];
       setItems(merged);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load live cases');
+      const st = err.response?.status;
+      if (st != null) {
+        console.error('[Live Cases] Request failed with HTTP status:', st);
+      }
+      // Detect when Ngrok returns an HTML interstitial instead of JSON
+      const responseData = err.response?.data;
+      const isHtmlResponse =
+        typeof responseData === 'string' && responseData.trim().startsWith('<');
+      const isNetworkError = err.message === 'Network Error' || err.code === 'ERR_NETWORK';
+
+      if (isHtmlResponse || (err.response?.status === 404 && isHtmlResponse)) {
+        console.error('[ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+        setError(
+          'API handshake failed — Ngrok returned an HTML page instead of JSON. Verify the Ngrok tunnel is active and the bypass headers are set.'
+        );
+      } else if (isNetworkError) {
+        console.error('[ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+        setError(
+          'Network error — cannot reach the backend. Verify the Ngrok tunnel is running and NEXT_PUBLIC_API_URL matches the active tunnel. The admin app proxies /api/v1 through Next when the URL contains ngrok.'
+        );
+      } else if (st === 403) {
+        setError('Access denied (HTTP 403) — check CORS or auth.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to load live cases');
+      }
       setItems([]);
     } finally {
       setLoading(false);
@@ -345,18 +381,19 @@ export default function LiveCasesPage() {
           <p className="text-gray-600 text-lg">No cases or appointments found</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <ScrollableTableWrapper>
+          <table className="w-full min-w-[1100px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pet & Owner</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue / Appointment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="sticky left-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Pet & Owner</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Issue / Appointment</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Location</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">Assigned</th>
+                <th className="sticky right-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[90px]">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -369,7 +406,7 @@ export default function LiveCasesPage() {
                     key={`${item.type}-${item._id}`}
                     className={`hover:bg-gray-50 ${isPendingUnassigned ? 'bg-red-50/50 border-l-4 border-l-red-500' : ''}`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="sticky left-0 z-10 bg-white px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           item.type === 'assistance' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
@@ -398,11 +435,11 @@ export default function LiveCasesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-900 max-w-xs truncate">{getDescription(item)}</p>
+                    <td className="px-6 py-4 max-w-[200px]">
+                      <p className="text-sm text-gray-900 truncate">{getDescription(item)}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-600 max-w-xs">
+                    <td className="px-6 py-4 max-w-[180px]">
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
                         <MapPin className="w-4 h-4 flex-shrink-0" />
                         <span className="truncate">{getLocation(item)}</span>
                       </div>
@@ -418,7 +455,7 @@ export default function LiveCasesPage() {
                         <span className="text-sm text-gray-400">Not assigned</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="sticky right-0 z-10 bg-white px-6 py-4 whitespace-nowrap">
                       {canAssign(item) && (
                         <button
                           onClick={() => openAssignModal(item)}
@@ -433,6 +470,7 @@ export default function LiveCasesPage() {
               })}
             </tbody>
           </table>
+          </ScrollableTableWrapper>
         </div>
       )}
 

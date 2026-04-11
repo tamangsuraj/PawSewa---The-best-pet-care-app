@@ -6,11 +6,14 @@ class CartItem {
     required this.name,
     required this.price,
     this.quantity = 1,
+    this.imageUrl,
   });
 
   final String productId;
   final String name;
   final double price;
+  /// Resolved display URL (DB image or fallback), captured at add-to-cart time.
+  final String? imageUrl;
   int quantity;
 }
 
@@ -33,6 +36,7 @@ class CartService extends ChangeNotifier {
     required String productId,
     required String name,
     required double price,
+    String? imageUrl,
   }) {
     if (_items.containsKey(productId)) {
       _items[productId]!.quantity++;
@@ -41,6 +45,7 @@ class CartService extends ChangeNotifier {
         productId: productId,
         name: name,
         price: price,
+        imageUrl: imageUrl,
       );
     }
     notifyListeners();

@@ -6,8 +6,19 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants.dart';
 import '../../core/product_image_service.dart';
 
-/// Reference-style service card: ~60% image, name, location, rating, price + subtitle.
+/// Reference-style service card: image, name, location, rating, price + subtitle.
 class PetCareServiceCard extends StatelessWidget {
+  /// Image height relative to [cardWidth] (shorter = more compact card height).
+  static const double imageHeightFactor = 0.56;
+
+  /// Fixed vertical space below the image (paddings + text blocks). Keep in sync with [build].
+  static const double _belowImageHeight = 114;
+
+  /// Total card height for horizontal [ListView] row sizing — matches [build] layout.
+  static double totalHeightForWidth(double cardWidth) {
+    return cardWidth * imageHeightFactor + _belowImageHeight;
+  }
+
   const PetCareServiceCard({
     super.key,
     required this.hostel,
@@ -40,8 +51,7 @@ class PetCareServiceCard extends StatelessWidget {
     final numPrice = price is num ? price : num.tryParse(price.toString()) ?? 0;
     final isSession = ['Grooming', 'Training', 'Wash', 'Spa', 'Daycare'].contains(serviceType);
 
-    final cardHeight = cardWidth * 1.22;
-    final imageHeight = cardHeight * 0.58;
+    final imageHeight = cardWidth * imageHeightFactor;
 
     String priceSubtitle() {
       switch (serviceType) {
@@ -161,7 +171,7 @@ class PetCareServiceCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 5),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -179,10 +189,10 @@ class PetCareServiceCard extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Row(
                             children: [
-                              Icon(Icons.location_on_outlined, size: 15, color: Colors.grey[600]),
+                              Icon(Icons.location_on_outlined, size: 14, color: Colors.grey[600]),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
@@ -227,7 +237,7 @@ class PetCareServiceCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [

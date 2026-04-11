@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { clearStoredAuth, getStoredToken } from '@/lib/authStorage';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 interface User {
   _id: string;
@@ -44,11 +45,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const baseUrl = String(process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+    const baseUrl = getWebsiteApiBase();
     const healthUrl = `${baseUrl}/health`;
     const checkHealth = async () => {
       try {
-        const res = await fetch(healthUrl);
+        const res = await fetch(healthUrl, { headers: ngrokBrowserBypassHeaders });
         const data = await res.json();
         const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
         console.log(`[${ts}] [INFO] Backend health: status=${data.status} database=${data.database} userCount=${data.userCount ?? 'n/a'}`);

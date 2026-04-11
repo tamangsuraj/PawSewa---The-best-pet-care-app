@@ -229,5 +229,24 @@ class CategoryAssetFallback {
     }
     return list[_rng.nextInt(list.length)];
   }
+
+  /// Home slider assets: 0 = hostel/pet stays, 1 = grooming folder, 2 = food (Timothy Hay when [preferTimothyHayPromo]).
+  static Future<String?> pickHomeBannerAsset(
+    int bannerImageIndex, {
+    bool preferTimothyHayPromo = false,
+  }) async {
+    await _ensureLoaded();
+    switch (bannerImageIndex.clamp(0, 2)) {
+      case 0:
+        return pickForCategory('hostel');
+      case 1:
+        return pickForCategory('grooming');
+      case 2:
+      default:
+        return pickFoodImageForHomeBanner(
+          preferTimothyHayPromo: preferTimothyHayPromo,
+        );
+    }
+  }
 }
 

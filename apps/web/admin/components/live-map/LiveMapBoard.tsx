@@ -19,6 +19,7 @@ import {
   useMap,
 } from 'react-leaflet';
 import api from '@/lib/api';
+import { adminApiEnvPointsLocalOrUnset } from '@/lib/apiConfig';
 import { getAdminSocket } from '@/lib/socket';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { MapPin, RefreshCw, Search } from 'lucide-react';
@@ -219,15 +220,14 @@ export default function LiveMapBoard() {
         ax.response?.data?.message ||
         ax.message ||
         'Failed to load live map';
-      const apiUrl = String(process.env.NEXT_PUBLIC_API_URL || '').trim();
       const host = typeof window !== 'undefined' ? window.location.hostname : '';
       const tunnelBrowse = host.includes('ngrok') || host.includes('vercel.app');
-      const apiPointsLocal = !apiUrl || apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+      const apiPointsLocal = adminApiEnvPointsLocalOrUnset();
       const hint =
         tunnelBrowse && apiPointsLocal
           ? ' If you opened the admin via a public URL, set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local to that same backend (ngrok or deployed API + /api/v1) and restart npm run dev.'
-          : !apiUrl
-            ? ' Set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local (e.g. http://localhost:3000/api/v1 or your ngrok URL).'
+          : apiPointsLocal
+            ? ' Set NEXT_PUBLIC_API_URL or NEXT_PUBLIC_DEV_API_BASE_URL in apps/web/admin/.env.local (see .env.example).'
             : '';
       const msg = `${base}${hint}`;
       setErr(msg);

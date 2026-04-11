@@ -4,8 +4,8 @@ import '../config/app_config.dart';
 
 /// Central API config — single source of truth. Change here only.
 /// Supports:
-/// - Local IP (192.168.1.5) — phone and PC on same Wi‑Fi
-/// - ngrok URL (https://xxx.ngrok-free.app) — works from anywhere, no IP changes
+/// - LAN IP or 127.0.0.1 — same Wi‑Fi / emulator
+/// - ngrok URL (https://xxx.ngrok-free.app) — works from any network
 class ApiConfig {
   static const _keyHost = 'api_host_override';
 
@@ -64,11 +64,8 @@ class ApiConfig {
     return v != null && v.trim().isNotEmpty;
   }
 
-  /// ngrok free tier may inject an HTML warning page; this header reduces issues on REST calls.
-  static Map<String, String> ngrokHeadersForBaseUrl(String baseUrl) {
-    if (baseUrl.toLowerCase().contains('ngrok')) {
-      return {'ngrok-skip-browser-warning': 'true'};
-    }
-    return {};
+  /// Ngrok may inject an HTML interstitial; sending this on every request is safe for non-ngrok hosts.
+  static Map<String, String> ngrokHeadersForBaseUrl([String? _]) {
+    return {'ngrok-skip-browser-warning': 'true'};
   }
 }

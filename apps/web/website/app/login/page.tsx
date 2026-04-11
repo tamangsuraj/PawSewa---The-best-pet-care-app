@@ -88,9 +88,13 @@ export default function LoginPage() {
           // Show appropriate error message
           if (userData.role === 'admin') {
             const adminBase =
-              process.env.NEXT_PUBLIC_ADMIN_PANEL_URL || 'http://localhost:3002';
+              process.env.NEXT_PUBLIC_ADMIN_PANEL_URL?.trim() ||
+              process.env.NEXT_PUBLIC_DEV_ADMIN_PANEL_URL?.trim() ||
+              '';
             setFormError(
-              `Admin accounts cannot sign in here. Open the Admin Panel (${adminBase}).`,
+              adminBase
+                ? `Admin accounts cannot sign in here. Open the Admin Panel (${adminBase}).`
+                : 'Admin accounts cannot sign in here. Set NEXT_PUBLIC_ADMIN_PANEL_URL (or NEXT_PUBLIC_DEV_ADMIN_PANEL_URL) in .env — see .env.example.',
             );
           } else {
             setFormError(

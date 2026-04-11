@@ -6,7 +6,7 @@ import '../core/constants.dart';
 /// 1. `--dart-define=PAWSEWA_BASE_URL=https://xxx.ngrok-free.app`
 /// 2. `--dart-define=BASE_URL=https://xxx.ngrok-free.app` (alias)
 /// 3. [ngrokDefaultOrigin] when you replace the placeholder
-/// 4. `--dart-define=API_HOST=192.168.1.x` or LAN default
+/// 4. `--dart-define=API_HOST=…` (optional LAN host)
 class AppConfig {
   AppConfig._();
 
@@ -24,7 +24,7 @@ class AppConfig {
 
   static const String _dartDefineLanHost = String.fromEnvironment(
     'API_HOST',
-    defaultValue: '192.168.1.5',
+    defaultValue: '',
   );
 
   static bool _looksLikePlaceholder(String o) {
@@ -50,6 +50,8 @@ class AppConfig {
     if (ng.isNotEmpty && !_looksLikePlaceholder(ng)) {
       return ng.endsWith('/') ? ng.substring(0, ng.length - 1) : ng;
     }
-    return _dartDefineLanHost.trim();
+    final lan = _dartDefineLanHost.trim();
+    if (lan.isNotEmpty) return lan;
+    return '127.0.0.1';
   }
 }

@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ScrollableTableWrapper from '@/components/ui/ScrollableTableWrapper';
 
 interface Stats {
   totalUsers: number;
@@ -315,8 +316,8 @@ export default function DashboardPage() {
                   ) : shopRecActivity.length === 0 ? (
                     <p className="text-gray-500 text-center py-6">No recommendation events yet</p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
+                    <ScrollableTableWrapper>
+                      <table className="w-full min-w-[920px] text-sm">
                         <thead>
                           <tr className="border-b border-gray-200 text-left text-gray-500">
                             <th className="py-2 pr-4 font-medium">When</th>
@@ -366,7 +367,7 @@ export default function DashboardPage() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
+                    </ScrollableTableWrapper>
                   )}
                 </div>
 
@@ -381,8 +382,8 @@ export default function DashboardPage() {
                   ) : recentOrders.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">No orders yet</p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full text-sm">
+                    <ScrollableTableWrapper>
+                      <table className="w-full min-w-[880px] text-sm">
                         <thead>
                           <tr className="border-b border-gray-200 text-left text-gray-500">
                             <th className="py-2 pr-4 font-medium">Order</th>
@@ -432,7 +433,7 @@ export default function DashboardPage() {
                           })}
                         </tbody>
                       </table>
-                    </div>
+                    </ScrollableTableWrapper>
                   )}
                 </div>
               </>

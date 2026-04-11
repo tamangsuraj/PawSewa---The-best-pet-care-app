@@ -84,6 +84,9 @@ class ApiClient {
           if (options.data is FormData) {
             options.headers.remove('Content-Type');
           }
+          // Always inject the Ngrok bypass header so requests are never intercepted by
+          // the Ngrok browser-warning interstitial page (which returns HTML instead of JSON).
+          options.headers['ngrok-skip-browser-warning'] = 'true';
           // Get token from secure storage
           final token = await _storage.getToken();
 
@@ -92,6 +95,26 @@ class ApiClient {
           }
 
           return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          // Detect when Ngrok returns an HTML interstitial (status 200 but HTML body).
+          final data = response.data;
+          if (data is String && data.trimLeft().startsWith('<')) {
+            if (kDebugMode) {
+              debugPrint('[API] [ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+            }
+            return handler.reject(
+              DioException(
+                requestOptions: response.requestOptions,
+                response: response,
+                type: DioExceptionType.badResponse,
+                error:
+                    'API handshake failed — server returned an HTML page instead of JSON. '
+                    'Verify the Ngrok tunnel is active and the bypass headers are configured.',
+              ),
+            );
+          }
+          return handler.next(response);
         },
         onError: (error, handler) async {
           // Handle 401 Unauthorized - token expired or invalid

@@ -24,6 +24,9 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
   static const _primary = Color(AppConstants.primaryColor);
   static const _bg = Color(0xFFF8F9FA);
 
+  /// Grid cell width/height. Lower = taller cards (~30% more height than 0.72).
+  static const double _petGridAspectRatio = 0.72 / 1.3;
+
   @override
   void initState() {
     super.initState();
@@ -143,11 +146,11 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         sliver: SliverGrid(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisSpacing: 14,
             crossAxisSpacing: 14,
-            childAspectRatio: 0.72,
+            childAspectRatio: _petGridAspectRatio,
           ),
           delegate: SliverChildBuilderDelegate(
             (context, index) => _ShimmerCard(),
@@ -227,11 +230,11 @@ class _MyPetsScreenState extends State<MyPetsScreen> {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           mainAxisSpacing: 14,
           crossAxisSpacing: 14,
-          childAspectRatio: 0.72,
+          childAspectRatio: _petGridAspectRatio,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {

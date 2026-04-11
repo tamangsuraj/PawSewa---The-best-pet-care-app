@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
 /// Central API config — single source of truth. Change here only.
-/// Supports: Local IP (192.168.1.5) or ngrok URL (https://xxx.ngrok-free.app)
+/// Supports: LAN / 127.0.0.1 or ngrok URL (https://xxx.ngrok-free.app)
 class ApiConfig {
   static const _keyHost = 'api_host_override';
 
@@ -57,10 +57,7 @@ class ApiConfig {
     return v != null && v.trim().isNotEmpty;
   }
 
-  static Map<String, String> ngrokHeadersForBaseUrl(String baseUrl) {
-    if (baseUrl.toLowerCase().contains('ngrok')) {
-      return {'ngrok-skip-browser-warning': 'true'};
-    }
-    return {};
+  static Map<String, String> ngrokHeadersForBaseUrl([String? _]) {
+    return {'ngrok-skip-browser-warning': 'true'};
   }
 }

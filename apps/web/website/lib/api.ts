@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { clearStoredAuth, getStoredToken } from './authStorage';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from './apiEnv';
 
 /** Same Node API as admin, user_app, and vet_app (one cluster + DB_NAME on the server). */
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: getWebsiteApiBase() || undefined,
   headers: {
     'Content-Type': 'application/json',
+    ...ngrokBrowserBypassHeaders,
   },
 });
 
@@ -13,11 +15,12 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = getStoredToken();
-    
+    config.headers['ngrok-skip-browser-warning'] = 'true';
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   (error) => {

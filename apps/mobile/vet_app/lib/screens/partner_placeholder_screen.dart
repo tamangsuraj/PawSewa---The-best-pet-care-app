@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../core/constants.dart';
+import '../widgets/map_pin_marker.dart';
 
 const Color _kBrown = Color(AppConstants.primaryColor);
 const Color _kCream = Color(AppConstants.secondaryColor);
@@ -102,9 +103,13 @@ class PartnerPlaceholderScreen extends StatelessWidget {
                       markers: [
                         Marker(
                           point: const LatLng(27.72, 85.33),
-                          width: 32,
-                          height: 32,
-                          child: Icon(Icons.delivery_dining_rounded, color: Colors.orange.shade800, size: 28),
+                          width: 30,
+                          height: 38,
+                          alignment: Alignment.bottomCenter,
+                          child: MapPinMarker(
+                            color: Colors.orange.shade800,
+                            size: 28,
+                          ),
                         ),
                       ],
                     ),

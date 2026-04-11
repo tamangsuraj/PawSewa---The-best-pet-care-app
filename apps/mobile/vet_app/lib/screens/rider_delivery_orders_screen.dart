@@ -380,6 +380,9 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     setState(() => _updatingOrderId = orderId);
     try {
       await _apiClient.updateOrderStatus(orderId: orderId, status: status);
+      if (kDebugMode) {
+        debugPrint('[INFO] Order #$orderId status updated to: ${_statusLabel(status)}.');
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

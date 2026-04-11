@@ -24,6 +24,7 @@ import 'care_calendar_screen.dart';
 import 'care_pet_records_screen.dart';
 import 'care_staff_tasks_screen.dart';
 import 'unified_inbox_screen.dart';
+import 'login_screen.dart';
 import 'my_business_screen.dart';
 import 'profile_editor_screen.dart';
 
@@ -839,7 +840,7 @@ class _AnalyticsHub extends StatelessWidget {
   }
 }
 
-class _ProfileHub extends StatelessWidget {
+class _ProfileHub extends StatefulWidget {
   const _ProfileHub({
     required this.role,
     required this.name,
@@ -857,41 +858,274 @@ class _ProfileHub extends StatelessWidget {
   final void Function(Widget screen) onOpen;
 
   @override
+  State<_ProfileHub> createState() => _ProfileHubState();
+}
+
+class _ProfileHubState extends State<_ProfileHub> {
+  final _storage = StorageService();
+
+  String _name = '';
+  String _email = '';
+  String _phone = '';
+  String _role = '';
+  String _specialty = '';
+  String _bio = '';
+  String? _profilePicUrl;
+  bool _isProfileComplete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = widget.name;
+    _role = widget.subtitle;
+    _loadProfile();
+  }
+
+  @override
+  void didUpdateWidget(_ProfileHub old) {
+    super.didUpdateWidget(old);
+    if (old.name != widget.name || old.subtitle != widget.subtitle) {
+      setState(() {
+        _name = widget.name;
+        _role = widget.subtitle;
+      });
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    final raw = await _storage.getUser();
+    if (raw == null || raw.trim().isEmpty) return;
+    try {
+      final m = jsonDecode(raw);
+      if (m is Map && mounted) {
+        setState(() {
+          _name = (m['name'] ?? m['fullName'] ?? _name).toString();
+          _email = (m['email'] ?? '').toString();
+          _phone = (m['phone'] ?? '').toString();
+          _role = (m['role'] ?? _role).toString();
+          _specialty = (m['specialty'] ?? m['specialization'] ?? '').toString();
+          _bio = (m['bio'] ?? '').toString();
+          _profilePicUrl = m['profilePicture']?.toString();
+          _isProfileComplete = m['isProfileComplete'] == true;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Log out?', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
+        content: Text(
+          'You will be signed out of your PawSewa partner account.',
+          style: GoogleFonts.outfit(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.outfit()),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Log out', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _storage.clearAll();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final ink = const Color(AppConstants.inkColor);
 
+    final roleColor = switch (_role.toLowerCase()) {
+      'vet' || 'veterinarian' => const Color(0xFF2E7D32),
+      'rider' || 'delivery' => const Color(0xFF1565C0),
+      'seller' || 'shop_owner' => const Color(0xFF6A1B9A),
+      _ => primary,
+    };
+
     return PartnerScaffold(
       title: 'Profile',
-      subtitle: 'Account and preferences',
+      subtitle: 'Account & preferences',
       actions: [
-        if (canSwitchPanel)
+        if (widget.canSwitchPanel)
           IconButton(
             tooltip: 'Switch panel',
-            onPressed: onRoleTap,
+            onPressed: widget.onRoleTap,
             icon: const Icon(Icons.swap_horiz_rounded),
           ),
       ],
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
+          // ── Profile hero card ────────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: primary.withValues(alpha: 0.10)),
+              boxShadow: [
+                BoxShadow(
+                  color: primary.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    // Avatar
+                    CircleAvatar(
+                      radius: 36,
+                      backgroundColor: primary.withValues(alpha: 0.12),
+                      backgroundImage: (_profilePicUrl != null && _profilePicUrl!.isNotEmpty)
+                          ? NetworkImage(_profilePicUrl!)
+                          : null,
+                      child: (_profilePicUrl == null || _profilePicUrl!.isEmpty)
+                          ? Icon(Icons.person_rounded, size: 38, color: primary)
+                          : null,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _name.isNotEmpty ? _name : 'Partner',
+                            style: GoogleFonts.fraunces(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: ink,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          // Role badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: roleColor.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: roleColor.withValues(alpha: 0.25)),
+                            ),
+                            child: Text(
+                              _role.isNotEmpty ? _role.toUpperCase() : 'PARTNER',
+                              style: GoogleFonts.outfit(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: roleColor,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                          ),
+                          if (_isProfileComplete) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.verified_rounded, size: 13, color: Colors.green.shade600),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Profile verified',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: Colors.green.shade600,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // Info rows
+                if (_email.isNotEmpty || _phone.isNotEmpty || _specialty.isNotEmpty || _bio.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  if (_email.isNotEmpty)
+                    _InfoRow(icon: Icons.email_outlined, label: 'Email', value: _email),
+                  if (_phone.isNotEmpty)
+                    _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: _phone),
+                  if (_specialty.isNotEmpty)
+                    _InfoRow(icon: Icons.medical_services_outlined, label: 'Specialty', value: _specialty),
+                  if (_bio.isNotEmpty)
+                    _InfoRow(icon: Icons.info_outline_rounded, label: 'Bio', value: _bio),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // ── Settings tiles ───────────────────────────────────────────────
+          _SectionLabel('Account'),
+          const SizedBox(height: 8),
+          _SettingsTile(
+            icon: Icons.edit_rounded,
+            title: 'Edit profile',
+            subtitle: 'Name, photo, specialty & bio',
+            onTap: () {
+              widget.onOpen(const ProfileEditorScreen());
+              // Reload after returning (via a short delay so push completes)
+              Future.delayed(const Duration(milliseconds: 800), _loadProfile);
+            },
+          ),
+          if (widget.canSwitchPanel)
+            _SettingsTile(
+              icon: Icons.swap_horiz_rounded,
+              title: 'Switch panel',
+              subtitle: 'Vet · Rider · Seller · Care',
+              onTap: widget.onRoleTap,
+            ),
+          _SettingsTile(
+            icon: Icons.notifications_rounded,
+            title: 'Notifications',
+            subtitle: 'Updates and alerts',
+            onTap: () => widget.onOpen(const NotificationsScreen()),
+          ),
+          const SizedBox(height: 18),
+
+          // ── Info card (replaces PartnerEmptyState to avoid layout crash) ─
+          _SectionLabel('Compliance & payouts'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: primary.withValues(alpha: 0.10)),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(18),
+                    color: primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(Icons.person_rounded, color: primary),
+                  child: Icon(Icons.verified_user_outlined, color: primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -899,19 +1133,19 @@ class _ProfileHub extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
+                        'KYC & banking',
                         style: GoogleFonts.outfit(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
                           color: ink,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        subtitle,
+                        'KYC and payout banking are coordinated with PawSewa support when you enable paid payouts on your partner account.',
                         style: GoogleFonts.outfit(
                           fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
+                          height: 1.4,
                           color: ink.withValues(alpha: 0.65),
                         ),
                       ),
@@ -921,32 +1155,29 @@ class _ProfileHub extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          _SettingsTile(
-            icon: Icons.edit_rounded,
-            title: 'Edit profile',
-            subtitle: 'Clinic, payout, identity',
-            onTap: () => onOpen(const ProfileEditorScreen()),
-          ),
-          if (canSwitchPanel)
-            _SettingsTile(
-              icon: Icons.swap_horiz_rounded,
-              title: 'Switch panel',
-              subtitle: 'Vet / Rider / Seller / Care',
-              onTap: onRoleTap,
+          const SizedBox(height: 24),
+
+          // ── Logout button ────────────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: _logout,
+              icon: Icon(Icons.logout_rounded, color: Colors.red.shade600),
+              label: Text(
+                'Log out',
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.red.shade600,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: Colors.red.shade200, width: 1.5),
+                backgroundColor: Colors.red.shade50,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
             ),
-          _SettingsTile(
-            icon: Icons.notifications_rounded,
-            title: 'Notifications',
-            subtitle: 'Updates and alerts',
-            onTap: () => onOpen(const NotificationsScreen()),
-          ),
-          const SizedBox(height: 8),
-          PartnerEmptyState(
-            title: 'Compliance & payouts',
-            body:
-                'KYC and payout banking are coordinated with PawSewa support when you enable paid payouts on your partner account.',
-            icon: Icons.verified_user_outlined,
           ),
         ],
       ),
@@ -1044,6 +1275,71 @@ class _HubScaffold extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text.toUpperCase(),
+        style: GoogleFonts.outfit(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: const Color(AppConstants.inkColor).withValues(alpha: 0.45),
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.label, required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) {
+    final ink = const Color(AppConstants.inkColor);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: ink.withValues(alpha: 0.45)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.outfit(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: ink.withValues(alpha: 0.45),
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                Text(
+                  value,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

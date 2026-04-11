@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHero } from '@/components/layout/PageHero';
 import { PageContent } from '@/components/layout/PageContent';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 export default function AddPetPage() {
   const router = useRouter();
@@ -83,11 +84,11 @@ export default function AddPetPage() {
         submitData.append('photo', selectedImage);
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      const apiBase = getWebsiteApiBase();
       const response = await axios.post(`${apiBase}/pets`, submitData, {
         headers: {
+          ...ngrokBrowserBypassHeaders,
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
         },
       });
 

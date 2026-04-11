@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
 import '../services/location_service.dart';
+import '../widgets/map_pin_marker.dart';
 
 class ServiceTaskDetailScreen extends StatefulWidget {
   final Map<String, dynamic> task;
@@ -376,22 +377,22 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                               markers: [
                                 Marker(
                                   point: _customerLocation!,
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.home_filled,
+                                  width: 38,
+                                  height: 48,
+                                  alignment: Alignment.bottomCenter,
+                                  child: const MapPinMarker(
                                     color: Color(AppConstants.primaryColor),
-                                    size: 34,
+                                    size: 36,
                                   ),
                                 ),
                                 if (_vetLocation != null)
                                   Marker(
                                     point: _vetLocation!,
-                                    width: 36,
-                                    height: 36,
-                                    child: const Icon(
-                                      Icons.medical_services,
-                                      color: Color(AppConstants.primaryColor),
+                                    width: 34,
+                                    height: 43,
+                                    alignment: Alignment.bottomCenter,
+                                    child: MapPinMarker(
+                                      color: Colors.teal.shade700,
                                       size: 30,
                                     ),
                                   ),

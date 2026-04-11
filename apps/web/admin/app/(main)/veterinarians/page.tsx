@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
-import { UserCheck, Clock, CheckCircle, XCircle, Edit2, RefreshCw } from 'lucide-react';
+import { UserCheck, Clock, CheckCircle, XCircle, Edit2, RefreshCw, Plus } from 'lucide-react';
 
 interface Vet {
   _id: string;
@@ -13,6 +13,7 @@ interface Vet {
   specialization?: string;
   currentShift: string;
   isAvailable: boolean;
+  isVerified?: boolean;
   bio?: string;
   createdAt: string;
 }
@@ -25,6 +26,12 @@ export default function VeterinariansPage() {
   const [newShift, setNewShift] = useState('');
   const [newAvailability, setNewAvailability] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  const [createEmail, setCreateEmail] = useState('');
+  const [createPassword, setCreatePassword] = useState('');
+  const [createConfirmPassword, setCreateConfirmPassword] = useState('');
 
   useEffect(() => {
     fetchVets();
@@ -90,6 +97,57 @@ export default function VeterinariansPage() {
     );
   };
 
+  const handleCreateVet = async () => {
+    const email = createEmail.trim();
+    const pw = createPassword;
+    const cpw = createConfirmPassword;
+
+    if (!email) {
+      alert('Username / Email is required.');
+      return;
+    }
+    if (!pw) {
+      alert('Password is required.');
+      return;
+    }
+    if (pw !== cpw) {
+      alert('Password and Confirm Password must match.');
+      return;
+    }
+
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[INFO] Initializing simplified Vet creation (Testing Mode).');
+      setCreating(true);
+
+      const res = await api.post('/veterinarians', {
+        email,
+        password: pw,
+      });
+      const created = res.data?.data as Vet | undefined;
+
+      // eslint-disable-next-line no-console
+      console.log(`[SUCCESS] Credentials saved. Vet role assigned to ${email}.`);
+
+      if (created && created._id) {
+        setVets((prev) => [created, ...prev]);
+      }
+      setShowAddModal(false);
+      setCreateEmail('');
+      setCreatePassword('');
+      setCreateConfirmPassword('');
+      fetchVets();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('pawsewa:admin-data-refresh'));
+      }
+      alert('Success: test veterinarian credentials saved.');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to create veterinarian');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <>
             <div className="mb-8">
@@ -98,13 +156,22 @@ export default function VeterinariansPage() {
                   <h1 className="text-3xl font-bold text-primary mb-2">Veterinarian Management</h1>
                   <p className="text-gray-600">Manage veterinarian shifts and availability</p>
                 </div>
-                <button
-                  onClick={fetchVets}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add New Veterinarian
+                  </button>
+                  <button
+                    onClick={fetchVets}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Refresh
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -277,6 +344,86 @@ export default function VeterinariansPage() {
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
                       {updating ? 'Updating...' : 'Update Shift'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add Veterinarian Modal */}
+            {showAddModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
+                  <div className="p-6 border-b border-gray-200 flex items-start justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Add New Veterinarian</h2>
+                      <p className="text-gray-600 mt-1">
+                        Testing Mode: create a vet with username + password only.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddModal(false)}
+                      className="px-3 py-2 text-gray-600 hover:text-gray-900"
+                      disabled={creating}
+                      aria-label="Close"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Username / Email</label>
+                      <input
+                        type="email"
+                        value={createEmail}
+                        onChange={(e) => setCreateEmail(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="vet_test@example.com"
+                        autoComplete="username"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={createPassword}
+                        onChange={(e) => setCreatePassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="********"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                      <input
+                        type="password"
+                        value={createConfirmPassword}
+                        onChange={(e) => setCreateConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        placeholder="********"
+                        autoComplete="new-password"
+                      />
+                      {createPassword && createConfirmPassword && createPassword !== createConfirmPassword ? (
+                        <p className="text-xs text-red-600 mt-1">Passwords do not match.</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="p-6 border-t border-gray-200 flex gap-3">
+                    <button
+                      onClick={() => setShowAddModal(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                      disabled={creating}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleCreateVet}
+                      disabled={creating || !createEmail.trim() || !createPassword || createPassword !== createConfirmPassword}
+                      className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    >
+                      {creating ? 'Creating…' : 'Create Veterinarian'}
                     </button>
                   </div>
                 </div>

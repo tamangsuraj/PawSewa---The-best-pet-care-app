@@ -21,6 +21,7 @@ const sanitizeInput = mongoSanitize.sanitize;
 
 // Database connection
 const connectDB = require('./config/db');
+const { startBackgroundReconnect } = require('./config/db');
 const { initFirebaseAdmin, isFirebaseAdminConfigured } = require('./config/firebaseAdmin');
 
 // Error handling middleware
@@ -32,6 +33,7 @@ const requireDb = require('./middleware/requireDb');
 const userRoutes = require('./routes/userRoutes');
 const petRoutes = require('./routes/petRoutes');
 const vetRoutes = require('./routes/vetRoutes');
+const veterinarianRoutes = require('./routes/veterinarianRoutes');
 const authRoutes = require('./routes/authRoutes');
 const caseRoutes = require('./routes/caseRoutes');
 const serviceRequestRoutes = require('./routes/serviceRequestRoutes');
@@ -79,8 +81,17 @@ const io = new SocketServer(server, {
       callback(null, isSocketCorsOriginAllowed(origin));
     },
     credentials: true,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Authorization', 'Content-Type'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    // ngrok-skip-browser-warning must be listed here so the Socket.IO
+    // pre-flight OPTIONS request allows it — without this, polling XHR
+    // requests through ngrok are intercepted by the HTML interstitial.
+    allowedHeaders: [
+      'Authorization',
+      'Content-Type',
+      'ngrok-skip-browser-warning',
+      'X-Requested-With',
+      'Accept',
+    ],
   },
   pingTimeout: 20000,
   pingInterval: 10000,
@@ -143,17 +154,44 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// CORS - use ALLOWED_ORIGINS in production (comma-separated). Development: allow all.
-const allowedOrigins = process.env.ALLOWED_ORIGINS
+// CORS: dev without ALLOWED_ORIGINS → fully permissive (origin *). Otherwise whitelist + credentials.
+const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+const explicitOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
-  : '*';
+  : [];
+const devPermissiveCors = !isProd && explicitOrigins.length === 0;
+
+const corsShared = {
+  allowedHeaders: [
+    'Authorization',
+    'Content-Type',
+    'ngrok-skip-browser-warning',
+    'X-Requested-With',
+    'Accept',
+  ],
+  exposedHeaders: [
+    'Content-Length',
+    'Content-Type',
+    'ngrok-skip-browser-warning',
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  optionsSuccessStatus: 204,
+};
+
 app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-    allowedHeaders: ['Authorization', 'Content-Type'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  })
+  cors(
+    devPermissiveCors
+      ? {
+          origin: '*',
+          credentials: false,
+          ...corsShared,
+        }
+      : {
+          origin: explicitOrigins.length > 0 ? explicitOrigins : isProd ? false : true,
+          credentials: true,
+          ...corsShared,
+        }
+  )
 );
 
 // Body Parser - Parse JSON with size limit (prevent DoS attacks)
@@ -207,6 +245,7 @@ app.get('/', (req, res) => {
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/pets', petRoutes);
 app.use('/api/v1/vets', vetRoutes);
+app.use('/api/v1/veterinarians', veterinarianRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/customer-care', customerCareRoutes);
 app.use('/api/v1/marketplace-chat', marketplaceChatRoutes);
@@ -361,6 +400,8 @@ async function start() {
     logger.warn(
       '[DEV] MongoDB is not connected. API will run in degraded mode (DB-backed routes return 503).',
     );
+    logger.warn('[ACTION REQUIRED] Add your current IP to MongoDB Atlas Network Access (or use 0.0.0.0/0 for development).');
+    startBackgroundReconnect();
   }
   try {
     const { resolveCareAdminId } = require('./services/customerCareService');
@@ -444,7 +485,11 @@ async function start() {
     logger.info('Server: starting HTTP listener.');
     logger.success('Server: listening on port', PORT);
     logger.info('Runtime: environment', process.env.NODE_ENV || 'development');
-    logger.info('CORS: enabled for localhost and local network origins.');
+    logger.info(
+      devPermissiveCors
+        ? 'CORS: development permissive mode (origin *). Set ALLOWED_ORIGINS in production.'
+        : 'CORS: whitelist from ALLOWED_ORIGINS (or reflective origins in non-prod).',
+    );
     logger.event('Socket.io: initialized.');
     logger.info('Network: mobile devices can connect via http://<your-ip>:' + PORT);
     if (dbConnected) {

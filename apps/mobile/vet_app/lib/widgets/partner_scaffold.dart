@@ -108,53 +108,66 @@ class PartnerEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = const Color(AppConstants.inkColor);
     final primary = const Color(AppConstants.primaryColor);
+
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: primary.withValues(alpha: 0.14)),
+          ),
+          child: Icon(icon, color: primary, size: 34),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.fraunces(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: ink,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          body,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.outfit(
+            fontSize: 13,
+            height: 1.35,
+            color: ink.withValues(alpha: 0.65),
+          ),
+        ),
+        if (primaryAction != null) ...[
+          const SizedBox(height: 14),
+          primaryAction!,
+        ],
+      ],
+    );
+
     return LayoutBuilder(
       builder: (context, viewport) {
+        final maxH = viewport.maxHeight;
+        final hasBoundedHeight = maxH.isFinite && maxH > 0;
+
+        // Inside ListView / sliver children, maxHeight is often infinity — never use
+        // BoxConstraints(minHeight: infinity) or Center with unbounded constraints.
+        if (!hasBoundedHeight) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: column,
+          );
+        }
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: viewport.maxHeight),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: primary.withValues(alpha: 0.14)),
-                    ),
-                    child: Icon(icon, color: primary, size: 34),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.fraunces(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: ink,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    body,
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: ink.withValues(alpha: 0.65),
-                    ),
-                  ),
-                  if (primaryAction != null) ...[
-                    const SizedBox(height: 14),
-                    primaryAction!,
-                  ],
-                ],
-              ),
-            ),
+            constraints: BoxConstraints(minHeight: maxH),
+            child: Center(child: column),
           ),
         );
       },

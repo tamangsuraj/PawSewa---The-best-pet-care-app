@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../services/location_service.dart';
+import '../widgets/map_pin_marker.dart';
 import '../widgets/partner_scaffold.dart';
 
 class RiderLiveMapScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
   final _api = ApiClient();
   final _loc = LocationService();
   final _map = MapController();
+  bool _isMapReady = false;
 
   bool _loading = true;
   String? _error;
@@ -64,7 +66,15 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
       );
       if (!mounted) return;
       _me = LatLng(pos.latitude, pos.longitude);
-      _map.move(_me!, 15);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (!_isMapReady) return;
+        // ignore: avoid_print
+        print('[DEBUG] MapController accessed. Verification: Widget Rendered = True.');
+        try {
+          _map.move(_me!, 15);
+        } catch (_) {}
+      });
 
       _sub?.cancel();
       _sub = Geolocator.getPositionStream(
@@ -219,6 +229,19 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
                                 interactionOptions: const InteractionOptions(
                                   flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                                 ),
+                                onMapReady: () {
+                                  if (!mounted) return;
+                                  setState(() => _isMapReady = true);
+                                  final me = _me;
+                                  if (me != null) {
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (!mounted || !_isMapReady) return;
+                                      try {
+                                        _map.move(me, 15);
+                                      } catch (_) {}
+                                    });
+                                  }
+                                },
                               ),
                               children: [
                                 TileLayer(
@@ -233,21 +256,9 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
                                         point: _me!,
                                         width: 44,
                                         height: 44,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: const Color(AppConstants.accentColor)
-                                                .withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(999),
-                                            border: Border.all(
-                                              color: const Color(AppConstants.accentColor)
-                                                  .withValues(alpha: 0.55),
-                                              width: 2,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            Icons.navigation_rounded,
-                                            color: Color(AppConstants.accentColor),
-                                          ),
+                                        child: const MapDotMarker(
+                                          color: Color(AppConstants.accentColor),
+                                          size: 44,
                                         ),
                                       ),
                                     ],

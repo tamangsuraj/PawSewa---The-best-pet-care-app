@@ -14,7 +14,7 @@ export default function TestLoginPage() {
       const baseUrl = getAdminApiBaseUrl().replace(/\/$/, '');
       if (!baseUrl) {
         setError(
-          'NEXT_PUBLIC_API_URL is not set (production). In development, default is http://localhost:3000/api/v1.',
+          'Set NEXT_PUBLIC_API_URL (ngrok/deployed) or NEXT_PUBLIC_DEV_API_BASE_URL in apps/web/admin/.env.local — see .env.example.',
         );
         setResult(null);
         return;

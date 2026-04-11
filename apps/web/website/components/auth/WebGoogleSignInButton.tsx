@@ -7,6 +7,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 type Props = {
   onError: (message: string) => void;
@@ -36,14 +37,18 @@ export function WebGoogleSignInButton({ onError, clearOtherErrors }: Props) {
         const displayName =
           googleUser.name?.trim() || googleUser.email?.split('@')[0] || 'User';
 
-        const base = process.env.NEXT_PUBLIC_API_URL || '';
-        const response = await axios.post(`${base}/auth/google`, {
-          googleToken: tokenResponse.access_token,
-          email: googleUser.email,
-          name: displayName,
-          googleId: googleUser.sub,
-          appContext: 'customer',
-        });
+        const base = getWebsiteApiBase();
+        const response = await axios.post(
+          `${base}/auth/google`,
+          {
+            googleToken: tokenResponse.access_token,
+            email: googleUser.email,
+            name: displayName,
+            googleId: googleUser.sub,
+            appContext: 'customer',
+          },
+          { headers: { ...ngrokBrowserBypassHeaders, 'Content-Type': 'application/json' } },
+        );
 
         if (response.data.success) {
           const { token, user: userData } = response.data.data;

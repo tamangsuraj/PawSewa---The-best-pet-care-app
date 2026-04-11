@@ -34,8 +34,9 @@ function isSocketCorsOriginAllowed(origin) {
     origin.startsWith('https://localhost:') ||
     /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
     /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin) ||
-    /^https?:\/\/[\w.-]+\.ngrok(-free)?\.app(:\d+)?$/i.test(origin) ||
-    /^https?:\/\/[\w.-]+\.ngrok\.io(:\d+)?$/i.test(origin);
+    // Match all current and future ngrok domains:
+    //  *.ngrok-free.app, *.ngrok-free.dev, *.ngrok.io, *.ngrok.app, *.ngrok.dev
+    /^https?:\/\/[\w.-]+\.ngrok(-free)?\.(app|dev|io)(:\d+)?$/i.test(origin);
 
   return Boolean(localOrTunnel);
 }

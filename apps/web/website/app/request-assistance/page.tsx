@@ -10,6 +10,7 @@ import { PageContent } from '@/components/layout/PageContent';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
 import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
 import { useAuth } from '@/context/AuthContext';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 interface Pet {
   _id: string;
@@ -36,9 +37,10 @@ export default function RequestAssistancePage() {
     try {
       if (!isAuthenticated || !token) return;
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      const apiBase = getWebsiteApiBase();
       const response = await axios.get(`${apiBase}/pets/my-pets`, {
         headers: {
+          ...ngrokBrowserBypassHeaders,
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
@@ -91,7 +93,7 @@ export default function RequestAssistancePage() {
         return;
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+      const apiBase = getWebsiteApiBase();
       const response = await axios.post(
         `${apiBase}/cases`,
         {
@@ -101,6 +103,7 @@ export default function RequestAssistancePage() {
         },
         {
           headers: {
+            ...ngrokBrowserBypassHeaders,
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },

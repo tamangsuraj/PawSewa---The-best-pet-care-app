@@ -4,16 +4,17 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
-import '../cart/cart_service.dart';
 import '../core/api_client.dart';
+import '../core/category_asset_fallback.dart';
 import '../core/product_image_service.dart';
 import '../core/storage_service.dart';
 import '../core/constants.dart';
 import '../models/pet.dart';
 import '../widgets/premium_shimmer.dart';
 import 'book_service_screen.dart';
+import 'care/hostel_detail_screen.dart';
+import 'care/pet_care_service_card.dart';
 import 'request_assistance_screen.dart';
 import 'shop/my_orders_screen.dart';
 import 'pro_coming_soon_screen.dart';
@@ -46,7 +47,7 @@ class _PromoBanner {
   bool get timothyHayFoodPromo => bannerImageIndex == 2;
 }
 
-/// Unified customer home: hero, quick actions, health, shop picks, live delivery map.
+/// Unified customer home: hero, quick actions, health, shop categories, care centers.
 /// Data from `GET /pets/home-dashboard/:petId`.
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({
@@ -113,12 +114,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Timer? _bannerTimer;
   int _bannerIndex = 0;
 
-  // Shop recommendations should be driven by shop categories.
+  // Shop category strip (opens Shop tab); care centers loaded separately.
   List<Map<String, dynamic>> _shopCategories = [];
-  final String _selectedShopCategorySlug = '';
+  static const String _selectedShopCategorySlug = '';
   bool _catsLoading = false;
-  final List<Map<String, dynamic>> _categoryProducts = [];
-  final bool _categoryProductsLoading = false;
+
+  List<Map<String, dynamic>> _homeCareCenters = [];
+  bool _careCentersLoading = false;
 
   @override
   void initState() {
@@ -131,6 +133,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     debugPrint('[SUCCESS] Banners loaded for Hostels, Grooming, Shop.');
     _loadDashboard();
     _loadShopCategories();
+    _loadHomeCareCenters();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowProAppOpenAd();
     });
@@ -285,6 +288,53 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     await widget.onRefreshPets();
     await _loadDashboard();
     await _loadShopCategories();
+    await _loadHomeCareCenters();
+  }
+
+  Future<void> _loadHomeCareCenters() async {
+    if (mounted) {
+      setState(() => _careCentersLoading = true);
+    }
+    try {
+      final resp = await _api.getHostels(serviceType: 'Hostel');
+      if (!mounted) return;
+      final out = <Map<String, dynamic>>[];
+      if (resp.statusCode == 200 && resp.data is Map) {
+        final raw = (resp.data as Map)['data'];
+        if (raw is List) {
+          for (final e in raw) {
+            if (e is Map) out.add(Map<String, dynamic>.from(e));
+          }
+        }
+      }
+      setState(() {
+        _homeCareCenters = out;
+        _careCentersLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _homeCareCenters = [];
+        _careCentersLoading = false;
+      });
+    }
+  }
+
+  void _openHomeCareCenter(Map<String, dynamic> hostel) {
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => HostelDetailScreen(
+          hostel: hostel,
+          onBooked: () {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Booking successful!')),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Pet? get _selectedPet {
@@ -624,21 +674,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   Widget _buildShopSection(BuildContext context) {
     final dashProducts = _products;
     final cats = _effectiveShopCategories(dashProducts);
-    final selected = _selectedShopCategorySlug;
-
-    final selectedFromDash = selected.isEmpty
-        ? dashProducts
-        : dashProducts.where((p) {
-            final cat = p['category'];
-            final slug = cat is Map ? cat['slug']?.toString() : null;
-            return slug == selected;
-          }).toList();
-
-    final showProducts = (selected.isEmpty)
-        ? dashProducts.take(6).toList()
-        : (selectedFromDash.isNotEmpty
-              ? selectedFromDash.take(6).toList()
-              : _categoryProducts.take(6).toList());
+    const selected = _selectedShopCategorySlug;
+    final careListH = PetCareServiceCard.totalHeightForWidth(272) + 4;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,7 +685,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           children: [
             Expanded(
               child: Text(
-                'Recommended for your pet',
+                'Shop categories',
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -657,9 +694,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               ),
             ),
             TextButton(
-              onPressed: () {
-                widget.onOpenShopTab();
-              },
+              onPressed: widget.onOpenShopTab,
               child: Text(
                 'See more >',
                 style: GoogleFonts.outfit(
@@ -684,64 +719,62 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             );
           },
         ),
-        const SizedBox(height: 12),
-        if (_categoryProductsLoading)
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                'Care centers for your puppies:',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: widget.onOpenCareTab,
+              child: Text(
+                'See all >',
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w600,
+                  color: _kBrown,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_careCentersLoading)
           const Center(
             child: Padding(padding: EdgeInsets.all(12), child: PawSewaLoader()),
           )
-        else if (showProducts.isEmpty)
+        else if (_homeCareCenters.isEmpty)
           Text(
-            'No products to show yet.',
+            'No care centers to show yet.',
             style: GoogleFonts.outfit(color: Colors.grey.shade600),
           )
         else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: showProducts.length.clamp(0, 6),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              // Slightly taller tiles prevent small-screen overflows.
-              childAspectRatio: 0.68,
+          SizedBox(
+            height: careListH,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              padding: EdgeInsets.zero,
+              itemCount: _homeCareCenters.length > 6 ? 6 : _homeCareCenters.length,
+              separatorBuilder: (context, _) => const SizedBox(width: 14),
+              itemBuilder: (context, i) {
+                final h = _homeCareCenters[i];
+                return PetCareServiceCard(
+                  hostel: h,
+                  serviceType: 'Hostel',
+                  cardWidth: 272,
+                  onTap: () => _openHomeCareCenter(h),
+                );
+              },
             ),
-            itemBuilder: (context, i) {
-              return _ProductGridCard(
-                product: showProducts[i],
-                onAddToCart: () async {
-                  final id = showProducts[i]['_id']?.toString() ?? '';
-                  final name = showProducts[i]['name']?.toString() ?? 'Item';
-                  final price = (showProducts[i]['price'] is num)
-                      ? (showProducts[i]['price'] as num).toDouble()
-                      : double.tryParse(
-                              showProducts[i]['price']?.toString() ?? '',
-                            ) ??
-                            0;
-                  if (id.isEmpty) return;
-                  if (!context.mounted) return;
-                  context.read<CartService>().addItem(
-                    productId: id,
-                    name: name,
-                    price: price,
-                  );
-                  try {
-                    await _api.postShopRecommendationEvent(productId: id);
-                  } catch (_) {}
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Added to cart',
-                          style: GoogleFonts.outfit(),
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                },
-              );
-            },
           ),
       ],
     );
@@ -1070,101 +1103,6 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-class _ProductGridCard extends StatelessWidget {
-  const _ProductGridCard({required this.product, required this.onAddToCart});
-
-  final Map<String, dynamic> product;
-  final VoidCallback onAddToCart;
-
-  @override
-  Widget build(BuildContext context) {
-    final name = product['name']?.toString() ?? '';
-    final price = (product['price'] is num)
-        ? (product['price'] as num).toDouble()
-        : 0.0;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Use Expanded instead of fixed AspectRatio+Spacer to avoid overflow in tight grid tiles.
-          Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(14),
-              ),
-              child: ProductImageService.networkImage(
-                ProductImageService.urlForProduct(product),
-                width: double.infinity,
-                height: double.infinity,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 2),
-            child: Text(
-              name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                height: 1.15,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              'Rs. ${price.toStringAsFixed(0)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: _kBrown,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            child: SizedBox(
-              height: 32,
-              child: FilledButton(
-                onPressed: onAddToCart,
-                style: FilledButton.styleFrom(
-                  backgroundColor: _kBrown,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.zero,
-                  textStyle: GoogleFonts.outfit(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text('Add to Cart'),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PromoBannerSlide extends StatelessWidget {
   const _PromoBannerSlide({
     required this.banner,
@@ -1271,8 +1209,8 @@ const List<String> _kBannerUrls = [
   'https://images.unsplash.com/photo-1591946614720-90a587da4a36?q=80&w=900',
   // grooming slide
   'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?q=80&w=900',
-  // shop/food slide
-  'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?q=80&w=900',
+  // shop / Timothy Hay — web fallback when assets/foodimages is empty
+  'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=900',
 ];
 
 Widget _homeBannerShimmerFill() {
@@ -1293,13 +1231,40 @@ class _HomeBannerBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final idx = imageIndex.clamp(0, _kBannerUrls.length - 1);
-    final url = _kBannerUrls[idx];
-    return ProductImageService.networkImage(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      placeholder: _homeBannerShimmerFill(),
+    final networkUrl = _kBannerUrls[idx];
+    return FutureBuilder<String?>(
+      future: CategoryAssetFallback.pickHomeBannerAsset(
+        imageIndex,
+        preferTimothyHayPromo: timothyHayFoodPromo,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _homeBannerShimmerFill();
+        }
+        final asset = snapshot.data;
+        if (asset != null && asset.isNotEmpty) {
+          return Image.asset(
+            asset,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) => ProductImageService.networkImage(
+              networkUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+              placeholder: _homeBannerShimmerFill(),
+            ),
+          );
+        }
+        return ProductImageService.networkImage(
+          networkUrl,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: _homeBannerShimmerFill(),
+        );
+      },
     );
   }
 }

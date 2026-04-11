@@ -15,6 +15,7 @@ import '../services/socket_service.dart';
 import '../widgets/premium_empty_state.dart';
 import '../widgets/premium_shimmer.dart';
 import '../widgets/premium_info_chip.dart';
+import '../widgets/map_pin_marker.dart';
 import 'services/services_screen.dart';
 import 'service_request_tracking_screen.dart';
 
@@ -751,9 +752,9 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                     Marker(
                       point: LatLng(lat, lng),
                       width: 28,
-                      height: 28,
-                      child: const Icon(
-                        Icons.location_on_rounded,
+                      height: 35,
+                      alignment: Alignment.bottomCenter,
+                      child: const MapPinMarker(
                         color: Color(AppConstants.primaryColor),
                         size: 28,
                       ),

@@ -10,6 +10,7 @@ import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 import 'partner_marketplace_chat_screen.dart';
+import 'payment_webview_screen.dart';
 
 class MyBusinessScreen extends StatefulWidget {
   const MyBusinessScreen({super.key});
@@ -247,10 +248,26 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
       );
       if (resp.statusCode == 200) {
         final url = resp.data['data']?['paymentUrl']?.toString();
-        if (url != null && url.isNotEmpty) {
-          final uri = Uri.parse(url);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
+        final successUrl =
+            resp.data['data']?['successUrl']?.toString() ?? 'payment-success';
+        if (url != null && url.isNotEmpty && mounted) {
+          // Use an in-app WebView so we can inject the Ngrok bypass header and
+          // intercept the success/failure callback URL without opening the browser.
+          final paid = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => PaymentWebViewScreen(
+                paymentUrl: url,
+                successUrl: successUrl,
+                title: 'Subscribe — $plan',
+              ),
+            ),
+          );
+          if (paid == true && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Subscription activated!')),
+            );
+            // Refresh the subscription status to reflect the new plan.
+            _loadSubscription();
           }
         }
       }

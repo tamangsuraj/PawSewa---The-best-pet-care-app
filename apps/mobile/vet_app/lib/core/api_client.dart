@@ -48,6 +48,11 @@ class ApiClient {
             options.headers.remove(Headers.contentTypeHeader);
           }
 
+          // Always inject the Ngrok bypass header so requests are never intercepted by
+          // the Ngrok browser-warning interstitial page (which returns HTML instead of JSON).
+          // This is safe to send to non-Ngrok endpoints and is ignored by the backend.
+          options.headers['ngrok-skip-browser-warning'] = 'true';
+
           // Log request
           _log('[API] *** Request ***');
           _log('[API] uri: ${options.uri}');
@@ -69,6 +74,24 @@ class ApiClient {
           return handler.next(options);
         },
         onResponse: (response, handler) {
+          // Detect when Ngrok returns an HTML interstitial (status 200 but HTML body).
+          // This happens when the bypass header is missing or the tunnel has expired.
+          final data = response.data;
+          if (data is String && data.trimLeft().startsWith('<')) {
+            _log('[API] [ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+            _log('[API] uri: ${response.requestOptions.uri}');
+            return handler.reject(
+              DioException(
+                requestOptions: response.requestOptions,
+                response: response,
+                type: DioExceptionType.badResponse,
+                error:
+                    'API handshake failed — server returned an HTML page instead of JSON. '
+                    'Verify the Ngrok tunnel is active and the bypass headers are configured.',
+              ),
+            );
+          }
+
           // Log response
           _log('[API] *** Response ***');
           _log('[API] uri: ${response.requestOptions.uri}');
@@ -100,6 +123,11 @@ class ApiClient {
               '[API] headers:\n${error.response!.headers.map.entries.map((e) => '[API]  ${e.key}: ${e.value}').join('\n')}',
             );
             _log('[API] Response Text:\n[API] ${error.response!.data}');
+            // Detect HTML error body (Ngrok interstitial on non-200 responses).
+            final errData = error.response!.data;
+            if (errData is String && errData.trimLeft().startsWith('<')) {
+              _log('[API] [ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+            }
           }
           _log('[API]');
 

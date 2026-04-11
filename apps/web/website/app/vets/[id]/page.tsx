@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import VetProfileClient from './VetProfileClient';
 import axios from 'axios';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 interface Vet {
   _id: string;
@@ -22,8 +23,10 @@ export const revalidate = 10;
 // Generate static params for all vets at build time
 export async function generateStaticParams() {
   try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-    const response = await axios.get(`${apiBase}/vets/public`);
+    const apiBase = getWebsiteApiBase();
+    const response = await axios.get(`${apiBase}/vets/public`, {
+      headers: ngrokBrowserBypassHeaders,
+    });
     const vets = response.data.data || [];
     
     return vets.map((vet: Vet) => ({
@@ -38,8 +41,10 @@ export async function generateStaticParams() {
 // Generate metadata for SEO
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-    const response = await axios.get(`${apiBase}/vets/public/${params.id}`);
+    const apiBase = getWebsiteApiBase();
+    const response = await axios.get(`${apiBase}/vets/public/${params.id}`, {
+      headers: ngrokBrowserBypassHeaders,
+    });
     const vet: Vet = response.data.data;
 
     const specialty = vet.specialty || vet.specialization || 'Veterinarian';

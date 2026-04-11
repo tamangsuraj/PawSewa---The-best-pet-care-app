@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { normalizeRole } = require('../middleware/authMiddleware');
 
@@ -24,6 +25,11 @@ async function socketAuthMiddleware(socket, next) {
     return next(new Error('Not authorized: no token'));
   }
 
+  // Fast-fail if DB is unavailable to avoid misleading "invalid token" errors.
+  if (mongoose.connection.readyState !== 1) {
+    return next(new Error('Service unavailable: database reconnecting, please retry shortly'));
+  }
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id).select('-password');
@@ -38,6 +44,17 @@ async function socketAuthMiddleware(socket, next) {
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
       return next(new Error('Token expired'));
+    }
+    // Distinguish a driver/network error from a genuine bad token.
+    const msg = err.message || '';
+    if (
+      msg.includes('ECONNREFUSED') ||
+      msg.includes('topology') ||
+      msg.includes('buffering') ||
+      msg.includes('timed out') ||
+      msg.includes('connect')
+    ) {
+      return next(new Error('Service unavailable: database error'));
     }
     return next(new Error('Not authorized: invalid token'));
   }

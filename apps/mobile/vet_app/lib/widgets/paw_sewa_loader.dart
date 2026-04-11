@@ -24,8 +24,17 @@ class PawSewaLoader extends StatelessWidget {
         final clampedW = width.clamp(0.0, maxW);
         final maxH = constraints.maxHeight.isFinite ? constraints.maxHeight : null;
         final desiredH = height;
-        final clampedH =
-            (desiredH == null || maxH == null) ? desiredH : desiredH.clamp(0.0, maxH);
+        double? clampedH;
+        if (desiredH != null && maxH != null) {
+          clampedH = desiredH.clamp(0.0, maxH);
+        } else if (desiredH != null) {
+          clampedH = desiredH;
+        } else if (maxH != null) {
+          clampedH = maxH;
+        } else {
+          // Unbounded height (e.g. inside scrollable row) — give Lottie a definite size.
+          clampedH = clampedW;
+        }
         return Lottie.asset(
           _asset,
           width: clampedW,

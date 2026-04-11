@@ -9,6 +9,7 @@ const generalApiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
+    if (req.method === 'OPTIONS') return true;
     const p = req.path || '';
     const url = req.originalUrl || req.url || '';
     // Khalti redirects the customer's browser here; do not throttle gateway return traffic.

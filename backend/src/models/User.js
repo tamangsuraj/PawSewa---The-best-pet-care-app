@@ -72,6 +72,16 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    yearsOfExperience: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    credentials: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
     specialization: {
       type: String,
       trim: true,

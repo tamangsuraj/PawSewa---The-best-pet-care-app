@@ -9,6 +9,10 @@ import 'package:flutter/material.dart';
 class ProductImageService {
   ProductImageService._();
 
+  /// Web fallback when no DB image and local asset bundles are empty (Unsplash CDN; not ngrok).
+  static const String defaultWebFallbackProduct =
+      'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?q=80&w=800';
+
   static const Map<String, String> _ngrok = {
     'ngrok-skip-browser-warning': 'true',
   };
@@ -86,8 +90,30 @@ class ProductImageService {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /// Resolves a product map to the best-matching Unsplash URL.
+  /// First image URL stored on the product ([images] from API), if any.
+  static String? storedImageUrlForProduct(Map<String, dynamic> product) {
+    final raw = product['images'];
+    if (raw is List && raw.isNotEmpty) {
+      for (final e in raw) {
+        final s = e?.toString().trim() ?? '';
+        if (s.isNotEmpty) return s;
+      }
+    }
+    for (final key in ['imageUrl', 'image']) {
+      final v = product[key];
+      if (v != null) {
+        final s = v.toString().trim();
+        if (s.isNotEmpty) return s;
+      }
+    }
+    return null;
+  }
+
+  /// Resolves a product map: prefer API [images] / imageUrl; else Unsplash pools.
   static String urlForProduct(Map<String, dynamic> product) {
+    final stored = storedImageUrlForProduct(product);
+    if (stored != null) return stored;
+
     final name = (product['name'] ?? '').toString().toLowerCase();
     final catRaw = product['category'];
     final catName = catRaw is Map
@@ -110,8 +136,8 @@ class ProductImageService {
       return _pickFromPool(_categoryPools[catKey]!, _seedOf(product));
     }
 
-    // 3) Fallback: generic pet supplies
-    return 'https://images.unsplash.com/photo-1601758003122-53c40e686a19?q=80&w=500';
+    // 3) Fallback: shared high-quality pet-supplies photo
+    return defaultWebFallbackProduct;
   }
 
   /// Resolves a category name/slug pair to an Unsplash URL for strip circles.

@@ -304,6 +304,7 @@ const adminGetOrders = asyncHandler(async (req, res) => {
       .populate('user', 'name email phone')
       .populate('assignedRider', 'name email phone')
       .populate('assignedSeller', 'name email phone')
+      .populate('items.product', 'name images')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)

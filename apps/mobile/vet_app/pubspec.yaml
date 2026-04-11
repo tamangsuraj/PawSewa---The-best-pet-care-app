@@ -60,6 +60,9 @@ dependencies:
   # HTTP for Cloudinary upload
   http: ^1.2.0
 
+  # In-app WebView (Khalti payment, subscription flow)
+  webview_flutter: ^4.10.0
+
   # Deep links / external maps
   url_launcher: ^6.2.6
   # GPS location (for live tracking & background-aware updates)
@@ -105,6 +108,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/map/map_pin.png
     - assets/brand/pawsewa_logo.png
     - assets/brand/image_607767.png
     - assets/sounds/notification.mp3

@@ -9,6 +9,7 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/layout_utils.dart';
 import '../services/geocoding_service.dart';
+import '../widgets/map_pin_marker.dart';
 
 class CarePlusFlowScreen extends StatefulWidget {
   const CarePlusFlowScreen({super.key});
@@ -541,11 +542,11 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
                     Marker(
                       point: latLng,
                       width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.pets,
+                      height: 50,
+                      alignment: Alignment.bottomCenter,
+                      child: const MapPinMarker(
                         color: Color(AppConstants.primaryColor),
-                        size: 32,
+                        size: 40,
                       ),
                     ),
                   ],

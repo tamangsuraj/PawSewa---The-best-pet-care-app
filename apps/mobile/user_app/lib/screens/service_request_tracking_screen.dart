@@ -9,6 +9,7 @@ import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../widgets/premium_empty_state.dart';
 import '../widgets/premium_shimmer.dart';
+import '../widgets/map_pin_marker.dart';
 
 const double _arrivalRadiusMeters = 150;
 const double _metersPerMinuteDriving = 400; // rough
@@ -222,23 +223,23 @@ class _ServiceRequestTrackingScreenState
                               // Customer pin (request location)
                               Marker(
                               point: _customerLocation!,
-                              width: 36,
-                              height: 36,
-                              child: const Icon(
-                                Icons.home_filled,
+                              width: 34,
+                              height: 43,
+                              alignment: Alignment.bottomCenter,
+                              child: const MapPinMarker(
                                 color: Color(AppConstants.primaryColor),
-                                size: 30,
+                                size: 34,
                               ),
                             ),
                               if (_staffLocation != null)
                                 Marker(
                                   point: _staffLocation!,
-                                  width: 32,
-                                  height: 32,
-                                  child: const Icon(
-                                    Icons.delivery_dining,
-                                    color: Color(AppConstants.primaryColor),
-                                    size: 26,
+                                  width: 30,
+                                  height: 38,
+                                  alignment: Alignment.bottomCenter,
+                                  child: MapPinMarker(
+                                    color: Colors.teal.shade700,
+                                    size: 30,
                                   ),
                                 ),
                             ],

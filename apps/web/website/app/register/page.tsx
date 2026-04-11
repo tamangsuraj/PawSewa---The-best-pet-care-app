@@ -15,6 +15,7 @@ import { isGoogleSignInConfigured } from '@/components/OptionalGoogleOAuthProvid
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from '@/lib/apiEnv';
 
 const registerSchema = z
   .object({
@@ -90,10 +91,12 @@ export default function RegisterPage() {
     try {
       // Call the API directly instead of using register from context
       // because we need to redirect to OTP verification, not dashboard
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users`, {
+      const apiBase = getWebsiteApiBase();
+      const response = await fetch(`${apiBase}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...ngrokBrowserBypassHeaders,
         },
         body: JSON.stringify({
           name: values.name,

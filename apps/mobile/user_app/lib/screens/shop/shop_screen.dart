@@ -15,6 +15,7 @@ import '../../cart/cart_service.dart';
 import '../../cart/saved_addresses_service.dart';
 import '../../core/api_client.dart';
 import '../../core/api_config.dart';
+import '../../core/category_asset_fallback.dart';
 import '../../core/product_image_service.dart';
 import '../../core/constants.dart';
 import '../../core/khalti_verify_helper.dart';
@@ -25,6 +26,7 @@ import '../../widgets/editorial_canvas.dart';
 import '../../widgets/premium_empty_state.dart';
 import '../../widgets/premium_shimmer.dart';
 import '../../widgets/premium_info_chip.dart';
+import '../../widgets/map_pin_marker.dart';
 import 'my_orders_screen.dart';
 import 'order_success_screen.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -708,8 +710,9 @@ class _ShopScreenState extends State<ShopScreen> {
             final id = product['_id']?.toString() ?? '';
             final name = product['name']?.toString() ?? 'Product';
             final price = (product['price'] as num?)?.toDouble() ?? 0;
+            final img = ProductImageService.urlForProduct(product);
             for (var i = 0; i < qty; i++) {
-              cart.addItem(productId: id, name: name, price: price);
+              cart.addItem(productId: id, name: name, price: price, imageUrl: img);
             }
             _maybeLogRecommendationAddToCart(product);
           }
@@ -1120,30 +1123,30 @@ class _ShopScreenState extends State<ShopScreen> {
                         : Builder(
                             builder: (context) {
                               final mqW = MediaQuery.sizeOf(context).width;
-                              final mainSpacing = (mqW * 0.04).clamp(
-                                10.0,
-                                20.0,
+                              final mainSpacing = (mqW * 0.035).clamp(
+                                8.0,
+                                16.0,
                               );
-                              final crossSpacing = (mqW * 0.04).clamp(
-                                10.0,
-                                20.0,
+                              final crossSpacing = (mqW * 0.035).clamp(
+                                8.0,
+                                16.0,
                               );
-                              final hPad = (mqW * 0.04).clamp(12.0, 20.0);
+                              final hPad = (mqW * 0.035).clamp(10.0, 18.0);
 
                               int crossAxisCount = 2;
-                              double childAspectRatio = 0.62;
+                              double childAspectRatio = 0.67;
                               if (mqW >= 1200) {
                                 crossAxisCount = 4;
-                                childAspectRatio = 0.74;
+                                childAspectRatio = 0.78;
                               } else if (mqW >= 840) {
                                 crossAxisCount = 3;
-                                childAspectRatio = 0.70;
+                                childAspectRatio = 0.74;
                               } else if (mqW < 360) {
                                 crossAxisCount = 1;
-                                childAspectRatio = 1.82;
+                                childAspectRatio = 1.88;
                               } else if (mqW < 420) {
                                 crossAxisCount = 2;
-                                childAspectRatio = 0.56;
+                                childAspectRatio = 0.61;
                               }
 
                               return SliverPadding(
@@ -1190,6 +1193,7 @@ class _ShopScreenState extends State<ShopScreen> {
                                               productId: productId,
                                               name: name,
                                               price: price,
+                                              imageUrl: ProductImageService.urlForProduct(p),
                                             );
                                             _maybeLogRecommendationAddToCart(p);
                                           }
@@ -1869,8 +1873,12 @@ class _LoadMoreCell extends StatelessWidget {
   }
 }
 
-// ─── Shop product imagery (Unsplash by category + product name) ─────────────
+// ─── Shop product imagery (DB images first; else Unsplash pools) ────────────
 
+/// Renders a product image with three-tier priority:
+/// 1. API-stored image URL (DB / Cloudinary)
+/// 2. Bundled local asset from the matching category folder
+/// 3. Unsplash web fallback (CDN, no ngrok interstitial)
 class _ShopProductLocalImage extends StatelessWidget {
   const _ShopProductLocalImage({required this.product});
 
@@ -1878,11 +1886,49 @@ class _ShopProductLocalImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = ProductImageService.urlForProduct(product);
-    return ProductImageService.networkImage(
-      url,
-      width: double.infinity,
-      height: double.infinity,
+    // Tier 1: prefer image saved in the database
+    final stored = ProductImageService.storedImageUrlForProduct(product);
+    if (stored != null) {
+      return ProductImageService.networkImage(
+        stored,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+      );
+    }
+    // Tier 2: local asset from bundled category folder, then Tier 3: Unsplash
+    return FutureBuilder<String?>(
+      future: CategoryAssetFallback.pickForCategorySeeded(
+        CategoryAssetFallback.shopCategoryHint(product),
+        CategoryAssetFallback.shopProductSeed(product),
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const ColoredBox(color: Color(0xFFF6F1EC), child: SizedBox.expand());
+        }
+        final asset = snapshot.data;
+        if (asset != null && asset.isNotEmpty) {
+          return Image.asset(
+            asset,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (context, error, stackTrace) =>
+                ProductImageService.networkImage(
+              ProductImageService.urlForProduct(product),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          );
+        }
+        return ProductImageService.networkImage(
+          ProductImageService.urlForProduct(product),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        );
+      },
     );
   }
 }
@@ -1932,16 +1978,16 @@ class _ProductCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1960,11 +2006,11 @@ class _ProductCard extends StatelessWidget {
                       height: double.infinity,
                       decoration: BoxDecoration(
                         color: imageBg,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(7),
                       ),
                       alignment: Alignment.center,
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(7),
                         child: _ShopProductLocalImage(product: product),
                       ),
                     ),
@@ -2012,7 +2058,7 @@ class _ProductCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           // Title (bold)
           Text(
             name,
@@ -2038,7 +2084,7 @@ class _ProductCard extends StatelessWidget {
               color: Colors.grey.shade600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           // Price (Rs.) and Add button
           Row(
             children: [
@@ -2795,8 +2841,17 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                     color: const Color(0xFFF6F1EC),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
+                                  clipBehavior: Clip.antiAlias,
                                   alignment: Alignment.center,
-                                  child: Icon(Icons.pets, color: primary),
+                                  child: (item.imageUrl != null &&
+                                          item.imageUrl!.isNotEmpty)
+                                      ? ProductImageService.networkImage(
+                                          item.imageUrl!,
+                                          width: 40,
+                                          height: 40,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Icon(Icons.pets, color: primary),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
@@ -3128,12 +3183,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       Marker(
                         point: LatLng(cart.deliveryLat!, cart.deliveryLng!),
                         width: 32,
-                        height: 32,
-                        child: Icon(
-                          Icons.location_on,
-                          color: primary,
-                          size: 32,
-                        ),
+                        height: 40,
+                        alignment: Alignment.bottomCenter,
+                        child: MapPinMarker(color: primary, size: 32),
                       ),
                     ],
                   ),
@@ -3770,12 +3822,9 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                                 Marker(
                                   point: _pin,
                                   width: 36,
-                                  height: 36,
-                                  child: Icon(
-                                    Icons.location_on,
-                                    color: primary,
-                                    size: 36,
-                                  ),
+                                  height: 45,
+                                  alignment: Alignment.bottomCenter,
+                                  child: MapPinMarker(color: primary, size: 36),
                                 ),
                               ],
                             ),
@@ -4284,8 +4333,16 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       }
       final paymentUrl = result['paymentUrl']!;
       final successUrl = result['successUrl'] ?? 'payment-success';
+      // Ngrok free-tier blocks WebViews with the same HTML interstitial as browsers.
+      // Sending this header on the initial load and using a non-browser User-Agent
+      // bypasses the warning page so the Khalti checkout renders correctly.
+      const ngrokHeaders = <String, String>{
+        'ngrok-skip-browser-warning': 'true',
+      };
+
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..setUserAgent('PawSewaApp/1.0 (Flutter; Khalti)')
         ..setNavigationDelegate(
           NavigationDelegate(
             onNavigationRequest: (request) {
@@ -4344,7 +4401,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             },
           ),
         )
-        ..loadRequest(Uri.parse(paymentUrl));
+        ..loadRequest(Uri.parse(paymentUrl), headers: ngrokHeaders);
       if (!mounted) return;
       setState(() {
         _phase = 'khalti_pay';
@@ -4995,12 +5052,9 @@ class _PaymentSheetState extends State<_PaymentSheet> {
                                   Marker(
                                     point: LatLng(lat, lng),
                                     width: 32,
-                                    height: 32,
-                                    child: Icon(
-                                      Icons.location_on,
-                                      color: primary,
-                                      size: 32,
-                                    ),
+                                    height: 40,
+                                    alignment: Alignment.bottomCenter,
+                                    child: MapPinMarker(color: primary, size: 32),
                                   ),
                                 ],
                               ),

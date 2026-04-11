@@ -14,6 +14,7 @@ import '../services/push_notification_service.dart';
 import '../services/partner_google_auth_service.dart';
 import 'vet_dashboard_screen.dart';
 import 'rider_delivery_orders_screen.dart';
+import 'auth/register_vet.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -842,6 +843,36 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            final ok = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(builder: (_) => const RegisterVetScreen()),
+                            );
+                            if (!context.mounted) return;
+                            if (ok == true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Registration submitted. Wait for Admin verification, then sign in with OTP.',
+                                    style: GoogleFonts.outfit(),
+                                  ),
+                                  duration: const Duration(seconds: 4),
+                                ),
+                              );
+                            }
+                          },
+                    child: Text(
+                      'Join as Vet (pending Admin approval)',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        color: primary.withValues(alpha: 0.8),
+                        decoration: TextDecoration.underline,
+                      ),
                     ),
                   ),
                 ],

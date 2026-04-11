@@ -10,6 +10,7 @@ export function getAdminSocket(): Socket | null {
   if (typeof window === 'undefined') return null;
   const token = getStoredAdminToken();
   if (!token) return null;
+  if (!SOCKET_URL) return null;
 
   if (socket?.connected) return socket;
 
@@ -19,8 +20,15 @@ export function getAdminSocket(): Socket | null {
     socket = null;
   }
 
+  // extraHeaders are sent on every Socket.IO polling XHR request.
+  // Without the ngrok bypass header, ngrok returns an HTML interstitial page
+  // (200 OK with HTML body) instead of a valid Socket.IO response, causing
+  // ERR_FAILED even though the HTTP status code appears successful.
+  const extraHeaders = { 'ngrok-skip-browser-warning': 'true' };
+
   socket = io(SOCKET_URL, {
     auth: { token },
+    extraHeaders,
     // Polling first matches mobile app — works through more proxies than WS-only.
     transports: ['polling', 'websocket'],
     reconnection: true,

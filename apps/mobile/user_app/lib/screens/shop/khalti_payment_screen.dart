@@ -29,8 +29,16 @@ class _KhaltiPaymentScreenState extends State<KhaltiPaymentScreen> {
   @override
   void initState() {
     super.initState();
+    // Ngrok free-tier intercepts the first request with an HTML warning page unless
+    // this header is present. We send it on the initial load and also set a custom
+    // User-Agent that ngrok treats as a non-browser client, bypassing the interstitial.
+    const ngrokHeaders = <String, String>{
+      'ngrok-skip-browser-warning': 'true',
+    };
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setUserAgent('PawSewaApp/1.0 (Flutter; Khalti)')
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (_) => setState(() => _isLoading = true),
@@ -52,7 +60,7 @@ class _KhaltiPaymentScreenState extends State<KhaltiPaymentScreen> {
           },
         ),
       )
-      ..loadRequest(Uri.parse(widget.paymentUrl));
+      ..loadRequest(Uri.parse(widget.paymentUrl), headers: ngrokHeaders);
   }
 
   bool _isSuccessUrl(String url) {

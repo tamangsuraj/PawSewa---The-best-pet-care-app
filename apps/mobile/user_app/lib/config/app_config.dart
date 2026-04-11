@@ -6,7 +6,7 @@ import '../core/constants.dart';
 /// 1. `--dart-define=PAWSEWA_BASE_URL=https://xxx.ngrok-free.app`
 /// 2. `--dart-define=BASE_URL=https://xxx.ngrok-free.app` (alias — update ngrok in one place)
 /// 3. [ngrokDefaultOrigin] when you replace the placeholder with your tunnel URL
-/// 4. `--dart-define=API_HOST=192.168.1.x` or LAN default (host only; port 3000 added by [ApiConfig])
+/// 4. `--dart-define=API_HOST=…` (host only; port 3000 added by [ApiConfig]) — optional
 class AppConfig {
   AppConfig._();
 
@@ -26,7 +26,7 @@ class AppConfig {
 
   static const String _dartDefineLanHost = String.fromEnvironment(
     'API_HOST',
-    defaultValue: '192.168.1.5',
+    defaultValue: '',
   );
 
   static bool _looksLikePlaceholder(String o) {
@@ -53,6 +53,9 @@ class AppConfig {
     if (ng.isNotEmpty && !_looksLikePlaceholder(ng)) {
       return ng.endsWith('/') ? ng.substring(0, ng.length - 1) : ng;
     }
-    return _dartDefineLanHost.trim();
+    final lan = _dartDefineLanHost.trim();
+    if (lan.isNotEmpty) return lan;
+    // Last resort for same-machine dev; use ngrok/BASE_URL or in-app server URL on real devices.
+    return '127.0.0.1';
   }
 }

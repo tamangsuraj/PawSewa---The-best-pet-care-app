@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants.dart';
 import '../services/location_service.dart';
+import '../widgets/map_pin_marker.dart';
 import 'rider_proof_of_delivery_screen.dart';
 
 /// Full-screen en-route view after rider taps "On the way": map, distance,
@@ -33,6 +34,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   LatLng? _riderLatLng;
   StreamSubscription<Position>? _positionSub;
   bool _loadingLocation = true;
+  bool _isMapReady = false;
   String? _updatingOrderId;
 
   double? _distanceKm;
@@ -107,7 +109,35 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     }
     if (lat == null || lng == null) return;
     _customerLatLng = LatLng(lat, lng);
-    _mapController.move(_customerLatLng!, 14);
+    _scheduleMapMove(_customerLatLng!, 14);
+  }
+
+  void _scheduleMapMove(LatLng center, double zoom) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_isMapReady) return;
+      // ignore: avoid_print
+      print('[DEBUG] MapController accessed. Verification: Widget Rendered = True.');
+      try {
+        _mapController.move(center, zoom);
+      } catch (_) {
+        // Map may still be initializing; ignore to avoid red screen.
+      }
+    });
+  }
+
+  void _scheduleFitBounds(LatLngBounds bounds) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!_isMapReady) return;
+      // ignore: avoid_print
+      print('[DEBUG] MapController accessed. Verification: Widget Rendered = True.');
+      try {
+        _mapController.fitCamera(
+          CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
+        );
+      } catch (_) {}
+    });
   }
 
   Future<void> _startLocationUpdates() async {
@@ -165,9 +195,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   void _fitBoundsIfPossible() {
     if (_customerLatLng == null || _riderLatLng == null) return;
     final bounds = LatLngBounds.fromPoints([_customerLatLng!, _riderLatLng!]);
-    _mapController.fitCamera(
-      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
-    );
+    _scheduleFitBounds(bounds);
   }
 
   Future<void> _openDirections() async {
@@ -292,6 +320,13 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                 interactionOptions: const InteractionOptions(
                   flags: InteractiveFlag.all,
                 ),
+                onMapReady: () {
+                  if (!mounted) return;
+                  setState(() => _isMapReady = true);
+                  final c = _customerLatLng;
+                  if (c != null) _scheduleMapMove(c, 14);
+                  _fitBoundsIfPossible();
+                },
               ),
               children: [
                 TileLayer(
@@ -305,9 +340,9 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                     Marker(
                       point: _customerLatLng!,
                       width: 44,
-                      height: 44,
-                      child: const Icon(
-                        Icons.home_rounded,
+                      height: 55,
+                      alignment: Alignment.bottomCenter,
+                      child: const MapPinMarker(
                         color: primary,
                         size: 40,
                       ),
@@ -315,12 +350,12 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                     if (_riderLatLng != null)
                       Marker(
                         point: _riderLatLng!,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.delivery_dining,
+                        width: 38,
+                        height: 48,
+                        alignment: Alignment.bottomCenter,
+                        child: const MapPinMarker(
                           color: Color(AppConstants.accentColor),
-                          size: 36,
+                          size: 34,
                         ),
                       ),
                   ],
@@ -330,7 +365,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
           else
             const ColoredBox(
               color: Colors.grey,
-              child: Center(child: PawSewaLoader()),
+              child: Center(child: Text('Loading Map...')),
             ),
 
           // Top bar

@@ -25,7 +25,6 @@ import {
   CalendarCheck,
   BellRing,
   Megaphone,
-  Calendar,
   MessageCircle,
   Map,
   PawPrint,
@@ -65,15 +64,6 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const appointmentsGroup: NavGroup = {
-  label: 'Appointments',
-  icon: Calendar,
-  children: [
-    { name: 'Appointment desk', href: '/appointments-desk', icon: CalendarCheck },
-    { name: 'Calendar', href: '/appointments', icon: Calendar },
-  ],
-};
-
 const careManagementGroup: NavGroup = {
   label: 'Care Management',
   icon: Home,
@@ -88,7 +78,6 @@ const careManagementGroup: NavGroup = {
 
 const collapsibleNavGroups: NavGroup[] = [
   ...navGroups,
-  appointmentsGroup,
   careManagementGroup,
 ];
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import api from '@/lib/api';
+import { adminApiEnvPointsLocalOrUnset } from '@/lib/apiConfig';
 import { getStoredAdminToken } from '@/lib/authStorage';
 import {
   AlertCircle,
@@ -12,6 +13,7 @@ import {
   Search,
 } from 'lucide-react';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
+import ScrollableTableWrapper from '@/components/ui/ScrollableTableWrapper';
 
 interface CaseItem {
   _id: string;
@@ -149,19 +151,35 @@ export default function PastCasesPage() {
       );
       setItems(merged);
     } catch (err: unknown) {
-      const base =
-        err instanceof Error
-          ? err.message
-          : (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      const apiUrl = typeof process !== 'undefined' ? String(process.env.NEXT_PUBLIC_API_URL || '').trim() : '';
-      const host = typeof window !== 'undefined' ? window.location.hostname : '';
-      const tunnelBrowse = host.includes('ngrok') || host.includes('vercel.app');
-      const apiPointsLocal = !apiUrl || apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
-      const hint =
-        tunnelBrowse && apiPointsLocal
-          ? ' Set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local to your reachable API base and restart the dev server.'
-          : '';
-      setError(`${base || 'Failed to load past cases'}${hint}`);
+      const anyErr = err as { response?: { data?: unknown; status?: number }; message?: string; code?: string };
+      const responseData = anyErr.response?.data;
+      const isHtmlResponse = typeof responseData === 'string' && responseData.trim().startsWith('<');
+      const isNetworkError = anyErr.message === 'Network Error' || anyErr.code === 'ERR_NETWORK';
+
+      if (isHtmlResponse) {
+        console.error('[ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+        setError(
+          'API handshake failed — Ngrok returned an HTML page instead of JSON. Verify the Ngrok tunnel is active and the bypass headers are set.'
+        );
+      } else if (isNetworkError) {
+        console.error('[ERROR] API handshake failed. Verify Ngrok tunnel and bypass headers.');
+        setError(
+          'Network error — cannot reach the backend. Verify the Ngrok tunnel is running and NEXT_PUBLIC_API_URL is correct.'
+        );
+      } else {
+        const base =
+          err instanceof Error
+            ? err.message
+            : (anyErr as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        const tunnelBrowse = host.includes('ngrok') || host.includes('vercel.app');
+        const apiPointsLocal = adminApiEnvPointsLocalOrUnset();
+        const hint =
+          tunnelBrowse && apiPointsLocal
+            ? ' Set NEXT_PUBLIC_API_URL in apps/web/admin/.env.local to your reachable API base and restart the dev server.'
+            : '';
+        setError(`${base || 'Failed to load past cases'}${hint}`);
+      }
       setItems([]);
     } finally {
       setLoading(false);
@@ -301,17 +319,18 @@ export default function PastCasesPage() {
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <ScrollableTableWrapper>
+          <table className="w-full min-w-[1050px] divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pet & Owner</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issue / Appointment</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="sticky left-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]">Type</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Pet & Owner</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">Issue / Appointment</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">Location</th>
+                <th className="sticky right-0 z-10 bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[110px]">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[130px]">Date</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -320,7 +339,7 @@ export default function PastCasesPage() {
                 const pawId = (pet as { pawId?: string })?.pawId ?? '—';
                 return (
                   <tr key={`${item.type}-${item._id}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="sticky left-0 z-10 bg-white px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           item.type === 'assistance' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
@@ -350,16 +369,16 @@ export default function PastCasesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-900 max-w-xs truncate">{getDescription(item)}</p>
+                    <td className="px-6 py-4 max-w-[200px]">
+                      <p className="text-sm text-gray-900 truncate">{getDescription(item)}</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-600 max-w-xs">
+                    <td className="px-6 py-4 max-w-[180px]">
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
                         <MapPin className="w-4 h-4 flex-shrink-0" />
                         <span className="truncate">{getLocation(item)}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="sticky right-0 z-10 bg-white px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${
                           item.status === 'completed'
@@ -379,6 +398,7 @@ export default function PastCasesPage() {
               })}
             </tbody>
           </table>
+          </ScrollableTableWrapper>
         </div>
       )}
     </div>

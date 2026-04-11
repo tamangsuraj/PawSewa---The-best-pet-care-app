@@ -9,10 +9,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../core/api_client.dart';
-import '../core/category_asset_fallback.dart';
 import '../core/constants.dart';
 import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
+import '../widgets/partner_product_image.dart';
 import 'order_proof_view_screen.dart';
 
 class ShopInventoryScreen extends StatefulWidget {
@@ -34,6 +34,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _primaryImageUrlController = TextEditingController();
   String? _selectedCategoryId;
   bool _isAvailable = true;
   bool _saving = false;
@@ -73,6 +74,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     _priceController.dispose();
     _stockController.dispose();
     _descriptionController.dispose();
+    _primaryImageUrlController.dispose();
     _categoryNameController.dispose();
     super.dispose();
   }
@@ -300,12 +302,19 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         );
       }
 
+      final urlTrim = _primaryImageUrlController.text.trim();
+      if (urlTrim.isNotEmpty &&
+          (urlTrim.startsWith('http://') || urlTrim.startsWith('https://'))) {
+        formData.fields.add(MapEntry('primaryImageUrl', urlTrim));
+      }
+
       await _apiClient.createProductForm(formData);
       if (!mounted) return;
       _nameController.clear();
       _priceController.clear();
       _stockController.clear();
       _descriptionController.clear();
+      _primaryImageUrlController.clear();
       _isAvailable = true;
       _selectedImages = [];
       await _loadData();
@@ -647,6 +656,13 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                               ],
                             ),
                             const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _primaryImageUrlController,
+                              label: 'Image URL (optional)',
+                              hint: 'https://… if not uploading files',
+                              keyboardType: TextInputType.url,
+                            ),
+                            const SizedBox(height: 8),
                             Row(
                               children: [
                                 Expanded(
@@ -811,11 +827,6 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                   final stock =
                                       product['stockQuantity']?.toString() ??
                                       '0';
-                                  final images =
-                                      product['images'] as List<dynamic>? ?? [];
-                                  final imageUrl = images.isNotEmpty
-                                      ? images.first.toString()
-                                      : null;
                                   final category = product['category'] is Map
                                       ? (product['category']?['name'] ?? '')
                                             .toString()
@@ -855,31 +866,11 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                     BorderRadius.circular(8),
                                               ),
                                               alignment: Alignment.center,
-                                              child: imageUrl != null
-                                                  ? ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            8,
-                                                          ),
-                                                      child: Image.network(
-                                                        imageUrl,
-                                                        fit: BoxFit.contain,
-                                                        width: double.infinity,
-                                                        height: double.infinity,
-                                                        headers: const {
-                                                          'ngrok-skip-browser-warning': 'true',
-                                                        },
-                                                        errorBuilder:
-                                                            (context, error, stackTrace) {
-                                                          return _CategoryAssetImage(
-                                                            category: category,
-                                                          );
-                                                        },
-                                                      ),
-                                                    )
-                                                  : _CategoryAssetImage(
-                                                      category: category,
-                                                    ),
+                                              child: PartnerProductImage(
+                                                product: product,
+                                                categoryName: category,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -1106,39 +1097,6 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         hintText: hint,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
-    );
-  }
-}
-
-class _CategoryAssetImage extends StatelessWidget {
-  const _CategoryAssetImage({required this.category});
-
-  final String category;
-
-  @override
-  Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
-    return FutureBuilder<String?>(
-      future: CategoryAssetFallback.pickForCategory(category),
-      builder: (context, snap) {
-        final asset = snap.data;
-        if (asset == null || asset.isEmpty) {
-          return Icon(
-            Icons.pets,
-            size: 32,
-            color: primary.withValues(alpha: 0.5),
-          );
-        }
-        return Image.asset(
-          asset,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stack) => Icon(
-            Icons.pets,
-            size: 32,
-            color: primary.withValues(alpha: 0.5),
-          ),
-        );
-      },
     );
   }
 }
