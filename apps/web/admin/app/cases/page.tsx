@@ -100,8 +100,18 @@ export default function LiveCasesPage() {
     socket.on('case_status_change', () => {
       fetchAll();
     });
+    const bumpCare = () => {
+      fetchAll();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pawsewa:admin-data-refresh'));
+      }
+    };
+    socket.on('care_booking:new', bumpCare);
+    socket.on('new_hostel_booking', bumpCare);
     return () => {
       socket.off('case_status_change');
+      socket.off('care_booking:new', bumpCare);
+      socket.off('new_hostel_booking', bumpCare);
       socket.disconnect();
     };
   }, []);

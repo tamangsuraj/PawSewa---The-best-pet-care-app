@@ -34,6 +34,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
+import '../widgets/rider_home_assigned_orders_panel.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../services/ongoing_call_service.dart';
@@ -67,6 +68,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
 
   /// Bottom tab for shop owners: 0 = home dashboard, 1 = customer inquiries.
   int _partnerNavIndex = 0;
+
+  int _riderHomeOrderBadgeCount = 0;
+  int _riderPanelRefreshToken = 0;
 
   @override
   void initState() {
@@ -276,9 +280,11 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     if (userDataString != null) {
       try {
         final userData = jsonDecode(userDataString);
+        final name = userData['name'] ?? 'Staff Member';
+        final role = userData['role'] ?? 'veterinarian';
         setState(() {
-          _userName = userData['name'] ?? 'Staff Member';
-          _userRole = userData['role'] ?? 'veterinarian';
+          _userName = name;
+          _userRole = role;
         });
       } catch (e) {
         if (kDebugMode) {
@@ -982,7 +988,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'title': 'Current deliveries',
             'subtitle': 'Processing → On the way → Delivered',
             'route': 'rider_deliveries',
-            'badge': 0,
+            'badge': _riderHomeOrderBadgeCount,
           },
           {
             'icon': Icons.map,
@@ -1698,6 +1704,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       );
                     }).toList(),
                   ),
+                  if (_userRole == 'rider') ...[
+                    const SizedBox(height: 24),
+                    RiderHomeAssignedOrdersPanel(
+                      refreshToken: _riderPanelRefreshToken,
+                      onActiveCountChanged: (n) {
+                        if (!mounted) return;
+                        setState(() => _riderHomeOrderBadgeCount = n);
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 32),
 
                   // Quick Actions
@@ -1772,6 +1788,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                     const RiderDeliveryOrdersScreen(),
                               ),
                             );
+                            if (mounted) {
+                              setState(() => _riderPanelRefreshToken++);
+                            }
                           } else if (route == 'earnings') {
                             await Navigator.push(
                               context,

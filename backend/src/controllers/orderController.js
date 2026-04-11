@@ -72,6 +72,109 @@ function parseOrderLiveLocation(body) {
   };
 }
 
+/** Resolve customer ObjectId from order.user / order.customerId (plain or populated). */
+function resolveShopOrderCustomerId(row) {
+  if (!row) return null;
+  const raw = row.user ?? row.customerId;
+  if (raw == null) return null;
+  if (typeof raw === 'object' && raw._id != null) return raw._id;
+  return raw;
+}
+
+/**
+ * Push + in-app notification when a shop order is delivered (customer).
+ * Re-loads the order by id so the correct customer is always targeted.
+ * Call only when status transitions to delivered (not already delivered).
+ */
+async function notifyCustomerShopOrderDelivered(orderId) {
+  if (!mongoose.isValidObjectId(orderId)) {
+    logger.warn('[notify-delivered] invalid orderId', String(orderId));
+    return;
+  }
+  const row = await Order.findById(orderId).select('user customerId').lean();
+  const customerId = resolveShopOrderCustomerId(row);
+  if (!customerId) {
+    logger.warn('[notify-delivered] missing customer on order', String(orderId));
+    return;
+  }
+  const oid = row._id;
+  const shortId = String(oid).slice(-6);
+  const title = 'Order delivered';
+  const message = `Your order has been delivered. Thank you for ordering from Paw Sewa! (Order #${shortId})`;
+  try {
+    await Notification.create({
+      user: customerId,
+      title,
+      message,
+      type: 'system',
+      isRead: false,
+    });
+    logger.info('[notify-delivered] in-app notification saved', String(oid), 'user', String(customerId));
+  } catch (e) {
+    logger.warn('Order delivered in-app notification failed:', e?.message || String(e));
+  }
+  try {
+    const fcm = await sendMulticastToUser(customerId, {
+      title,
+      body: message,
+      data: {
+        type: 'shop_order',
+        orderId: String(oid),
+        event: 'delivered',
+      },
+    });
+    logger.info('[notify-delivered] FCM', String(oid), 'sent', fcm.sent, 'failed', fcm.failed);
+  } catch (e) {
+    logger.warn('FCM order delivered failed:', e?.message || String(e));
+  }
+}
+
+/**
+ * Push + in-app notification when order becomes out_for_delivery (customer).
+ */
+async function notifyCustomerShopOrderOutForDelivery(orderId) {
+  if (!mongoose.isValidObjectId(orderId)) {
+    logger.warn('[notify-out] invalid orderId', String(orderId));
+    return;
+  }
+  const row = await Order.findById(orderId).select('user customerId').lean();
+  const customerId = resolveShopOrderCustomerId(row);
+  if (!customerId) {
+    logger.warn('[notify-out] missing customer on order', String(orderId));
+    return;
+  }
+  const oid = row._id;
+  const shortId = String(oid).slice(-6);
+  const title = 'Rider out for delivery';
+  const message = `Your rider is out for delivery with pet supply order #${shortId}. Track it in My Orders; we will notify you when it is delivered.`;
+  try {
+    await Notification.create({
+      user: customerId,
+      title,
+      message,
+      type: 'system',
+      isRead: false,
+    });
+    logger.info('[notify-out] in-app notification saved', String(oid), 'user', String(customerId));
+  } catch (e) {
+    logger.warn('Order out-for-delivery in-app notification failed:', e?.message || String(e));
+  }
+  try {
+    const fcm = await sendMulticastToUser(customerId, {
+      title,
+      body: message,
+      data: {
+        type: 'shop_order',
+        orderId: String(oid),
+        event: 'out_for_delivery',
+      },
+    });
+    logger.info('[notify-out] FCM', String(oid), 'sent', fcm.sent, 'failed', fcm.failed);
+  } catch (e) {
+    logger.warn('FCM order out_for_delivery failed:', e?.message || String(e));
+  }
+}
+
 // POST /api/v1/orders
 // Body: { items, deliveryLocation: { address, coordinates: [lng, lat] }, location?: { lat, lng, address } }
 const createOrder = asyncHandler(async (req, res) => {
@@ -490,6 +593,11 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   if (status === 'delivered') {
     await setDeliveryConversationExpiry(order._id);
+    if (current !== 'delivered') {
+      await notifyCustomerShopOrderDelivered(order._id);
+    }
+  } else if (status === 'out_for_delivery' && current !== 'out_for_delivery') {
+    await notifyCustomerShopOrderOutForDelivery(order._id);
   }
 
   const updated = await Order.findById(orderId)
@@ -566,6 +674,9 @@ const deliverOrderWithProof = asyncHandler(async (req, res) => {
   await order.save();
 
   await setDeliveryConversationExpiry(order._id);
+  if (current !== 'delivered') {
+    await notifyCustomerShopOrderDelivered(order._id);
+  }
   await broadcastShopOrder(orderId, 'update');
 
   const updated = await Order.findById(orderId)
@@ -593,6 +704,8 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Order not found' });
   }
 
+  const statusBeforeMutation = order.status;
+
   if (riderId) {
     const rider = await User.findById(riderId).select('role');
     if (!rider || rider.role !== 'rider') {
@@ -610,9 +723,20 @@ const assignRiderToOrder = asyncHandler(async (req, res) => {
 
   if (status && ORDER_STATUS_VALUES.includes(status)) {
     order.status = status;
+    if (status === 'delivered') {
+      order.deliveredAt = new Date();
+    }
   }
 
   await order.save();
+
+  if (order.status === 'delivered' && statusBeforeMutation !== 'delivered') {
+    await setDeliveryConversationExpiry(order._id);
+    await notifyCustomerShopOrderDelivered(order._id);
+  } else if (order.status === 'out_for_delivery' && statusBeforeMutation !== 'out_for_delivery') {
+    await notifyCustomerShopOrderOutForDelivery(order._id);
+  }
+
   const updated = await Order.findById(orderId)
     .populate('user', 'name email phone')
     .populate('assignedRider', 'name email phone')

@@ -7,6 +7,7 @@ import '../core/constants.dart';
 import '../core/partner_role.dart';
 import '../core/storage_service.dart';
 import '../widgets/partner_scaffold.dart';
+import '../widgets/rider_home_assigned_orders_panel.dart';
 import 'clinic_queue_screen.dart';
 import 'earnings_screen.dart';
 import 'patient_chats_screen.dart';
@@ -40,6 +41,9 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
 
   String _role = PartnerRole.vet;
   int _tab = 0; // 0=Home, 1=Inbox, 2=Tasks, 3=Analytics, 4=Profile
+
+  /// Bumped when returning from [RiderDeliveryOrdersScreen] so home refetches assignments.
+  int _riderOrdersRefreshToken = 0;
 
   String _userName = 'Partner';
   String _userSubtitle = 'Staff';
@@ -90,7 +94,13 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
   }
 
   void _push(BuildContext context, Widget screen) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    final refreshRiderHome = screen is RiderDeliveryOrdersScreen;
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => screen))
+        .then((_) {
+      if (!mounted || !refreshRiderHome) return;
+      setState(() => _riderOrdersRefreshToken++);
+    });
   }
 
   @override
@@ -114,6 +124,7 @@ class _PartnerHomeScreenState extends State<PartnerHomeScreen> {
               roleLabel: roleLabel,
               userName: _userName,
               userSubtitle: _userSubtitle,
+              riderOrdersRefreshToken: _riderOrdersRefreshToken,
               canSwitchPanel:
                   allowedPartnerPanelsForServerRole(_userSubtitle).length > 1,
               onRoleTap: () => _showRoleSheet(context),
@@ -335,6 +346,7 @@ class _RoleHome extends StatelessWidget {
     required this.roleLabel,
     required this.userName,
     required this.userSubtitle,
+    required this.riderOrdersRefreshToken,
     required this.canSwitchPanel,
     required this.onRoleTap,
     required this.onOpen,
@@ -344,6 +356,7 @@ class _RoleHome extends StatelessWidget {
   final String roleLabel;
   final String userName;
   final String userSubtitle;
+  final int riderOrdersRefreshToken;
   final bool canSwitchPanel;
   final VoidCallback onRoleTap;
   final void Function(Widget screen) onOpen;
@@ -556,6 +569,12 @@ class _RoleHome extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+          if (role == PartnerRole.rider) ...[
+            RiderHomeAssignedOrdersPanel(
+              refreshToken: riderOrdersRefreshToken,
+            ),
+            const SizedBox(height: 14),
+          ],
           _ActionGrid(tiles: tiles),
         ],
       ),

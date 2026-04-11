@@ -153,14 +153,23 @@ const loginUser = asyncHandler(async (req, res) => {
   const matches = user && (await passwordMatches(user.password, password));
 
   if (user && matches) {
+    const roleStr = String(user.role || '').trim();
+    const roleU = roleStr.toUpperCase();
+    const isVetRole =
+      roleU === 'VET' || roleStr === 'vet' || roleStr === 'veterinarian';
     if (
       !user.isVerified &&
       (user.role === 'pet_owner' ||
         user.role === 'CUSTOMER' ||
-        user.role === 'customer')
+        user.role === 'customer' ||
+        isVetRole)
     ) {
       res.status(403);
-      throw new Error('Please verify your email before logging in. Check your inbox for the verification code.');
+      throw new Error(
+        isVetRole
+          ? 'Your veterinarian profile is pending admin approval. Sign in with your password after an administrator marks you as available for assignment.'
+          : 'Please verify your email before logging in. Check your inbox for the verification code.',
+      );
     }
 
     const roleForClient = normalizeRoleForResponse(user.role) || user.role;

@@ -248,6 +248,14 @@ class SocketService {
         'care_booking:update',
         (data) => dispatchCareBooking('care_booking:update', data),
       );
+      _socket!.on(
+        'care_booking:new',
+        (data) => dispatchCareBooking('care_booking:new', data),
+      );
+      _socket!.on(
+        'new_hostel_booking',
+        (data) => dispatchCareBooking('care_booking:new', data),
+      );
 
       _socket!.on('appointment:update', (data) {
         final map = _toMap(data);

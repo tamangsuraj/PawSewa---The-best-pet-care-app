@@ -508,6 +508,8 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             indicatorColor: accent,
             indicatorWeight: 3,
             labelColor: Colors.white,
@@ -529,273 +531,329 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
         ),
         body: TabBarView(
           children: [
-            // Deliveries tab (pro control center + active task list)
+            // Deliveries tab: single scroll (control center + filter + list) — no vertical overflow.
             Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [chipShadow],
-                      border: Border.all(
-                        color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Status',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: textMuted,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _online ? successGreen : Colors.grey,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      _online ? 'ONLINE' : 'OFFLINE',
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        color: textStrong,
-                                        letterSpacing: 0.8,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            // Toggle with clear outdoor indicator.
-                            Switch(
-                              value: _online,
-                              onChanged: (v) {
-                                setState(() => _online = v);
-                                final id = _riderId ?? 'unknown';
-                                if (v) {
-                                  debugPrint('[INFO] Rider $id toggled ONLINE');
-                                } else {
-                                  debugPrint('[INFO] Rider $id toggled OFFLINE');
-                                }
-                              },
-                              inactiveThumbColor: Colors.grey,
-                              inactiveTrackColor: Colors.grey.withValues(alpha: 0.35),
-                              activeTrackColor: successGreen,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        // Earnings card
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                primary,
-                                primary.withValues(alpha: 0.85),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: primary.withValues(alpha: 0.22),
-                                blurRadius: 18,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Today's Earnings",
-                                style: GoogleFonts.outfit(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Rs. ${_todaysEarnings.toStringAsFixed(0)}',
-                                style: GoogleFonts.fraunces(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Total Tasks Completed: $_totalTasksCompleted',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // Performance metrics row
-                        SizedBox(
-                          height: 54,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                _MetricChip(
-                                  label: 'Rating',
-                                  value: _rating.toStringAsFixed(1),
-                                  color: accent,
-                                  textStrong: isDark
-                                      ? Colors.white
-                                      : const Color(AppConstants.inkColor),
-                                ),
-                                const SizedBox(width: 12),
-                                _MetricChip(
-                                  label: 'Acceptance Rate',
-                                  value: '${(_acceptanceRate * 100).toStringAsFixed(0)}%',
-                                  color: const Color(AppConstants.accentWarmColor),
-                                  textStrong: isDark
-                                      ? Colors.white
-                                      : const Color(AppConstants.inkColor),
-                                ),
-                                const SizedBox(width: 12),
-                                _MetricChip(
-                                  label: 'Cancellation Rate',
-                                  value: '${(_cancellationRate * 100).toStringAsFixed(0)}%',
-                                  color: Colors.grey.shade600,
-                                  textStrong: isDark
-                                      ? Colors.white
-                                      : const Color(AppConstants.inkColor),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Existing Active/Delivered filter (unchanged functionality)
-                Container(
-                  width: double.infinity,
-                  color: primary,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Material(
-                          color: _filter == 'active'
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            onTap: () => setState(() => _filter = 'active'),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.local_shipping_rounded,
-                                    size: 20,
-                                    color: _filter == 'active'
-                                        ? primary
-                                        : Colors.white,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Active',
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: _filter == 'active'
-                                          ? primary
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Material(
-                          color: _filter == 'delivered'
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(10),
-                          child: InkWell(
-                            onTap: () => setState(() => _filter = 'delivered'),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline_rounded,
-                                    size: 20,
-                                    color: _filter == 'delivered'
-                                        ? primary
-                                        : Colors.white,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Delivered',
-                                    style: GoogleFonts.outfit(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                      color: _filter == 'delivered'
-                                          ? primary
-                                          : Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 Expanded(
-                  child: _loading
-                      ? Center(child: const PawSewaLoader())
-                      : _error != null
-                          ? Center(
+                  child: RefreshIndicator(
+                    onRefresh: _load,
+                    color: primary,
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: cardBg,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [chipShadow],
+                                border: Border.all(
+                                  color: (isDark ? Colors.white : Colors.black)
+                                      .withValues(alpha: 0.08),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Status',
+                                              style: GoogleFonts.outfit(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: textMuted,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              children: [
+                                                Container(
+                                                  width: 10,
+                                                  height: 10,
+                                                  decoration: BoxDecoration(
+                                                    shape: BoxShape.circle,
+                                                    color: _online
+                                                        ? successGreen
+                                                        : Colors.grey,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    _online
+                                                        ? 'ONLINE'
+                                                        : 'OFFLINE',
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      color: textStrong,
+                                                      letterSpacing: 0.8,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Switch(
+                                        value: _online,
+                                        onChanged: (v) {
+                                          setState(() => _online = v);
+                                          final id = _riderId ?? 'unknown';
+                                          if (v) {
+                                            debugPrint(
+                                              '[INFO] Rider $id toggled ONLINE',
+                                            );
+                                          } else {
+                                            debugPrint(
+                                              '[INFO] Rider $id toggled OFFLINE',
+                                            );
+                                          }
+                                        },
+                                        inactiveThumbColor: Colors.grey,
+                                        inactiveTrackColor: Colors.grey
+                                            .withValues(alpha: 0.35),
+                                        activeTrackColor: successGreen,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(18),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          primary,
+                                          primary.withValues(alpha: 0.85),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: primary.withValues(alpha: 0.22),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Today's Earnings",
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white
+                                                .withValues(alpha: 0.85),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            'Rs. ${_todaysEarnings.toStringAsFixed(0)}',
+                                            style: GoogleFonts.fraunces(
+                                              fontSize: 34,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.white,
+                                              letterSpacing: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Total Tasks Completed: $_totalTasksCompleted',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white
+                                                .withValues(alpha: 0.9),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                          _MetricChip(
+                                            label: 'Rating',
+                                            value: _rating
+                                                .toStringAsFixed(1),
+                                            color: accent,
+                                            textStrong: isDark
+                                                ? Colors.white
+                                                : const Color(
+                                                    AppConstants.inkColor,
+                                                  ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          _MetricChip(
+                                            label: 'Acceptance Rate',
+                                            value:
+                                                '${(_acceptanceRate * 100).toStringAsFixed(0)}%',
+                                            color: const Color(
+                                              AppConstants.accentWarmColor,
+                                            ),
+                                            textStrong: isDark
+                                                ? Colors.white
+                                                : const Color(
+                                                    AppConstants.inkColor,
+                                                  ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          _MetricChip(
+                                            label: 'Cancellation Rate',
+                                            value:
+                                                '${(_cancellationRate * 100).toStringAsFixed(0)}%',
+                                            color: Colors.grey.shade600,
+                                            textStrong: isDark
+                                                ? Colors.white
+                                                : const Color(
+                                                    AppConstants.inkColor,
+                                                  ),
+                                          ),
+                                        ],
+                                      ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: LayoutBuilder(
+                            builder: (context, c) {
+                              final narrow = c.maxWidth < 340;
+                              final pad =
+                                  const EdgeInsets.fromLTRB(16, 0, 16, 12);
+                              Widget seg({
+                                required IconData icon,
+                                required String label,
+                                required bool selected,
+                                required VoidCallback onTap,
+                              }) {
+                                return Material(
+                                  color: selected
+                                      ? Colors.white
+                                      : Colors.white.withValues(alpha: 0.25),
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: InkWell(
+                                    onTap: onTap,
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: narrow ? 10 : 12,
+                                        horizontal: 8,
+                                      ),
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.center,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              icon,
+                                              size: narrow ? 18 : 20,
+                                              color: selected
+                                                  ? primary
+                                                  : Colors.white,
+                                            ),
+                                            SizedBox(width: narrow ? 6 : 8),
+                                            Text(
+                                              label,
+                                              style: GoogleFonts.outfit(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: narrow ? 12.5 : 14,
+                                                color: selected
+                                                    ? primary
+                                                    : Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              final activeBtn = seg(
+                                icon: Icons.local_shipping_rounded,
+                                label: 'Active',
+                                selected: _filter == 'active',
+                                onTap: () =>
+                                    setState(() => _filter = 'active'),
+                              );
+                              final deliveredBtn = seg(
+                                icon: Icons.check_circle_outline_rounded,
+                                label: 'Delivered',
+                                selected: _filter == 'delivered',
+                                onTap: () =>
+                                    setState(() => _filter = 'delivered'),
+                              );
+
+                              return Container(
+                                width: double.infinity,
+                                color: primary,
+                                padding: pad,
+                                child: narrow
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          activeBtn,
+                                          const SizedBox(height: 10),
+                                          deliveredBtn,
+                                        ],
+                                      )
+                                    : Row(
+                                        children: [
+                                          Expanded(child: activeBtn),
+                                          const SizedBox(width: 12),
+                                          Expanded(child: deliveredBtn),
+                                        ],
+                                      ),
+                              );
+                            },
+                          ),
+                        ),
+                        if (_loading)
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(child: PawSewaLoader()),
+                          )
+                        else if (_error != null)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
                               child: Padding(
                                 padding: const EdgeInsets.all(24),
                                 child: Column(
@@ -821,73 +879,88 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                   ],
                                 ),
                               ),
-                            )
-                          : _filteredOrders.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        _filter == 'active'
-                                            ? Icons.local_shipping_rounded
-                                            : Icons.check_circle_outline_rounded,
-                                        size: 64,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        _filter == 'active'
-                                            ? 'No active deliveries'
-                                            : 'No completed deliveries yet',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 16,
-                                          color: Colors.grey[600],
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        _filter == 'active'
-                                            ? 'Assigned orders will appear here.'
-                                            : 'Delivered orders show up here.',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 14,
-                                          color: Colors.grey[500],
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
+                            ),
+                          )
+                        else if (_filteredOrders.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _filter == 'active'
+                                        ? Icons.local_shipping_rounded
+                                        : Icons.check_circle_outline_rounded,
+                                    size: 64,
+                                    color: Colors.grey[400],
                                   ),
-                                )
-                              : RefreshIndicator(
-                                  onRefresh: _load,
-                                  color: primary,
-                                  child: ListView.builder(
-                                    padding: const EdgeInsets.all(16),
-                                    itemCount: _filteredOrders.length,
-                                    itemBuilder: (context, index) {
-                                      final order = _filteredOrders[index];
-                                      return _OrderCard(
-                                        order: order,
-                                        updatingOrderId: _updatingOrderId,
-                                        currentLatLng: _currentLatLng,
-                                        onUpdateStatus: _updateStatus,
-                                        onNavigate: _navigateToDeliveryAddress,
-                                        onChatCustomer: !{
-                                          'pending',
-                                          'pending_confirmation',
-                                        }.contains(order['status']?.toString() ?? '')
-                                            ? () => _openCustomerChat(context, order)
-                                            : null,
-                                        onViewReceipt: (order['status']?.toString() ?? '') == 'delivered'
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    _filter == 'active'
+                                        ? 'No active deliveries'
+                                        : 'No completed deliveries yet',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Text(
+                                      _filter == 'active'
+                                          ? 'Assigned orders will appear here.'
+                                          : 'Delivered orders show up here.',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final order = _filteredOrders[index];
+                                  return _OrderCard(
+                                    order: order,
+                                    updatingOrderId: _updatingOrderId,
+                                    currentLatLng: _currentLatLng,
+                                    onUpdateStatus: _updateStatus,
+                                    onNavigate: _navigateToDeliveryAddress,
+                                    onChatCustomer: !{
+                                      'pending',
+                                      'pending_confirmation',
+                                    }.contains(order['status']?.toString() ?? '')
+                                        ? () => _openCustomerChat(context, order)
+                                        : null,
+                                    onViewReceipt:
+                                        (order['status']?.toString() ?? '') ==
+                                                'delivered'
                                             ? () => _openReceipt(order)
                                             : null,
-                                        statusLabel: _statusLabel,
-                                        nextStatus: _nextStatus,
-                                      );
-                                    },
-                                  ),
-                                ),
+                                    statusLabel: _statusLabel,
+                                    nextStatus: _nextStatus,
+                                  );
+                                },
+                                childCount: _filteredOrders.length,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -994,48 +1067,61 @@ class _OrderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '#$shortId',
-                  style: GoogleFonts.outfit(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: textStrong,
+                Expanded(
+                  child: Text(
+                    '#$shortId',
+                    style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                      color: textStrong,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      distanceText,
-                      style: GoogleFonts.fraunces(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: accent,
-                        letterSpacing: 0.4,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        distanceText,
+                        textAlign: TextAlign.end,
+                        style: GoogleFonts.fraunces(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                          letterSpacing: 0.4,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _statusColor(status).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        statusLabel(status),
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _statusColor(status),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor(status).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          statusLabel(status),
+                          textAlign: TextAlign.end,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _statusColor(status),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -1112,7 +1198,10 @@ class _OrderCard extends StatelessWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: accent,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1125,6 +1214,9 @@ class _OrderCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.2,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
@@ -1144,11 +1236,17 @@ class _OrderCard extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.2,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: isDark ? Colors.orange.shade800 : accent,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1171,11 +1269,17 @@ class _OrderCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.2,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: accent,
                     side: BorderSide(color: accent.withValues(alpha: 0.55)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -1242,13 +1346,14 @@ class _MetricChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1259,15 +1364,22 @@ class _MetricChip extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: textStrong.withValues(alpha: 0.85),
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: GoogleFonts.fraunces(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: textStrong,
-              letterSpacing: 0.6,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.fraunces(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: textStrong,
+                letterSpacing: 0.6,
+              ),
+              maxLines: 1,
             ),
           ),
         ],
@@ -1704,14 +1816,25 @@ class _SwipeActionButtonState extends State<SwipeActionButton> {
                 border: Border.all(color: widget.backgroundColor.withValues(alpha: 0.35)),
               ),
             ),
-            Center(
-              child: Text(
-                widget.loading ? 'Updating...' : widget.label,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: widget.backgroundColor,
-                  letterSpacing: 0.15,
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 56, right: 12),
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      widget.loading ? 'Updating...' : widget.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: widget.backgroundColor,
+                        letterSpacing: 0.15,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

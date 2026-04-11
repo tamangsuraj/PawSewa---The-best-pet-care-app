@@ -87,6 +87,7 @@ router.get('/live-map', protect, authorize('admin'), async (req, res, next) => {
           status: {
             $in: [
               'awaiting_approval',
+              'pending_payment',
               'pending',
               'paid',
               'confirmed',

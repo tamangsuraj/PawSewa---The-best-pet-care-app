@@ -519,95 +519,80 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 
   Widget _buildQuickRow(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Services',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Services',
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _quickOrb(
+              context,
+              label: 'Book a Vet',
+              bg: const Color(0xFFFFE4EC),
+              icon: Icons.calendar_month_rounded,
+              iconColor: const Color(0xFFC2185B),
+              onTap: _openBookForPet,
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _quickOrb(
-                context,
-                label: 'Book a Vet',
-                bg: const Color(0xFFFFE4EC),
-                icon: Icons.calendar_month_rounded,
-                iconColor: const Color(0xFFC2185B),
-                onTap: _openBookForPet,
-              ),
-              _quickOrb(
-                context,
-                label: 'Care centres',
-                bg: const Color(0xFFFFF3E0),
-                icon: Icons.bed_rounded,
-                iconColor: const Color(0xFF8D6E63),
-                onTap: widget.onOpenCareTab,
-              ),
-              _quickOrb(
-                context,
-                label: 'Vaccinations',
-                bg: const Color(0xFFE3F2FD),
-                icon: Icons.vaccines_rounded,
-                iconColor: const Color(0xFF1565C0),
-                onTap: () {
-                  widget.onOpenServicesTab(1);
-                },
-              ),
-              _quickOrb(
-                context,
-                label: 'Orders',
-                bg: const Color(0xFFE8F5E9),
-                icon: Icons.receipt_long_rounded,
-                iconColor: const Color(0xFF2E7D32),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const MyOrdersScreen(),
-                    ),
-                  );
-                },
-              ),
-              _quickOrb(
-                context,
-                label: 'Emergency',
-                bg: const Color(0xFFFFEBEE),
-                icon: Icons.emergency_rounded,
-                iconColor: const Color(0xFFC62828),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const RequestAssistanceScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
+            _quickOrb(
+              context,
+              label: 'Care centres',
+              bg: const Color(0xFFFFF3E0),
+              icon: Icons.bed_rounded,
+              iconColor: const Color(0xFF8D6E63),
+              onTap: widget.onOpenCareTab,
+            ),
+            _quickOrb(
+              context,
+              label: 'Vaccinations',
+              bg: const Color(0xFFE3F2FD),
+              icon: Icons.vaccines_rounded,
+              iconColor: const Color(0xFF1565C0),
+              onTap: () {
+                widget.onOpenServicesTab(1);
+              },
+            ),
+            _quickOrb(
+              context,
+              label: 'Orders',
+              bg: const Color(0xFFE8F5E9),
+              icon: Icons.receipt_long_rounded,
+              iconColor: const Color(0xFF2E7D32),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MyOrdersScreen(),
+                  ),
+                );
+              },
+            ),
+            _quickOrb(
+              context,
+              label: 'Emergency',
+              bg: const Color(0xFFFFEBEE),
+              icon: Icons.emergency_rounded,
+              iconColor: const Color(0xFFC62828),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const RequestAssistanceScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ],
     );
   }
 

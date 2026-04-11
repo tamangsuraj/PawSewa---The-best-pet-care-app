@@ -12,8 +12,8 @@ import '../widgets/editorial_canvas.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../services/push_notification_service.dart';
 import '../services/partner_google_auth_service.dart';
+import 'partner_home_screen.dart';
 import 'vet_dashboard_screen.dart';
-import 'rider_delivery_orders_screen.dart';
 import 'auth/register_vet.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -104,8 +104,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     final r = role.toLowerCase();
     if (r == 'rider') {
+      // Same hub as app cold start: Home shows assigned deliveries without opening Delivery jobs first.
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const RiderDeliveryOrdersScreen()),
+        MaterialPageRoute(builder: (_) => const PartnerHomeScreen()),
       );
     } else {
       Navigator.of(context).pushReplacement(
@@ -835,7 +836,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Vets, shops & riders: same PawSewa account as the web console. Riders land on Deliveries after sign-in.',
+                            'Vets, shops & riders: same PawSewa account as the web console. Riders land on the partner home hub (deliveries on Home).',
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: const Color(AppConstants.accentColor),

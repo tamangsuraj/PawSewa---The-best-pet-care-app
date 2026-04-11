@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,6 +35,8 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
   DateTime? _checkOut;
   String? _selectedRoomType;
   Map<String, dynamic>? _booking;
+  /// COD flow: show full-screen success before leaving.
+  bool _codBookingSuccess = false;
   bool _loadingPets = true;
   bool _creating = false;
   bool _paying = false;
@@ -120,33 +123,51 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
         'checkIn': _checkIn!.toIso8601String(),
         'checkOut': _checkOut!.toIso8601String(),
         if (_selectedRoomType != null) 'roomType': _selectedRoomType,
-        'paymentMethod': paymentOnline ? 'online' : 'cash_on_delivery',
+        'paymentMethod': paymentOnline ? 'online' : 'cod',
+        'logisticsType': 'self_drop',
+        // Valid GeoJSON for self_drop (lng, lat) — satisfies 2dsphere / server validation.
+        'pickupAddress': {
+          'address': 'Self Drop-off',
+          'point': {
+            'type': 'Point',
+            'coordinates': [0.0, 0.0],
+          },
+        },
       });
 
       if (resp.data is Map && resp.data['success'] == true && resp.data['data'] != null) {
         final booking = Map<String, dynamic>.from(resp.data['data'] as Map);
-        if (mounted) {
+        if (!mounted) return;
+        // COD: booking is placed on the server — do not switch to online checkout UI.
+        if (!paymentOnline) {
           setState(() {
-            _booking = booking;
             _creating = false;
+            _codBookingSuccess = true;
           });
-          if (!paymentOnline) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Booking confirmed! Pay at check-in.'), backgroundColor: Colors.green),
-              );
-              widget.onBooked?.call();
-            }
-          }
+          widget.onBooked?.call();
+          return;
         }
+        setState(() {
+          _booking = booking;
+          _creating = false;
+        });
       } else {
         throw Exception(resp.data['message'] ?? 'Failed to create booking');
       }
     } catch (e) {
       if (mounted) {
+        String msg = e.toString().replaceFirst('Exception: ', '');
+        if (e is DioException) {
+          final d = e.response?.data;
+          if (d is Map && d['message'] is String) {
+            msg = d['message'] as String;
+          } else if (e.message != null && e.message!.isNotEmpty) {
+            msg = e.message!;
+          }
+        }
         setState(() {
           _creating = false;
-          _error = e.toString().replaceFirst('Exception: ', '');
+          _error = msg;
         });
       }
     }
@@ -230,8 +251,12 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           ),
         ),
       ),
-      body: _booking != null ? _buildCheckoutBody() : _buildBookingForm(),
-      bottomNavigationBar: _booking != null ? _buildCheckoutFooter() : _buildBookFooter(),
+      body: _codBookingSuccess
+          ? _buildCodSuccessBody()
+          : (_booking != null ? _buildCheckoutBody() : _buildBookingForm()),
+      bottomNavigationBar: _codBookingSuccess
+          ? _buildCodSuccessFooter()
+          : (_booking != null ? _buildCheckoutFooter() : _buildBookFooter()),
     );
   }
 
@@ -273,7 +298,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             )
           else
             SizedBox(
-              height: 100,
+              height: 108,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: _pets.length,
@@ -302,6 +327,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                         ],
                       ),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           CircleAvatar(
                             radius: 24,
@@ -322,11 +348,14 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   pet.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
@@ -400,7 +429,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 180,
+              height: 200,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: roomTypes.length,
@@ -437,11 +466,12 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                             child: AspectRatio(
-                              aspectRatio: 16 / 10,
+                              aspectRatio: 16 / 11,
                               child: img != null && img.isNotEmpty
                                   ? CachedNetworkImage(
                                       imageUrl: img,
@@ -462,21 +492,27 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(10),
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
                                   name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.outfit(
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                                    fontSize: 13,
                                   ),
                                 ),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Rs. ${price.toStringAsFixed(0)} /night',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.outfit(
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                     color: primary,
                                   ),
@@ -511,6 +547,66 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCodSuccessBody() {
+    const primary = Color(AppConstants.primaryColor);
+    final name = widget.hostel['name']?.toString() ?? 'Care centre';
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const SizedBox(height: 32),
+          Icon(Icons.check_circle, size: 88, color: primary.withValues(alpha: 0.9)),
+          const SizedBox(height: 24),
+          Text(
+            'Booking successful',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2D2D2D),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Your stay at $name is submitted. Payment status: unpaid — pay at check-in.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(fontSize: 15, color: Colors.grey[700], height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The care centre will be notified. You can track this booking under My Care.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600], height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCodSuccessFooter() {
+    const primary = Color(AppConstants.primaryColor);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Text(
+            'Done',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+        ),
       ),
     );
   }
@@ -753,6 +849,7 @@ class _DateField extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               label,
@@ -763,14 +860,18 @@ class _DateField extends StatelessWidget {
               children: [
                 Icon(Icons.calendar_today, size: 18, color: Colors.grey[600]),
                 const SizedBox(width: 8),
-                Text(
-                  date != null
-                      ? '${date!.day}/${date!.month}/${date!.year}'
-                      : 'Select date',
-                  style: GoogleFonts.outfit(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: date != null ? Colors.black87 : Colors.grey[500],
+                Expanded(
+                  child: Text(
+                    date != null
+                        ? '${date!.day}/${date!.month}/${date!.year}'
+                        : 'Select date',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: date != null ? Colors.black87 : Colors.grey[500],
+                    ),
                   ),
                 ),
               ],

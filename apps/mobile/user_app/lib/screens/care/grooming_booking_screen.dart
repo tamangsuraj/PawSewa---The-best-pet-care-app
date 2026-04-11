@@ -169,6 +169,14 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
               _pickupLocation!['lat'],
             ],
           },
+        if (!isPickup)
+          'pickupAddress': {
+            'address': 'Self Drop-off',
+            'point': {
+              'type': 'Point',
+              'coordinates': [0.0, 0.0],
+            },
+          },
         'paymentMethod': paymentOnline ? 'online' : 'cash_on_delivery',
       });
 

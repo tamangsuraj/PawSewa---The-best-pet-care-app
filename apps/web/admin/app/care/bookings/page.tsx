@@ -33,6 +33,7 @@ const SERVICE_TYPES = ['', 'Hostel', 'Daycare', 'Grooming', 'Training', 'Wash', 
 const STATUS_OPTIONS = [
   '',
   'awaiting_approval',
+  'pending_payment',
   'pending',
   'paid',
   'confirmed',
@@ -122,10 +123,12 @@ export default function CareBookingsPage() {
     };
     socket.on('care_booking:update', bump);
     socket.on('care_booking:new', bump);
+    socket.on('new_hostel_booking', bump);
     return () => {
       clearTimeout(debounce);
       socket.off('care_booking:update', bump);
       socket.off('care_booking:new', bump);
+      socket.off('new_hostel_booking', bump);
     };
   }, [load]);
 

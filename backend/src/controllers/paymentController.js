@@ -73,7 +73,7 @@ async function markPaymentCompleted({ paymentId }) {
           throw new Error('Care booking not found');
         }
         booking.paymentStatus = 'paid';
-        if (['pending', 'awaiting_approval'].includes(booking.status)) {
+        if (['pending', 'awaiting_approval', 'pending_payment'].includes(booking.status)) {
           booking.status = 'awaiting_approval';
         }
         await booking.save({ session });

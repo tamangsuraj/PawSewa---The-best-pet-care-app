@@ -39,7 +39,6 @@ import '../services/notification_unread_notify_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/ongoing_call_service.dart';
 import '../widgets/pawsewa_brand_logo.dart';
-import '../widgets/editorial_canvas.dart';
 
 class PetDashboardScreen extends StatefulWidget {
   const PetDashboardScreen({super.key});
@@ -1230,24 +1229,15 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
           unawaited(_refreshUserProfileFromApi());
         }
       },
-      backgroundColor: _currentIndex == 4
-          ? const Color(0xFFF8F9FA)
-          : const Color(AppConstants.secondaryColor),
+      backgroundColor: const Color(0xFFFFFFFF),
       drawer: _buildDrawer(context),
       // Use the same top nav style across all tabs (Home/Services/Shop/Care/My Pets).
       appBar: _standardShellAppBar(context),
       body: Stack(
         clipBehavior: Clip.none,
         children: [
-          Positioned.fill(
-            child: _currentIndex == 4
-                ? const ColoredBox(color: Color(0xFFF8F9FA))
-                : IgnorePointer(
-                    child: EditorialCanvas(
-                      variant: EditorialSurfaceVariant.customer,
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
+          const Positioned.fill(
+            child: ColoredBox(color: Color(0xFFFFFFFF)),
           ),
           Positioned.fill(
             child: AnimatedSwitcher(

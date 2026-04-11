@@ -28,8 +28,12 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
   final _address = TextEditingController();
   final _lat = TextEditingController();
   final _lng = TextEditingController();
+  final _password = TextEditingController();
+  final _confirmPassword = TextEditingController();
 
   bool _submitting = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
@@ -43,6 +47,8 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
     _address.dispose();
     _lat.dispose();
     _lng.dispose();
+    _password.dispose();
+    _confirmPassword.dispose();
     super.dispose();
   }
 
@@ -66,6 +72,7 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
       final fd = FormData.fromMap({
         'name': _name.text.trim(),
         'email': _email.text.trim(),
+        'password': _password.text,
         'phone': _phone.text.trim(),
         'licenseNumber': _license.text.trim(),
         'specialization': _specialization.text.trim(),
@@ -87,7 +94,7 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Submitted. Your vet profile is pending Admin verification.',
+            'Submitted. After admin approval, sign in with your email and password.',
             style: GoogleFonts.outfit(),
           ),
           backgroundColor: Colors.green.shade700,
@@ -147,7 +154,7 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
                     border: Border.all(color: primary.withValues(alpha: 0.12)),
                   ),
                   child: Text(
-                    'Submit your veterinarian profile for Admin verification. Once approved, you can sign in with OTP.',
+                    'Submit your veterinarian profile for admin verification. Choose a password you will use to sign in after an administrator marks you as available for assignment.',
                     style: GoogleFonts.outfit(fontSize: 13, color: ink.withValues(alpha: 0.75)),
                   ),
                 ),
@@ -226,6 +233,36 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _password,
+                  obscureText: _obscurePassword,
+                  decoration: deco('Create password', hint: 'At least 6 characters').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.length < 6) return 'Password must be at least 6 characters';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _confirmPassword,
+                  obscureText: _obscureConfirmPassword,
+                  decoration: deco('Confirm password').copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v != _password.text) return 'Passwords do not match';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 16),
 

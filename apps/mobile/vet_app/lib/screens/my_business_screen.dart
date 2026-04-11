@@ -31,14 +31,25 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
   List<dynamic> _hostels = [];
   List<dynamic> _bookings = [];
   String? _error;
+  /// Incoming tab (index 2): badge when a new hostel/care booking arrives while away.
+  int _incomingNewBadge = 0;
 
   void _onCareBookingSocket(String event, Map<String, dynamic> payload) {
-    if (event != 'care_booking:assigned' && event != 'care_booking:update') {
+    if (event != 'care_booking:assigned' &&
+        event != 'care_booking:update' &&
+        event != 'care_booking:new') {
       return;
     }
     if (!mounted) return;
+    final isNew = event == 'care_booking:new';
+    if (isNew && _tabController.index != 2) {
+      setState(() => _incomingNewBadge += 1);
+    }
+    final msg = isNew
+        ? 'New Booking Alert — open Incoming to review'
+        : 'Care booking update — refreshing list';
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Care booking update — refreshing list')),
+      SnackBar(content: Text(msg)),
     );
     _loadBookings();
   }
@@ -47,6 +58,11 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging && _tabController.index == 2 && _incomingNewBadge > 0) {
+        setState(() => _incomingNewBadge = 0);
+      }
+    });
     _loadSubscription();
     _loadHostels();
     _loadBookings();
@@ -335,10 +351,35 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
-                      tabs: const [
-                        Tab(text: 'Billing'),
-                        Tab(text: 'My Services'),
-                        Tab(text: 'Incoming'),
+                      tabs: [
+                        const Tab(text: 'Billing'),
+                        const Tab(text: 'My Services'),
+                        Tab(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Incoming'),
+                              if (_incomingNewBadge > 0) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.redAccent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    _incomingNewBadge > 9 ? '9+' : '$_incomingNewBadge',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),

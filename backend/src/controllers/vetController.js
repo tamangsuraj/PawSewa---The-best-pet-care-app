@@ -133,6 +133,7 @@ const selfRegisterVeterinarian = asyncHandler(async (req, res) => {
   const {
     name,
     email,
+    password,
     phone,
     licenseNumber,
     specialization,
@@ -148,6 +149,16 @@ const selfRegisterVeterinarian = asyncHandler(async (req, res) => {
     throw new Error('Please provide name and email');
   }
 
+  const pwRaw = password != null ? String(password).trim() : '';
+  if (!pwRaw || pwRaw.length < 6) {
+    res.status(400);
+    throw new Error('Password is required and must be at least 6 characters');
+  }
+  if (pwRaw.length > 128) {
+    res.status(400);
+    throw new Error('Password is too long');
+  }
+
   const existing = await User.findOne({ email: String(email).toLowerCase().trim() });
   if (existing) {
     res.status(400);
@@ -155,12 +166,11 @@ const selfRegisterVeterinarian = asyncHandler(async (req, res) => {
   }
 
   const photoUrl = req.file?.path || '';
-  const pw = randomPassword();
 
   const user = await User.create({
     name: String(name).trim(),
     email: String(email).toLowerCase().trim(),
-    password: pw,
+    password: pwRaw,
     role: 'veterinarian',
     phone: phone ? String(phone).trim() : undefined,
     licenseNumber: licenseNumber ? String(licenseNumber).trim() : undefined,
@@ -198,7 +208,7 @@ const selfRegisterVeterinarian = asyncHandler(async (req, res) => {
       createdAt: user.createdAt,
     },
     message:
-      'Registration submitted. Your vet profile is pending verification by Admin. You can sign in via OTP after approval.',
+      'Registration submitted. Your vet profile is pending admin approval. After an administrator marks you as available for assignment, sign in with your email and password.',
   });
 });
 

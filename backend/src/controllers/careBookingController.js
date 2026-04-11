@@ -21,7 +21,11 @@ const createCareBooking = asyncHandler(async (req, res) => {
   const checkIn = body.checkIn || body.check_in;
   const checkOut = body.checkOut || body.check_out;
   const roomType = body.roomType || body.room_type;
-  const paymentMethod = body.paymentMethod === 'cash_on_delivery' ? 'cash_on_delivery' : 'online';
+  const pmRaw = String(body.paymentMethod || '')
+    .trim()
+    .toLowerCase();
+  const paymentMethod =
+    pmRaw === 'cash_on_delivery' || pmRaw === 'cod' ? 'cash_on_delivery' : 'online';
   const logisticsRaw = (body.logisticsType || body.logistics || '').toString().trim().toLowerCase();
   const deliveryRaw = (body.serviceDelivery || '').toString().trim().toLowerCase();
   const logisticsType =
@@ -112,7 +116,8 @@ const createCareBooking = asyncHandler(async (req, res) => {
   const tax = Math.round((subtotal + cleaningFee + serviceFee + platformFee) * 0.13 * 100) / 100;
   const totalAmount = subtotal + cleaningFee + serviceFee + platformFee + tax;
 
-  const booking = await CareBooking.create({
+  /** Online: awaiting facility flow after payment; COD: awaiting approval immediately. */
+  const bookingPayload = {
     hostelId,
     centreId: hostelId,
     petId,
@@ -129,7 +134,7 @@ const createCareBooking = asyncHandler(async (req, res) => {
     tax,
     totalAmount,
     serviceType: hostel.serviceType || 'Hostel',
-    status: 'awaiting_approval',
+    status: paymentMethod === 'online' ? 'pending_payment' : 'awaiting_approval',
     paymentStatus: 'unpaid',
     paymentMethod,
     ownerNotes: body.ownerNotes || body.notes,
@@ -137,8 +142,25 @@ const createCareBooking = asyncHandler(async (req, res) => {
     addOns: addOnNames.length ? addOnNames : undefined,
     serviceDelivery: body.serviceDelivery || null,
     logisticsType,
-    pickupAddress: pickupAddress || undefined,
-  });
+  };
+  if (pickupAddress && logisticsType === 'pickup') {
+    bookingPayload.pickupAddress = pickupAddress;
+  } else if (logisticsType === 'self_drop') {
+    const pa = body.pickupAddress && typeof body.pickupAddress === 'object' ? body.pickupAddress : {};
+    const addr = String(pa.address || 'Self Drop-off').trim() || 'Self Drop-off';
+    const c = pa.point && pa.point.coordinates;
+    const lng = Array.isArray(c) && c.length >= 2 ? Number(c[0]) : 0;
+    const lat = Array.isArray(c) && c.length >= 2 ? Number(c[1]) : 0;
+    bookingPayload.pickupAddress = {
+      address: addr,
+      point: {
+        type: 'Point',
+        coordinates: [Number.isFinite(lng) ? lng : 0, Number.isFinite(lat) ? lat : 0],
+      },
+    };
+  }
+
+  const booking = await CareBooking.create(bookingPayload);
 
   const populated = await CareBooking.findById(booking._id)
     .populate('hostelId', 'name location pricePerNight images')
@@ -169,6 +191,8 @@ const createCareBooking = asyncHandler(async (req, res) => {
     data: {
       type: 'care_booking_new',
       careBookingId: String(booking._id),
+      centreId: String(hostel._id),
+      hostelId: String(hostel._id),
     },
   }).catch(() => {});
 
@@ -247,7 +271,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error('Not authorized to respond to this booking');
   }
-  const awaiting = ['awaiting_approval', 'pending', 'paid'];
+  const awaiting = ['awaiting_approval', 'pending_payment', 'pending', 'paid'];
   if (!awaiting.includes(booking.status)) {
     res.status(400);
     throw new Error('Booking is not waiting for approval');
@@ -464,6 +488,7 @@ const getOwnerCalendar = asyncHandler(async (req, res) => {
     status: {
       $in: [
         'awaiting_approval',
+        'pending_payment',
         'pending',
         'paid',
         'confirmed',

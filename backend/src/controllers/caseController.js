@@ -264,6 +264,10 @@ const updateVetShift = asyncHandler(async (req, res) => {
 
   if (isAvailable !== undefined) {
     vet.isAvailable = isAvailable;
+    // Self-registered vets start with isVerified false; approving for assignment enables partner login.
+    if (isAvailable === true) {
+      vet.isVerified = true;
+    }
   }
 
   await vet.save();

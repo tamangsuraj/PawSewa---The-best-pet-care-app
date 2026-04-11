@@ -64,6 +64,7 @@ const careBookingSchema = new mongoose.Schema(
       type: String,
       enum: [
         'awaiting_approval',
+        'pending_payment',
         'confirmed',
         'checked_in',
         'completed',
@@ -165,18 +166,12 @@ const careBookingSchema = new mongoose.Schema(
       enum: ['self_drop', 'pickup'],
       default: 'self_drop',
     },
-    /** Pickup address (required when logisticsType === 'pickup'). */
-    pickupAddress: {
-      address: { type: String, trim: true, default: '' },
-      point: {
-        type: {
-          type: String,
-          enum: ['Point'],
-          default: 'Point',
-        },
-        coordinates: { type: [Number], default: undefined }, // [lng, lat]
-      },
-    },
+    /**
+     * Pickup address (only for logisticsType === 'pickup').
+     * Stored as Mixed so Mongoose never materializes an empty `{ point: { type: 'Point' } }`
+     * (that breaks MongoDB geo indexing). Valid value: `{ address, point: { type: 'Point', coordinates: [lng, lat] } }`.
+     */
+    pickupAddress: { type: mongoose.Schema.Types.Mixed, default: undefined },
     /** Admin-dispatched professional (vet / groomer / etc.) — surfaces in Partner app + sockets. */
     assignedPartner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -197,7 +192,44 @@ careBookingSchema.index({ userId: 1, status: 1 });
 careBookingSchema.index({ serviceType: 1, status: 1 });
 careBookingSchema.index({ petId: 1 });
 careBookingSchema.index({ assignedPartner: 1, status: 1 });
-careBookingSchema.index({ 'pickupAddress.point': '2dsphere' });
+// 2dsphere only when coordinates exist (avoids "Can't extract geo keys" on malformed Points).
+careBookingSchema.index(
+  { 'pickupAddress.point': '2dsphere' },
+  {
+    partialFilterExpression: {
+      'pickupAddress.point.coordinates.0': { $exists: true },
+    },
+  }
+);
+
+careBookingSchema.pre('validate', function stripInvalidPickupGeo() {
+  const defaultSelfDrop = () => ({
+    address: 'Self Drop-off',
+    point: { type: 'Point', coordinates: [0, 0] },
+  });
+
+  if (this.logisticsType === 'pickup') {
+    const pa = this.pickupAddress;
+    const coords = pa && pa.point && pa.point.coordinates;
+    const ok =
+      Array.isArray(coords) &&
+      coords.length >= 2 &&
+      Number.isFinite(Number(coords[0])) &&
+      Number.isFinite(Number(coords[1]));
+    if (!ok) this.set('pickupAddress', undefined);
+    return;
+  }
+  if (this.logisticsType === 'self_drop') {
+    const pa = this.pickupAddress;
+    const coords = pa && pa.point && pa.point.coordinates;
+    const ok =
+      Array.isArray(coords) &&
+      coords.length >= 2 &&
+      Number.isFinite(Number(coords[0])) &&
+      Number.isFinite(Number(coords[1]));
+    this.set('pickupAddress', ok ? pa : defaultSelfDrop());
+  }
+});
 
 careBookingSchema.pre('save', function syncCareBookingFields() {
   if (this.hostelId && !this.centreId) {

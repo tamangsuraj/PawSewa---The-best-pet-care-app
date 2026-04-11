@@ -27,6 +27,7 @@ async function broadcastCareBooking(bookingId, kind = 'update') {
 
   if (kind === 'new') {
     io.to('admin_room').emit('care_booking:new', payload);
+    io.to('admin_room').emit('new_hostel_booking', payload);
   }
 
   const ownerId =
@@ -35,6 +36,7 @@ async function broadcastCareBooking(bookingId, kind = 'update') {
     io.to(`user:${ownerId}`).emit('care_booking:update', payload);
     if (kind === 'new') {
       io.to(`user:${ownerId}`).emit('care_booking:new', payload);
+      io.to(`user:${ownerId}`).emit('new_hostel_booking', payload);
     }
   }
 
@@ -43,6 +45,7 @@ async function broadcastCareBooking(bookingId, kind = 'update') {
     io.to(`user:${customerId}`).emit('care_booking:update', payload);
     if (kind === 'new') {
       io.to(`user:${customerId}`).emit('care_booking:new', payload);
+      io.to(`user:${customerId}`).emit('new_hostel_booking', payload);
     }
   }
 
