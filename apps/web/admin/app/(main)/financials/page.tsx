@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/lib/api';
 import { PawSewaLoader } from '@/components/PawSewaLoader';
-import { FileText, Printer, RefreshCw } from 'lucide-react';
+import { Banknote, FileText, Printer, RefreshCw, TrendingUp } from 'lucide-react';
 
 type TxRow = {
   id: string;
@@ -16,6 +16,13 @@ type TxRow = {
   method: string;
   transactionId: string;
   itemCount: number;
+};
+
+type FinancialsSummary = {
+  totalReceivedKhaltiNpr: number;
+  khaltiPaidOrderCount: number;
+  last30DaysReceivedKhaltiNpr: number;
+  last30DaysKhaltiOrderCount: number;
 };
 
 type ReceiptData = {
@@ -38,6 +45,7 @@ type ReceiptData = {
 
 export default function FinancialsPage() {
   const [rows, setRows] = useState<TxRow[]>([]);
+  const [summary, setSummary] = useState<FinancialsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
@@ -47,9 +55,14 @@ export default function FinancialsPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get<{ success: boolean; data?: TxRow[] }>('/admin/financials/transactions');
+      const res = await api.get<{
+        success: boolean;
+        data?: TxRow[];
+        summary?: FinancialsSummary;
+      }>('/admin/financials/transactions');
       if (res.data?.success && Array.isArray(res.data.data)) {
         setRows(res.data.data);
+        setSummary(res.data.summary ?? null);
       } else {
         setError('Invalid response');
       }
@@ -92,7 +105,7 @@ export default function FinancialsPage() {
         <div>
           <h1 className="text-2xl font-bold text-[#171415]">Financials</h1>
           <p className="text-sm text-gray-600">
-            Recent Khalti shop payments — view and print receipts.
+            Shop payments received via Khalti — totals below; view and print receipts per order.
           </p>
         </div>
         <button
@@ -108,6 +121,71 @@ export default function FinancialsPage() {
       {error ? (
         <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {error}
+        </div>
+      ) : null}
+
+      {!loading && summary ? (
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+                <Banknote className="h-5 w-5 text-emerald-700" aria-hidden />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Total received (Khalti)</p>
+                <p className="text-xl font-bold text-gray-900">
+                  Rs. {Number(summary.totalReceivedKhaltiNpr).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-500">All-time · NPR</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#703418]/10">
+                <TrendingUp className="h-5 w-5 text-[#703418]" aria-hidden />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Paid orders</p>
+                <p className="text-xl font-bold text-gray-900">{summary.khaltiPaidOrderCount}</p>
+                <p className="text-xs text-gray-500">Khalti · completed</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100">
+                <Banknote className="h-5 w-5 text-sky-700" aria-hidden />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Last 30 days</p>
+                <p className="text-xl font-bold text-gray-900">
+                  Rs. {Number(summary.last30DaysReceivedKhaltiNpr).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-500">{summary.last30DaysKhaltiOrderCount} orders</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100">
+                <TrendingUp className="h-5 w-5 text-violet-700" aria-hidden />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Avg. order (all-time)</p>
+                <p className="text-xl font-bold text-gray-900">
+                  Rs.{' '}
+                  {summary.khaltiPaidOrderCount > 0
+                    ? (summary.totalReceivedKhaltiNpr / summary.khaltiPaidOrderCount).toLocaleString(undefined, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })
+                    : '0'}
+                </p>
+                <p className="text-xs text-gray-500">Per Khalti payment</p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
 

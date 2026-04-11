@@ -34,7 +34,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/pawsewa_brand_logo.dart';
 import '../widgets/editorial_canvas.dart';
+import '../widgets/care_home_active_bookings_panel.dart';
 import '../widgets/rider_home_assigned_orders_panel.dart';
+import '../widgets/shop_home_active_orders_panel.dart';
+import '../widgets/vet_home_assigned_appointments_panel.dart';
+import '../core/vet_visit_swipe_flow.dart';
+import 'seller_new_orders_screen.dart';
+import 'vet_assigned_appointments_screen.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../services/ongoing_call_service.dart';
@@ -72,6 +78,12 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
   int _riderHomeOrderBadgeCount = 0;
   int _riderPanelRefreshToken = 0;
 
+  int _shopHomeOrderBadgeCount = 0;
+  int _shopPanelRefreshToken = 0;
+
+  int _vetVisitBadgeCount = 0;
+  int _vetVisitPanelRefreshToken = 0;
+
   @override
   void initState() {
     super.initState();
@@ -80,112 +92,6 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     _loadNewAssignments();
     _loadStats();
     _loadServiceTasks();
-  }
-
-  // Uses the earliest task from _serviceTasks as \"next\" appointment.
-  Widget _buildDayAtGlanceCard(BuildContext context) {
-    if (_serviceTasks.isEmpty) {
-      return SizedBox.shrink();
-    }
-    final task = Map<String, dynamic>.from(_serviceTasks.first as Map);
-    final user = task['user'] as Map<String, dynamic>?;
-    final pet = task['pet'] as Map<String, dynamic>?;
-    final petName = pet?['name']?.toString() ?? 'Pet';
-    final ownerName = user?['name']?.toString() ?? 'Owner';
-    final window = task['timeWindow']?.toString() ?? '';
-    final serviceType = (task['serviceType'] ?? '').toString().replaceAll(
-      '_',
-      ' ',
-    );
-
-    final primary = const Color(AppConstants.primaryColor);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.today_rounded,
-            color: Color(AppConstants.primaryColor),
-            size: 28,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Day at a Glance',
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                window.isNotEmpty ? window : 'Next assignment',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: Colors.grey[700],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                petName,
-                style: GoogleFonts.outfit(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Owner: $ownerName',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: Colors.grey[700],
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (serviceType.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    serviceType,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: primary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -281,7 +187,8 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
       try {
         final userData = jsonDecode(userDataString);
         final name = userData['name'] ?? 'Staff Member';
-        final role = userData['role'] ?? 'veterinarian';
+        var role = userData['role'] ?? 'veterinarian';
+        if (role == 'vet') role = 'veterinarian';
         setState(() {
           _userName = name;
           _userRole = role;
@@ -425,8 +332,20 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     try {
       final response = await _apiClient.getMyServiceTasks();
       if (response.statusCode == 200 && mounted) {
+        final raw = response.data['data'];
+        final activeOnly = <dynamic>[];
+        if (raw is List) {
+          for (final e in raw) {
+            if (e is Map<String, dynamic>) {
+              if (vetVisitTaskIsActive(e)) activeOnly.add(e);
+            } else if (e is Map) {
+              final m = Map<String, dynamic>.from(e);
+              if (vetVisitTaskIsActive(m)) activeOnly.add(m);
+            }
+          }
+        }
         setState(() {
-          _serviceTasks = response.data['data'] ?? [];
+          _serviceTasks = activeOnly;
           _loadingServiceTasks = false;
         });
       } else if (mounted) {
@@ -443,6 +362,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
     final todayStart = DateTime(now.year, now.month, now.day);
     final todayEnd = todayStart.add(const Duration(days: 1));
     return _serviceTasks.where((t) {
+      final st = t['status']?.toString().trim().toLowerCase() ?? '';
+      if (st == 'completed' || st == 'cancelled' || st == 'pending') {
+        return false;
+      }
       final d = t['scheduledTime'] ?? t['preferredDate'];
       if (d == null) return false;
       final dt = DateTime.tryParse(d.toString());
@@ -868,6 +791,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'badge': _newAssignmentsCount,
           },
           {
+            'icon': Icons.route_outlined,
+            'title': 'My visits',
+            'subtitle': 'Accept → on the way → reached → complete',
+            'route': 'vet_visits',
+            'badge': _vetVisitBadgeCount,
+          },
+          {
             'icon': Icons.queue_rounded,
             'title': 'Clinic queue',
             'subtitle': 'Today\'s walk-ins and scheduled visits',
@@ -907,6 +837,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
         ];
       case 'shop_owner':
         return [
+          {
+            'icon': Icons.storefront_outlined,
+            'title': 'Shop orders',
+            'subtitle': 'Active orders, rider, confirm & dispatch',
+            'route': 'seller_new_orders',
+            'badge': _shopHomeOrderBadgeCount,
+          },
           {
             'icon': Icons.chat_bubble_outline,
             'title': 'PawSewa Inbox',
@@ -1218,25 +1155,18 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Day at a Glance – next upcoming task/appointment
-                  if (_serviceTasks.isNotEmpty)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: _buildDayAtGlanceCard(context),
-                    ),
+                  // Care / hostel: same incoming list as My business — most partners land here after login.
+                  if (const {
+                    'care_service',
+                    'hostel_owner',
+                    'service_provider',
+                    'groomer',
+                    'trainer',
+                    'facility_owner',
+                  }.contains(_userRole)) ...[
+                    const CareHomeActiveBookingsPanel(),
+                    const SizedBox(height: 24),
+                  ],
 
                   if (_userRole == 'veterinarian' && _isLoadingAssignments)
                     Padding(
@@ -1704,6 +1634,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       );
                     }).toList(),
                   ),
+                  if (_userRole == 'veterinarian') ...[
+                    const SizedBox(height: 24),
+                    VetHomeAssignedAppointmentsPanel(
+                      refreshToken: _vetVisitPanelRefreshToken,
+                      onActiveCountChanged: (n) {
+                        if (!mounted) return;
+                        setState(() => _vetVisitBadgeCount = n);
+                      },
+                    ),
+                  ],
                   if (_userRole == 'rider') ...[
                     const SizedBox(height: 24),
                     RiderHomeAssignedOrdersPanel(
@@ -1711,6 +1651,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       onActiveCountChanged: (n) {
                         if (!mounted) return;
                         setState(() => _riderHomeOrderBadgeCount = n);
+                      },
+                    ),
+                  ],
+                  if (_userRole == 'shop_owner') ...[
+                    const SizedBox(height: 24),
+                    ShopHomeActiveOrdersPanel(
+                      refreshToken: _shopPanelRefreshToken,
+                      onActiveCountChanged: (n) {
+                        if (!mounted) return;
+                        setState(() => _shopHomeOrderBadgeCount = n);
                       },
                     ),
                   ],
@@ -1764,6 +1714,17 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                             if (result == true || mounted) {
                               _loadNewAssignments(); // Reload after viewing
                             }
+                          } else if (route == 'vet_visits') {
+                            await Navigator.push<void>(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    const VetAssignedAppointmentsScreen(),
+                              ),
+                            );
+                            if (mounted) {
+                              setState(() => _vetVisitPanelRefreshToken++);
+                            }
                           } else if (route == 'toggle_location') {
                             await _toggleLocationSharing(!_shareLocation);
                           } else if (route == 'shop_inventory') {
@@ -1780,6 +1741,16 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                 builder: (_) => const SellerInquiriesScreen(),
                               ),
                             );
+                          } else if (route == 'seller_new_orders') {
+                            await Navigator.push<void>(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) => const SellerNewOrdersScreen(),
+                              ),
+                            );
+                            if (mounted) {
+                              setState(() => _shopPanelRefreshToken++);
+                            }
                           } else if (route == 'rider_deliveries') {
                             await Navigator.push(
                               context,

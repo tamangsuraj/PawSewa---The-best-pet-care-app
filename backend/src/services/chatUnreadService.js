@@ -151,12 +151,18 @@ async function listAdminUserIds() {
 /**
  * Customer sent on SUPPORT — notify assigned partner + all admins (shared inbox).
  */
+function refId(ref) {
+  if (ref == null) return '';
+  if (typeof ref === 'object' && ref._id != null) return String(ref._id);
+  return String(ref);
+}
+
 async function bumpSupportInbound(io, conversation, senderName, preview) {
   const convId = conversation._id.toString();
   const key = convKey(convId);
-  const partnerId = conversation.partner.toString();
+  const partnerId = refId(conversation.partner);
   const adminIds = await listAdminUserIds();
-  const targets = new Set([partnerId, ...adminIds]);
+  const targets = new Set([...(partnerId ? [partnerId] : []), ...adminIds]);
   const meta = {
     senderName,
     preview,

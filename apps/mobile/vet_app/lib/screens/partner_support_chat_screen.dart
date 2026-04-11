@@ -10,9 +10,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/pawsewa_call_channel.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
+import '../widgets/messaging_call_bar.dart';
+import 'agora_vet_direct_call_screen.dart';
 
 /// PawSewa Customer Support (same thread model as user app — Marketplace SUPPORT).
 class PartnerSupportChatScreen extends StatefulWidget {
@@ -34,7 +37,9 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
   String? _error;
   String? _conversationId;
   String? _myUserId;
+  String? _careUserId;
   String _careName = 'Customer Care';
+  String _myDisplayName = 'You';
   final List<Map<String, dynamic>> _messages = [];
   Timer? _typingDebounce;
   bool _typingRemote = false;
@@ -59,7 +64,100 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     await _socket.connect();
     _socket.addCustomerCareMessageListener(_onCareMessage);
     _socket.addCustomerCareTypingListener(_onCareTyping);
+    _socket.addIncomingCallListener(_onIncomingCareCall);
     await _joinWhenReady();
+  }
+
+  bool get _canCareCall =>
+      _myUserId != null &&
+      _careUserId != null &&
+      _careUserId!.isNotEmpty;
+
+  void _onIncomingCareCall(Map<String, dynamic> data) {
+    final oid = _myUserId;
+    final cid = _careUserId;
+    if (oid == null || cid == null || cid.isEmpty) return;
+    final ch = data['channelName']?.toString() ?? '';
+    if (ch != customerCareRtcChannel(oid, cid)) return;
+    final fromId = data['fromUserId']?.toString() ?? '';
+    if (fromId.isEmpty) return;
+    final video = data['callType']?.toString() == 'video';
+    final callerName = data['callerName']?.toString() ?? 'Caller';
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(video ? 'Incoming video call' : 'Incoming call'),
+        content: Text('$callerName is calling…'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _socket.emitHangUp(
+                toUserId: fromId,
+                channelName: ch,
+                durationSeconds: 0,
+              );
+            },
+            child: const Text('Decline'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _socket.emitAnswerCall(toUserId: fromId, channelName: ch);
+              if (!mounted) return;
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  fullscreenDialog: true,
+                  builder: (_) => AgoraVetDirectCallScreen(
+                    channelName: ch,
+                    myUserId: oid,
+                    peerUserId: fromId,
+                    peerName: callerName,
+                    localDisplayName: _myDisplayName,
+                    video: video,
+                    iAmCaller: false,
+                    answerAlreadySent: true,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Accept'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _placeCareCall(bool video) async {
+    final oid = _myUserId;
+    final cid = _careUserId;
+    if (oid == null || cid == null || cid.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Care contact is not available for calls right now.'),
+          ),
+        );
+      }
+      return;
+    }
+    final ch = customerCareRtcChannel(oid, cid);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => AgoraVetDirectCallScreen(
+          channelName: ch,
+          myUserId: oid,
+          peerUserId: cid,
+          peerName: _careName,
+          localDisplayName: _myDisplayName,
+          video: video,
+          iAmCaller: true,
+        ),
+      ),
+    );
   }
 
   Future<void> _joinWhenReady() async {
@@ -84,6 +182,10 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       final id = m['_id'] ?? m['id'];
       if (id != null) _myUserId = id.toString();
+      final n = m['name']?.toString();
+      if (n != null && n.isNotEmpty) {
+        _myDisplayName = n;
+      }
     } catch (_) {}
   }
 
@@ -108,6 +210,9 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       setState(() {
         _conversationId = id;
         _careName = care?['name']?.toString() ?? 'Customer Care';
+        _careUserId = care != null
+            ? (care['_id'] ?? care['id'])?.toString()
+            : null;
         _messages
           ..clear()
           ..addAll(msgs.map((e) => Map<String, dynamic>.from(e as Map)));
@@ -217,6 +322,7 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     _typingDebounce?.cancel();
     _socket.removeCustomerCareMessageListener(_onCareMessage);
     _socket.removeCustomerCareTypingListener(_onCareTyping);
+    _socket.removeIncomingCallListener(_onIncomingCareCall);
     final id = _conversationId;
     if (id != null) _socket.setCustomerCareTyping(id, false);
     _text.dispose();
@@ -238,6 +344,18 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
         ),
         backgroundColor: const Color(AppConstants.primaryColor),
         foregroundColor: Colors.white,
+        actions: [
+          if (_canCareCall && !_loading && _error == null)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 8),
+              child: Center(
+                child: MessagingCallBar(
+                  onAudio: () => unawaited(_placeCareCall(false)),
+                  onVideo: () => unawaited(_placeCareCall(true)),
+                ),
+              ),
+            ),
+        ],
       ),
       body: _loading
           ? const Center(child: PawSewaLoader())

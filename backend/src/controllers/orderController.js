@@ -870,6 +870,58 @@ const confirmSellerOrder = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Shop owner: PATCH /api/v1/orders/:orderId/seller-dispatch
+ * After a rider is assigned, shop hands off → out_for_delivery (same customer signal as rider "on the way").
+ */
+const sellerDispatchFromShop = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+  const uid = req.user?._id?.toString();
+  if (!order.assignedSeller || order.assignedSeller.toString() !== uid) {
+    return res.status(403).json({
+      success: false,
+      message: 'This order is not assigned to your shop',
+    });
+  }
+  if (!order.assignedRider) {
+    return res.status(400).json({
+      success: false,
+      message: 'Assign a rider first — dispatch is only after pickup partner is set.',
+    });
+  }
+  if (order.status !== 'assigned_to_rider') {
+    return res.status(400).json({
+      success: false,
+      message: `Cannot dispatch from shop in status "${order.status}".`,
+    });
+  }
+
+  const prev = order.status;
+  order.status = 'out_for_delivery';
+  await order.save();
+
+  if (prev !== 'out_for_delivery') {
+    await notifyCustomerShopOrderOutForDelivery(order._id);
+  }
+
+  const updated = await Order.findById(orderId)
+    .populate('user', 'name email phone')
+    .populate('assignedRider', 'name email phone profilePicture')
+    .populate('assignedSeller', 'name email phone');
+
+  await broadcastShopOrder(orderId, 'update');
+
+  res.json({
+    success: true,
+    data: updated,
+    message: 'Dispatched from shop — rider is on the way',
+  });
+});
+
+/**
  * Admin: POST /api/v1/orders/bulk-assign
  * Body: { orderIds: string[], riderId: string }
  */
@@ -1442,6 +1494,7 @@ module.exports = {
   assignRiderToOrder,
   assignSellerToOrder,
   confirmSellerOrder,
+  sellerDispatchFromShop,
   sellerMarkPacked,
   sellerSetTracking,
   sellerCloseOrder,

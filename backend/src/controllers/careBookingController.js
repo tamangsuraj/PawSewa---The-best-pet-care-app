@@ -116,7 +116,11 @@ const createCareBooking = asyncHandler(async (req, res) => {
   const tax = Math.round((subtotal + cleaningFee + serviceFee + platformFee) * 0.13 * 100) / 100;
   const totalAmount = subtotal + cleaningFee + serviceFee + platformFee + tax;
 
-  /** Online: awaiting facility flow after payment; COD: awaiting approval immediately. */
+  /**
+   * Direct placement on the chosen care centre (hostelId) — no admin reassignment.
+   * Online: pending_payment until Khalti succeeds → then confirmed (see markPaymentCompleted).
+   * COD: confirmed immediately; collect payment at centre.
+   */
   const bookingPayload = {
     hostelId,
     centreId: hostelId,
@@ -134,7 +138,7 @@ const createCareBooking = asyncHandler(async (req, res) => {
     tax,
     totalAmount,
     serviceType: hostel.serviceType || 'Hostel',
-    status: paymentMethod === 'online' ? 'pending_payment' : 'awaiting_approval',
+    status: paymentMethod === 'online' ? 'pending_payment' : 'confirmed',
     paymentStatus: 'unpaid',
     paymentMethod,
     ownerNotes: body.ownerNotes || body.notes,
@@ -169,16 +173,22 @@ const createCareBooking = asyncHandler(async (req, res) => {
 
   await Notification.create({
     user: hostel.ownerId,
-    title: 'New hostel booking',
-    message: `${pet.name} booked ${nights} night(s) at ${hostel.name}. Check-in: ${checkInDate.toLocaleDateString()}`,
+    title: paymentMethod === 'online' ? 'New booking (payment pending)' : 'New booking placed',
+    message:
+      paymentMethod === 'online'
+        ? `${pet.name} started checkout at ${hostel.name}. Check-in: ${checkInDate.toLocaleDateString()}`
+        : `${pet.name} booked ${nights} night(s) at ${hostel.name}. Check-in: ${checkInDate.toLocaleDateString()}`,
     type: 'care_booking',
     careBooking: booking._id,
   });
 
   await Notification.create({
     user: req.user._id,
-    title: 'Care booking submitted',
-    message: `We sent your request for ${hostel.name}. You will get another alert when it is accepted or if payment is required.`,
+    title: paymentMethod === 'online' ? 'Care booking — complete payment' : 'Care booking confirmed',
+    message:
+      paymentMethod === 'online'
+        ? `Complete payment to confirm your stay at ${hostel.name}.`
+        : `Your booking at ${hostel.name} is placed. Check-in: ${checkInDate.toLocaleDateString()}.`,
     type: 'care_booking',
     careBooking: booking._id,
   });
@@ -186,8 +196,11 @@ const createCareBooking = asyncHandler(async (req, res) => {
   await broadcastCareBooking(booking._id, 'new');
 
   await sendMulticastToUser(hostel.ownerId, {
-    title: 'New care booking request',
-    body: `${pet.name} — ${hostel.name}. Open Partner app to accept or decline.`,
+    title: paymentMethod === 'online' ? 'New care booking (awaiting payment)' : 'New care booking',
+    body:
+      paymentMethod === 'online'
+        ? `${pet.name} — ${hostel.name}. Customer completing payment.`
+        : `${pet.name} — ${hostel.name}. Open Partner app to manage this booking.`,
     data: {
       type: 'care_booking_new',
       careBookingId: String(booking._id),
@@ -198,7 +211,10 @@ const createCareBooking = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: 'Booking created. Complete payment to confirm.',
+    message:
+      paymentMethod === 'online'
+        ? 'Booking created. Complete payment to confirm.'
+        : 'Booking placed at this care centre.',
     data: populated,
   });
 });

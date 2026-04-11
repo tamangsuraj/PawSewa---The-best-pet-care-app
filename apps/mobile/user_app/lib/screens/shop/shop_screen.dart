@@ -76,10 +76,14 @@ class ShopScreen extends StatefulWidget {
     super.key,
     this.initialCategorySlug,
     this.initialCategoryName,
+    this.onOrderSuccessGoHome,
   });
 
   final String? initialCategorySlug;
   final String? initialCategoryName;
+
+  /// After shop Khalti checkout, primary button on [OrderSuccessScreen] (e.g. switch to home tab).
+  final VoidCallback? onOrderSuccessGoHome;
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
@@ -738,6 +742,7 @@ class _ShopScreenState extends State<ShopScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (ctx) => _CheckoutSheet(
         subtotal: subtotal,
         deliveryFee: delivery,
@@ -799,13 +804,13 @@ class _ShopScreenState extends State<ShopScreen> {
     // asynchronously (after Khalti verification) must not rely on a ctx
     // that may already be disposed.
     final rootNav = Navigator.of(context, rootNavigator: true);
-    final sheetNav = Navigator.of(context);
     final cartService = context.read<CartService>();
 
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (ctx) => _PaymentSheet(
         amount: amount,
         refreshDeliveryGps: () => captureHighAccuracyGpsForDelivery(context),
@@ -814,15 +819,26 @@ class _ShopScreenState extends State<ShopScreen> {
             _placeOrderWithMethod(methodId, amount),
         initKhaltiFlow: () => _initKhaltiForSheet(amount),
         onOrderPlaced: (orderId) {
-          // Close payment sheet + checkout sheet using pre-captured navigators.
-          if (Navigator.of(ctx).canPop()) Navigator.of(ctx).pop();
-          if (sheetNav.canPop()) sheetNav.pop();
           cartService.clearCart();
-          rootNav.push<void>(
-            MaterialPageRoute<void>(
-              builder: (_) => OrderSuccessScreen(orderId: orderId),
-            ),
-          );
+          // Pop after frame so modal routes are still valid; use root stack only.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            if (rootNav.canPop()) rootNav.pop();
+            if (rootNav.canPop()) rootNav.pop();
+            rootNav.push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => OrderSuccessScreen(
+                  orderId: orderId,
+                  onDone: widget.onOrderSuccessGoHome == null
+                      ? null
+                      : () {
+                          if (rootNav.canPop()) rootNav.pop();
+                          widget.onOrderSuccessGoHome!();
+                        },
+                ),
+              ),
+            );
+          });
         },
       ),
     );
@@ -3492,6 +3508,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   final MapController _mapController = MapController();
   List<_PlaceSuggestion> _locationSuggestions = [];
   bool _locationSearching = false;
+  bool _gpsFetching = false;
   late final Dio _nominatimDio;
 
   @override
@@ -3627,6 +3644,66 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   void _onMapTap(TapPosition tap, LatLng point) {
     setState(() => _pin = point);
     _reverseGeocode(point);
+  }
+
+  Future<void> _useCurrentLocation() async {
+    if (_gpsFetching) return;
+    setState(() => _gpsFetching = true);
+    try {
+      final enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Location services are disabled.',
+                style: GoogleFonts.outfit(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Location permission is required for current location.',
+                style: GoogleFonts.outfit(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      final p = LatLng(pos.latitude, pos.longitude);
+      if (!mounted) return;
+      setState(() => _pin = p);
+      _mapController.move(p, 16);
+      await _reverseGeocode(p);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not get location: $e',
+              style: GoogleFonts.outfit(),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gpsFetching = false);
+    }
   }
 
   void _saveAddress() {
@@ -3865,6 +3942,35 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _gpsFetching ? null : _useCurrentLocation,
+                        icon: _gpsFetching
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: PawSewaLoader(width: 32, center: false),
+                              )
+                            : const Icon(Icons.my_location),
+                        label: Text(
+                          _gpsFetching ? 'Getting location…' : 'Use my current location',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: primary,
+                          side: BorderSide(color: primary.withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
@@ -4235,8 +4341,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
   String _phase =
       'select'; // 'select' | 'khalti_loading' | 'khalti_pay' | 'khalti_verifying' | 'confirm_order'
   String? _khaltiOrderId;
-  /// True when Order is created only after Khalti success (skip GPS PATCH until verified).
-  bool _khaltiDeferredCheckout = false;
   String? _khaltiPidx;
   String? _khaltiPaymentUrl;
   String? _khaltiSuccessUrl;
@@ -4405,7 +4509,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       if (!mounted) return;
       setState(() {
         _phase = 'khalti_pay';
-        _khaltiDeferredCheckout = result['deferred'] == '1';
         _khaltiOrderId = result['orderId'];
         _khaltiPidx = result['pidx'];
         _khaltiPaymentUrl = paymentUrl;
@@ -4440,25 +4543,22 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     );
     final ok = verified.$1;
     var id = _khaltiOrderId;
-    var deferred = _khaltiDeferredCheckout;
     if (verified.$2 != null && verified.$2!.isNotEmpty) {
       id = verified.$2;
-      deferred = false;
       if (mounted) {
         setState(() {
           _khaltiOrderId = verified.$2;
-          _khaltiDeferredCheckout = false;
         });
       }
     }
     await widget.refreshDeliveryGps();
-    if (id != null && id.isNotEmpty && !deferred) {
+    if (id != null && id.isNotEmpty) {
       await widget.syncPendingOrderGps(id);
     }
     if (!mounted) return;
 
-    // ── Auto-navigate to order success when verification passed ──────────────
-    if (ok && id != null && id.isNotEmpty && !deferred) {
+    // ── Auto-navigate to order success when we have a real order id ───────────
+    if (ok && id != null && id.isNotEmpty) {
       widget.onOrderPlaced(id);
       return;
     }
@@ -4477,7 +4577,6 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     setState(() {
       _phase = 'select';
       _khaltiOrderId = null;
-      _khaltiDeferredCheckout = false;
       _khaltiPidx = null;
       _khaltiPaymentUrl = null;
       _khaltiSuccessUrl = null;

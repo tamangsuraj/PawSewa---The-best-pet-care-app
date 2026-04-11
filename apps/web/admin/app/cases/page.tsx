@@ -26,7 +26,7 @@ interface CaseItem {
   pet: { _id: string; name: string; breed?: string; age?: number; image?: string };
   issueDescription: string;
   location: string;
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed';
+  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   assignedVet?: { _id: string; name: string; specialty?: string; currentShift?: string };
   createdAt: string;
   assignedAt?: string;
@@ -41,7 +41,15 @@ interface ServiceRequestItem {
   preferredDate: string;
   timeWindow: string;
   location?: { address?: string; coordinates?: { lat: number; lng: number } };
-  status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  status:
+    | 'pending'
+    | 'assigned'
+    | 'accepted'
+    | 'en_route'
+    | 'arrived'
+    | 'in_progress'
+    | 'completed'
+    | 'cancelled';
   assignedStaff?: { _id: string; name: string; specialty?: string; specialization?: string };
   createdAt: string;
   scheduledTime?: string;
@@ -72,8 +80,9 @@ export default function LiveCasesPage() {
   const [scheduledTime, setScheduledTime] = useState('');
   const [assigning, setAssigning] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
-  const LIVE_STATUSES = ['pending', 'assigned', 'in_progress'] as const;
+  const TERMINAL_STATUSES = ['completed', 'cancelled'] as const;
 
   useEffect(() => {
     fetchAll();
@@ -97,11 +106,16 @@ export default function LiveCasesPage() {
       extraHeaders,
       transports: ['websocket', 'polling'],
     });
-    socket.on('case_status_change', () => {
-      fetchAll();
-    });
+    const bumpLiveCases = () => {
+      void fetchAll();
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pawsewa:admin-data-refresh'));
+      }
+    };
+    socket.on('case_status_change', bumpLiveCases);
+    socket.on('service_request_status_change', bumpLiveCases);
     const bumpCare = () => {
-      fetchAll();
+      void fetchAll();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('pawsewa:admin-data-refresh'));
       }
@@ -109,12 +123,13 @@ export default function LiveCasesPage() {
     socket.on('care_booking:new', bumpCare);
     socket.on('new_hostel_booking', bumpCare);
     return () => {
-      socket.off('case_status_change');
+      socket.off('case_status_change', bumpLiveCases);
+      socket.off('service_request_status_change', bumpLiveCases);
       socket.off('care_booking:new', bumpCare);
       socket.off('new_hostel_booking', bumpCare);
       socket.disconnect();
     };
-  }, []);
+  }, [filterStatus]);
 
   const fetchAll = async () => {
     try {
@@ -145,15 +160,18 @@ export default function LiveCasesPage() {
       }));
 
       const rawMerged = [...casesData, ...requestsData];
-      const liveOnly = rawMerged.filter((r) => LIVE_STATUSES.includes(r.status as (typeof LIVE_STATUSES)[number]));
+      const visible =
+        filterStatus === 'all'
+          ? rawMerged.filter((r) => !TERMINAL_STATUSES.includes(r.status as (typeof TERMINAL_STATUSES)[number]))
+          : rawMerged;
 
       const isUnassigned = (row: LiveCaseRow) => {
         const assigned = 'assignedVet' in row ? row.assignedVet : row.assignedStaff;
         return !assigned;
       };
 
-      const unassignedPending = liveOnly.filter((r) => r.status === 'pending' && isUnassigned(r));
-      const rest = liveOnly.filter((r) => r.status !== 'pending' || !isUnassigned(r));
+      const unassignedPending = visible.filter((r) => r.status === 'pending' && isUnassigned(r));
+      const rest = visible.filter((r) => r.status !== 'pending' || !isUnassigned(r));
 
       unassignedPending.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       rest.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -258,6 +276,36 @@ export default function LiveCasesPage() {
     if (vets.length === 0) fetchVets();
   };
 
+  const canAdminMarkComplete = (item: LiveCaseRow) => {
+    const t = item.status;
+    if (t === 'completed' || t === 'cancelled' || t === 'pending') return false;
+    if (item.type === 'assistance') {
+      return t === 'assigned' || t === 'in_progress';
+    }
+    return ['assigned', 'accepted', 'en_route', 'arrived', 'in_progress'].includes(t);
+  };
+
+  const handleMarkComplete = async (item: LiveCaseRow) => {
+    if (!window.confirm('Mark this row as completed?')) return;
+    setCompletingId(item._id);
+    try {
+      if (item.type === 'assistance') {
+        await api.patch(`/cases/${item._id}/complete`, {});
+      } else {
+        await api.patch(`/service-requests/status/${item._id}`, { status: 'completed' });
+      }
+      await fetchAll();
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      alert(msg || 'Failed to mark complete');
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   const getStatusBadge = (item: LiveCaseRow) => {
     const status = item.status;
     const assigned = getAssigned(item);
@@ -266,6 +314,9 @@ export default function LiveCasesPage() {
     const styles: Record<string, string> = {
       pending: isPendingUnassigned ? 'bg-red-100 text-red-800 border-red-400' : 'bg-yellow-100 text-yellow-800 border-yellow-300',
       assigned: 'bg-blue-100 text-blue-800 border-blue-300',
+      accepted: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+      en_route: 'bg-sky-100 text-sky-800 border-sky-300',
+      arrived: 'bg-amber-100 text-amber-900 border-amber-300',
       in_progress: 'bg-orange-100 text-orange-800 border-orange-300',
       completed: 'bg-green-100 text-green-800 border-green-300',
       cancelled: 'bg-red-100 text-red-800 border-red-300',
@@ -273,18 +324,22 @@ export default function LiveCasesPage() {
     const icons: Record<string, JSX.Element> = {
       pending: <Clock className="w-4 h-4" />,
       assigned: <User className="w-4 h-4" />,
+      accepted: <User className="w-4 h-4" />,
+      en_route: <MapPin className="w-4 h-4" />,
+      arrived: <MapPin className="w-4 h-4" />,
       in_progress: <Stethoscope className="w-4 h-4" />,
       completed: <CheckCircle className="w-4 h-4" />,
       cancelled: <AlertCircle className="w-4 h-4" />,
     };
+    const label = String(status).replace(/_/g, ' ').toUpperCase();
     return (
       <span
         className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${
           styles[status] || 'bg-gray-100 text-gray-800 border-gray-300'
         }`}
       >
-        {icons[status]}
-        {status.replace('_', ' ').toUpperCase()}
+        {icons[status] ?? <Clock className="w-4 h-4" />}
+        {label}
       </span>
     );
   };
@@ -303,11 +358,13 @@ export default function LiveCasesPage() {
     item.type === 'assistance'
       ? (item as CaseItem).assignedVet
       : (item as ServiceRequestItem).assignedStaff;
-  const canAssign = (item: LiveCaseRow) => item.status === 'pending' && !['cancelled'].includes(item.status);
+  const canAssign = (item: LiveCaseRow) => item.status === 'pending' && !getAssigned(item);
 
   const unassignedPendingCount = items.filter((i) => i.status === 'pending' && !getAssigned(i)).length;
   const assignedCount = items.filter((i) => i.status === 'assigned').length;
-  const inProgressCount = items.filter((i) => i.status === 'in_progress').length;
+  const activeVisitCount = items.filter((i) =>
+    ['accepted', 'en_route', 'arrived', 'in_progress'].includes(i.status),
+  ).length;
 
   return (
     <div className="p-8 bg-gray-50 min-h-dvh">
@@ -316,7 +373,8 @@ export default function LiveCasesPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Live Cases</h1>
             <p className="text-gray-600 mt-1">
-              All requests from customers (Request Assistance + Book Appointment). Assign and manage from here.
+              All requests from customers (Request Assistance + Book Appointment). Active work stays on All; finished
+              rows are under Completed. Assign, complete, or manage from here.
             </p>
           </div>
           <button
@@ -350,8 +408,8 @@ export default function LiveCasesPage() {
           <div className="bg-white border-2 border-orange-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-orange-700 text-sm font-medium">In Progress</p>
-                <p className="text-3xl font-bold text-orange-800">{inProgressCount}</p>
+                <p className="text-orange-700 text-sm font-medium">Active visit</p>
+                <p className="text-3xl font-bold text-orange-800">{activeVisitCount}</p>
               </div>
               <Stethoscope className="w-10 h-10 text-orange-500" />
             </div>
@@ -359,7 +417,7 @@ export default function LiveCasesPage() {
         </div>
 
         <div className="flex gap-2 border-b border-gray-200 bg-white rounded-t-lg px-2 pt-2">
-          {['all', 'pending', 'assigned', 'in_progress'].map((status) => (
+          {['all', 'pending', 'assigned', 'in_progress', 'completed', 'cancelled'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -367,7 +425,7 @@ export default function LiveCasesPage() {
                 filterStatus === status ? 'border-b-2 border-primary text-primary' : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {status === 'all' ? 'All' : status.replace('_', ' ').toUpperCase()}
+              {status === 'all' ? 'All' : status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
             </button>
           ))}
         </div>
@@ -466,14 +524,27 @@ export default function LiveCasesPage() {
                       )}
                     </td>
                     <td className="sticky right-0 z-10 bg-white px-6 py-4 whitespace-nowrap">
-                      {canAssign(item) && (
-                        <button
-                          onClick={() => openAssignModal(item)}
-                          className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90"
-                        >
-                          Assign
-                        </button>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {canAssign(item) && (
+                          <button
+                            type="button"
+                            onClick={() => openAssignModal(item)}
+                            className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90"
+                          >
+                            Assign
+                          </button>
+                        )}
+                        {canAdminMarkComplete(item) && (
+                          <button
+                            type="button"
+                            disabled={completingId === item._id}
+                            onClick={() => handleMarkComplete(item)}
+                            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            {completingId === item._id ? 'Saving…' : 'Complete'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

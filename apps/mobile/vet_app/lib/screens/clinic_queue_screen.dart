@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
+import '../core/vet_visit_swipe_flow.dart';
 import '../core/constants.dart';
 import 'service_task_detail_screen.dart';
 import 'vet_visit_editor_screen.dart';
@@ -52,7 +53,7 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
           }
         }
         setState(() {
-          _tasks = out;
+          _tasks = out.where(vetVisitTaskIsActive).toList();
           _loading = false;
         });
         return;

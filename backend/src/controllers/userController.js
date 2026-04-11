@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const Hostel = require('../models/Hostel');
+const Subscription = require('../models/Subscription');
 const bcrypt = require('bcryptjs');
 const generateToken = require('../utils/generateToken');
 const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../utils/sendEmail');
@@ -562,6 +564,164 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   });
 });
 
+const CARE_LISTING_CATEGORIES = [
+  'Boarding',
+  'Grooming',
+  'Spa',
+  'Training',
+  'Daycare',
+  'Wash',
+  'Both',
+];
+
+/**
+ * Maps admin UI category → Hostel.serviceType values (may create multiple rows).
+ */
+function mapCareCategoryToHostelServiceTypes(category) {
+  switch (category) {
+    case 'Boarding':
+      return ['Hostel'];
+    case 'Grooming':
+      return ['Grooming'];
+    case 'Spa':
+      return ['Spa'];
+    case 'Training':
+      return ['Training'];
+    case 'Daycare':
+      return ['Daycare'];
+    case 'Wash':
+      return ['Wash'];
+    case 'Both':
+      return ['Hostel', 'Grooming'];
+    default:
+      return ['Hostel'];
+  }
+}
+
+function parseCareImageUrls(body) {
+  const raw = body.imageUrls ?? body.images;
+  if (Array.isArray(raw)) {
+    return raw.map((s) => String(s).trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    return raw
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+/**
+ * Creates premium subscription + verified hostel listing(s) so GET /hostels (user app) returns them.
+ */
+async function bootstrapCareCentreListings(user, body) {
+  const facilityName = String(body.facilityName || '').trim();
+  const locationAddress = String(body.location || body.address || '').trim();
+  const listingCategory = String(body.serviceType || 'Boarding').trim();
+  const price = Number(body.price);
+  const lat = body.latitude != null ? Number(body.latitude) : NaN;
+  const lng = body.longitude != null ? Number(body.longitude) : NaN;
+  const latN = Number.isFinite(lat) ? lat : 27.7172;
+  const lngN = Number.isFinite(lng) ? lng : 85.324;
+
+  if (!facilityName) {
+    const err = new Error('facilityName is required for care centre onboarding');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!locationAddress) {
+    const err = new Error('location (address) is required for care centre onboarding');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!Number.isFinite(price) || price < 0) {
+    const err = new Error('A valid non-negative price is required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!CARE_LISTING_CATEGORIES.includes(listingCategory)) {
+    const err = new Error(
+      `serviceType must be one of: ${CARE_LISTING_CATEGORIES.join(', ')}`,
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let images = parseCareImageUrls(body);
+  if (images.length === 0) {
+    images = [
+      'https://images.unsplash.com/photo-1601758125946-6c4d7e5c3b0e?auto=format&fit=crop&q=80&w=1200',
+    ];
+  }
+
+  const types = mapCareCategoryToHostelServiceTypes(listingCategory);
+  const baseName = facilityName;
+
+  await Subscription.create({
+    providerId: user._id,
+    plan: 'premium',
+    billingCycle: 'yearly',
+    status: 'active',
+    validFrom: new Date(),
+    validUntil: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+    amountPaid: 0,
+  });
+
+  const created = [];
+  try {
+    for (const st of types) {
+      const isStay = st === 'Hostel' || st === 'Daycare';
+      const displaySuffix = st === 'Hostel' ? 'Boarding' : st;
+      const name =
+        types.length > 1 ? `${baseName} — ${displaySuffix}` : baseName;
+      const doc = await Hostel.create({
+        ownerId: user._id,
+        name,
+        description: `Welcome to ${baseName}. Professional ${displaySuffix} care for your pet.`,
+        location: {
+          address: locationAddress,
+          coordinates: { lat: latN, lng: lngN },
+        },
+        pricePerNight: isStay ? price : 0,
+        pricePerSession: !isStay ? price : undefined,
+        images: images.slice(0, 12),
+        amenities: ['WiFi', 'Vet on call', 'Daily updates'],
+        serviceType: st,
+        isVerified: true,
+        isActive: true,
+        isAvailable: true,
+        rating: 4.5,
+        reviewCount: 0,
+        groomingPackages:
+          st === 'Grooming'
+            ? [
+                {
+                  name: 'Full service',
+                  price,
+                  description: 'Bath, groom, nails',
+                  durationMinutes: 90,
+                },
+              ]
+            : [],
+      });
+      created.push(doc);
+    }
+  } catch (e) {
+    await Hostel.deleteMany({ ownerId: user._id });
+    await Subscription.deleteMany({ providerId: user._id });
+    throw e;
+  }
+
+  return created.map((h) => ({
+    _id: h._id,
+    name: h.name,
+    serviceType: h.serviceType,
+    pricePerNight: h.pricePerNight,
+    pricePerSession: h.pricePerSession,
+  }));
+}
+
 /**
  * @desc    Admin creates a new user (Managed Onboarding)
  * @route   POST /api/v1/users/admin/create
@@ -585,6 +745,10 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     // Care Service fields
     serviceType,
     facilityName,
+    price,
+    latitude,
+    longitude,
+    imageUrls,
     // Rider fields
     vehicleType,
     licenseNumber
@@ -612,6 +776,22 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     throw new Error('User already exists with this email');
   }
 
+  if (resolvedRole === 'care_service') {
+    if (!facilityName || !String(location || '').trim()) {
+      res.status(400);
+      throw new Error('Care centre requires facilityName and location (address)');
+    }
+    if (price === undefined || price === null || String(price).trim() === '') {
+      res.status(400);
+      throw new Error('Care centre requires price (Rs. per night or per session)');
+    }
+    const cat = serviceType || 'Boarding';
+    if (!CARE_LISTING_CATEGORIES.includes(cat)) {
+      res.status(400);
+      throw new Error(`serviceType must be one of: ${CARE_LISTING_CATEGORIES.join(', ')}`);
+    }
+  }
+
   // Create user with admin-specified role
   const userData = {
     name,
@@ -634,12 +814,25 @@ const adminCreateUser = asyncHandler(async (req, res) => {
   } else if (resolvedRole === 'care_service') {
     if (serviceType) userData.serviceType = serviceType;
     if (facilityName) userData.facilityName = facilityName;
+    userData.subscriptionStatus = 'Active';
   } else if (resolvedRole === 'rider') {
     if (vehicleType) userData.vehicleType = vehicleType;
     if (licenseNumber) userData.licenseNumber = licenseNumber;
   }
 
   const user = await User.create(userData);
+
+  let careListings = null;
+  if (resolvedRole === 'care_service') {
+    try {
+      careListings = await bootstrapCareCentreListings(user, req.body);
+    } catch (err) {
+      await User.deleteOne({ _id: user._id });
+      const code = err.statusCode || 500;
+      res.status(code);
+      throw err;
+    }
+  }
 
   if (user) {
     // Send welcome email with credentials (optional - doesn't block response)
@@ -673,6 +866,9 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     } else if (resolvedRole === 'care_service') {
       responseData.serviceType = user.serviceType;
       responseData.facilityName = user.facilityName;
+      if (careListings && careListings.length) {
+        responseData.careListings = careListings;
+      }
     } else if (resolvedRole === 'rider') {
       responseData.vehicleType = user.vehicleType;
       responseData.licenseNumber = user.licenseNumber;
@@ -681,7 +877,10 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     res.status(201).json({
       success: true,
       data: responseData,
-      message: `${resolvedRole} account created successfully`,
+      message:
+        resolvedRole === 'care_service' && careListings?.length
+          ? `Account created with ${careListings.length} public listing(s). They appear in the user app Care tab.`
+          : `${resolvedRole} account created successfully`,
     });
   } else {
     res.status(400);

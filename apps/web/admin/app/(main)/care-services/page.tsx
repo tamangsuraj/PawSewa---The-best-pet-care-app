@@ -33,8 +33,19 @@ export default function CareServicesPage() {
     password: '',
     phone: '',
     location: '',
-    serviceType: 'Boarding',
+    serviceType: 'Boarding' as
+      | 'Boarding'
+      | 'Grooming'
+      | 'Spa'
+      | 'Training'
+      | 'Daycare'
+      | 'Wash'
+      | 'Both',
     facilityName: '',
+    price: '',
+    latitude: '',
+    longitude: '',
+    imageUrls: '',
   });
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
@@ -68,11 +79,30 @@ export default function CareServicesPage() {
     setFormLoading(true);
     setError('');
 
+    const priceNum = Number(formData.price);
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      setError('Enter a valid price (Rs.)');
+      setFormLoading(false);
+      return;
+    }
+
     try {
-      await api.post('/users/admin/create', {
-        ...formData,
+      const payload: Record<string, unknown> = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone || undefined,
+        location: formData.location,
+        facilityName: formData.facilityName,
+        serviceType: formData.serviceType,
         role: 'care_service',
-      });
+        price: priceNum,
+      };
+      if (formData.latitude.trim()) payload.latitude = Number(formData.latitude);
+      if (formData.longitude.trim()) payload.longitude = Number(formData.longitude);
+      if (formData.imageUrls.trim()) payload.imageUrls = formData.imageUrls;
+
+      await api.post('/users/admin/create', payload);
 
       setFormData({
         name: '',
@@ -82,6 +112,10 @@ export default function CareServicesPage() {
         location: '',
         serviceType: 'Boarding',
         facilityName: '',
+        price: '',
+        latitude: '',
+        longitude: '',
+        imageUrls: '',
       });
       setShowModal(false);
       fetchCareServices();
@@ -214,11 +248,11 @@ export default function CareServicesPage() {
         </table>
       </div>
 
-      {/* Create Modal */}
+      {/* Create Modal — scrollable so long forms fit small viewports */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-xl border border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Care Service</h2>
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-6 sm:py-10">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg max-h-[min(92vh,calc(100dvh-2rem))] overflow-y-auto overscroll-contain px-6 sm:px-8 py-6 my-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Add New Care Service</h2>
             
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
@@ -227,7 +261,7 @@ export default function CareServicesPage() {
             )}
 
             <form onSubmit={handleCreateService}>
-              <div className="space-y-4">
+              <div className="space-y-4 pb-1">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
                   <input
@@ -251,17 +285,85 @@ export default function CareServicesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Type *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Listing category *</label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Shown in the user app under Pet Care+ (each category maps to a public listing).
+                    &quot;Both&quot; creates boarding + grooming listings.
+                  </p>
                   <select
                     required
                     value={formData.serviceType}
-                    onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        serviceType: e.target.value as typeof formData.serviceType,
+                      })
+                    }
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   >
-                    <option value="Boarding">Boarding</option>
+                    <option value="Boarding">Boarding (overnight stays)</option>
                     <option value="Grooming">Grooming</option>
-                    <option value="Both">Both</option>
+                    <option value="Spa">Spa</option>
+                    <option value="Training">Training</option>
+                    <option value="Daycare">Daycare</option>
+                    <option value="Wash">Wash</option>
+                    <option value="Both">Both (boarding + grooming)</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Price (Rs.) *</label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Per night for boarding/daycare; per session for grooming, spa, training, wash.
+                  </p>
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    step={1}
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Listing images (optional)</label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    One image URL per line (https://…). If empty, a default image is used.
+                  </p>
+                  <textarea
+                    rows={3}
+                    value={formData.imageUrls}
+                    onChange={(e) => setFormData({ ...formData, imageUrls: e.target.value })}
+                    placeholder="https://example.com/photo1.jpg"
+                    className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Latitude (optional)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="27.7172"
+                      value={formData.latitude}
+                      onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Longitude (optional)</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="85.3240"
+                      value={formData.longitude}
+                      onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                      className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -298,9 +400,10 @@ export default function CareServicesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Location (address) *</label>
                   <input
                     type="text"
+                    required
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                     className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
@@ -308,7 +411,7 @@ export default function CareServicesPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div className="flex gap-3 mt-6 pt-4 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => {
@@ -322,16 +425,20 @@ export default function CareServicesPage() {
                       location: '',
                       serviceType: 'Boarding',
                       facilityName: '',
+                      price: '',
+                      latitude: '',
+                      longitude: '',
+                      imageUrls: '',
                     });
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
                   {formLoading ? 'Creating...' : 'Add Care Service'}
                 </button>
@@ -343,8 +450,8 @@ export default function CareServicesPage() {
 
       {/* Details Modal */}
       {showDetailsModal && selectedService && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-lg w-full mx-4 shadow-xl border border-gray-200">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto bg-black/50 px-4 py-6 sm:py-10">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-lg max-h-[min(92vh,calc(100dvh-2rem))] overflow-y-auto overscroll-contain p-6 sm:p-8 my-auto">
             <div className="flex justify-between items-start mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Care Service Details</h2>
               <button

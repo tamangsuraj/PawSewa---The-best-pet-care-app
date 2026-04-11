@@ -272,7 +272,12 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
       _requests.where((r) => _isScheduled(r)).toList();
 
   bool _isActiveStatus(String? s) =>
-      s == 'pending' || s == 'assigned' || s == 'in_progress';
+      s == 'pending' ||
+      s == 'assigned' ||
+      s == 'accepted' ||
+      s == 'en_route' ||
+      s == 'arrived' ||
+      s == 'in_progress';
   bool _isHistoryStatus(String? s) => s == 'completed' || s == 'cancelled';
   bool _isScheduled(dynamic r) {
     if (_isHistoryStatus(r['status'])) return false;
@@ -461,7 +466,11 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
     final requestId = request['_id']?.toString();
     final bool showLiveMap =
         isActive &&
-        (status == 'assigned' || status == 'in_progress') &&
+        (status == 'assigned' ||
+            status == 'accepted' ||
+            status == 'en_route' ||
+            status == 'arrived' ||
+            status == 'in_progress') &&
         request['location'] != null &&
         request['location']['coordinates'] != null;
     final bool isCompleted = status == 'completed';
@@ -662,7 +671,11 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
   }
 
   Widget _buildStatusBadge(String label, Color color, String status) {
-    final isLive = status == 'assigned' || status == 'in_progress';
+    final isLive = status == 'assigned' ||
+        status == 'accepted' ||
+        status == 'en_route' ||
+        status == 'arrived' ||
+        status == 'in_progress';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -815,6 +828,12 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
         return Colors.amber.shade700;
       case 'assigned':
         return Colors.blue.shade700;
+      case 'accepted':
+        return Colors.cyan.shade800;
+      case 'en_route':
+        return Colors.indigo.shade700;
+      case 'arrived':
+        return Colors.teal.shade700;
       case 'in_progress':
         return Colors.deepPurple;
       case 'completed':

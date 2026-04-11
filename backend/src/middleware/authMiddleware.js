@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
+const Hostel = require('../models/Hostel');
 
 /**
  * Protect routes - Verify JWT token from Authorization header
@@ -67,16 +68,20 @@ const adminOrShopOwner = (req, res, next) => {
     .json({ success: false, message: 'Not authorized (admin or shop owner required)' });
 };
 
-/** Normalize production role (VET -> veterinarian, RIDER -> rider, etc.) for authorization. */
+/**
+ * Normalize role for authorization — must stay aligned with [User] model normalizeRole
+ * so DB values like CARE_SERVICE / Service_Provider match authorize('care_service', …).
+ */
 function normalizeRole(role) {
   if (role == null) return role;
   const r = String(role).trim();
-  const u = r.toUpperCase();
-  if (u === 'VET' || r === 'vet') return 'veterinarian';
-  if (u === 'ADMIN') return 'admin';
-  if (u === 'CUSTOMER' || r === 'customer') return 'pet_owner';
-  if (u === 'RIDER' || r === 'staff') return 'rider';
-  return r;
+  if (!r) return r;
+  const upper = r.toUpperCase();
+  if (upper === 'CUSTOMER' || r === 'customer') return 'pet_owner';
+  if (upper === 'VET' || r === 'vet') return 'veterinarian';
+  if (upper === 'ADMIN') return 'admin';
+  if (upper === 'RIDER' || r === 'staff') return 'rider';
+  return r.toLowerCase();
 }
 
 /**
@@ -96,6 +101,26 @@ const authorize = (...roles) => (req, res, next) => {
 
   next();
 };
+
+/**
+ * Like [authorize] but also allows users who own at least one care centre listing,
+ * so partner accounts with legacy/odd role strings still pass (incoming bookings, etc.).
+ */
+const authorizeCarePartnerOrListingOwner = (allowedRoles) =>
+  asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authorized, user not found on request' });
+    }
+    const normalized = normalizeRole(req.user.role);
+    if (allowedRoles.includes(normalized)) {
+      return next();
+    }
+    const hasListing = await Hostel.exists({ ownerId: req.user._id });
+    if (hasListing) {
+      return next();
+    }
+    return res.status(403).json({ success: false, message: 'Not authorized for this action' });
+  });
 
 const PROVIDER_ROLES = ['hostel_owner', 'service_provider', 'groomer', 'trainer', 'facility_owner'];
 
@@ -157,6 +182,7 @@ module.exports = {
   admin,
   adminOrShopOwner,
   authorize,
+  authorizeCarePartnerOrListingOwner,
   verifyProviderSubscription,
   normalizeRole,
 };

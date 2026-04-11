@@ -7,7 +7,9 @@ import '../core/constants.dart';
 import '../core/partner_role.dart';
 import '../core/storage_service.dart';
 import '../widgets/partner_scaffold.dart';
+import '../widgets/care_home_active_bookings_panel.dart';
 import '../widgets/rider_home_assigned_orders_panel.dart';
+import '../widgets/vet_home_assigned_appointments_panel.dart';
 import 'clinic_queue_screen.dart';
 import 'earnings_screen.dart';
 import 'patient_chats_screen.dart';
@@ -21,6 +23,7 @@ import 'seller_new_orders_screen.dart';
 import 'shop_inventory_screen.dart';
 import 'shop_analytics_screen.dart';
 import 'vet_clinic_assignments_screen.dart';
+import 'vet_assigned_appointments_screen.dart';
 import 'care_calendar_screen.dart';
 import 'care_pet_records_screen.dart';
 import 'care_staff_tasks_screen.dart';
@@ -462,6 +465,12 @@ class _RoleHome extends StatelessWidget {
         ],
       _ => <_ActionTileModel>[
           _ActionTileModel(
+            icon: Icons.business_center_rounded,
+            title: 'My business',
+            subtitle: 'Incoming bookings · accept or decline',
+            onTap: () => onOpen(const MyBusinessScreen()),
+          ),
+          _ActionTileModel(
             icon: Icons.calendar_month_rounded,
             title: 'Care calendar',
             subtitle: 'Upcoming bookings',
@@ -573,6 +582,14 @@ class _RoleHome extends StatelessWidget {
             RiderHomeAssignedOrdersPanel(
               refreshToken: riderOrdersRefreshToken,
             ),
+            const SizedBox(height: 14),
+          ],
+          if (role == PartnerRole.vet) ...[
+            const VetHomeAssignedAppointmentsPanel(),
+            const SizedBox(height: 14),
+          ],
+          if (role == PartnerRole.care) ...[
+            const CareHomeActiveBookingsPanel(),
             const SizedBox(height: 14),
           ],
           _ActionGrid(tiles: tiles),
@@ -732,6 +749,12 @@ class _TasksHub extends StatelessWidget {
   Widget build(BuildContext context) {
     final tiles = switch (role) {
       PartnerRole.vet => <_HubTile>[
+          _HubTile(
+            icon: Icons.health_and_safety_rounded,
+            title: 'Home visits',
+            subtitle: 'Accept → on the way → reached → done',
+            onTap: () => onOpen(const VetAssignedAppointmentsScreen()),
+          ),
           _HubTile(
             icon: Icons.groups_rounded,
             title: 'Clinic queue',

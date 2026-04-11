@@ -284,9 +284,18 @@ class ApiClient {
     return await _dio.get('/pets');
   }
 
-  // New: get my assigned service tasks (service request flow)
-  Future<Response> getMyServiceTasks() async {
-    return await _dio.get('/service-requests/my/tasks');
+  /// Service requests assigned to this vet. Default: active workflow only.
+  /// Pass [history] for completed / cancelled (partner "History" tab).
+  Future<Response> getMyServiceTasks({bool history = false}) async {
+    return await _dio.get(
+      '/service-requests/my/tasks',
+      queryParameters: history ? <String, dynamic>{'history': '1'} : null,
+    );
+  }
+
+  /// Legacy / alternate path: moves assigned (or arrived) request to `in_progress`.
+  Future<Response> startServiceRequestVisit(String requestId) async {
+    return await _dio.patch('/service-requests/$requestId/start');
   }
 
   // New: generic status update for service requests
@@ -306,7 +315,7 @@ class ApiClient {
           'visitNotes': visitNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
         if (scheduledTime != null) 'scheduledTime': scheduledTime.toIso8601String(),
-        'visitVitals': visitVitals,
+        if (visitVitals != null) 'visitVitals': visitVitals,
       },
     );
   }
@@ -441,6 +450,11 @@ class ApiClient {
   /// Shop owner: confirm items in stock before rider pickup.
   Future<Response> confirmSellerOrderStock(String orderId) async {
     return await _dio.patch('/orders/$orderId/seller-confirm');
+  }
+
+  /// Shop: rider assigned → hand off as out for delivery (customer + rider flows).
+  Future<Response> sellerDispatchFromShop(String orderId) async {
+    return await _dio.patch('/orders/$orderId/seller-dispatch');
   }
 
   Future<Response> sellerMarkPacked(String orderId) async {

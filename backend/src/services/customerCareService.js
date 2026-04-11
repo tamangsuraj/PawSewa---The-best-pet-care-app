@@ -191,6 +191,13 @@ function toClientConversationShape(doc) {
  * @param {import('mongoose').Document} conversation — MarketplaceConversation (type SUPPORT)
  * @param {import('socket.io').Server|null} io
  */
+/** Safe string id for populated or raw ObjectId refs. */
+function refIdString(ref) {
+  if (ref == null) return '';
+  if (typeof ref === 'object' && ref._id != null) return String(ref._id);
+  return String(ref);
+}
+
 function previewFromMessage({ trimmedText, mediaUrl, mediaType }) {
   if (trimmedText) {
     return trimmedText.length > 220 ? `${trimmedText.slice(0, 217)}...` : trimmedText;
@@ -229,21 +236,29 @@ async function appendMessageAndNotify({
     throw err;
   }
 
-  const custId = conversation.customer.toString();
-  const adminId = conversation.partner.toString();
+  const custId = refIdString(conversation.customer);
+  const partnerId = refIdString(conversation.partner);
   const sid = senderId.toString();
+
+  if (!custId || !partnerId) {
+    const err = new Error('Conversation is missing customer or partner');
+    err.statusCode = 400;
+    throw err;
+  }
 
   const sender = await User.findById(senderId).select('name role').lean();
   const senderIsCustomer = sid === custId;
   const senderIsAdmin = sender && isAdminRole(sender.role);
+  /** Same user as `partner` on the thread (care desk account — may be admin or care_service). */
+  const senderIsCarePartner = sid === partnerId;
 
-  if (!senderIsCustomer && !senderIsAdmin) {
+  if (!senderIsCustomer && !senderIsAdmin && !senderIsCarePartner) {
     const err = new Error('Not a participant in this conversation');
     err.statusCode = 403;
     throw err;
   }
 
-  const receiverId = senderIsCustomer ? conversation.partner : conversation.customer;
+  const receiverId = senderIsCustomer ? partnerId : custId;
 
   const receiverUser = await User.findById(receiverId).select('role').lean();
 
@@ -298,7 +313,7 @@ async function appendMessageAndNotify({
       senderRole: payload.senderRole,
     });
 
-    const custPop = await User.findById(conversation.customer).select('name email role').lean();
+    const custPop = await User.findById(custId).select('name email role').lean();
     io.to('admin_room').emit('support_inbox_bump', {
       conversationId: conversation._id.toString(),
       lastMessageAt: payload.timestamp,
@@ -317,8 +332,8 @@ async function appendMessageAndNotify({
     }
   }
 
-  const fromAdmin = senderIsAdmin;
-  if (fromAdmin && !skipPush) {
+  const fromStaff = senderIsAdmin || senderIsCarePartner;
+  if (fromStaff && !skipPush) {
     const preview =
       previewText.length > 200 ? `${previewText.slice(0, 197)}...` : previewText;
     await sendMulticastToUser(conversation.customer, {

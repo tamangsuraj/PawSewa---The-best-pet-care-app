@@ -8,7 +8,9 @@ import 'package:latlong2/latlong.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/google_maps_directions.dart';
 import '../services/location_service.dart';
 import '../widgets/map_pin_marker.dart';
 
@@ -23,11 +25,13 @@ class ServiceTaskDetailScreen extends StatefulWidget {
 
 class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   final MapController _mapController = MapController();
+  final ApiClient _api = ApiClient();
 
   LatLng? _customerLocation;
   LatLng? _vetLocation;
   StreamSubscription<Position>? _positionSub;
   final LocationService _locationService = LocationService();
+  bool _completingVisit = false;
 
   @override
   void initState() {
@@ -101,43 +105,65 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   Future<void> _navigateToCustomer() async {
-    final live = widget.task['liveLocation'] as Map<String, dynamic>?;
-    num? lat = live?['lat'] as num?;
-    num? lng = live?['lng'] as num?;
-    lat ??= widget.task['latitude'] as num?;
-    lng ??= widget.task['longitude'] as num?;
-    final addressString = widget.task['location'] is String
-        ? widget.task['location'] as String
-        : (widget.task['address_string'] as String?);
-    final String destination;
-    if (lat != null && lng != null) {
-      destination = '${lat.toDouble()},${lng.toDouble()}';
-    } else if (addressString != null && addressString.trim().isNotEmpty) {
-      destination = Uri.encodeComponent(addressString.trim());
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Customer coordinates not found. Please contact support.'),
-          backgroundColor: Colors.red,
-        ),
+    if (_customerLocation != null) {
+      await openGoogleMapsDrivingDirections(
+        context: context,
+        lat: _customerLocation!.latitude,
+        lng: _customerLocation!.longitude,
       );
       return;
     }
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$destination&travelmode=driving',
+    final addressString = widget.task['location'] is String
+        ? widget.task['location'] as String
+        : (widget.task['address_string'] as String?);
+    final loc = widget.task['location'] as Map<String, dynamic>?;
+    String? fromMap;
+    if (loc != null && loc['address'] != null) {
+      fromMap = loc['address'].toString();
+    }
+    await openGoogleMapsDrivingDirections(
+      context: context,
+      address: addressString ?? fromMap,
     );
+  }
+
+  bool get _isServiceRequestAppointment =>
+      widget.task['serviceType'] != null && widget.task['serviceType'].toString().trim().isNotEmpty;
+
+  bool _canShowMarkComplete(String? status) {
+    if (status == null || status.isEmpty) return false;
+    if (status == 'completed' || status == 'cancelled') return false;
+    if (_isServiceRequestAppointment) {
+      return ['assigned', 'accepted', 'en_route', 'arrived', 'in_progress'].contains(status);
+    }
+    return ['assigned', 'in_progress'].contains(status);
+  }
+
+  Future<void> _markVisitOrCaseComplete() async {
+    final id = widget.task['_id']?.toString();
+    if (id == null || id.isEmpty) return;
+    setState(() => _completingVisit = true);
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open maps. Please check your device settings.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if (_isServiceRequestAppointment) {
+        await _api.updateServiceStatus(requestId: id, status: 'completed');
+      } else {
+        await _api.completeCase(id);
       }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Marked as completed')),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not complete: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _completingVisit = false);
     }
   }
 
@@ -337,6 +363,37 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                   icon: const Icon(Icons.directions, color: Colors.white, size: 22),
                   label: Text(
                     'Navigate to Address',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            if (_canShowMarkComplete(status)) ...[
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _completingVisit ? null : _markVisitOrCaseComplete,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF047857),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: _completingVisit
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.check_circle_outline, color: Colors.white, size: 22),
+                  label: Text(
+                    _completingVisit ? 'Completing…' : 'Mark complete',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

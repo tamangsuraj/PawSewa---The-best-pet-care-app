@@ -572,13 +572,13 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Your stay at $name is submitted. Payment status: unpaid — pay at check-in.',
+            'Your booking at $name is confirmed. Payment: unpaid — settle at check-in.',
             textAlign: TextAlign.center,
             style: GoogleFonts.outfit(fontSize: 15, color: Colors.grey[700], height: 1.4),
           ),
           const SizedBox(height: 8),
           Text(
-            'The care centre will be notified. You can track this booking under My Care.',
+            'The centre has your booking on their dashboard. Track it under My Care.',
             textAlign: TextAlign.center,
             style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600], height: 1.4),
           ),

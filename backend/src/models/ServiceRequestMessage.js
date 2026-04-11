@@ -34,7 +34,7 @@ const serviceRequestMessageSchema = new mongoose.Schema(
 
 serviceRequestMessageSchema.index({ serviceRequest: 1, createdAt: 1 });
 
-serviceRequestMessageSchema.pre('validate', function validateContentOrMedia(next) {
+serviceRequestMessageSchema.pre('validate', function validateContentOrMedia() {
   const text = (this.content || '').trim();
   const hasMedia =
     this.mediaUrl &&
@@ -43,7 +43,6 @@ serviceRequestMessageSchema.pre('validate', function validateContentOrMedia(next
   if (!text && !hasMedia) {
     this.invalidate('content', 'Message must include text or media');
   }
-  next();
 });
 
 module.exports = mongoose.model('ServiceRequestMessage', serviceRequestMessageSchema);

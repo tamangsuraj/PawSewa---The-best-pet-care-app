@@ -107,7 +107,10 @@ class _MyClinicAppointmentsScreenState extends State<MyClinicAppointmentsScreen>
     const primary = Color(AppConstants.primaryColor);
     return Scaffold(
       appBar: AppBar(
-        title: Text('My appointments', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+        title: Text(
+          'Clinic visits (current & past)',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: primary,
         foregroundColor: Colors.white,
         actions: [

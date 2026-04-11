@@ -148,10 +148,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    // Care Service specific fields
+    // Care Service specific fields (matches admin “listing category” → Hostel.serviceType)
     serviceType: {
       type: String,
-      enum: ['Boarding', 'Grooming', 'Both'],
+      enum: ['Boarding', 'Grooming', 'Both', 'Spa', 'Training', 'Daycare', 'Wash'],
       trim: true,
     },
     facilityName: {

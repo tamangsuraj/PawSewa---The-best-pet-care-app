@@ -128,15 +128,24 @@ Future<(bool, String?)> verifyKhaltiPaymentWithRetriesAndOrderId(
     return (false, null);
   }
   String? orderId;
+  var sawPaymentSuccess = false;
   for (var i = 0; i < maxAttempts; i++) {
     if (i > 0) {
       await Future<void>.delayed(const Duration(seconds: 2));
     }
     final r = await _verifyOnceWithOrderId(api, pidx);
     if (r.$1) {
+      sawPaymentSuccess = true;
       orderId = r.$2 ?? orderId;
-      return (true, orderId);
+      // Deferred shop checkout: payment can verify before order id appears in the payload.
+      if (orderId != null && orderId.isNotEmpty) {
+        return (true, orderId);
+      }
+      continue;
     }
+  }
+  if (sawPaymentSuccess) {
+    return (true, orderId);
   }
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(

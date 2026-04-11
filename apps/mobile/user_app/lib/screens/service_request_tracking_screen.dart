@@ -290,7 +290,7 @@ class _ServiceRequestTrackingScreenState
                     children: [
                       if (_status != null)
                         Text(
-                          'Status: ${_status!.replaceAll('_', ' ').toUpperCase()}',
+                          'Status: ${AppConstants.serviceRequestStatusLabel(_status!)}',
                           style: GoogleFonts.outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,

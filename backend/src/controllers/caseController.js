@@ -340,10 +340,23 @@ const completeCase = asyncHandler(async (req, res) => {
     throw new Error('Case not found');
   }
 
-  // Verify vet is assigned to this case
-  if (!caseData.assignedVet || caseData.assignedVet.toString() !== req.user._id.toString()) {
+  const isAdmin = normalizeRole(req.user.role) === 'admin';
+  const assignedId = caseData.assignedVet ? caseData.assignedVet.toString() : '';
+  const isAssignedVet = assignedId && assignedId === req.user._id.toString();
+
+  if (!isAdmin && !isAssignedVet) {
     res.status(403);
     throw new Error('You are not assigned to this case');
+  }
+
+  if (['completed', 'cancelled'].includes(caseData.status)) {
+    res.status(400);
+    throw new Error('Case is already closed');
+  }
+
+  if (isAdmin && !['assigned', 'in_progress'].includes(caseData.status)) {
+    res.status(400);
+    throw new Error('Assign a veterinarian (or start the case) before marking it complete');
   }
 
   caseData.status = 'completed';

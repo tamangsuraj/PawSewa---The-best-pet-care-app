@@ -7,10 +7,13 @@ import 'my_orders_screen.dart';
 
 /// Full-screen congratulations after order is placed (e.g. after Khalti payment).
 class OrderSuccessScreen extends StatefulWidget {
-  const OrderSuccessScreen({super.key, this.orderId});
+  const OrderSuccessScreen({super.key, this.orderId, this.onDone});
 
   /// If set, "View order" will open My Orders and highlight this order.
   final String? orderId;
+
+  /// Primary action (e.g. pop success + switch to home tab). If null, only [Navigator.pop] is used.
+  final VoidCallback? onDone;
 
   @override
   State<OrderSuccessScreen> createState() => _OrderSuccessScreenState();
@@ -110,7 +113,13 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        if (widget.onDone != null) {
+                          widget.onDone!();
+                        } else {
+                          Navigator.of(context).pop();
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
                         foregroundColor: Colors.white,
@@ -120,7 +129,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                         ),
                       ),
                       child: Text(
-                        'Done',
+                        'OK',
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,

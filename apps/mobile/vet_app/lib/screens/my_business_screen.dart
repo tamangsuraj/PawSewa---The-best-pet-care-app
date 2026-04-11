@@ -11,6 +11,7 @@ import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 import 'partner_marketplace_chat_screen.dart';
 import 'payment_webview_screen.dart';
+import 'care_booking_detail_screen.dart';
 
 class MyBusinessScreen extends StatefulWidget {
   const MyBusinessScreen({super.key});
@@ -168,42 +169,6 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  Future<void> _notifyCheckIn(String bookingId) async {
-    try {
-      await _apiClient.patchCareBookingCheckIn(bookingId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marked as checked in')),
-        );
-        _loadBookings();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
-      }
-    }
-  }
-
-  Future<void> _completeCareBooking(String bookingId) async {
-    try {
-      await _apiClient.markBookingCompleted(bookingId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Booking completed')),
-        );
-        _loadBookings();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
         );
       }
     }
@@ -747,9 +712,12 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
         final ownerName = user['name']?.toString() ?? 'Owner';
         final hostelName = hostel['name']?.toString() ?? 'Service';
         final status = b['status']?.toString() ?? 'pending';
-        final canRespond = ['awaiting_approval', 'pending', 'paid'].contains(status);
-        final canCheckIn = status == 'confirmed' || status == 'accepted';
-        final canComplete = status == 'checked_in';
+        final canRespond = [
+          'awaiting_approval',
+          'pending_payment',
+          'pending',
+          'paid',
+        ].contains(status);
         final checkIn = b['checkIn']?.toString();
         final nights = b['nights'];
         final total = b['totalAmount'];
@@ -766,160 +734,128 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
         }
         final bid = b['_id']?.toString() ?? '';
 
+        Future<void> openDetail() async {
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => CareBookingDetailScreen(initialBooking: Map<String, dynamic>.from(b)),
+            ),
+          );
+          if (mounted) _loadBookings();
+        }
+
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.fromLTRB(16, 16, 48, 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              elevation: 2,
+              shadowColor: Colors.black26,
+              child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                onTap: openDetail,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 48, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          petName,
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[900],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              petName,
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[900],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          status.toUpperCase(),
-                          style: GoogleFonts.outfit(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _primary,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: GoogleFonts.outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _primary,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Owner: $ownerName · $hostelName',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  if (logistics == 'pickup' && pickupAddr != null && pickupAddr.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Pickup: $pickupAddr',
-                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[800]),
-                      ),
-                    ),
-                  if (checkIn != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Check-in: ${DateTime.tryParse(checkIn)?.toString().split(' ').first ?? checkIn} · $nights night(s)',
+                      const SizedBox(height: 4),
+                      Text(
+                        'Owner: $ownerName · $hostelName',
                         style: GoogleFonts.outfit(
-                          fontSize: 12,
+                          fontSize: 13,
                           color: Colors.grey[600],
                         ),
                       ),
-                    ),
-                  if (total != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Rs. $total',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _primary,
-                        ),
-                      ),
-                    ),
-                  if (hasPickupCoords)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: TextButton.icon(
-                        onPressed: () => _openPickupOnMap(b),
-                        icon: const Icon(Icons.map_rounded, size: 18),
-                        label: const Text('View on map'),
-                      ),
-                    ),
-                  if (canRespond) ...[
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => _respondToBooking(bid, false),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                            ),
-                            child: const Text('Decline'),
+                      if (logistics == 'pickup' && pickupAddr != null && pickupAddr.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            'Pickup: $pickupAddr',
+                            style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[800]),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _respondToBooking(bid, true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
+                      if (checkIn != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Check-in: ${DateTime.tryParse(checkIn)?.toString().split(' ').first ?? checkIn} · $nights night(s)',
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              color: Colors.grey[600],
                             ),
-                            child: const Text('Accept'),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                  if (canCheckIn) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: bid.isEmpty ? null : () => _notifyCheckIn(bid),
-                        icon: const Icon(Icons.pets_rounded),
-                        label: const Text('Notify arrival (check-in)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primary,
-                          foregroundColor: Colors.white,
+                      if (total != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Total Rs. $total',
+                            style: GoogleFonts.outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _primary,
+                            ),
+                          ),
                         ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: openDetail,
+                            icon: const Icon(Icons.visibility_rounded, size: 18),
+                            label: const Text('View details'),
+                          ),
+                          if (canRespond) ...[
+                            const SizedBox(width: 8),
+                            FilledButton.tonal(
+                              onPressed: bid.isEmpty ? null : () => _respondToBooking(bid, true),
+                              child: const Text('Confirm'),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                  ],
-                  if (canComplete) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: bid.isEmpty ? null : () => _completeCareBooking(bid),
-                        child: const Text('Mark completed'),
-                      ),
-                    ),
-                  ],
-                ],
+                      if (hasPickupCoords)
+                        TextButton.icon(
+                          onPressed: () => _openPickupOnMap(b),
+                          icon: const Icon(Icons.map_rounded, size: 18),
+                          label: const Text('Pickup on map'),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
             Positioned(

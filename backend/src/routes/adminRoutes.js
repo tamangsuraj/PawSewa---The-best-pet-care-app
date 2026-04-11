@@ -667,10 +667,46 @@ router.get('/call-sessions', protect, authorize('admin'), async (req, res, next)
 router.get('/financials/transactions', protect, authorize('admin'), async (req, res, next) => {
   try {
     const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit || '80'), 10) || 80));
-    const orders = await Order.find({
-      paymentMethod: 'khalti',
+    const khaltiPaidMatch = {
       paymentStatus: 'paid',
-    })
+      paymentMethod: { $regex: /^khalti$/i },
+    };
+
+    const since30 = new Date();
+    since30.setDate(since30.getDate() - 30);
+
+    const [aggAll, agg30] = await Promise.all([
+      Order.aggregate([
+        { $match: khaltiPaidMatch },
+        {
+          $group: {
+            _id: null,
+            totalNpr: { $sum: { $ifNull: ['$totalAmount', 0] } },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+      Order.aggregate([
+        {
+          $match: {
+            ...khaltiPaidMatch,
+            updatedAt: { $gte: since30 },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            totalNpr: { $sum: { $ifNull: ['$totalAmount', 0] } },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const all = aggAll[0] || { totalNpr: 0, count: 0 };
+    const last30 = agg30[0] || { totalNpr: 0, count: 0 };
+
+    const orders = await Order.find(khaltiPaidMatch)
       .sort({ updatedAt: -1 })
       .limit(limit)
       .populate('user', 'name email phone')
@@ -690,7 +726,17 @@ router.get('/financials/transactions', protect, authorize('admin'), async (req, 
       itemCount: Array.isArray(o.items) ? o.items.length : 0,
     }));
 
-    res.json({ success: true, data: rows });
+    res.json({
+      success: true,
+      data: rows,
+      summary: {
+        /** Sum of order totals for paid Khalti shop orders (NPR). */
+        totalReceivedKhaltiNpr: Number(all.totalNpr) || 0,
+        khaltiPaidOrderCount: Number(all.count) || 0,
+        last30DaysReceivedKhaltiNpr: Number(last30.totalNpr) || 0,
+        last30DaysKhaltiOrderCount: Number(last30.count) || 0,
+      },
+    });
   } catch (e) {
     next(e);
   }

@@ -618,12 +618,12 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       ),
                       _drawerSubItem(
                         icon: Icons.receipt_long_outlined,
-                        label: 'Order History',
+                        label: 'All orders (current & past)',
                         active: false,
                         onTap: () {
                           _closeDrawerAndPush(
                             const MyOrdersScreen(
-                              listMode: MyOrdersListMode.historyOnly,
+                              listMode: MyOrdersListMode.all,
                             ),
                           );
                         },
@@ -662,12 +662,12 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       ),
                       _drawerSubItem(
                         icon: Icons.receipt_long_outlined,
-                        label: 'Appointments History',
+                        label: 'All appointments (current & past)',
                         active: false,
                         onTap: () {
                           _closeDrawerAndPush(
                             const MyRequestsScreen(
-                              initialFilterStatus: 'completed',
+                              initialFilterStatus: 'all',
                             ),
                           );
                         },
@@ -682,7 +682,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       ),
                       _drawerSubItem(
                         icon: Icons.event_available_outlined,
-                        label: 'My clinic appointments',
+                        label: 'Clinic visits (current & past)',
                         active: false,
                         onTap: () {
                           _closeDrawerAndPush(const MyClinicAppointmentsScreen());
@@ -714,7 +714,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                     children: [
                       _drawerSubItem(
                         icon: Icons.content_cut_outlined,
-                        label: 'Grooming requests',
+                        label: 'Grooming (current & past)',
                         active: false,
                         onTap: () {
                           _closeDrawerAndPush(
@@ -726,7 +726,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       ),
                       _drawerSubItem(
                         icon: Icons.school_outlined,
-                        label: 'Training requests',
+                        label: 'Training (current & past)',
                         active: false,
                         onTap: () {
                           _closeDrawerAndPush(
@@ -770,12 +770,12 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
                       ),
                       _drawerSubItem(
                         icon: Icons.receipt_long_outlined,
-                        label: 'Booking History',
+                        label: 'All care bookings (current & past)',
                         active: false,
                         onTap: () {
                           _closeDrawerAndPush(
                             const MyCareBookingsScreen(
-                              listMode: MyCareBookingsListMode.historyOnly,
+                              listMode: MyCareBookingsListMode.all,
                             ),
                           );
                         },
@@ -940,6 +940,7 @@ class _PetDashboardScreenState extends State<PetDashboardScreen>
         return ShopScreen(
           initialCategorySlug: _shopInitialCategorySlug,
           initialCategoryName: _shopInitialCategoryName,
+          onOrderSuccessGoHome: () => setState(() => _currentIndex = 0),
         );
       case 3:
         return const MessagesHubScreen();

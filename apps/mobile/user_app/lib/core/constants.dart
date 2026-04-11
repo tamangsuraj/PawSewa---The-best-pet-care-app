@@ -42,6 +42,9 @@ class AppConstants {
   static const Map<String, String> serviceRequestStatusLabels = {
     'pending': 'Reviewing Request',
     'assigned': 'Staff Confirmed',
+    'accepted': 'Visit accepted',
+    'en_route': 'Vet on the way',
+    'arrived': 'Vet arrived',
     'in_progress': 'Service in Progress',
     'completed': 'Completed',
     'cancelled': 'Cancelled',

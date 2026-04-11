@@ -22,7 +22,7 @@ class MyRequestsScreen extends StatefulWidget {
     this.initialFilterStatus = 'all',
   });
 
-  /// e.g. `completed` when opened from the drawer "Appointments History" shortcut.
+  /// Initial filter chip (`all`, `pending`, `completed`, …). Drawer opens with `all` for current & past.
   final String initialFilterStatus;
 
   @override
@@ -118,17 +118,23 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   }
 
   int get _pendingCount => _items.where((i) => i['status'] == 'pending').length;
-  int get _activeCount =>
-      _items.where((i) => ['assigned', 'in_progress'].contains(i['status'])).length;
+  int get _activeCount => _items
+      .where((i) =>
+          ['assigned', 'en_route', 'arrived', 'in_progress'].contains(i['status']))
+      .length;
   int get _completedCount => _items.where((i) => i['status'] == 'completed').length;
 
   bool _isAppointment(Map<String, dynamic> item) => item['_requestType'] == 'appointment';
 
   String get _appBarTitle {
-    if (_filterStatus == 'completed') {
-      return 'Appointments history';
+    switch (_filterStatus) {
+      case 'all':
+        return 'Current & past appointments';
+      case 'completed':
+        return 'Appointments history';
+      default:
+        return 'My requests';
     }
-    return 'My Requests';
   }
 
   @override

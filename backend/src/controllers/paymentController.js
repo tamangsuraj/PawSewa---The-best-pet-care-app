@@ -29,6 +29,34 @@ const ESEWA_PRODUCT_CODE = process.env.ESEWA_PRODUCT_CODE || '';
 // Example (check latest docs): https://epay.esewa.com.np/api/epay/transaction/status/
 const ESEWA_VERIFY_URL = process.env.ESEWA_VERIFY_URL || '';
 
+/** Khalti lookup may omit purchase_order_id on the first Completed poll; resolve via our Payment row (gatewayTransactionId = pidx). */
+function extractKhaltiPurchaseOrderId(lookupData) {
+  if (!lookupData || typeof lookupData !== 'object') return '';
+  const v = lookupData.purchase_order_id;
+  if (v != null && String(v).trim() !== '') return String(v).trim();
+  return '';
+}
+
+function isKhaltiLookupCompleted(lookupData) {
+  const s = (lookupData?.status ?? '').toString().trim().toLowerCase();
+  return s === 'completed';
+}
+
+async function resolveKhaltiPurchaseOrderId(pidx, lookupData) {
+  let id = extractKhaltiPurchaseOrderId(lookupData);
+  if (id) return id;
+  const trimmed = pidx != null ? String(pidx).trim() : '';
+  if (!trimmed) return '';
+  const pay = await Payment.findOne({
+    gateway: 'khalti',
+    gatewayTransactionId: trimmed,
+  })
+    .select('_id')
+    .lean();
+  if (pay?._id) return String(pay._id);
+  return '';
+}
+
 /**
  * Helper: promote ServiceRequest to \"confirmed\" + mark paymentStatus
  * in a single DB transaction.
@@ -74,7 +102,7 @@ async function markPaymentCompleted({ paymentId }) {
         }
         booking.paymentStatus = 'paid';
         if (['pending', 'awaiting_approval', 'pending_payment'].includes(booking.status)) {
-          booking.status = 'awaiting_approval';
+          booking.status = 'confirmed';
         }
         await booking.save({ session });
       } else if (payment.targetType === 'subscription' && payment.metadata) {
@@ -967,13 +995,21 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
     });
   }
 
-  const status = (lookupResp.data?.status || '').trim();
-  const purchaseOrderId = lookupResp.data?.purchase_order_id;
   const lookupPayload = lookupResp.data || {};
+  const status = (lookupPayload.status || '').trim();
+  let purchaseOrderId = await resolveKhaltiPurchaseOrderId(pidx, lookupPayload);
   const txnId =
     lookupPayload.transaction_id || lookupPayload.idx || lookupPayload.pidx || pidx;
 
-  if (status === 'Completed') {
+  if (isKhaltiLookupCompleted(lookupPayload)) {
+    if (!purchaseOrderId) {
+      return res.status(502).json({
+        success: false,
+        message:
+          'Khalti reports completed payment but we could not link it to your order yet. Retry shortly or contact support.',
+        status: 'Completed',
+      });
+    }
     if (purchaseOrderId) {
       const payShop = await Payment.findById(purchaseOrderId);
       if (payShop && payShop.targetType === 'shop_order') {
@@ -988,6 +1024,15 @@ const verifyPaymentGet = asyncHandler(async (req, res) => {
         if (payShop.status !== 'completed') {
           const created = await finalizeShopCheckoutPayment(payShop, txnId, lookupPayload);
           console.log(`[${ts}] [INFO] Shop checkout finalized ${purchaseOrderId} → order ${created._id}`);
+          return res.json({
+            success: true,
+            message: 'Payment completed',
+            orderId: created._id,
+            status: 'Completed',
+          });
+        }
+        if (payShop.status === 'completed' && !payShop.metadata?.orderId) {
+          const created = await finalizeShopCheckoutPayment(payShop, txnId, lookupPayload);
           return res.json({
             success: true,
             message: 'Payment completed',
@@ -1089,20 +1134,37 @@ const verifyPayment = asyncHandler(async (req, res) => {
       });
     }
 
-    const st = lookupData.status;
-    if (st === 'Completed') break;
-    if (st !== 'Pending' && st !== 'Initiated') break;
+    const st = (lookupData.status ?? '').toString().trim();
+    const stLower = st.toLowerCase();
+    const poi = extractKhaltiPurchaseOrderId(lookupData);
+    // Completed but purchase_order_id sometimes missing until a later poll — keep trying.
+    if (stLower === 'completed' && poi) break;
+    if (stLower === 'completed' && !poi && attempt < maxAttempts - 1) continue;
+    if (stLower === 'completed' && !poi) break;
+    if (stLower !== 'pending' && stLower !== 'initiated') break;
   }
 
   const status = lookupData?.status;
-  const purchaseOrderId = lookupData?.purchase_order_id;
+  let purchaseOrderId = await resolveKhaltiPurchaseOrderId(pidx, lookupData);
   const transactionId =
     lookupData?.transaction_id ||
     lookupData?.idx ||
     lookupData?.pidx ||
     null;
 
-  if (status === 'Completed' && purchaseOrderId) {
+  if (isKhaltiLookupCompleted(lookupData) && !purchaseOrderId) {
+    logger.warn(
+      `verify-payment: Khalti Completed but no purchase_order_id and no Payment for pidx=${String(pidx)}`
+    );
+    return res.status(502).json({
+      success: false,
+      message:
+        'Payment completed on Khalti but we could not link it to your order yet. Wait a moment and tap refresh, or contact support with your payment reference.',
+      status: lookupData?.status,
+    });
+  }
+
+  if (isKhaltiLookupCompleted(lookupData) && purchaseOrderId) {
     const payDoc = await Payment.findById(purchaseOrderId);
     if (payDoc && payDoc.targetType === 'shop_order') {
       if (payDoc.status === 'completed' && payDoc.metadata?.orderId) {
@@ -1122,10 +1184,28 @@ const verifyPayment = asyncHandler(async (req, res) => {
           transactionId,
         });
       }
+      // status completed but order id missing (rare) — try to create Order from draft
+      if (payDoc.status === 'completed' && !payDoc.metadata?.orderId) {
+        const created = await finalizeShopCheckoutPayment(payDoc, transactionId, lookupData);
+        return res.json({
+          success: true,
+          message: 'Payment completed',
+          orderId: created._id,
+          transactionId,
+        });
+      }
     }
 
     // Legacy: purchase_order_id is an existing Order (shop order created before payment).
     const order = await Order.findById(purchaseOrderId);
+    if (order && order.paymentStatus === 'paid') {
+      return res.json({
+        success: true,
+        message: 'Payment already recorded',
+        orderId: order._id,
+        transactionId,
+      });
+    }
     if (order && order.paymentStatus !== 'paid') {
       logger.info(`Khalti: Initiating verification for Order ${order._id}.`);
       order.paymentStatus = 'paid';

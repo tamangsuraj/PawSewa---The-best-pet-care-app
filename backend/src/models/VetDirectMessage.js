@@ -47,7 +47,7 @@ const vetDirectMessageSchema = new mongoose.Schema(
 
 vetDirectMessageSchema.index({ roomId: 1, createdAt: 1 });
 
-vetDirectMessageSchema.pre('validate', function validateTextOrMedia(next) {
+vetDirectMessageSchema.pre('validate', function validateTextOrMedia() {
   const t = (this.text || '').trim();
   const hasMedia =
     this.mediaUrl &&
@@ -56,7 +56,6 @@ vetDirectMessageSchema.pre('validate', function validateTextOrMedia(next) {
   if (!t && !hasMedia) {
     this.invalidate('text', 'Message must include text or media');
   }
-  next();
 });
 
 module.exports = mongoose.model('VetDirectMessage', vetDirectMessageSchema);

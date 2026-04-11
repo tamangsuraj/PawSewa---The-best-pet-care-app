@@ -9,6 +9,14 @@ const {
   resolveCareAdminId,
   toClientConversationShape,
 } = require('../services/customerCareService');
+
+function convParticipantIds(conv) {
+  const c = conv.customer;
+  const p = conv.partner;
+  const cust = c && typeof c === 'object' && c._id != null ? String(c._id) : String(c ?? '');
+  const part = p && typeof p === 'object' && p._id != null ? String(p._id) : String(p ?? '');
+  return { cust, part };
+}
 const { formatRoleLabel } = require('../utils/roleLabels');
 
 function assertSupportConv(conv) {
@@ -138,9 +146,10 @@ const getMessages = asyncHandler(async (req, res) => {
   assertSupportConv(conv);
 
   const uid = req.user._id.toString();
-  const isParticipant =
-    conv.customer.toString() === uid || conv.partner.toString() === uid;
-  const isAdmin = req.user.role === 'admin';
+  const { cust, part } = convParticipantIds(conv);
+  const isParticipant = cust === uid || part === uid;
+  const r = String(req.user.role || '').toLowerCase();
+  const isAdmin = r === 'admin';
 
   if (!isParticipant && !isAdmin) {
     res.status(403);
@@ -170,14 +179,17 @@ const getMessages = asyncHandler(async (req, res) => {
  * @route POST /api/v1/customer-care/conversations/:id/messages
  */
 const postMessage = asyncHandler(async (req, res) => {
-  const { text, mediaUrl, mediaType } = req.body || {};
+  const body = req.body || {};
+  const text = body.text ?? body.content ?? '';
+  const { mediaUrl, mediaType } = body;
   const conv = await MarketplaceConversation.findById(req.params.id);
   assertSupportConv(conv);
 
   const uid = req.user._id.toString();
-  const isParticipant =
-    conv.customer.toString() === uid || conv.partner.toString() === uid;
-  const isAdmin = req.user.role === 'admin';
+  const { cust, part } = convParticipantIds(conv);
+  const isParticipant = cust === uid || part === uid;
+  const r = String(req.user.role || '').toLowerCase();
+  const isAdmin = r === 'admin';
 
   if (!isParticipant && !isAdmin) {
     res.status(403);

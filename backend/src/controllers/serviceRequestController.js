@@ -4,13 +4,16 @@ const Chat = require('../models/Chat');
 const Pet = require('../models/Pet');
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
-const { notifyServiceRequestAssignment } = require('../utils/notificationService');
+const {
+  notifyServiceRequestAssignment,
+  notifyServiceRequestVisitStatusForOwner,
+} = require('../utils/notificationService');
 const { SERVICE_REQUEST_STATUS } = require('../constants/serviceRequestStatus');
 const { getIO } = require('../sockets/socketStore');
 const logger = require('../utils/logger');
 const { normalizeRole } = require('../middleware/authMiddleware');
 
-function emitStatusChange(requestId, status, ownerId, previousStatus) {
+function emitStatusChange(requestId, status, ownerId, previousStatus, staffId) {
   const io = getIO();
   if (!io) return;
   const payload = { requestId, status, previousStatus };
@@ -18,6 +21,10 @@ function emitStatusChange(requestId, status, ownerId, previousStatus) {
   if (ownerId) {
     io.to('user:' + ownerId.toString()).emit('status_change', payload);
   }
+  if (staffId) {
+    io.to('user:' + staffId.toString()).emit('status_change', payload);
+  }
+  io.to('admin_room').emit('service_request_status_change', payload);
 }
 
 // Simple Nominatim-based validator for Kathmandu addresses.
@@ -322,20 +329,34 @@ const getMyAssignedRequests = asyncHandler(async (req, res) => {
   // Staff feed must align with assignServiceRequest: admin can assign before online payment
   // (cash on delivery / pay later). Do not require paymentStatus=paid here or vets never see
   // newly assigned appointments until the owner pays online.
-  const requests = await ServiceRequest.find({
+  const wantHistory =
+    req.query.history === '1' ||
+    req.query.history === 'true' ||
+    String(req.query.history || '').toLowerCase() === 'true';
+
+  const activeStatuses = [
+    SERVICE_REQUEST_STATUS.ASSIGNED,
+    SERVICE_REQUEST_STATUS.ACCEPTED,
+    SERVICE_REQUEST_STATUS.EN_ROUTE,
+    SERVICE_REQUEST_STATUS.ARRIVED,
+    SERVICE_REQUEST_STATUS.IN_PROGRESS,
+  ];
+  const historyStatuses = [SERVICE_REQUEST_STATUS.COMPLETED, SERVICE_REQUEST_STATUS.CANCELLED];
+
+  const filter = {
     assignedStaff: req.user._id,
-    status: {
-      $in: [
-        SERVICE_REQUEST_STATUS.ASSIGNED,
-        SERVICE_REQUEST_STATUS.IN_PROGRESS,
-        SERVICE_REQUEST_STATUS.COMPLETED,
-      ],
-    },
-  })
+    status: { $in: wantHistory ? historyStatuses : activeStatuses },
+  };
+
+  const requests = await ServiceRequest.find(filter)
     .populate('user', 'name email phone')
     .populate('pet', 'name breed age photoUrl medicalHistory species pawId')
     .populate('assignedStaff', 'name email phone specialty specialization')
-    .sort({ preferredDate: 1 });
+    .sort(
+      wantHistory
+        ? { completedAt: -1, cancelledAt: -1, preferredDate: -1 }
+        : { preferredDate: 1 },
+    );
 
   res.json({
     success: true,
@@ -501,7 +522,7 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
       $gte: slotStart,
       $lte: slotEnd,
     },
-    status: { $in: ['assigned', 'in_progress'] },
+    status: { $in: ['assigned', 'accepted', 'en_route', 'arrived', 'in_progress'] },
   });
 
   if (existingAtSlot) {
@@ -554,16 +575,13 @@ const assignServiceRequest = asyncHandler(async (req, res) => {
     staffName: staff.name,
   });
 
-  emitStatusChange(request._id.toString(), 'assigned', ownerId?.toString?.() || ownerId, 'pending');
-  // Notify assigned vet in real time so they receive the case (e.g. vet app can refresh assignments)
-  const io = getIO();
-  if (io) {
-    io.to('user:' + staffId.toString()).emit('status_change', {
-      requestId: request._id.toString(),
-      status: 'assigned',
-      previousStatus: 'pending',
-    });
-  }
+  emitStatusChange(
+    request._id.toString(),
+    'assigned',
+    ownerId?.toString?.() || ownerId,
+    'pending',
+    staffId.toString()
+  );
 
   const petIdForLog = updatedRequest.pet?._id?.toString?.() || updatedRequest.pet?._id || 'unknown';
   logger.info('Appointment Assigned: Vet', staffId.toString(), 'for Pet', petIdForLog);
@@ -594,16 +612,37 @@ const startServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('You are not assigned to this service request');
   }
 
-  if (request.status !== 'assigned') {
+  if (!['assigned', 'accepted', 'arrived'].includes(request.status)) {
     res.status(400);
-    throw new Error('Service request must be in assigned status to start');
+    throw new Error('Service request must be assigned, accepted, or arrived to start');
   }
 
   const previousStatus = request.status;
   request.status = 'in_progress';
   await request.save();
 
-  emitStatusChange(request._id.toString(), 'in_progress', request.user?.toString?.() || request.user, previousStatus);
+  emitStatusChange(
+    request._id.toString(),
+    'in_progress',
+    request.user?.toString?.() || request.user,
+    previousStatus,
+    request.assignedStaff?.toString?.() || request.assignedStaff
+  );
+
+  try {
+    const populated = await ServiceRequest.findById(request._id).populate('pet', 'name').lean();
+    const petName = (populated && populated.pet && populated.pet.name) || 'your pet';
+    await notifyServiceRequestVisitStatusForOwner({
+      ownerId: request.user,
+      serviceRequestId: request._id,
+      petName,
+      serviceType: request.serviceType || 'visit',
+      status: 'in_progress',
+      staffName: req.user?.name,
+    });
+  } catch (err) {
+    logger.warn('[startServiceRequest] owner notify failed:', err?.message || err);
+  }
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
@@ -631,12 +670,21 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
     throw new Error('Service request not found');
   }
 
-  // Verify staff is assigned to this request
-  if (!request.assignedStaff || request.assignedStaff.toString() !== req.user._id.toString()) {
+  const isAdmin = normalizeRole(req.user.role) === 'admin';
+  const isAssignedStaff =
+    request.assignedStaff && request.assignedStaff.toString() === req.user._id.toString();
+
+  if (!isAssignedStaff && !isAdmin) {
     res.status(403);
     throw new Error('You are not assigned to this service request');
   }
 
+  if (['completed', 'cancelled'].includes(request.status)) {
+    res.status(400);
+    throw new Error('Service request is already closed');
+  }
+
+  const previousStatus = request.status;
   request.status = 'completed';
   request.completedAt = new Date();
 
@@ -694,11 +742,31 @@ const completeServiceRequest = asyncHandler(async (req, res) => {
     }
   }
 
-  emitStatusChange(request._id.toString(), 'completed', request.user?.toString?.() || request.user, 'in_progress');
+  emitStatusChange(
+    request._id.toString(),
+    'completed',
+    request.user?.toString?.() || request.user,
+    previousStatus,
+    request.assignedStaff?.toString?.() || request.assignedStaff
+  );
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
     .populate('pet', 'name breed age photoUrl medicalHistory species pawId');
+
+  try {
+    const petName = (updatedRequest.pet && updatedRequest.pet.name) || 'your pet';
+    await notifyServiceRequestVisitStatusForOwner({
+      ownerId: request.user,
+      serviceRequestId: request._id,
+      petName,
+      serviceType: updatedRequest.serviceType || 'visit',
+      status: 'completed',
+      staffName: req.user?.name,
+    });
+  } catch (err) {
+    logger.warn('[completeServiceRequest] owner notify failed:', err?.message || err);
+  }
 
   res.json({
     success: true,
@@ -720,7 +788,14 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     throw new Error('Status is required');
   }
 
-  const allowedStatuses = ['assigned', 'in_progress', 'completed', 'cancelled'];
+  const allowedStatuses = [
+    'accepted',
+    'en_route',
+    'arrived',
+    'in_progress',
+    'completed',
+    'cancelled',
+  ];
   if (!allowedStatuses.includes(status)) {
     res.status(400);
     throw new Error(`Invalid status. Must be one of: ${allowedStatuses.join(', ')}`);
@@ -735,34 +810,54 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
 
   const isAssignedStaff =
     request.assignedStaff && request.assignedStaff.toString() === req.user._id.toString();
-  const isAdmin = req.user.role === 'admin';
+  const isAdmin = normalizeRole(req.user.role) === 'admin';
 
   if (!isAssignedStaff && !isAdmin) {
     res.status(403);
     throw new Error('Not authorized to update this service request');
   }
 
-  // Enforce valid transitions
-  const current = request.status;
+  const current = String(request.status || '').trim();
 
   if (current === 'completed' || current === 'cancelled') {
     res.status(400);
     throw new Error('Cannot change status of a completed or cancelled request');
   }
 
-  if (current === 'assigned' && !['in_progress', 'cancelled'].includes(status)) {
+  /** Assigned staff: may jump to completed from normal visit states. */
+  const staffMayForceComplete =
+    isAssignedStaff &&
+    status === 'completed' &&
+    ['assigned', 'accepted', 'en_route', 'arrived', 'in_progress'].includes(current);
+
+  /** Admin: may close any non-terminal request as completed (e.g. Live Cases → Complete). */
+  const adminMayMarkCompleted = isAdmin && status === 'completed';
+
+  const canForceComplete = staffMayForceComplete || adminMayMarkCompleted;
+
+  const ok =
+    canForceComplete ||
+    (current === 'assigned' &&
+      ['accepted', 'en_route', 'in_progress', 'cancelled'].includes(status)) ||
+    (current === 'accepted' && ['en_route', 'cancelled'].includes(status)) ||
+    (current === 'en_route' && ['arrived', 'cancelled'].includes(status)) ||
+    (current === 'arrived' && ['in_progress', 'completed', 'cancelled'].includes(status)) ||
+    (current === 'in_progress' && ['completed', 'cancelled'].includes(status)) ||
+    (current === 'pending' && isAdmin && status === 'cancelled');
+
+  if (!ok) {
     res.status(400);
-    throw new Error('Assigned requests can only move to in_progress or cancelled');
+    throw new Error(`Cannot move from "${current}" to "${status}"`);
   }
 
-  if (current === 'in_progress' && !['completed', 'cancelled'].includes(status)) {
-    res.status(400);
-    throw new Error('In-progress requests can only move to completed or cancelled');
-  }
-
-  // Apply transition-side effects
   if (status === 'in_progress') {
     request.status = 'in_progress';
+  } else if (status === 'accepted') {
+    request.status = 'accepted';
+  } else if (status === 'en_route') {
+    request.status = 'en_route';
+  } else if (status === 'arrived') {
+    request.status = 'arrived';
   } else if (status === 'completed') {
     request.status = 'completed';
     request.completedAt = new Date();
@@ -778,7 +873,6 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     }
   }
 
-  // Optional follow-up scheduling (doesn't change status transitions)
   if (scheduledTime) {
     const dt = new Date(scheduledTime);
     if (!Number.isNaN(dt.getTime())) {
@@ -786,7 +880,6 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     }
   }
 
-  // Optional vitals capture
   if (visitVitals && typeof visitVitals === 'object') {
     const w = visitVitals.weightKg;
     const t = visitVitals.temperatureC;
@@ -800,7 +893,6 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
 
   await request.save();
 
-  // If completed, also push notes into pet medical history
   if (status === 'completed') {
     try {
       const pet = await Pet.findById(request.pet);
@@ -833,7 +925,32 @@ const updateServiceRequestStatus = asyncHandler(async (req, res) => {
     }
   }
 
-  emitStatusChange(request._id.toString(), status, request.user?.toString?.() || request.user, current);
+  emitStatusChange(
+    request._id.toString(),
+    status,
+    request.user?.toString?.() || request.user,
+    current,
+    request.assignedStaff?.toString?.() || request.assignedStaff
+  );
+
+  if (['accepted', 'en_route', 'arrived', 'in_progress', 'completed'].includes(status)) {
+    try {
+      const populated = await ServiceRequest.findById(request._id)
+        .populate('pet', 'name')
+        .lean();
+      const petName = (populated && populated.pet && populated.pet.name) || 'your pet';
+      await notifyServiceRequestVisitStatusForOwner({
+        ownerId: request.user,
+        serviceRequestId: request._id,
+        petName,
+        serviceType: request.serviceType || 'visit',
+        status,
+        staffName: req.user?.name,
+      });
+    } catch (err) {
+      logger.warn('[updateServiceRequestStatus] owner notify failed:', err?.message || err);
+    }
+  }
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
@@ -885,7 +1002,13 @@ const cancelServiceRequest = asyncHandler(async (req, res) => {
 
   await request.save();
 
-  emitStatusChange(request._id.toString(), 'cancelled', request.user?.toString?.() || request.user, previousStatus);
+  emitStatusChange(
+    request._id.toString(),
+    'cancelled',
+    request.user?.toString?.() || request.user,
+    previousStatus,
+    request.assignedStaff ? request.assignedStaff.toString() : null
+  );
 
   const updatedRequest = await ServiceRequest.findById(request._id)
     .populate('user', 'name email phone')
@@ -907,6 +1030,9 @@ const getServiceRequestStats = asyncHandler(async (req, res) => {
   const totalRequests = await ServiceRequest.countDocuments();
   const pendingRequests = await ServiceRequest.countDocuments({ status: 'pending' });
   const assignedRequests = await ServiceRequest.countDocuments({ status: 'assigned' });
+  const acceptedRequests = await ServiceRequest.countDocuments({ status: 'accepted' });
+  const enRouteRequests = await ServiceRequest.countDocuments({ status: 'en_route' });
+  const arrivedRequests = await ServiceRequest.countDocuments({ status: 'arrived' });
   const inProgressRequests = await ServiceRequest.countDocuments({ status: 'in_progress' });
   const completedRequests = await ServiceRequest.countDocuments({ status: 'completed' });
   const cancelledRequests = await ServiceRequest.countDocuments({ status: 'cancelled' });
@@ -923,6 +1049,9 @@ const getServiceRequestStats = asyncHandler(async (req, res) => {
       byStatus: {
         pending: pendingRequests,
         assigned: assignedRequests,
+        accepted: acceptedRequests,
+        enRoute: enRouteRequests,
+        arrived: arrivedRequests,
         inProgress: inProgressRequests,
         completed: completedRequests,
         cancelled: cancelledRequests,

@@ -29,9 +29,9 @@ class _MyCareRequestsScreenState extends State<MyCareRequestsScreen> {
   String get _title {
     switch (widget.kind) {
       case CareRequestsKind.grooming:
-        return 'Grooming sessions';
+        return 'Grooming (current & past)';
       case CareRequestsKind.training:
-        return 'Training history';
+        return 'Training (current & past)';
     }
   }
 

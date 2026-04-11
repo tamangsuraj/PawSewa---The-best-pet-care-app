@@ -10,6 +10,12 @@
 const SERVICE_REQUEST_STATUS = {
   PENDING: 'pending',
   ASSIGNED: 'assigned',
+  /** Assigned vet has confirmed they will perform the visit. */
+  ACCEPTED: 'accepted',
+  /** Vet / staff is travelling to the customer (home visit). */
+  EN_ROUTE: 'en_route',
+  /** Vet has arrived at the service location. */
+  ARRIVED: 'arrived',
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',

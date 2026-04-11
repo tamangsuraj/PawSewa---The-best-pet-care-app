@@ -13,6 +13,7 @@ const {
   assignRiderToOrder,
   assignSellerToOrder,
   confirmSellerOrder,
+  sellerDispatchFromShop,
   sellerMarkPacked,
   sellerSetTracking,
   sellerCloseOrder,
@@ -39,6 +40,7 @@ router.post('/checkout/khalti/initiate', protect, initiateKhaltiForShopCheckout)
 router.patch('/:orderId/assign', protect, admin, assignRiderToOrder);
 router.patch('/:orderId/assign-seller', protect, admin, assignSellerToOrder);
 router.patch('/:orderId/seller-confirm', protect, authorize('shop_owner'), confirmSellerOrder);
+router.patch('/:orderId/seller-dispatch', protect, authorize('shop_owner'), sellerDispatchFromShop);
 router.patch('/:orderId/seller-pack', protect, authorize('shop_owner'), sellerMarkPacked);
 router.patch('/:orderId/seller-tracking', protect, authorize('shop_owner'), sellerSetTracking);
 router.patch('/:orderId/seller-close', protect, authorize('shop_owner', 'admin'), sellerCloseOrder);

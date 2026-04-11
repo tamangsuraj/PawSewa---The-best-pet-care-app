@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
@@ -7,6 +9,7 @@ import '../core/api_client.dart';
 import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
+import '../widgets/swipe_action_button.dart';
 import 'partner_marketplace_chat_screen.dart';
 
 /// Shop section: incoming purchases + ready-for-rider state (synced with backend lifecycle).
@@ -24,9 +27,15 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
   String? _error;
+  String? _dispatchingOrderId;
 
   void _onSocket(String event, Map<String, dynamic> payload) {
-    if (event != 'order:assigned_seller' && event != 'orderUpdate') return;
+    if (event != 'job:available' &&
+        event != 'order:assigned_rider' &&
+        event != 'order:assigned_seller' &&
+        event != 'orderUpdate') {
+      return;
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Orders updated')),
@@ -127,6 +136,34 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
     }
   }
 
+  Future<void> _dispatchFromShop(String orderId) async {
+    if (orderId.isEmpty) return;
+    setState(() => _dispatchingOrderId = orderId);
+    try {
+      await _api.sellerDispatchFromShop(orderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Dispatched — order is out for delivery')),
+      );
+      await _load();
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final m = e.response?.data is Map
+          ? (e.response!.data as Map)['message']?.toString()
+          : null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(m ?? 'Could not dispatch')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    } finally {
+      if (mounted) setState(() => _dispatchingOrderId = null);
+    }
+  }
+
   Future<void> _markPacked(String orderId) async {
     try {
       await _api.sellerMarkPacked(orderId);
@@ -176,6 +213,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
   }
 
   Widget _orderCard(Map<String, dynamic> o, Color primary) {
+    const successGreen = Color(0xFF00C853);
     final id = o['_id']?.toString() ?? '';
     final short = id.length > 6 ? id.substring(id.length - 6) : id;
     final user = o['user'];
@@ -185,6 +223,19 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
         ? (o['deliveryLocation'] as Map)['address']?.toString() ?? ''
         : '';
     final confirmed = o['sellerConfirmedAt'] != null;
+    final riderRaw = o['assignedRider'];
+    String? riderName;
+    String? riderPhone;
+    bool hasRider = false;
+    if (riderRaw is Map) {
+      riderName = riderRaw['name']?.toString();
+      riderPhone = riderRaw['phone']?.toString();
+      hasRider = (riderRaw['_id'] != null && riderRaw['_id'].toString().isNotEmpty) ||
+          (riderName != null && riderName.isNotEmpty);
+    }
+    final showDispatchSwipe =
+        status == 'assigned_to_rider' && hasRider && id.isNotEmpty;
+    final dispatchBusy = _dispatchingOrderId != null;
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -231,6 +282,24 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
               color: primary,
             ),
           ),
+          if (hasRider) ...[
+            const SizedBox(height: 8),
+            Text(
+              riderName != null && riderName.isNotEmpty
+                  ? 'Rider: $riderName'
+                  : 'Rider assigned',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade800,
+              ),
+            ),
+            if (riderPhone != null && riderPhone.isNotEmpty)
+              Text(
+                riderPhone,
+                style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey.shade600),
+              ),
+          ],
           if (addr.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -256,6 +325,16 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
               onPressed: id.isEmpty ? null : () => _markPacked(id),
               child: Text('Mark ready for pickup', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
             ),
+          if (showDispatchSwipe) ...[
+            const SizedBox(height: 12),
+            SwipeActionButton(
+              disabled: dispatchBusy && _dispatchingOrderId != id,
+              backgroundColor: successGreen,
+              label: 'Swipe — Dispatched from shop',
+              loading: _dispatchingOrderId == id,
+              onSwiped: () => unawaited(_dispatchFromShop(id)),
+            ),
+          ],
         ],
       ),
     );

@@ -32,9 +32,10 @@ router.patch('/:id/cancel', protect, cancelServiceRequest); // Cancel request
 // Staff routes
 router.get('/my/assignments', protect, getMyAssignedRequests); // Get my assignments
 router.get('/my/tasks', protect, getMyAssignedRequests); // Alias: staff "my tasks" feed
+// Must be registered before PATCH /:id/* so paths like /status/:id are never captured as :id.
+router.patch('/status/:id', protect, updateServiceRequestStatus); // Generic status flow for staff app
 router.patch('/:id/start', protect, startServiceRequest); // Start request
 router.patch('/:id/complete', protect, completeServiceRequest); // Complete request
-router.patch('/status/:id', protect, updateServiceRequestStatus); // Generic status flow for staff app
 router.patch('/:id/follow-up', protect, setServiceRequestFollowUp); // Schedule follow-up time
 router.post(
   '/:id/prescription/upload',
