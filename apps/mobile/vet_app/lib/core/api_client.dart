@@ -315,7 +315,7 @@ class ApiClient {
           'visitNotes': visitNotes,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
         if (scheduledTime != null) 'scheduledTime': scheduledTime.toIso8601String(),
-        if (visitVitals != null) 'visitVitals': visitVitals,
+        'visitVitals': ?visitVitals,
       },
     );
   }
