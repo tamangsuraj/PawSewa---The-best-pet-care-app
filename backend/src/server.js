@@ -484,6 +484,10 @@ async function start() {
   server.listen(PORT, '0.0.0.0', () => {
     logger.info('Server: starting HTTP listener.');
     logger.success('Server: listening on port', PORT);
+    // Viva-friendly startup line (commonly expected in demos / hosting logs).
+    // Keep logger.* for structured logs, but also print a plain message.
+    // eslint-disable-next-line no-console
+    console.log(`Server running on port ${PORT}`);
     logger.info('Runtime: environment', process.env.NODE_ENV || 'development');
     logger.info(
       devPermissiveCors
