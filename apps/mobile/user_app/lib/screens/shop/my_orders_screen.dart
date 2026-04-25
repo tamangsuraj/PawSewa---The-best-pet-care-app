@@ -548,9 +548,10 @@ Future<void> _rateDeliveredProduct(
       existingReview = Map<String, dynamic>.from(body['data'] as Map);
     }
     if (!context.mounted) return;
-    var chosenRating = (existingReview?['rating'] as num?)?.toInt().clamp(1, 5) ?? 5;
-    final commentCtrl = TextEditingController(text: existingReview?['comment']?.toString() ?? '');
-    final isUpdate = existingReview != null && existingReview['_id'] != null;
+    final er = existingReview ?? <String, dynamic>{};
+    var chosenRating = (er['rating'] as num?)?.toInt().clamp(1, 5) ?? 5;
+    final commentCtrl = TextEditingController(text: er['comment']?.toString() ?? '');
+    final isUpdate = er['_id'] != null;
 
     final submitted = await showDialog<bool>(
       context: context,
@@ -615,8 +616,7 @@ Future<void> _rateDeliveredProduct(
     commentCtrl.dispose();
     if (!context.mounted) return;
 
-    final er = existingReview;
-    if (er != null && er['_id'] != null) {
+    if (er['_id'] != null) {
       await api.dio.patch(
         '/reviews/${er['_id']}',
         data: {'rating': chosenRating, 'comment': comment},
