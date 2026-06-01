@@ -204,7 +204,7 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
     const brown = Color(AppConstants.primaryColor);
     final visible = _visibleItems;
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           _appBarTitle,

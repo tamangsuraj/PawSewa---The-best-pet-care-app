@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,7 @@ interface Customer {
   phone?: string;
   location?: string;
   isVerified?: boolean;
+  isActive?: boolean;
   createdAt: string;
 }
 
@@ -96,14 +97,32 @@ export default function CustomersPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this customer?')) return;
+  const handleDelete = async (id: string, email: string) => {
+    if (!confirm(`This permanently deletes ${email} and cannot be undone. Continue?`)) return;
 
     try {
       await api.delete(`/users/${id}`);
       fetchCustomers();
     } catch (error) {
       console.error('Error deleting customer:', error);
+    }
+  };
+  const handleDeactivate = async (id: string, email: string) => {
+    if (!confirm(`Deactivate ${email}? They will be logged out and blocked from signing in.`)) return;
+    try {
+      await api.patch(`/users/${id}/deactivate`);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deactivating customer:', error);
+    }
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await api.patch(`/users/${id}/reactivate`);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error reactivating customer:', error);
     }
   };
 
@@ -167,7 +186,10 @@ export default function CustomersPage() {
                           Location
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
+                          Verified
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Active
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Joined
@@ -180,7 +202,7 @@ export default function CustomersPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredCustomers.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-6 py-10 text-center text-gray-500 text-sm">
+                          <td colSpan={8} className="px-6 py-10 text-center text-gray-500 text-sm">
                             No customers found
                           </td>
                         </tr>
@@ -210,11 +232,22 @@ export default function CustomersPage() {
                                 </span>
                               )}
                             </td>
+                            <td className="px-6 py-4">
+                              {customer.isActive !== false ? (
+                                <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                                  Inactive
+                                </span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 text-sm text-gray-600">
                               {new Date(customer.createdAt).toLocaleDateString()}
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <div className="flex justify-end gap-2">
+                              <div className="flex justify-end gap-2 flex-wrap">
                                 <button
                                   onClick={() => router.push(`/customers/${customer._id}`)}
                                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#5CB0CC]/10 text-[#5CB0CC] hover:bg-[#5CB0CC]/20 text-xs font-medium transition-colors border border-[#5CB0CC]/30"
@@ -222,8 +255,23 @@ export default function CustomersPage() {
                                   <Eye className="w-4 h-4" />
                                   View
                                 </button>
+                                {customer.isActive !== false ? (
+                                  <button
+                                    onClick={() => handleDeactivate(customer._id, customer.email)}
+                                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-medium border border-amber-200"
+                                  >
+                                    Deactivate
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleReactivate(customer._id)}
+                                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 text-xs font-medium border border-green-200"
+                                  >
+                                    Reactivate
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => handleDelete(customer._id)}
+                                  onClick={() => handleDelete(customer._id, customer.email)}
                                   className="inline-flex items-center px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium transition-colors border border-red-200"
                                 >
                                   Delete
@@ -382,7 +430,7 @@ export default function CustomersPage() {
                       <div className="mt-1">
                         {selectedCustomer.isVerified ? (
                           <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">
-                            ✓ Verified
+                            Verified
                           </span>
                         ) : (
                           <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium border border-amber-200">

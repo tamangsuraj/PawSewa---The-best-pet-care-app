@@ -286,7 +286,7 @@ export default function MyCasesPage() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <span className="text-3xl">🐾</span>
+                        <span className="text-sm font-bold text-paw-bark">Pet</span>
                       )}
                     </div>
                     <div>

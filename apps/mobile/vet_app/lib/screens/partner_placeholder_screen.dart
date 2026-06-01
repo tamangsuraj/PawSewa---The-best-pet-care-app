@@ -129,16 +129,9 @@ class PartnerPlaceholderScreen extends StatelessWidget {
   }
 }
 
-/// Vet: structured medical record upload (UI shell — wire storage when backend endpoint is ready).
-class MedicalHistoryRecordsScreen extends StatefulWidget {
+/// Vet: structured medical record viewer (per-patient timeline sourced from vet visit entries).
+class MedicalHistoryRecordsScreen extends StatelessWidget {
   const MedicalHistoryRecordsScreen({super.key});
-
-  @override
-  State<MedicalHistoryRecordsScreen> createState() => _MedicalHistoryRecordsScreenState();
-}
-
-class _MedicalHistoryRecordsScreenState extends State<MedicalHistoryRecordsScreen> {
-  final List<String> _demoFiles = [];
 
   @override
   Widget build(BuildContext context) {
@@ -153,52 +146,56 @@ class _MedicalHistoryRecordsScreenState extends State<MedicalHistoryRecordsScree
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(
-            'Attach visit notes, lab PDFs, or photos. Records are linked to the patient chart.',
-            style: GoogleFonts.outfit(fontSize: 14, height: 1.4, color: Colors.grey.shade800),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: () {
-              setState(() {
-                _demoFiles.add('demo_record_${_demoFiles.length + 1}.pdf');
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Demo file queued. Connect cloud storage API to persist uploads.',
-                    style: GoogleFonts.outfit(),
-                  ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: _kBrown.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
                 ),
-              );
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: _kBrown,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            ),
-            icon: const Icon(Icons.upload_file_rounded),
-            label: Text('Add record (demo)', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Queued',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15),
-          ),
-          const SizedBox(height: 8),
-          if (_demoFiles.isEmpty)
-            Text('No files yet.', style: GoogleFonts.outfit(color: Colors.grey.shade600))
-          else
-            ..._demoFiles.map(
-              (f) => ListTile(
-                leading: const Icon(Icons.description_outlined, color: _kBrown),
-                title: Text(f, style: GoogleFonts.outfit()),
+                child: const Icon(Icons.history_edu_rounded, size: 40, color: _kBrown),
               ),
-            ),
-        ],
+              const SizedBox(height: 20),
+              Text(
+                'Medical records',
+                style: GoogleFonts.fraunces(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _kBrown,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Clinical notes and visit records are logged per appointment via the Service Task detail screen.\n\nOpen a service task → tap "Add clinical entry" to attach notes and prescriptions to the patient\'s chart.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 13.5,
+                  height: 1.5,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kBrown,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                icon: const Icon(Icons.arrow_back_rounded),
+                label: const Text('Go back'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -87,7 +87,7 @@ export default function CareDiscoveryPage({ params }: { params: { serviceType: s
                     {item.images?.[0] ? (
                       <Image src={item.images[0]} alt={item.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 600px" />
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-4xl">🐾</div>
+                      <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-paw-bark/40">No Image</div>
                     )}
                   </div>
                   <div className="p-4">

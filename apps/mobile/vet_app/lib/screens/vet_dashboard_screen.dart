@@ -23,7 +23,6 @@ import 'my_business_screen.dart';
 import 'patient_chats_screen.dart';
 import 'partner_support_chat_screen.dart';
 import 'notifications_screen.dart';
-import 'partner_placeholder_screen.dart';
 import 'clinic_queue_screen.dart';
 import 'rider_live_map_screen.dart';
 import 'rider_history_screen.dart';
@@ -672,7 +671,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
           {
             'icon': Icons.attach_money,
             'title': 'Revenue',
-            'value': '\$0',
+            'value': 'Rs 0',
             'color': const Color(AppConstants.primaryColor),
           },
           {
@@ -819,11 +818,13 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'badge': 0,
           },
           {
-            'icon': Icons.location_searching,
+            'icon': _shareLocation ? Icons.location_on : Icons.location_searching,
             'title': _shareLocation
                 ? 'Sharing Live Location'
                 : 'Share Live Location',
-            'subtitle': 'Help owners track your arrival (Kathmandu only)',
+            'subtitle': _shareLocation
+                ? 'Tap to stop sharing your location'
+                : 'Help owners track your arrival (Kathmandu only)',
             'route': 'toggle_location',
             'badge': 0,
           },
@@ -852,16 +853,9 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'badge': 0,
           },
           {
-            'icon': Icons.add_shopping_cart,
-            'title': 'Shop Inventory',
-            'subtitle': 'Add and manage products',
-            'route': 'shop_inventory',
-            'badge': 0,
-          },
-          {
             'icon': Icons.inventory_2,
-            'title': 'Manage Inventory',
-            'subtitle': 'Update product stock',
+            'title': 'Shop Inventory',
+            'subtitle': 'Add, update and manage products',
             'route': 'shop_inventory',
             'badge': 0,
           },
@@ -1203,17 +1197,15 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       ),
                       child: InkWell(
                         onTap: () async {
-                          final result = await Navigator.push(
+                          await Navigator.push<void>(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => const AllPetsScreen(),
+                            MaterialPageRoute<void>(
+                              builder: (_) => const VetAssignedAppointmentsScreen(),
                             ),
                           );
                           if (!mounted) return;
-                          if (result == true) {
-                            _loadNewAssignments(); // Reload after viewing
-                            _loadStats();
-                          }
+                          _loadNewAssignments();
+                          _loadStats();
                         },
                         child: Row(
                           children: [
@@ -1289,16 +1281,15 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       ),
                       child: InkWell(
                         onTap: () async {
-                          final result = await Navigator.push(
+                          await Navigator.push<void>(
                             context,
-                            MaterialPageRoute(
-                              builder: (_) => const AllPetsScreen(),
+                            MaterialPageRoute<void>(
+                              builder: (_) => const VetAssignedAppointmentsScreen(),
                             ),
                           );
-                          if (result == true || mounted) {
-                            _loadNewAssignments();
-                            _loadStats();
-                          }
+                          if (!mounted) return;
+                          _loadNewAssignments();
+                          _loadStats();
                         },
                         child: Row(
                           children: [
@@ -1784,10 +1775,12 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                               ),
                             );
                           } else if (route == 'medical_history') {
+                            // Medical history records — navigate to all-pets list
+                            // (vet-side per-patient notes are logged via ServiceTaskDetail).
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const MedicalHistoryRecordsScreen(),
+                                builder: (_) => const AllPetsScreen(),
                               ),
                             );
                           } else if (route == 'rider_live_map') {

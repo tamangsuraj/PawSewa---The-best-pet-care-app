@@ -28,6 +28,8 @@ import {
   MessageCircle,
   Map,
   PawPrint,
+  Shield,
+  MapPin,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminChatUnread } from '@/context/AdminChatUnreadContext';
@@ -98,6 +100,10 @@ const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ cl
   { name: 'Transactions', href: '/transactions', icon: CreditCard },
   { name: 'Financials', href: '/financials', icon: DollarSign },
   { name: 'Payment Logs', href: '/payment-logs', icon: FileText },
+  { name: 'Service Catalogue', href: '/services', icon: Package },
+  { name: 'Revenue Reports', href: '/reports', icon: DollarSign },
+  { name: 'Zones', href: '/zones', icon: MapPin },
+  { name: 'Audit Log', href: '/audit-log', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 

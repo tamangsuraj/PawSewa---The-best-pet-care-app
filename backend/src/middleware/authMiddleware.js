@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+﻿const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
@@ -23,8 +23,9 @@ const protect = asyncHandler(async (req, res, next) => {
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch (jwtError) {
+    // expired → 403; invalid → 401
     if (jwtError.name === 'TokenExpiredError') {
-      return res.status(401).json({ success: false, message: 'Not authorized, token expired' });
+      return res.status(403).json({ success: false, message: 'Session expired. Please log in again.' });
     }
     return res.status(401).json({ success: false, message: 'Not authorized, invalid token' });
   }

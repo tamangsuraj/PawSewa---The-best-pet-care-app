@@ -7,7 +7,6 @@ class FaqScreen extends StatelessWidget {
   const FaqScreen({super.key});
 
   static const brown = Color(AppConstants.primaryColor);
-  static const cream = Color(AppConstants.secondaryColor);
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +39,7 @@ class FaqScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: brown,
         foregroundColor: Colors.white,

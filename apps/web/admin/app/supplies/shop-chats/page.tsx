@@ -163,7 +163,7 @@ export default function ShopChatsAuditPage() {
                   setMsgs([]);
                 }}
               >
-                ✕
+                x
               </button>
             </div>
             <div className="overflow-y-auto flex-1 p-4 text-sm">

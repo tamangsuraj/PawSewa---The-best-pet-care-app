@@ -3,6 +3,18 @@ import 'package:lottie/lottie.dart';
 
 import '../core/constants.dart';
 
+/// SECONDARY / BRANDED overlay — use only for intentional full-screen loading moments.
+///
+/// Use for:
+///   • Onboarding steps, first-time setup
+///   • Long operations where branding is intentional (subscription activation, etc.)
+///
+/// Do NOT use for:
+///   • Login, register, or any repeated API call → use [AppLoaderOverlay] instead
+///   • Anything a user triggers more than once per session
+///
+/// For routine blocking overlays (form submit, fetch) prefer [AppLoaderOverlay]:
+///   it uses [AppSpinner] with no Lottie parsing cost and a lighter scrim.
 class BrownDogLoadingOverlay extends StatelessWidget {
   const BrownDogLoadingOverlay({
     super.key,

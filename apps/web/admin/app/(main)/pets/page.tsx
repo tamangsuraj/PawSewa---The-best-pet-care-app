@@ -148,7 +148,7 @@ export default function PetsPage() {
   const grouped = useMemo(() => groupPetsBySpecies(pets), [pets]);
 
   const orderedCategories = useMemo(() => {
-    const keys = [...grouped.keys()];
+    const keys = Array.from(grouped.keys());
     const ordered: string[] = [];
     for (const s of SPECIES_ORDER) {
       if (keys.includes(s) && (grouped.get(s)?.length ?? 0) > 0) {

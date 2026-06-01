@@ -175,7 +175,6 @@ export default function ServiceRequestPage() {
       });
 
       if (response.data.success) {
-        alert('✅ Request submitted! You can see it in My Appointments.');
         window.location.href = '/my-service-requests';
       }
     } catch (err: unknown) {

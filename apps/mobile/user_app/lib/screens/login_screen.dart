@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:user_app/widgets/paw_sewa_loader.dart';
+import '../widgets/app_spinner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/api_client.dart';
 import '../core/api_config.dart';
@@ -15,6 +15,7 @@ import '../services/push_notification_service.dart';
 import 'pet_dashboard_screen.dart';
 import 'otp_verification_screen.dart';
 import 'register_screen.dart';
+import 'auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -102,11 +103,13 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      if (response.data['success'] == true) {
-        final userData = Map<String, dynamic>.from(
-          response.data['data'] as Map,
-        );
-        await _completeCustomerLogin(userData);
+      final respData = response.data;
+      if (respData is Map && respData['success'] == true) {
+        final raw = respData['data'];
+        if (raw is Map) {
+          final userData = Map<String, dynamic>.from(raw);
+          await _completeCustomerLogin(userData);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -229,9 +232,13 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _apiClient.initialize();
       final res = await _apiClient.verifyLoginOtp(email, otp);
-      if (res.data['success'] == true && mounted) {
-        final data = Map<String, dynamic>.from(res.data['data'] as Map);
-        await _completeCustomerLogin(data);
+      final resBody = res.data;
+      if (resBody is Map && resBody['success'] == true && mounted) {
+        final raw = resBody['data'];
+        if (raw is Map) {
+          final data = Map<String, dynamic>.from(raw);
+          await _completeCustomerLogin(data);
+        }
       }
     } on DioException catch (e) {
       if (mounted) {
@@ -570,7 +577,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         child: _isLoading
-                            ? const PawSewaLoader(width: 36, center: false)
+                            ? const AppSpinner(size: 7)
                             : Text(
                                 'Login',
                                 style: GoogleFonts.outfit(
@@ -579,6 +586,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                   color: Colors.white,
                                 ),
                               ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+                      ),
+                      child: Text(
+                        'Forgot Password?',
+                        style: GoogleFonts.outfit(
+                          color: const Color(AppConstants.primaryColor),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ] else ...[
@@ -618,7 +639,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         child: _isLoading
-                            ? const PawSewaLoader(width: 36, center: false)
+                            ? const AppSpinner(size: 7)
                             : Text(
                                 _codeSent ? 'Verify & sign in' : 'Send sign-in code',
                                 style: GoogleFonts.outfit(
@@ -746,7 +767,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: PawSewaLoader(width: 32, center: false),
+                              child: AppSpinner(size: 6),
                             )
                           : const Icon(
                               Icons.g_mobiledata,

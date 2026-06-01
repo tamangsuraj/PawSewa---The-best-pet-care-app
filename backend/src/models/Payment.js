@@ -33,7 +33,7 @@ const paymentSchema = new mongoose.Schema(
     },
     targetType: {
       type: String,
-      enum: ['service', 'care', 'care_booking', 'subscription', 'shop_order'],
+      enum: ['service', 'care', 'care_booking', 'subscription', 'pet_owner_subscription', 'shop_order'],
       required: true,
     },
     amount: {
@@ -47,7 +47,7 @@ const paymentSchema = new mongoose.Schema(
     },
     gateway: {
       type: String,
-      enum: ['khalti', 'esewa'],
+      enum: ['khalti', 'esewa', 'fonepay'],
       required: true,
     },
     status: {

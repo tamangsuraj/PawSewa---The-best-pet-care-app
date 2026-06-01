@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/constants.dart';
 import '../../models/pet.dart';
 import '../../services/pet_service.dart';
+import '../../services/socket_service.dart';
 import '../../widgets/premium_empty_state.dart';
 import '../../widgets/premium_shimmer.dart';
 import '../book_service_screen.dart';
@@ -25,6 +26,8 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
   List<Map<String, dynamic>> _records = [];
   bool _loading = true;
   String? _error;
+  String _selectedFilter = 'All';
+  void Function(Map<String, dynamic>)? _medicalSocketCb;
 
   static const Color _primary = Color(AppConstants.primaryColor);
   static const Color _bg = Color(0xFFF8F9FA);
@@ -33,6 +36,21 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
   void initState() {
     super.initState();
     _load();
+    SocketService.instance.connect();
+    SocketService.instance.joinPetRoom(widget.pet.id);
+    _medicalSocketCb = (data) {
+      final petId = data['petId']?.toString();
+      if (petId == widget.pet.id) _load();
+    };
+    SocketService.instance.addPetMedicalRecordListener(_medicalSocketCb!);
+  }
+
+  @override
+  void dispose() {
+    if (_medicalSocketCb != null) {
+      SocketService.instance.removePetMedicalRecordListener(_medicalSocketCb!);
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -73,7 +91,7 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
       }
       setState(() {
         _loading = false;
-        _error = 'Something went wrong. Pull to retry.';
+        _error = 'Could not load data. Please check your connection.';
       });
     }
   }
@@ -147,6 +165,39 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
     return widgets;
   }
 
+  List<Map<String, dynamic>> get _filteredRecords {
+    if (_selectedFilter == 'All') return _records;
+    final key = _selectedFilter.toLowerCase();
+    return _records.where((r) {
+      final rt = (r['recordType'] ?? r['title'] ?? '').toString().toLowerCase();
+      if (key == 'follow-up') return rt.contains('follow');
+      return rt.contains(key);
+    }).toList();
+  }
+
+  Widget _buildFilterChips() {
+    const filters = ['All', 'Vaccination', 'Diagnosis', 'Prescription', 'Follow-Up'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Row(
+        children: filters
+            .map(
+              (filter) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(filter, style: GoogleFonts.outfit(fontSize: 13)),
+                  selected: _selectedFilter == filter,
+                  selectedColor: _primary.withValues(alpha: 0.15),
+                  onSelected: (_) => setState(() => _selectedFilter = filter),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
   List<Map<String, dynamic>> _badgeList(Map<String, dynamic> record) {
     final raw = record['badges'];
     final out = <Map<String, dynamic>>[];
@@ -181,7 +232,12 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
           ),
         ),
       ),
-      body: _loading
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!_loading && _error == null) _buildFilterChips(),
+          Expanded(
+            child: _loading
           ? PremiumShimmer(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
@@ -198,19 +254,19 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
             )
           : _error != null
           ? _buildError()
-          : _records.isEmpty
+          : _filteredRecords.isEmpty
           ? _buildEmpty()
           : RefreshIndicator(
               color: _primary,
               onRefresh: _load,
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                itemCount: _records.length,
+                itemCount: _filteredRecords.length,
                 itemBuilder: (context, index) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: _MedicalRecordCard(
-                      record: _records[index],
+                      record: _filteredRecords[index],
                       prescribedBlocks: _prescribedBlocks,
                       str: _str,
                       parseDate: _parseDate,
@@ -231,6 +287,9 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
                 },
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -241,8 +300,8 @@ class _MedicalHistoryScreenState extends State<MedicalHistoryScreen> {
       children: [
         SizedBox(height: MediaQuery.sizeOf(context).height * 0.12),
         PremiumEmptyState(
-          title: 'Couldn’t load medical history',
-          body: _error ?? 'Please check your connection and try again.',
+          title: 'Could not load data',
+          body: _error ?? 'Please check your connection.',
           icon: Icons.cloud_off_outlined,
           primaryAction: ElevatedButton.icon(
             onPressed: _load,

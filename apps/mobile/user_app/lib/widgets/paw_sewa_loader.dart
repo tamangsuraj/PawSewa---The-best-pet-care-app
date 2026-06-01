@@ -1,7 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
-/// PawSewa branded loading animation (replaces [CircularProgressIndicator]).
+/// PawSewa branded loading animation — SECONDARY / INTENTIONAL use only.
+///
+/// Use for:
+///   • Full-screen content loading where the dog animation adds brand value
+///   • Onboarding / first-run flows
+///   • Intentional "something big is happening" moments
+///
+/// Do NOT use for:
+///   • Inline API call spinners → use [AppSpinner] instead
+///   • Blocking overlays during form submit → use [AppLoaderOverlay] instead
+///   • Any loading that users will see repeatedly (login, fetch, navigation)
+///
+/// The Lottie asset is heavy (~200KB JSON + parse time).
+/// [AppSpinner] renders on the first frame with zero asset loading.
 class PawSewaLoader extends StatelessWidget {
   const PawSewaLoader({
     super.key,

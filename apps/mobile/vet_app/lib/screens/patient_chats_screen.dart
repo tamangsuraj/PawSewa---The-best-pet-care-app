@@ -64,7 +64,8 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
     final primary = Theme.of(context).colorScheme.primary;
     return PartnerScaffold(
       title: 'Patient chats',
-      subtitle: 'Owners you’ve treated (1:1)',
+      subtitle: 'Owners you\'ve treated (1:1)',
+      roleAccent: const Color(AppConstants.vetAccent),
       actions: [
         IconButton(
           tooltip: 'Refresh',

@@ -1,4 +1,4 @@
-const asyncHandler = require('express-async-handler');
+﻿const asyncHandler = require('express-async-handler');
 const axios = require('axios');
 const mongoose = require('mongoose');
 const Order = require('../models/Order');
@@ -20,6 +20,7 @@ const {
   KHALTI_PUBLIC_KEY,
   nprToPaisa,
   isKhaltiConfigured,
+  getServerBaseUrl,
 } = require('../config/payment_config');
 
 function parseOrderGps(body) {
@@ -145,8 +146,9 @@ async function notifyCustomerShopOrderOutForDelivery(orderId) {
   }
   const oid = row._id;
   const shortId = String(oid).slice(-6);
-  const title = 'Rider out for delivery';
-  const message = `Your rider is out for delivery with pet supply order #${shortId}. Track it in My Orders; we will notify you when it is delivered.`;
+  const estimatedTime = '30–45 minutes';
+  const title = 'Your order is on the way!';
+  const message = `Your order is on the way! Estimated delivery: ${estimatedTime}.`;
   try {
     await Notification.create({
       user: customerId,
@@ -164,8 +166,8 @@ async function notifyCustomerShopOrderOutForDelivery(orderId) {
       title,
       body: message,
       data: {
-        type: 'shop_order',
-        orderId: String(oid),
+        type: 'order_update',
+        id: String(oid),
         event: 'out_for_delivery',
       },
     });
@@ -1019,7 +1021,7 @@ const initiateKhaltiForOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const baseUrl = getServerBaseUrl();
   const cbMode = String(req.body?.callbackMode || process.env.KHALTI_CALLBACK_REDIRECT || 'app')
     .toLowerCase()
     .trim();
@@ -1122,7 +1124,7 @@ const initiateKhaltiForShopCheckout = asyncHandler(async (req, res) => {
   }
 
   const u = payment.user;
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const baseUrl = getServerBaseUrl();
   const cbMode = String(req.body?.callbackMode || process.env.KHALTI_CALLBACK_REDIRECT || 'app')
     .toLowerCase()
     .trim();

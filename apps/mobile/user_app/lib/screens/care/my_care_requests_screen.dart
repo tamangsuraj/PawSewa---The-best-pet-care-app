@@ -110,7 +110,7 @@ class _MyCareRequestsScreenState extends State<MyCareRequestsScreen> {
   Widget build(BuildContext context) {
     const brown = Color(AppConstants.primaryColor);
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           _title,

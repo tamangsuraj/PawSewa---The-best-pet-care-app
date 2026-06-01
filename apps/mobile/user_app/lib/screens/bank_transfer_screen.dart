@@ -17,11 +17,10 @@ class BankTransferScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const brown = Color(AppConstants.primaryColor);
-    const cream = Color(AppConstants.secondaryColor);
     final ink = Colors.grey.shade900;
 
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: brown,
         foregroundColor: Colors.white,

@@ -20,6 +20,7 @@ const {
   nprToPaisa,
   isKhaltiConfigured,
   getPaymentFailureMessage,
+  getServerBaseUrl,
 } = require('../config/payment_config');
 
 const ESEWA_INIT_URL = process.env.ESEWA_INIT_URL || '';
@@ -132,6 +133,15 @@ async function markPaymentCompleted({ paymentId }) {
           { $set: { isActive: true } },
           { session }
         );
+      } else if (payment.targetType === 'pet_owner_subscription' && payment.metadata?.plan) {
+        const { activatePetOwnerSubscription } = require('./petOwnerSubscriptionController');
+        await activatePetOwnerSubscription({
+          userId: payment.user,
+          plan: payment.metadata.plan,
+          paymentRef: payment.gatewayTransactionId || payment._id.toString(),
+          paymentMethod: 'khalti',
+          session,
+        });
       }
     });
   } finally {
@@ -189,7 +199,7 @@ async function initiateCareBookingKhalti({ userId, careBookingId }) {
     gateway: 'khalti',
     status: 'pending',
   });
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const baseUrl = getServerBaseUrl();
   const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
   const payload = {
     return_url: returnUrl,
@@ -257,7 +267,7 @@ async function initiateSubscriptionKhalti({ userId, plan, billingCycle, amount }
     status: 'pending',
     metadata: { plan, billingCycle },
   });
-  const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const baseUrl = getServerBaseUrl();
   const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
   const payload = {
     return_url: returnUrl,
@@ -465,7 +475,7 @@ function buildKhaltiAppFailRedirect(reason) {
 const khaltiCallback = asyncHandler(async (req, res) => {
   const { pidx, status: callbackStatus, purchase_order_id: purchaseOrderId } = req.query || {};
   if (!pidx) {
-    const fail = process.env.KHALTI_FAIL_REDIRECT || `${process.env.BASE_URL || 'http://localhost:3000'}/payment-failed?reason=missing_pidx`;
+    const fail = process.env.KHALTI_FAIL_REDIRECT || `${getServerBaseUrl()}/payment-failed?reason=missing_pidx`;
     const cbQ0 = ((req.query && req.query.cb) || '').toString().toLowerCase();
     const app0 =
       cbQ0 === 'web'
@@ -503,7 +513,7 @@ const khaltiCallback = asyncHandler(async (req, res) => {
   const txnId =
     lookupData.transaction_id || lookupData.idx || lookupData.pidx || pidx;
 
-  const base = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+  const base = getServerBaseUrl();
   const successRedirect =
     process.env.KHALTI_SUCCESS_REDIRECT || `${base}/api/v1/payments/payment-success`;
   const failRedirect =
@@ -835,7 +845,7 @@ const initiatePayment = asyncHandler(async (req, res) => {
         message: 'Amount should be greater than Rs. 10 (1000 paisa)',
       });
     }
-    const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+    const baseUrl = getServerBaseUrl();
     const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
     const payload = {
       return_url: returnUrl,
@@ -916,7 +926,7 @@ const initiatePayment = asyncHandler(async (req, res) => {
       gateway: 'khalti',
       status: 'pending',
     });
-    const baseUrl = process.env.BASE_URL || process.env.KHALTI_RETURN_BASE || 'http://localhost:3000';
+    const baseUrl = getServerBaseUrl();
     const returnUrl = `${baseUrl}/api/v1/payments/khalti/callback`;
     const payload = {
       return_url: returnUrl,
@@ -1236,12 +1246,24 @@ const verifyPayment = asyncHandler(async (req, res) => {
       logger.success(
         `Khalti payment verified for Payment ${payment._id}. Transaction: ${transactionId || 'n/a'}.`
       );
-      return res.json({
+      const payload = {
         success: true,
         message: 'Payment completed',
         paymentId: payment._id,
         transactionId,
-      });
+      };
+      if (payment.targetType === 'pet_owner_subscription') {
+        const PetOwnerSubscription = require('../models/PetOwnerSubscription');
+        const sub = await PetOwnerSubscription.findOne({
+          user: payment.user,
+          plan: payment.metadata?.plan,
+          status: 'active',
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+        if (sub) payload.subscriptionId = sub._id;
+      }
+      return res.json(payload);
     }
 
     return res.json({

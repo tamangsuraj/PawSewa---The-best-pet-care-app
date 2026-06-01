@@ -15,7 +15,6 @@ import '../../core/constants.dart';
 import '../../services/ongoing_call_service.dart';
 import '../../services/socket_service.dart';
 
-/// Full-screen Agora call for vet-direct threads (signaling via Socket.io).
 class AgoraVetDirectCallScreen extends StatefulWidget {
   const AgoraVetDirectCallScreen({
     super.key,
@@ -56,16 +55,22 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
   RtcEngine? _engine;
   late final RtcEngineEventHandler _handler;
 
+  // Structural state — requires full rebuild when changed
   bool _busy = true;
   String? _error;
   int? _localUid;
   int? _remoteUid;
   DateTime? _joinedAt;
-  bool _muted = false;
   bool _cleanedUp = false;
-  Offset _pipOffset = const Offset(12, 72);
   bool _beganOngoing = false;
 
+  // Hot-path state as ValueNotifiers — isolated rebuilds, no full-tree setState
+  final _muted = ValueNotifier<bool>(false);
+  final _videoEnabled = ValueNotifier<bool>(true);
+  final _pipOffset = ValueNotifier<Offset>(const Offset(12, 72));
+  final _controlsVisible = ValueNotifier<bool>(true);
+
+  Timer? _controlsTimer;
   late AnimationController _pulse;
 
   @override
@@ -92,8 +97,8 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
         setState(() {
           _localUid = connection.localUid;
           _joinedAt ??= DateTime.now();
-          _busy = false;
         });
+        _scheduleControlsHide();
       },
       onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
         if (!mounted) return;
@@ -101,22 +106,28 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
       },
       onUserOffline: (RtcConnection connection, int remoteUid,
           UserOfflineReasonType reason) {
-        if (remoteUid == _remoteUid) {
-          unawaited(_cleanup(remoteEnded: true));
-        }
+        if (remoteUid == _remoteUid) unawaited(_cleanup(remoteEnded: true));
       },
       onError: (ErrorCodeType err, String msg) {
-        if (kDebugMode) {
-          debugPrint('[Agora] onError $err $msg');
-        }
+        if (kDebugMode) debugPrint('[Agora] onError $err $msg');
       },
     );
 
     _socket.addCallEndedListener(_onSocketCallEnded);
-    if (widget.iAmCaller) {
-      _socket.addCallAnsweredListener(_onSocketCallAnswered);
-    }
+    if (widget.iAmCaller) _socket.addCallAnsweredListener(_onSocketCallAnswered);
     unawaited(_run());
+  }
+
+  void _scheduleControlsHide() {
+    _controlsTimer?.cancel();
+    _controlsTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) _controlsVisible.value = false;
+    });
+  }
+
+  void _showControls() {
+    _controlsVisible.value = true;
+    _scheduleControlsHide();
   }
 
   void _onSocketCallEnded(Map<String, dynamic> data) {
@@ -162,9 +173,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
       final uid = (tokenPayload['uid'] is int)
           ? tokenPayload['uid'] as int
           : int.tryParse('${tokenPayload['uid']}') ?? 0;
-      if (token.isEmpty || uid < 1) {
-        throw Exception('Invalid token from server.');
-      }
+      if (token.isEmpty || uid < 1) throw Exception('Invalid token from server.');
 
       if (widget.iAmCaller) {
         _socket.emitMakeCall(
@@ -197,7 +206,6 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
       } else {
         await engine.disableVideo();
       }
-
       _engine = engine;
 
       await engine.joinChannel(
@@ -227,12 +235,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _busy = false;
-          _error = e.toString();
-        });
-      }
+      if (mounted) setState(() { _busy = false; _error = e.toString(); });
     }
   }
 
@@ -258,15 +261,14 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
   }) async {
     if (_cleanedUp) return;
     _cleanedUp = true;
+    _controlsTimer?.cancel();
 
     final secs = _joinedAt != null
         ? DateTime.now().difference(_joinedAt!).inSeconds
         : 0;
 
     _socket.removeCallEndedListener(_onSocketCallEnded);
-    if (widget.iAmCaller) {
-      _socket.removeCallAnsweredListener(_onSocketCallAnswered);
-    }
+    if (widget.iAmCaller) _socket.removeCallAnsweredListener(_onSocketCallAnswered);
 
     if (!remoteEnded) {
       _socket.emitHangUp(
@@ -279,13 +281,9 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
 
     _ongoing?.end();
 
+    try { await _engine?.leaveChannel(); } catch (_) {}
     try {
-      await _engine?.leaveChannel();
-    } catch (_) {}
-    try {
-      if (_engine != null) {
-        _engine!.unregisterEventHandler(_handler);
-      }
+      if (_engine != null) _engine!.unregisterEventHandler(_handler);
       await _engine?.release();
     } catch (_) {}
     _engine = null;
@@ -295,24 +293,37 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
     }
   }
 
-  Future<void> _toggleMute() async {
-    final e = _engine;
-    if (e == null) return;
-    final next = !_muted;
-    await e.muteLocalAudioStream(next);
-    setState(() => _muted = next);
+  // Optimistic UI: update notifier immediately, engine call is fire-and-forget
+  void _onMuteTap() {
+    final next = !_muted.value;
+    _muted.value = next;
+    _engine?.muteLocalAudioStream(next);
+    _showControls();
   }
 
-  Future<void> _flipCamera() async {
-    await _engine?.switchCamera();
+  void _onCameraToggle() {
+    final e = _engine;
+    if (e == null) return;
+    final next = !_videoEnabled.value;
+    _videoEnabled.value = next;
+    e.muteLocalVideoStream(!next);
+    _showControls();
+  }
+
+  void _onFlipCamera() {
+    _engine?.switchCamera();
+    _showControls();
   }
 
   @override
   void dispose() {
     _pulse.dispose();
-    if (!_cleanedUp) {
-      unawaited(_cleanup(remoteEnded: false, fromDispose: true));
-    }
+    _controlsTimer?.cancel();
+    _muted.dispose();
+    _videoEnabled.dispose();
+    _pipOffset.dispose();
+    _controlsVisible.dispose();
+    if (!_cleanedUp) unawaited(_cleanup(remoteEnded: false, fromDispose: true));
     super.dispose();
   }
 
@@ -351,165 +362,341 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
 
     final engine = _engine;
     final local = _localUid ?? 0;
-    final showRemoteVideo =
-        widget.video && engine != null && (_remoteUid != null);
+    final showRemoteVideo = widget.video && engine != null && _remoteUid != null;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (_busy)
-              const Center(
-                child: PawSewaLoader(width: 36, center: false),
-              )
-            else if (widget.video && engine != null)
-              showRemoteVideo
-                  ? AgoraVideoView(
-                      controller: VideoViewController.remote(
-                        rtcEngine: engine,
-                        canvas: VideoCanvas(
-                          uid: _remoteUid,
-                          sourceType: VideoSourceType.videoSourceRemote,
-                        ),
-                        connection: RtcConnection(
-                          channelId: widget.channelName,
-                          localUid: local,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: Colors.black,
-                      alignment: Alignment.center,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.videocam_outlined,
-                              size: 48, color: Colors.white24),
-                          const SizedBox(height: 12),
-                          Text(
-                            widget.iAmCaller && _remoteUid == null
-                                ? 'Calling ${widget.peerName}…'
-                                : 'Waiting for video…',
-                            style: GoogleFonts.outfit(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                    )
-            else if (!widget.video)
-              _AudioPulseLayer(
-                pulse: _pulse,
-                peerName: widget.peerName,
-                myLabel: widget.localDisplayName.isNotEmpty
-                    ? widget.localDisplayName
-                    : 'You',
-              )
-            else
-              const SizedBox.shrink(),
-            if (widget.video && engine != null && !_busy)
-              Positioned(
-                right: 0,
-                top: 0,
-                child: Transform.translate(
-                  offset: _pipOffset,
-                  child: GestureDetector(
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _pipOffset += details.delta;
-                      });
-                    },
-                    child: Material(
-                      elevation: 6,
-                      borderRadius: BorderRadius.circular(12),
-                      clipBehavior: Clip.antiAlias,
-                      child: SizedBox(
-                        width: 108,
-                        height: 152,
-                        child: AgoraVideoView(
-                          controller: VideoViewController(
-                            rtcEngine: engine,
-                            canvas: const VideoCanvas(
-                              uid: 0,
-                              sourceType: VideoSourceType.videoSourceCamera,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _showControls,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // ── 1. Background: remote video / waiting placeholder / audio pulse
+              //    RepaintBoundary isolates video frame repaints from the UI layer
+              RepaintBoundary(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  child: _buildBackground(engine, local, showRemoteVideo),
                 ),
               ),
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.65),
-                      Colors.transparent,
-                    ],
+
+              // ── 2. PIP local camera preview
+              //    Drag updates _pipOffset ValueNotifier — only Transform rebuilds
+              if (widget.video && engine != null && !_busy)
+                RepaintBoundary(
+                  child: _DraggablePip(
+                    engine: engine,
+                    channelName: widget.channelName,
+                    localUid: local,
+                    offsetNotifier: _pipOffset,
+                    videoEnabledNotifier: _videoEnabled,
+                    onInteract: _showControls,
                   ),
                 ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => unawaited(_cleanup(remoteEnded: false)),
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Colors.white, size: 20),
-                    ),
-                    Expanded(
-                      child: Text(
-                        widget.peerName,
-                        style: GoogleFonts.outfit(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
+
+              // ── 3. Controls overlay: auto-hide, no video rebuilds on toggle
+              _ControlsOverlay(
+                visibleNotifier: _controlsVisible,
+                mutedNotifier: _muted,
+                videoEnabledNotifier: _videoEnabled,
+                isVideoCall: widget.video,
+                peerName: widget.peerName,
+                onMute: _onMuteTap,
+                onCamera: widget.video ? _onCameraToggle : null,
+                onFlip: widget.video ? _onFlipCamera : null,
+                onEnd: () => unawaited(_cleanup()),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackground(RtcEngine? engine, int local, bool showRemoteVideo) {
+    if (_busy) {
+      return const Center(
+        key: ValueKey('loading'),
+        child: PawSewaLoader(width: 36, center: false),
+      );
+    }
+    if (widget.video && engine != null) {
+      if (showRemoteVideo) {
+        return AgoraVideoView(
+          key: ValueKey('remote_$_remoteUid'),
+          controller: VideoViewController.remote(
+            rtcEngine: engine,
+            canvas: VideoCanvas(
+              uid: _remoteUid,
+              sourceType: VideoSourceType.videoSourceRemote,
+            ),
+            connection: RtcConnection(
+              channelId: widget.channelName,
+              localUid: local,
+            ),
+          ),
+        );
+      }
+      return _WaitingScreen(
+        key: const ValueKey('waiting'),
+        isCaller: widget.iAmCaller,
+        peerName: widget.peerName,
+      );
+    }
+    if (!widget.video) {
+      return _AudioPulseLayer(
+        key: const ValueKey('audio'),
+        pulse: _pulse,
+        peerName: widget.peerName,
+        myLabel: widget.localDisplayName.isNotEmpty
+            ? widget.localDisplayName
+            : 'You',
+      );
+    }
+    return const SizedBox.shrink(key: ValueKey('empty'));
+  }
+}
+
+// ── Extracted sub-widgets ─────────────────────────────────────────────────
+
+/// PIP local camera preview. Drag only rebuilds the Transform wrapper via
+/// ValueNotifier — the AgoraVideoView stays in the tree as a stable child.
+class _DraggablePip extends StatelessWidget {
+  const _DraggablePip({
+    required this.engine,
+    required this.channelName,
+    required this.localUid,
+    required this.offsetNotifier,
+    required this.videoEnabledNotifier,
+    required this.onInteract,
+  });
+
+  final RtcEngine engine;
+  final String channelName;
+  final int localUid;
+  final ValueNotifier<Offset> offsetNotifier;
+  final ValueNotifier<bool> videoEnabledNotifier;
+  final VoidCallback onInteract;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Offset>(
+      valueListenable: offsetNotifier,
+      builder: (_, offset, child) => Positioned(
+        right: 0,
+        top: 0,
+        child: Transform.translate(offset: offset, child: child),
+      ),
+      child: GestureDetector(
+        onPanUpdate: (d) {
+          offsetNotifier.value += d.delta;
+          onInteract();
+        },
+        child: ValueListenableBuilder<bool>(
+          valueListenable: videoEnabledNotifier,
+          // AgoraVideoView is stable child — reused, not rebuilt, on toggle
+          builder: (_, enabled, pipView) => Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              width: 108,
+              height: 152,
+              child: enabled
+                  ? pipView
+                  : const ColoredBox(
+                      color: Color(0xFF1E1E1E),
+                      child: Center(
+                        child: Icon(
+                          Icons.videocam_off_rounded,
+                          color: Colors.white38,
+                          size: 28,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ],
-                ),
+            ),
+          ),
+          child: AgoraVideoView(
+            controller: VideoViewController(
+              rtcEngine: engine,
+              canvas: const VideoCanvas(
+                uid: 0,
+                sourceType: VideoSourceType.videoSourceCamera,
               ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 28,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen overlay containing the top header and bottom call controls.
+/// AnimatedOpacity + IgnorePointer drive auto-hide without touching the video layer.
+class _ControlsOverlay extends StatelessWidget {
+  const _ControlsOverlay({
+    required this.visibleNotifier,
+    required this.mutedNotifier,
+    required this.videoEnabledNotifier,
+    required this.isVideoCall,
+    required this.peerName,
+    required this.onMute,
+    required this.onCamera,
+    required this.onFlip,
+    required this.onEnd,
+  });
+
+  final ValueNotifier<bool> visibleNotifier;
+  final ValueNotifier<bool> mutedNotifier;
+  final ValueNotifier<bool> videoEnabledNotifier;
+  final bool isVideoCall;
+  final String peerName;
+  final VoidCallback onMute;
+  final VoidCallback? onCamera;
+  final VoidCallback? onFlip;
+  final VoidCallback onEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: visibleNotifier,
+      builder: (_, isVisible, child) => IgnorePointer(
+        ignoring: !isVisible,
+        child: AnimatedOpacity(
+          opacity: isVisible ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: child,
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Top gradient + peer name
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xA8000000), Colors.transparent],
+                ),
+              ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _CallControl(
-                    icon: _muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                    label: 'Mute',
-                    onTap: _toggleMute,
+                  IconButton(
+                    onPressed: onEnd,
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                        color: Colors.white, size: 20),
                   ),
-                  const SizedBox(width: 20),
-                  if (widget.video)
-                    _CallControl(
-                      icon: Icons.cameraswitch_rounded,
-                      label: 'Flip',
-                      onTap: _flipCamera,
+                  Expanded(
+                    child: Text(
+                      peerName,
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  if (widget.video) const SizedBox(width: 20),
-                  _CallControl(
-                    icon: Icons.call_end_rounded,
-                    label: 'End',
-                    filled: true,
-                    onTap: () => unawaited(_cleanup(remoteEnded: false)),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+          // Bottom gradient + call controls
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.only(top: 40, bottom: 36),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Color(0xA8000000), Colors.transparent],
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ValueListenableBuilder<bool>(
+                    valueListenable: mutedNotifier,
+                    builder: (_, isMuted, _) => _CallControl(
+                      icon: isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                      label: isMuted ? 'Unmute' : 'Mute',
+                      active: isMuted,
+                      onTap: onMute,
+                    ),
+                  ),
+                  if (isVideoCall && onCamera != null) ...[
+                    const SizedBox(width: 20),
+                    ValueListenableBuilder<bool>(
+                      valueListenable: videoEnabledNotifier,
+                      builder: (_, enabled, _) => _CallControl(
+                        icon: enabled
+                            ? Icons.videocam_rounded
+                            : Icons.videocam_off_rounded,
+                        label: enabled ? 'Camera' : 'No cam',
+                        active: !enabled,
+                        onTap: onCamera!,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    _CallControl(
+                      icon: Icons.cameraswitch_rounded,
+                      label: 'Flip',
+                      onTap: onFlip!,
+                    ),
+                  ],
+                  const SizedBox(width: 20),
+                  _CallControl(
+                    icon: Icons.call_end_rounded,
+                    label: 'End',
+                    filled: true,
+                    onTap: onEnd,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaitingScreen extends StatelessWidget {
+  const _WaitingScreen({
+    super.key,
+    required this.isCaller,
+    required this.peerName,
+  });
+
+  final bool isCaller;
+  final String peerName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.videocam_outlined, size: 48, color: Colors.white24),
+          const SizedBox(height: 12),
+          Text(
+            isCaller ? 'Calling $peerName…' : 'Waiting for video…',
+            style: GoogleFonts.outfit(color: Colors.white70),
+          ),
+        ],
       ),
     );
   }
@@ -521,22 +708,30 @@ class _CallControl extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.filled = false,
+    this.active = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
   final bool filled;
+  final bool active;
 
   static const Color _brown = Color(AppConstants.primaryColor);
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = filled
+        ? Colors.red.shade700
+        : active
+            ? Colors.white.withValues(alpha: 0.25)
+            : _brown.withValues(alpha: 0.9);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Material(
-          color: filled ? Colors.red.shade700 : _brown.withValues(alpha: 0.9),
+          color: bgColor,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -559,6 +754,7 @@ class _CallControl extends StatelessWidget {
 
 class _AudioPulseLayer extends StatelessWidget {
   const _AudioPulseLayer({
+    super.key,
     required this.pulse,
     required this.peerName,
     required this.myLabel,
@@ -617,10 +813,7 @@ class _PulsingAvatar extends StatelessWidget {
       builder: (context, child) {
         final t = (pulse.value + delay) % 1.0;
         final scale = 1.0 + 0.12 * (0.5 - (t - 0.5).abs()) * 2;
-        return Transform.scale(
-          scale: scale,
-          child: child,
-        );
+        return Transform.scale(scale: scale, child: child);
       },
       child: Column(
         children: [
@@ -630,7 +823,8 @@ class _PulsingAvatar extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: const Color(AppConstants.primaryColor).withValues(alpha: 0.85),
+                color: const Color(AppConstants.primaryColor)
+                    .withValues(alpha: 0.85),
                 width: 3,
               ),
               color: Colors.white.withValues(alpha: 0.08),

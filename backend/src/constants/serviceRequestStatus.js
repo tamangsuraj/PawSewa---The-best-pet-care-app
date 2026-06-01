@@ -19,6 +19,8 @@ const SERVICE_REQUEST_STATUS = {
   IN_PROGRESS: 'in_progress',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
+  /** Vet declined an assigned visit (reason stored on request). */
+  DECLINED: 'declined',
 };
 
 const ALL_STATUSES = Object.values(SERVICE_REQUEST_STATUS);

@@ -136,6 +136,7 @@ class _RiderProofOfDeliveryScreenState extends State<RiderProofOfDeliveryScreen>
     return PartnerScaffold(
       title: 'Proof of delivery',
       subtitle: _customerName(),
+      roleAccent: const Color(AppConstants.riderAccent),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [

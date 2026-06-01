@@ -186,7 +186,7 @@ export default function PastCasesPage() {
     }
   };
 
-  const getPet = (item: PastCaseRow) => ('pet' in item ? item.pet : item.pet);
+  const getPet = (item: PastCaseRow) => item.type === 'assistance' ? (item as CaseItem).pet : (item as ServiceRequestItem).pet;
   const getOwner = (item: PastCaseRow) => ('customer' in item ? item.customer?.name : item.user?.name) ?? '—';
   const getOwnerEmail = (item: PastCaseRow) => ('customer' in item ? item.customer?.email : item.user?.email) ?? '';
   const getOwnerPhone = (item: PastCaseRow) => ('customer' in item ? item.customer?.phone : item.user?.phone) ?? '';

@@ -147,6 +147,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showLegalDialog(BuildContext context, {required String title, required String body}) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(
+          child: Text(body, style: GoogleFonts.outfit(fontSize: 13.5, height: 1.5)),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(AppConstants.primaryColor),
+            ),
+            child: Text('Close', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _logout() async {
     await StorageService().clearAll();
     if (!mounted) return;
@@ -209,11 +231,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     const brown = Color(AppConstants.primaryColor);
-    const cream = Color(AppConstants.secondaryColor);
     final ink = const Color(AppConstants.inkColor);
 
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: brown,
         foregroundColor: Colors.white,
@@ -328,18 +349,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
 
                       const SizedBox(height: 12),
-                        _Section(
+                          _Section(
                         title: 'Privacy & legal',
-                        children: const [
-                          _StaticTile(
+                        children: [
+                          _ActionTile(
                             icon: Icons.privacy_tip_outlined,
                             title: 'Privacy policy',
                             subtitle: 'How your data is handled',
+                            onTap: () => _showLegalDialog(
+                              context,
+                              title: 'Privacy Policy',
+                              body: 'PawSewa collects only the information needed to provide pet-care services: your name, email, pet details, and location for service requests.\n\nYour data is stored securely on our servers and is never sold to third parties. Location data is used only during active service requests.\n\nYou can request a full export or deletion of your data at any time from the Account section below.',
+                            ),
                           ),
-                          _StaticTile(
+                          _ActionTile(
                             icon: Icons.description_outlined,
                             title: 'Terms of service',
                             subtitle: 'Usage and service terms',
+                            onTap: () => _showLegalDialog(
+                              context,
+                              title: 'Terms of Service',
+                              body: 'By using PawSewa you agree to use the platform only for legitimate pet-care bookings.\n\nService requests must reflect accurate pet and location information. Fraudulent requests may result in account suspension.\n\nPayments are processed via Khalti and Fonepay. Refunds are subject to the service provider\'s cancellation policy.\n\nPawSewa is not liable for third-party service quality but will mediate disputes through Customer Care.',
+                            ),
                           ),
                         ],
                       ),
@@ -539,57 +570,4 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-class _StaticTile extends StatelessWidget {
-  const _StaticTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    const ink = Color(AppConstants.inkColor);
-    const primary = Color(AppConstants.primaryColor);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFFDFCFB),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: primary.withValues(alpha: 0.10)),
-        ),
-        child: ListTile(
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: primary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: primary),
-          ),
-          title: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: ink),
-          ),
-          subtitle: Text(
-            subtitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w600,
-              color: ink.withValues(alpha: 0.65),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 

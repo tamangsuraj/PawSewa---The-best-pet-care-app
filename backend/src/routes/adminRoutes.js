@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const mongoose = require('mongoose');
 const router = express.Router();
 
@@ -782,6 +782,46 @@ router.get('/financials/receipt/:orderId', protect, authorize('admin'), async (r
         items,
         totalAmount: order.totalAmount,
         orderId: String(order._id),
+      },
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// revenue report
+router.get('/reports/revenue', protect, authorize('admin'), async (req, res, next) => {
+  try {
+    const { from, to } = req.query;
+    if (!from || !to) {
+      return res.status(400).json({ success: false, message: 'from and to query params required' });
+    }
+    const start = new Date(from);
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    const PetOwnerSubscription = require('../models/PetOwnerSubscription');
+    const [orders, appointments, subscriptions] = await Promise.all([
+      Order.aggregate([
+        { $match: { createdAt: { $gte: start, $lte: end }, status: { $ne: 'cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } },
+      ]),
+      ServiceRequest.countDocuments({
+        createdAt: { $gte: start, $lte: end },
+        status: 'completed',
+      }),
+      PetOwnerSubscription.countDocuments({
+        createdAt: { $gte: start, $lte: end },
+        status: { $ne: 'cancelled' },
+      }),
+    ]);
+    res.json({
+      success: true,
+      data: {
+        dateRange: { from, to },
+        revenue: orders[0]?.total ?? 0,
+        orderCount: orders[0]?.count ?? 0,
+        appointmentCount: appointments,
+        subscriptionCount: subscriptions,
       },
     });
   } catch (e) {

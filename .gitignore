@@ -2,6 +2,7 @@
 # Root / repo-local tooling
 # =========================
 .cursor/
+.claude/
 
 # =========================
 # Node.js (monorepo)

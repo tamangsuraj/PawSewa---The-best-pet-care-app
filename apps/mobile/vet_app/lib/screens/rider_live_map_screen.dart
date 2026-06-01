@@ -69,8 +69,7 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (!_isMapReady) return;
-        // ignore: avoid_print
-        print('[DEBUG] MapController accessed. Verification: Widget Rendered = True.');
+        if (kDebugMode) debugPrint('[DEBUG] MapController accessed. Widget Rendered = True.');
         try {
           _map.move(_me!, 15);
         } catch (_) {}
@@ -121,6 +120,7 @@ class _RiderLiveMapScreenState extends State<RiderLiveMapScreen> {
     return PartnerScaffold(
       title: 'Live route map',
       subtitle: 'Your position updates Admin live operations',
+      roleAccent: const Color(AppConstants.riderAccent),
       actions: [
         IconButton(
           tooltip: 'Refresh',

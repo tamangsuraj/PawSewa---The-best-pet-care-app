@@ -154,7 +154,7 @@ export default function ShopOwnersPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.get('/products');
+      const response = await api.get('/products', { params: { adminView: '1' } });
       setProducts(response.data.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);

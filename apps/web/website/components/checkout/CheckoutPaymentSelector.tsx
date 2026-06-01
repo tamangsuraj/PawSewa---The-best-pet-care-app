@@ -97,7 +97,7 @@ export function CheckoutPaymentSelector({ value, onChange }: Props) {
               <span className="mt-1 text-[10px] leading-snug text-[#2c241c]/55">{m.subtitle}</span>
               {selected && m.enabled ? (
                 <span className="mt-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#703418] text-[10px] font-bold text-white">
-                  ✓
+                  *
                 </span>
               ) : (
                 <span className="mt-2 h-5 w-5 rounded-full border border-[#703418]/25" />

@@ -1,4 +1,4 @@
-const asyncHandler = require('express-async-handler');
+﻿const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const Pet = require('../models/Pet');
 const ServiceRequest = require('../models/ServiceRequest');
@@ -6,6 +6,7 @@ const User = require('../models/User');
 const Notification = require('../models/Notification');
 const cloudinary = require('../config/cloudinary');
 const logger = require('../utils/logger');
+const { getIO } = require('../sockets/socketStore');
 const { generatePetRemindersV1 } = require('../utils/reminderEngine');
 const {
   buildWeightChart6Months,
@@ -311,7 +312,15 @@ const getPetMedicalHistory = asyncHandler(async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized to access this pet' });
     }
 
-    const requests = await ServiceRequest.find({ pet: petId })
+    const srFilter = { pet: petId };
+    const typeQ = (req.query.type || '').toString().trim().toLowerCase();
+    if (typeQ === 'vaccination') {
+      srFilter.serviceType = /vaccination/i;
+    } else if (typeQ === 'diagnosis' || typeQ === 'prescription' || typeQ === 'follow-up') {
+      srFilter.serviceType = { $exists: true };
+    }
+
+    const requests = await ServiceRequest.find(srFilter)
       .populate('assignedStaff', 'name email phone specialty')
       .sort({ completedAt: -1, preferredDate: -1, createdAt: -1 })
       .lean();
@@ -414,10 +423,17 @@ const getPetMedicalHistory = asyncHandler(async (req, res) => {
         heartRateBpm: Number.isFinite(h0) ? h0 : null,
       };
 
+      const svcType = (r.serviceType || '').toString();
+      let recordType = 'Diagnosis';
+      if (/vaccination/i.test(svcType)) recordType = 'Vaccination';
+      else if (/health|checkup/i.test(svcType)) recordType = 'Diagnosis';
+      else if (r.scheduledTime) recordType = 'Follow-Up';
+
       return {
         id: idStr,
         serviceRequestId: idStr,
         appointmentNumber,
+        recordType,
         title: r.serviceType || 'Veterinary visit',
         date: visitDate,
         doctorName,
@@ -577,6 +593,16 @@ const addVetClinicalEntry = asyncHandler(async (req, res) => {
     });
   } catch (e) {
     logger.warn('Clinical entry saved but notification failed:', e.message);
+  }
+
+  // realtime medical timeline update
+  try {
+    const io = getIO();
+    if (io) {
+      io.to(`pet_${petId}`).emit('pet_medical_record_updated', { petId: String(petId) });
+    }
+  } catch (e) {
+    logger.warn('Clinical entry socket emit failed:', e.message);
   }
 
   res.status(201).json({

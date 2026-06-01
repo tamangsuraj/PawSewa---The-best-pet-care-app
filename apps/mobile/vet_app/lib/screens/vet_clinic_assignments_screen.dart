@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -210,18 +211,41 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
                                 final petName = pet?['name']?.toString() ?? 'Pet';
                                 final ownerName = owner?['name']?.toString() ?? 'Owner';
                                 final amt = row['totalAmount'];
+                                final apptType = row['type']?.toString()
+                                    ?? row['serviceType']?.toString()
+                                    ?? 'Appointment';
+                                final ownerPhone = owner?['phone']?.toString() ?? '';
                                 return Card(
                                   child: Padding(
                                     padding: const EdgeInsets.all(14),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        Text(
-                                          '${row['type']} · $petName',
-                                          style: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 15,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '$apptType · $petName',
+                                                style: GoogleFonts.outfit(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 15,
+                                                ),
+                                              ),
+                                            ),
+                                            if (ownerPhone.isNotEmpty)
+                                              IconButton(
+                                                tooltip: 'Call owner',
+                                                icon: Icon(Icons.phone_rounded, color: primary, size: 20),
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                                onPressed: () async {
+                                                  final uri = Uri.parse('tel:$ownerPhone');
+                                                  try {
+                                                    await launchUrl(uri);
+                                                  } catch (_) {}
+                                                },
+                                              ),
+                                          ],
                                         ),
                                         const SizedBox(height: 4),
                                         Text(
@@ -240,7 +264,7 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
                                         ),
                                         if (amt is num && amt > 0)
                                           Text(
-                                            'Amount: $amt',
+                                            'NPR ${(amt as num).toStringAsFixed(0)}',
                                             style: GoogleFonts.outfit(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
@@ -291,26 +315,43 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
                               itemBuilder: (context, i) {
                                 final row = _done[i];
                                 final pet = _pet(row);
+                                final owner = _owner(row);
                                 final petName = pet?['name']?.toString() ?? 'Pet';
+                                final ownerName = owner?['name']?.toString() ?? 'Owner';
+                                final apptType = row['type']?.toString()
+                                    ?? row['serviceType']?.toString()
+                                    ?? 'Appointment';
                                 final amt = row['totalAmount'];
-                                return ListTile(
-                                  title: Text(
-                                    '${row['type']} · $petName',
-                                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                                return Card(
+                                  child: ListTile(
+                                    leading: Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade50,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Icon(Icons.check_circle_outline_rounded,
+                                          color: Colors.green.shade700, size: 22),
+                                    ),
+                                    title: Text(
+                                      '$apptType · $petName',
+                                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+                                    ),
+                                    subtitle: Text(
+                                      'Owner: $ownerName · ${_when(row)}',
+                                      style: GoogleFonts.outfit(fontSize: 12),
+                                    ),
+                                    trailing: amt is num && amt > 0
+                                        ? Text(
+                                            'NPR ${(amt as num).toStringAsFixed(0)}',
+                                            style: GoogleFonts.outfit(
+                                              fontWeight: FontWeight.w700,
+                                              color: primary,
+                                            ),
+                                          )
+                                        : null,
                                   ),
-                                  subtitle: Text(
-                                    _when(row),
-                                    style: GoogleFonts.outfit(fontSize: 13),
-                                  ),
-                                  trailing: amt is num && amt > 0
-                                      ? Text(
-                                          '$amt',
-                                          style: GoogleFonts.outfit(
-                                            fontWeight: FontWeight.w700,
-                                            color: primary,
-                                          ),
-                                        )
-                                      : null,
                                 );
                               },
                             ),

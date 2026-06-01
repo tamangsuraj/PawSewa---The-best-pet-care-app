@@ -1386,22 +1386,17 @@ class _ShopScreenState extends State<ShopScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const _ShopPromoBanner(),
-            SizedBox(height: (constraints.maxWidth * 0.045).clamp(12.0, 24.0)),
+            SizedBox(height: (constraints.maxWidth * 0.03).clamp(8.0, 16.0)),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: padH),
               child: narrow
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  ? Row(
                       children: [
-                        searchField,
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            ordersBtn,
-                            Flexible(child: filterChip),
-                          ],
-                        ),
+                        Expanded(child: searchField),
+                        const SizedBox(width: 10),
+                        ordersBtn,
+                        const SizedBox(width: 4),
+                        filterChip,
                       ],
                     )
                   : Row(
@@ -1414,7 +1409,7 @@ class _ShopScreenState extends State<ShopScreen> {
                       ],
                     ),
             ),
-            SizedBox(height: (constraints.maxWidth * 0.045).clamp(12.0, 24.0)),
+            SizedBox(height: (constraints.maxWidth * 0.02).clamp(6.0, 12.0)),
           ],
         );
       },
@@ -1429,7 +1424,7 @@ class _ShopScreenState extends State<ShopScreen> {
         final subSize = (w * 0.032).clamp(11.0, 14.0);
         final hPad = (w * 0.04).clamp(12.0, 20.0);
         return Padding(
-          padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 8),
+          padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1952,6 +1947,14 @@ class _ShopProductLocalImage extends StatelessWidget {
 // ─── Product card ───────────────────────────────────────────────────────────
 // Structure: Image -> Title -> Subtitle (e.g. size/weight) -> Price (Rs.) -> Add (+)
 // Centered contained image; bold title; regular subtitle/price; light beige/white card.
+int _productStockQuantity(Map<String, dynamic> product) {
+  final v = product['stockQuantity'] ?? product['stock'];
+  if (v is num) return v.toInt();
+  return int.tryParse(v?.toString() ?? '') ?? 1;
+}
+
+bool _isProductOutOfStock(Map<String, dynamic> product) =>
+    _productStockQuantity(product) <= 0;
 
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -1990,6 +1993,7 @@ class _ProductCard extends StatelessWidget {
     }
     final subtitle = parts.isNotEmpty ? parts.join(' • ') : 'Toys';
     final hasQty = quantity > 0;
+    final outOfStock = _isProductOutOfStock(product);
 
     return Container(
       decoration: BoxDecoration(
@@ -2030,6 +2034,24 @@ class _ProductCard extends StatelessWidget {
                         child: _ShopProductLocalImage(product: product),
                       ),
                     ),
+                    if (outOfStock)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Out of Stock',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
                     if (personalizedBadge != null &&
                         personalizedBadge!.isNotEmpty)
                       Positioned(
@@ -2118,26 +2140,49 @@ class _ProductCard extends StatelessWidget {
                 ),
               ),
               if (!hasQty)
-                InkWell(
-                  onTap: onTapAdd,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: const BoxDecoration(
-                      color: Color(AppConstants.primaryColor),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x1A000000),
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
+                outOfStock
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 4,
                         ),
-                      ],
-                    ),
-                    child: const Icon(Icons.add, size: 18, color: Colors.white),
-                  ),
-                )
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Out of Stock',
+                          style: GoogleFonts.outfit(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      )
+                    : InkWell(
+                        onTap: onTapAdd,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: const BoxDecoration(
+                            color: Color(AppConstants.primaryColor),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Color(0x1A000000),
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.add,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
               else
                 _QtyPill(qty: quantity, onMinus: onTapMinus!, onPlus: onTapAdd),
             ],
@@ -2379,6 +2424,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
     final name = product['name']?.toString() ?? 'Product';
     final desc = product['description']?.toString() ?? '';
     final price = (product['price'] as num?)?.toDouble() ?? 0;
+    final outOfStock = _isProductOutOfStock(product);
 
     final size = MediaQuery.sizeOf(context);
     final maxSheetHeight = size.height * 0.75;
@@ -2459,7 +2505,27 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                               child: SizedBox(
                                 height: 180,
                                 width: double.infinity,
-                                child: _ShopProductLocalImage(product: product),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    _ShopProductLocalImage(product: product),
+                                    if (outOfStock)
+                                      Container(
+                                        color: Colors.black.withValues(alpha: 0.45),
+                                        alignment: Alignment.center,
+                                        child: Chip(
+                                          label: Text(
+                                            'Out of Stock',
+                                            style: GoogleFonts.outfit(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          backgroundColor: Colors.red.shade700,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -2558,42 +2624,65 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: () {
-                                    HapticFeedback.lightImpact();
-                                    Navigator.of(context).pop(_qty);
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 13,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: primary,
-                                      borderRadius: BorderRadius.circular(999),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: primary.withValues(alpha: 0.4),
-                                          blurRadius: 18,
-                                          offset: const Offset(0, 8),
+                                child: outOfStock
+                                    ? ElevatedButton(
+                                        onPressed: null,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.grey.shade400,
+                                          disabledBackgroundColor:
+                                              Colors.grey.shade400,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                          ),
                                         ),
-                                      ],
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.outfit(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 16,
+                                        child: Text(
+                                          'Out of Stock',
+                                          style: GoogleFonts.outfit(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      )
+                                    : GestureDetector(
+                                        onTap: () {
+                                          HapticFeedback.lightImpact();
+                                          Navigator.of(context).pop(_qty);
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 13,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: primary,
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: primary.withValues(
+                                                  alpha: 0.4,
+                                                ),
+                                                blurRadius: 18,
+                                                offset: const Offset(0, 8),
+                                              ),
+                                            ],
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            child: Text(
+                                              'Add to basket • Rs. ${(price * _qty).toStringAsFixed(0)}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.outfit(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ),
                               ),
                               const SizedBox(width: 10),
                               GestureDetector(

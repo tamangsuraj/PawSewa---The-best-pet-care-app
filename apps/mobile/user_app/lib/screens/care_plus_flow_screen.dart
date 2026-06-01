@@ -71,8 +71,9 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
     try {
       final resp = await _apiClient.getMyPets();
       if (resp.statusCode == 200) {
+        final raw = resp.data;
         setState(() {
-          _pets = resp.data['data'] ?? [];
+          _pets = (raw is Map ? (raw['data'] as List?) : null) ?? [];
           _loadingPets = false;
         });
       } else {
@@ -195,10 +196,8 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cream = const Color(AppConstants.bentoBackgroundColor);
-
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Care+ Service',

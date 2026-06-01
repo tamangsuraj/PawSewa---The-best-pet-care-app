@@ -180,7 +180,7 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
         'paymentMethod': paymentOnline ? 'online' : 'cash_on_delivery',
       });
 
-      if (resp.data is Map && resp.data['success'] == true && resp.data['data'] != null) {
+      if (resp.data is Map && resp.data['success'] == true && resp.data['data'] is Map) {
         final booking = Map<String, dynamic>.from(resp.data['data'] as Map);
         if (mounted) {
           setState(() {

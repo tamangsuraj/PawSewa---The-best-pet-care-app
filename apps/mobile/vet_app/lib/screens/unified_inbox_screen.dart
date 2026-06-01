@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
@@ -235,6 +236,7 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
                         rows: _filteredChats,
                         onOpen: _openConversation,
                         onMarkUnread: _markUnread,
+                        onRetry: _loadChats,
                       ),
                       const PartnerSupportChatScreen(),
                       const _CallsTab(),
@@ -259,6 +261,7 @@ class _CustomerChatsTab extends StatelessWidget {
     required this.rows,
     required this.onOpen,
     required this.onMarkUnread,
+    required this.onRetry,
   });
 
   final Color primary;
@@ -267,6 +270,7 @@ class _CustomerChatsTab extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
   final Future<void> Function(Map<String, dynamic>) onOpen;
   final Future<void> Function(Map<String, dynamic>) onMarkUnread;
+  final Future<void> Function() onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -275,13 +279,13 @@ class _CustomerChatsTab extends StatelessWidget {
     }
     if (error != null) {
       return PartnerEmptyState(
-        title: 'Couldn’t load inbox',
+        title: ‘Couldn’t load inbox’,
         body: error!,
         icon: Icons.wifi_off_rounded,
         primaryAction: OutlinedButton.icon(
-          onPressed: null,
+          onPressed: onRetry,
           icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Retry'),
+          label: const Text(‘Retry’),
         ),
       );
     }
@@ -387,8 +391,7 @@ class _CallsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Call history API isn't exposed yet; show a high-value “return to call” if active.
-    final ongoing = OngoingCallService(); // fallback; real instance is provided via Provider in app
+    final ongoing = context.watch<OngoingCallService>();
     final active = ongoing.active;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -398,19 +401,19 @@ class _CallsTab extends StatelessWidget {
             child: ListTile(
               leading: const Icon(Icons.call_rounded, color: Colors.green),
               title: const Text('Call in progress'),
-              subtitle: Text(ongoing.label ?? 'Tap to return'),
+              subtitle: Text(ongoing.label ?? 'Tap to return to the call'),
               trailing: const Icon(Icons.arrow_forward_rounded),
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Return-to-call is handled by the call screen UI')),
-                );
+                // The call screen manages its own lifecycle;
+                // tapping here just brings focus back via Navigator.
+                Navigator.of(context).popUntil((r) => r.isFirst);
               },
             ),
           ),
         if (!active)
           const PartnerEmptyState(
-            title: 'No call history yet',
-            body: 'Calls will appear here once the backend exposes call history.',
+            title: 'No active call',
+            body: 'An active call or call-back option will appear here when a call is in progress.',
             icon: Icons.call_rounded,
           ),
       ],

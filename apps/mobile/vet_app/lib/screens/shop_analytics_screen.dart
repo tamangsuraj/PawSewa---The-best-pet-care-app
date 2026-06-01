@@ -122,6 +122,7 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
     return PartnerScaffold(
       title: 'Shop analytics',
       subtitle: 'Inventory health & fulfillment overview',
+      roleAccent: const Color(AppConstants.sellerAccent),
       actions: [
         IconButton(
           tooltip: 'Refresh',
@@ -267,13 +268,14 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    const sellerPurple = Color(AppConstants.sellerAccent);
     final ink = const Color(AppConstants.inkColor);
     final badge = highlight
-        ? const Color(AppConstants.accentColor)
-        : primary.withValues(alpha: 0.10);
-    final badgeIcon =
-        highlight ? const Color(AppConstants.accentColor) : primary;
+        ? const Color(0xFFDC2626)
+        : sellerPurple;
+    final badgeBg = highlight
+        ? const Color(0xFFFFEBEE)
+        : sellerPurple.withValues(alpha: 0.10);
 
     return Card(
       child: Padding(
@@ -284,11 +286,11 @@ class _MetricCard extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: badge.withValues(alpha: 0.18),
+                color: badgeBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: badge.withValues(alpha: 0.35)),
+                border: Border.all(color: badge.withValues(alpha: 0.20)),
               ),
-              child: Icon(icon, color: badgeIcon),
+              child: Icon(icon, color: badge),
             ),
             const SizedBox(width: 12),
             Expanded(

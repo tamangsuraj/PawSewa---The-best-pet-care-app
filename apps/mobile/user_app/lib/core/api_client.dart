@@ -117,14 +117,16 @@ class ApiClient {
           return handler.next(response);
         },
         onError: (error, handler) async {
-          // Handle 401 Unauthorized - token expired or invalid
-          if (error.response?.statusCode == 401) {
+          final status = error.response?.statusCode;
+          if (status == 401 || status == 403) {
             final p = error.requestOptions.path;
             final isAuthAttempt =
                 p.contains('login') ||
                 p.contains('register') ||
                 p.contains('verify-otp') ||
-                p.contains('google');
+                p.contains('google') ||
+                p.contains('forgot-password') ||
+                p.contains('reset-password');
             if (!isAuthAttempt) {
               await _storage.clearAll();
               final nav = appNavigatorKey.currentState;
@@ -622,13 +624,37 @@ class ApiClient {
     );
   }
 
+  /// Maps UI labels to API enum: Appointment | Health Checkup | Vaccination
+  static String normalizeServiceTypeForApi(Object? raw, Object? notes) {
+    final s = raw?.toString().trim() ?? '';
+    final n = notes?.toString().toLowerCase() ?? '';
+    const valid = {'Appointment', 'Health Checkup', 'Vaccination'};
+    if (valid.contains(s)) return s;
+    if (s == 'Vaccination' ||
+        n.contains('purpose: vaccination') ||
+        n.contains('vaccines:')) {
+      return 'Vaccination';
+    }
+    if (s == 'Nutrition Consultation' ||
+        s.toLowerCase().contains('health checkup') ||
+        s.toLowerCase().contains('nutrition')) {
+      return 'Health Checkup';
+    }
+    return 'Appointment';
+  }
+
   // Create service request (OSM-enabled flow)
   /// Sends: petId, serviceType, preferredDate, timeWindow, notes?, location: { address, coordinates: { lat, lng } }
   Future<Response> createServiceRequest(Map<String, dynamic> data) async {
+    final payload = Map<String, dynamic>.from(data);
+    payload['serviceType'] = normalizeServiceTypeForApi(
+      payload['serviceType'],
+      payload['notes'],
+    );
     if (kDebugMode) {
-      debugPrint('[API] createServiceRequest payload: ${data.toString()}');
+      debugPrint('[API] createServiceRequest payload: $payload');
     }
-    return await _dio.post('/service-requests', data: data);
+    return await _dio.post('/service-requests', data: payload);
   }
 
   // Payments – Khalti
@@ -807,5 +833,69 @@ class ApiClient {
   /// Persist call duration for admin / care booking analytics.
   Future<Response> postCallLog(Map<String, dynamic> body) async {
     return await _dio.post('/calls/log', data: body);
+  }
+
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final res = await _dio.post('/auth/forgot-password', data: {'email': email});
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> resetPassword(String token, String newPassword) async {
+    final res = await _dio.post(
+      '/auth/reset-password',
+      data: {'token': token, 'newPassword': newPassword},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<List<dynamic>> getSubscriptionPlans() async {
+    final res = await _dio.get('/pet-subscriptions/plans');
+    final data = res.data;
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    return [];
+  }
+
+  /// Khalti checkout for PawSewa Pro. Returns paymentUrl, pidx, successUrl, amount.
+  Future<Map<String, dynamic>> initiateSubscriptionKhalti(String plan) async {
+    final res = await _dio.post(
+      '/pet-subscriptions/khalti/initiate',
+      data: {'plan': plan},
+    );
+    final root = res.data;
+    if (root is Map && root['data'] is Map) {
+      return Map<String, dynamic>.from(root['data'] as Map);
+    }
+    throw Exception('Invalid Khalti initiate response');
+  }
+
+  /// Fonepay — creates pending subscription with reference for manual verification.
+  Future<Map<String, dynamic>> initiateSubscriptionFonepay(String plan) async {
+    final res = await _dio.post(
+      '/pet-subscriptions/fonepay/initiate',
+      data: {'plan': plan},
+    );
+    final root = res.data;
+    if (root is Map && root['data'] is Map) {
+      return Map<String, dynamic>.from(root['data'] as Map);
+    }
+    throw Exception('Invalid Fonepay initiate response');
+  }
+
+  Future<Map<String, dynamic>> subscribeToPlan(String plan, String paymentRef) async {
+    final res = await _dio.post(
+      '/pet-subscriptions/subscribe',
+      data: {'plan': plan, 'paymentRef': paymentRef},
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> getMySubscription() async {
+    final res = await _dio.get('/pet-subscriptions/my');
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  Future<Map<String, dynamic>> cancelSubscription() async {
+    final res = await _dio.post('/pet-subscriptions/cancel');
+    return Map<String, dynamic>.from(res.data as Map);
   }
 }

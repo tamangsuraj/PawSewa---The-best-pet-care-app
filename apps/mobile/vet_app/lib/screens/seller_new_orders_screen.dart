@@ -6,7 +6,9 @@ import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
+import '../core/constants.dart';
 import '../services/socket_service.dart';
+import '../theme/partner_theme.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 import '../widgets/swipe_action_button.dart';
@@ -77,6 +79,11 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  static Color _statusColor(String status) {
+    final (_, fg) = RoleDesign.statusColors(status);
+    return fg;
   }
 
   static String _statusLine(String s) {
@@ -214,6 +221,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
 
   Widget _orderCard(Map<String, dynamic> o, Color primary) {
     const successGreen = Color(0xFF00C853);
+    const sellerPurple = Color(AppConstants.sellerAccent);
     final id = o['_id']?.toString() ?? '';
     final short = id.length > 6 ? id.substring(id.length - 6) : id;
     final user = o['user'];
@@ -274,13 +282,26 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
             style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 6),
-          Text(
-            _statusLine(status),
-            style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: primary,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 6),
+                decoration: BoxDecoration(
+                  color: _statusColor(status),
+                  shape: BoxShape.circle,
+                ),
+              ),
+              Text(
+                _statusLine(status),
+                style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: _statusColor(status),
+                ),
+              ),
+            ],
           ),
           if (hasRider) ...[
             const SizedBox(height: 8),
@@ -315,7 +336,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
             FilledButton(
               onPressed: id.isEmpty ? null : () => _confirm(id),
               style: FilledButton.styleFrom(
-                backgroundColor: primary,
+                backgroundColor: sellerPurple,
                 foregroundColor: Colors.white,
               ),
               child: Text('Confirm stock', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
@@ -323,6 +344,10 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
           if (confirmed && status == 'processing')
             FilledButton.tonal(
               onPressed: id.isEmpty ? null : () => _markPacked(id),
+              style: FilledButton.styleFrom(
+                backgroundColor: sellerPurple.withValues(alpha: 0.12),
+                foregroundColor: sellerPurple,
+              ),
               child: Text('Mark ready for pickup', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
             ),
           if (showDispatchSwipe) ...[
@@ -343,9 +368,11 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    const sellerPurple = Color(AppConstants.sellerAccent);
     return PartnerScaffold(
       title: 'New orders',
       subtitle: 'Confirm stock → ready for rider',
+      roleAccent: sellerPurple,
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh_rounded),
@@ -363,9 +390,9 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
                   color: Colors.white.withValues(alpha: 0.92),
                   child: TabBar(
                     controller: _tabs,
-                    labelColor: primary,
+                    labelColor: sellerPurple,
                     unselectedLabelColor: Colors.grey.shade600,
-                    indicatorColor: primary,
+                    indicatorColor: sellerPurple,
                     tabs: [
                       Tab(text: 'Incoming (${_incoming.length})'),
                       Tab(text: 'Pipeline (${_ready.length})'),

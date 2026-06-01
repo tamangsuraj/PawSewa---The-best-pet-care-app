@@ -13,6 +13,7 @@ class PartnerScaffold extends StatelessWidget {
     this.actions,
     required this.body,
     this.floatingActionButton,
+    this.roleAccent,
   });
 
   final String title;
@@ -20,6 +21,7 @@ class PartnerScaffold extends StatelessWidget {
   final List<Widget>? actions;
   final Widget body;
   final Widget? floatingActionButton;
+  final Color? roleAccent;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,7 @@ class PartnerScaffold extends StatelessWidget {
     final surface = const Color(AppConstants.secondaryColor);
     final ink = const Color(AppConstants.inkColor);
     final primary = scheme.primary;
+    final accentLine = roleAccent ?? primary;
 
     return Scaffold(
       backgroundColor: surface,
@@ -73,9 +76,9 @@ class PartnerScaffold extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  primary.withValues(alpha: 0.0),
-                  primary.withValues(alpha: 0.20),
-                  primary.withValues(alpha: 0.0),
+                  accentLine.withValues(alpha: 0.0),
+                  accentLine.withValues(alpha: 0.22),
+                  accentLine.withValues(alpha: 0.0),
                 ],
               ),
             ),

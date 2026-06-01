@@ -13,6 +13,7 @@ import '../core/constants.dart';
 import '../core/google_maps_directions.dart';
 import '../services/location_service.dart';
 import '../widgets/map_pin_marker.dart';
+import 'vet_direct_owner_chat_screen.dart';
 
 class ServiceTaskDetailScreen extends StatefulWidget {
   final Map<String, dynamic> task;
@@ -33,10 +34,45 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   final LocationService _locationService = LocationService();
   bool _completingVisit = false;
 
+  // Mutable copy of the task; populated from widget.task and optionally refreshed from the API.
+  late Map<String, dynamic> _taskData;
+  bool _fetchingTask = false;
+
   @override
   void initState() {
     super.initState();
-    _initLocations();
+    _taskData = Map<String, dynamic>.from(widget.task);
+    // When opened from an FCM notification tap, only _id is provided.
+    // Fetch the full task so all fields render correctly.
+    final isStub = _taskData['serviceType'] == null && _taskData['status'] == null;
+    if (isStub) {
+      _fetchFullTask();
+    } else {
+      _initLocations();
+    }
+  }
+
+  Future<void> _fetchFullTask() async {
+    final id = _taskData['_id']?.toString() ?? '';
+    if (id.isEmpty || _fetchingTask) return;
+    if (mounted) setState(() => _fetchingTask = true);
+    try {
+      final resp = await _api.getServiceRequestById(id);
+      final body = resp.data;
+      if (body is Map && body['data'] is Map) {
+        if (mounted) {
+          setState(() {
+            _taskData = Map<String, dynamic>.from(body['data'] as Map);
+            _fetchingTask = false;
+          });
+          _initLocations();
+        }
+      } else {
+        if (mounted) setState(() => _fetchingTask = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _fetchingTask = false);
+    }
   }
 
   @override
@@ -46,7 +82,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   Future<void> _initLocations() async {
-    final live = widget.task['liveLocation'] as Map<String, dynamic>?;
+    final live = _taskData['liveLocation'] as Map<String, dynamic>?;
     if (live != null) {
       final la = live['lat'] as num?;
       final ln = live['lng'] as num?;
@@ -54,13 +90,13 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
         _customerLocation = LatLng(la.toDouble(), ln.toDouble());
       }
     }
-    final lat = widget.task['latitude'] as num?;
-    final lng = widget.task['longitude'] as num?;
+    final lat = _taskData['latitude'] as num?;
+    final lng = _taskData['longitude'] as num?;
     if (_customerLocation == null && lat != null && lng != null) {
       _customerLocation = LatLng(lat.toDouble(), lng.toDouble());
     }
     if (_customerLocation == null) {
-      final loc = widget.task['location'] as Map<String, dynamic>?;
+      final loc = _taskData['location'] as Map<String, dynamic>?;
       if (loc != null && loc['coordinates'] != null) {
         final coords = loc['coordinates'] as Map<String, dynamic>;
         final latC = coords['lat'] as num?;
@@ -113,10 +149,10 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
       );
       return;
     }
-    final addressString = widget.task['location'] is String
-        ? widget.task['location'] as String
-        : (widget.task['address_string'] as String?);
-    final loc = widget.task['location'] as Map<String, dynamic>?;
+    final addressString = _taskData['location'] is String
+        ? _taskData['location'] as String
+        : (_taskData['address_string'] as String?);
+    final loc = _taskData['location'] as Map<String, dynamic>?;
     String? fromMap;
     if (loc != null && loc['address'] != null) {
       fromMap = loc['address'].toString();
@@ -128,7 +164,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   bool get _isServiceRequestAppointment =>
-      widget.task['serviceType'] != null && widget.task['serviceType'].toString().trim().isNotEmpty;
+      _taskData['serviceType'] != null && _taskData['serviceType'].toString().trim().isNotEmpty;
 
   bool _canShowMarkComplete(String? status) {
     if (status == null || status.isEmpty) return false;
@@ -140,7 +176,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
   }
 
   Future<void> _markVisitOrCaseComplete() async {
-    final id = widget.task['_id']?.toString();
+    final id = _taskData['_id']?.toString();
     if (id == null || id.isEmpty) return;
     setState(() => _completingVisit = true);
     try {
@@ -169,10 +205,21 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_fetchingTask) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Task Details', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: Colors.white)),
+          backgroundColor: const Color(AppConstants.primaryColor),
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     final themeColor = const Color(AppConstants.primaryColor);
-    final pet = widget.task['pet'] as Map<String, dynamic>?;
-    final owner = (widget.task['customer'] ?? widget.task['user']) as Map<String, dynamic>?;
-    final status = widget.task['status'] as String?;
+    final pet = _taskData['pet'] as Map<String, dynamic>?;
+    final owner = (_taskData['customer'] ?? _taskData['user']) as Map<String, dynamic>?;
+    final status = _taskData['status'] as String?;
 
     final medicalHistory = (pet?['medicalHistory'] as List?)?.cast<dynamic>() ?? const [];
 
@@ -344,6 +391,27 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                         ),
                       ],
                     ),
+                  if (owner != null &&
+                      (status == 'accepted' || status == 'assigned')) ...[
+                    const SizedBox(height: 10),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        final ownerId = owner['_id']?.toString() ?? '';
+                        if (ownerId.isEmpty) return;
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => VetDirectOwnerChatScreen(
+                              owner: Map<String, dynamic>.from(owner),
+                              ownerId: ownerId,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.chat_outlined),
+                      label: const Text('Message Owner'),
+                    ),
+                  ],
                 ],
               ),
             ),

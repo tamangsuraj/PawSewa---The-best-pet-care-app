@@ -107,7 +107,7 @@ export default function CareDetailPage({ params }: { params: { serviceType: stri
           {displayImages[0] && displayImages[0].trim() !== '' ? (
             <Image src={displayImages[selectedImageIndex] || displayImages[0]} alt={center.name} fill className="object-cover" sizes="100vw" priority />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-5xl">🐾</div>
+            <div className="absolute inset-0 flex items-center justify-center text-sm font-medium text-paw-bark/40">No Image</div>
           )}
         </div>
         {displayImages.length > 1 && displayImages[0] && (

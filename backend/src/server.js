@@ -1,4 +1,4 @@
-// Load environment variables FIRST
+﻿// Load environment variables FIRST
 require('dotenv').config({ quiet: true });
 
 const logger = require('./utils/logger');
@@ -48,6 +48,9 @@ const centerRoutes = require('./routes/centerRoutes');
 const careBookingRoutes = require('./routes/careBookingRoutes');
 const careStaffTaskRoutes = require('./routes/careStaffTaskRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const petOwnerSubscriptionRoutes = require('./routes/petOwnerSubscriptionRoutes');
+const zoneRoutes = require('./routes/zoneRoutes');
+const auditLogRoutes = require('./routes/auditLogRoutes');
 const providerApplicationRoutes = require('./routes/providerApplicationRoutes');
 const productRoutes = require('./routes/productRoutes');
 const shopRecommendationRoutes = require('./routes/shopRecommendationRoutes');
@@ -129,6 +132,10 @@ io.on('connection', (socket) => {
   if (socket.user?.role === 'admin') {
     socket.join('admin_room');
   }
+  // pet medical record realtime room
+  socket.on('join_pet_room', ({ petId }) => {
+    if (petId) socket.join(`pet_${petId}`);
+  });
   socket.on('disconnect', () => {
     if (userId) presenceDisconnect(userId);
   });
@@ -271,6 +278,10 @@ app.use('/api/v1/centers', centerRoutes);
 app.use('/api/v1/care-bookings', careBookingRoutes);
 app.use('/api/v1/care-staff-tasks', careStaffTaskRoutes);
 app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/pet-subscriptions', petOwnerSubscriptionRoutes);
+app.use('/api/v1/zones', zoneRoutes);
+app.use('/api/v1/services', require('./routes/serviceCatalogueRoutes'));
+app.use('/api/v1/audit-logs', auditLogRoutes);
 app.use('/api/v1/provider-applications', providerApplicationRoutes);
 app.use('/api/v1/favourites', favouriteRoutes);
 app.use('/api/v1/promocodes', promoCodeRoutes);
@@ -453,6 +464,19 @@ async function start() {
       });
     }, intervalMs);
     logger.info('Reminder Notifier: enabled (24h before due).');
+    const { runSubscriptionRenewalReminders } = require('./jobs/subscriptionReminder');
+    const dayMs = 24 * 60 * 60 * 1000;
+    setTimeout(() => {
+      runSubscriptionRenewalReminders().catch((e) => {
+        logger.warn('Subscription reminder: startup run failed', e?.message || String(e));
+      });
+    }, 30 * 1000);
+    setInterval(() => {
+      runSubscriptionRenewalReminders().catch((e) => {
+        logger.warn('Subscription reminder: interval run failed', e?.message || String(e));
+      });
+    }, dayMs);
+    logger.info('Subscription renewal reminders: enabled (daily).');
   } else if (enableReminderNotifier && !dbConnected) {
     logger.info('Reminder Notifier: skipped (no DB connection).');
   } else {

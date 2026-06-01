@@ -145,7 +145,7 @@ export default function AddPetPage() {
                         className="object-cover w-full h-full"
                       />
                     ) : (
-                      <span className="text-4xl text-gray-400">📷</span>
+                      <span className="text-sm font-medium text-gray-400">Add Photo</span>
                     )}
                   </div>
                   <div className="absolute bottom-0 right-0 w-10 h-10 bg-paw-bark rounded-full flex items-center justify-center text-paw-cream text-xl shadow-paw">

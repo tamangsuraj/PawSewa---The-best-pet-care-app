@@ -14,6 +14,16 @@ import '../widgets/map_pin_marker.dart';
 const double _arrivalRadiusMeters = 150;
 const double _metersPerMinuteDriving = 400; // rough
 
+const Set<String> _terminalStatuses = {'completed', 'cancelled', 'declined'};
+
+const Set<String> _livePollStatuses = {
+  'assigned',
+  'accepted',
+  'en_route',
+  'arrived',
+  'in_progress',
+};
+
 class ServiceRequestTrackingScreen extends StatefulWidget {
   final String requestId;
   final String? initialServiceType;
@@ -59,28 +69,48 @@ class _ServiceRequestTrackingScreenState
     return (d / _metersPerMinuteDriving).ceil().clamp(1, 120);
   }
 
+  bool get _isTerminal =>
+      _status != null && _terminalStatuses.contains(_status);
+
+  bool _shouldPollLive(String? status) =>
+      status != null && _livePollStatuses.contains(status);
+
+  void _startPollingIfNeeded() {
+    if (_pollTimer != null || !_shouldPollLive(_status)) return;
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 6),
+      (_) => _loadLiveData(silent: true),
+    );
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadLiveData();
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 6),
-      (_) => _loadLiveData(),
-    );
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _stopPolling();
     super.dispose();
   }
 
-  Future<void> _loadLiveData() async {
+  Future<void> _loadLiveData({bool silent = false}) async {
     try {
       final response = await _apiClient.getServiceRequestLive(widget.requestId);
       if (response.statusCode == 200 && mounted) {
-        final data = response.data['data'] as Map<String, dynamic>;
-        final sr = data['serviceRequest'] as Map<String, dynamic>;
+        final rawBody = response.data;
+        if (rawBody is! Map) return;
+        final data = rawBody['data'];
+        if (data is! Map) return;
+        final dataMap = Map<String, dynamic>.from(data);
+        final srRaw = dataMap['serviceRequest'];
+        final sr = srRaw is Map ? Map<String, dynamic>.from(srRaw) : <String, dynamic>{};
 
         final loc = sr['location'] as Map<String, dynamic>?;
         LatLng? customerLoc;
@@ -96,7 +126,7 @@ class _ServiceRequestTrackingScreenState
         LatLng? staffLoc;
         String? staffRole;
         String? staffName;
-        final staffLocation = data['staffLocation'] as Map<String, dynamic>?;
+        final staffLocation = dataMap['staffLocation'] is Map ? Map<String, dynamic>.from(dataMap['staffLocation'] as Map) : null;
         if (staffLocation != null && staffLocation['coordinates'] != null) {
           final coords = staffLocation['coordinates'] as Map<String, dynamic>;
           final lat = coords['lat'] as num?;
@@ -107,22 +137,31 @@ class _ServiceRequestTrackingScreenState
           staffRole = staffLocation['role'] as String?;
         }
 
-        final assignedStaff = sr['assignedStaff'] as Map<String, dynamic>?;
+        final assignedStaff = sr['assignedStaff'] is Map
+            ? Map<String, dynamic>.from(sr['assignedStaff'] as Map)
+            : null;
         if (assignedStaff != null) {
-          staffName = assignedStaff['name'] as String?;
+          staffName = assignedStaff['name']?.toString();
         }
 
+        final newStatus = sr['status']?.toString();
         setState(() {
           _customerLocation = customerLoc;
           _staffLocation = staffLoc;
           _staffRole = staffRole;
           _assignedStaffName = staffName;
-          _status = sr['status'] as String?;
+          _status = newStatus;
           _loading = false;
           _error = null;
         });
 
-        if (customerLoc != null) {
+        if (_shouldPollLive(newStatus)) {
+          _startPollingIfNeeded();
+        } else {
+          _stopPolling();
+        }
+
+        if (!silent && customerLoc != null) {
           _mapController.move(customerLoc, _mapController.camera.zoom);
         }
       } else if (mounted) {
@@ -131,6 +170,7 @@ class _ServiceRequestTrackingScreenState
               'Failed to load tracking data (status: ${response.statusCode}).';
           _loading = false;
         });
+        _stopPolling();
       }
     } catch (e) {
       if (!mounted) return;
@@ -138,6 +178,7 @@ class _ServiceRequestTrackingScreenState
         _error = 'Failed to load tracking data: $e';
         _loading = false;
       });
+      _stopPolling();
     }
   }
 
@@ -146,7 +187,7 @@ class _ServiceRequestTrackingScreenState
     final themeColor = const Color(AppConstants.primaryColor);
 
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Track Service',
@@ -200,6 +241,50 @@ class _ServiceRequestTrackingScreenState
             )
           : Column(
               children: [
+                if (_isTerminal)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 14,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _status == 'completed'
+                          ? Colors.green.shade50
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _status == 'completed'
+                            ? Colors.green.shade200
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _status == 'completed'
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.info_outline_rounded,
+                          color: _status == 'completed'
+                              ? Colors.green.shade700
+                              : Colors.grey.shade700,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _status == 'completed'
+                                ? 'This visit is completed. Live tracking has ended.'
+                                : 'This request is ${_status == 'cancelled' ? 'cancelled' : 'declined'}.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -320,13 +405,15 @@ class _ServiceRequestTrackingScreenState
                             ),
                           ),
                         ),
-                      if (_staffLocation == null && _etaMinutes == null)
+                      if (!_isTerminal &&
+                          _staffLocation == null &&
+                          _etaMinutes == null)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
                             _staffRole == 'rider'
                                 ? 'Waiting for rider location...'
-                                : 'Vet is arriving soon. For privacy, we only show status, not live location.',
+                                : 'Vet is on the way. For privacy, live location is not shown — check status above.',
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               color: Colors.grey[700],

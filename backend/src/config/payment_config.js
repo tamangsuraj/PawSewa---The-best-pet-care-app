@@ -68,6 +68,20 @@ function getPaymentFailureMessage(reason) {
   return 'Payment was not completed. Please try again.';
 }
 
+/**
+ * Resolve the public-facing server base URL for callback/redirect links.
+ * Priority: BASE_URL → KHALTI_RETURN_BASE → localhost fallback (dev only).
+ * All Khalti return_url and email link builders must use this instead of
+ * repeating the same env lookup inline.
+ */
+function getServerBaseUrl() {
+  return (
+    (process.env.BASE_URL && process.env.BASE_URL.trim()) ||
+    (process.env.KHALTI_RETURN_BASE && process.env.KHALTI_RETURN_BASE.trim()) ||
+    'http://localhost:3000'
+  );
+}
+
 module.exports = {
   KHALTI_BASE_URL: KHALTI_BASE_URL.replace(/\/$/, ''),
   KHALTI_SECRET_KEY,
@@ -76,4 +90,5 @@ module.exports = {
   isKhaltiConfigured,
   getKhaltiMode,
   getPaymentFailureMessage,
+  getServerBaseUrl,
 };

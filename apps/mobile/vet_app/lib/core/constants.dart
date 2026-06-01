@@ -28,8 +28,14 @@ class AppConstants {
   // Brand — Deep Brown primary (unified with customer web + user_app)
   static const int primaryColor = 0xFF703418;
   static const int inkColor = 0xFF5C2C14; // deeper type on cream
-  static const int secondaryColor = 0xFFF5F0EA; // warm bone
+  static const int secondaryColor = 0xFFFFFFFF; // white
   static const int accentColor = 0xFF14B8A6; // bright teal CTA
   static const int accentWarmColor = 0xFF9A6B45; // warm bronze chips
   static const int sandColor = 0xFFE8DFD4;
+
+  // Role-panel accent colors
+  static const int vetAccent    = 0xFF0D9488; // teal-600 — clinical trust
+  static const int riderAccent  = 0xFF2563EB; // blue-600  — movement & logistics
+  static const int sellerAccent = 0xFF7C3AED; // violet-600 — commerce & premium
+  static const int careAccent   = 0xFFD97706; // amber-600 — warmth & nurturing
 }

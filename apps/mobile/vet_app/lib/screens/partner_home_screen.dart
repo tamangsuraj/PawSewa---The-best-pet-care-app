@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../core/constants.dart';
 import '../core/partner_role.dart';
 import '../core/storage_service.dart';
+import '../theme/partner_theme.dart';
 import '../widgets/partner_scaffold.dart';
 import '../widgets/care_home_active_bookings_panel.dart';
 import '../widgets/rider_home_assigned_orders_panel.dart';
@@ -364,19 +365,19 @@ class _RoleHome extends StatelessWidget {
   final VoidCallback onRoleTap;
   final void Function(Widget screen) onOpen;
 
+  static String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
+  }
+
+  static String _firstName(String name) =>
+      name.isEmpty ? 'Partner' : name.split(' ').first;
+
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final ink = const Color(AppConstants.inkColor);
-
-    final actions = <Widget>[
-      if (canSwitchPanel)
-        IconButton(
-          tooltip: 'Switch panel',
-          onPressed: onRoleTap,
-          icon: const Icon(Icons.swap_horiz_rounded),
-        ),
-    ];
+    final roleAccent = RoleDesign.accentFor(role);
 
     final tiles = switch (role) {
       PartnerRole.vet => <_ActionTileModel>[
@@ -506,74 +507,101 @@ class _RoleHome extends StatelessWidget {
     return PartnerScaffold(
       title: 'PawSewa Partner',
       subtitle: roleLabel,
-      actions: actions,
+      roleAccent: roleAccent,
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
         children: [
+          // ── Role hero banner ───────────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: primary.withValues(alpha: 0.10)),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [roleAccent, roleAccent.withValues(alpha: 0.72)],
+              ),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
+                  color: roleAccent.withValues(alpha: 0.28),
                   blurRadius: 16,
-                  offset: const Offset(0, 10),
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
                   ),
-                  child: Icon(Icons.badge_rounded, color: primary),
+                  child: Icon(RoleDesign.iconFor(role), color: Colors.white, size: 24),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        userName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: ink,
+                        'Good ${_greeting()}, ${_firstName(userName)}',
+                        style: GoogleFonts.fraunces(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          height: 1.15,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        userSubtitle,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
-                          color: ink.withValues(alpha: 0.65),
+                      const SizedBox(height: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.20),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          roleLabel,
+                          style: GoogleFonts.outfit(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: onRoleTap,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                if (canSwitchPanel)
+                  GestureDetector(
+                    onTap: onRoleTap,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 15),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Switch',
+                            style: GoogleFonts.outfit(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  child: Text(
-                    'Switch',
-                    style: GoogleFonts.outfit(fontWeight: FontWeight.w800),
-                  ),
-                ),
               ],
             ),
           ),
@@ -592,7 +620,7 @@ class _RoleHome extends StatelessWidget {
             const CareHomeActiveBookingsPanel(),
             const SizedBox(height: 14),
           ],
-          _ActionGrid(tiles: tiles),
+          _ActionGrid(tiles: tiles, roleAccent: roleAccent),
         ],
       ),
     );
@@ -614,12 +642,12 @@ class _ActionTileModel {
 }
 
 class _ActionGrid extends StatelessWidget {
-  const _ActionGrid({required this.tiles});
+  const _ActionGrid({required this.tiles, required this.roleAccent});
   final List<_ActionTileModel> tiles;
+  final Color roleAccent;
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     final ink = const Color(AppConstants.inkColor);
 
     return GridView.builder(
@@ -649,10 +677,10 @@ class _ActionGrid extends StatelessWidget {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: primary.withValues(alpha: 0.10),
+                      color: roleAccent.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(t.icon, color: primary),
+                    child: Icon(t.icon, color: roleAccent),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -687,11 +715,11 @@ class _ActionGrid extends StatelessWidget {
                         style: GoogleFonts.outfit(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w800,
-                          color: primary,
+                          color: roleAccent,
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_rounded, size: 16, color: primary),
+                      Icon(Icons.arrow_forward_rounded, size: 16, color: roleAccent),
                     ],
                   ),
                 ],
@@ -736,6 +764,7 @@ class _InboxHub extends StatelessWidget {
       title: 'Inbox',
       subtitle: 'Messages and updates',
       tiles: tiles,
+      roleAccent: RoleDesign.accentFor(role),
     );
   }
 }
@@ -816,6 +845,7 @@ class _TasksHub extends StatelessWidget {
       title: 'Tasks',
       subtitle: 'Operational work for your role',
       tiles: tiles,
+      roleAccent: RoleDesign.accentFor(role),
     );
   }
 }
@@ -878,6 +908,7 @@ class _AnalyticsHub extends StatelessWidget {
       title: 'Analytics',
       subtitle: 'Performance insights',
       tiles: tiles,
+      roleAccent: RoleDesign.accentFor(role),
     );
   }
 }
@@ -1245,20 +1276,24 @@ class _HubScaffold extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.tiles,
+    this.roleAccent,
   });
 
   final String title;
   final String subtitle;
   final List<_HubTile> tiles;
+  final Color? roleAccent;
 
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    final accent = roleAccent ?? primary;
     final ink = const Color(AppConstants.inkColor);
 
     return PartnerScaffold(
       title: title,
       subtitle: subtitle,
+      roleAccent: roleAccent,
       body: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
         itemCount: tiles.length,
@@ -1279,10 +1314,10 @@ class _HubScaffold extends StatelessWidget {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: primary.withValues(alpha: 0.10),
+                        color: accent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: Icon(t.icon, color: primary),
+                      child: Icon(t.icon, color: accent),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

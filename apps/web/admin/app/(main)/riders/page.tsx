@@ -49,12 +49,9 @@ export default function RidersPage() {
 
   const fetchRiders = async () => {
     try {
-      const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const ridersList = (allUsers || []).filter(
-        (u: any) => u.role === 'rider' || u.role === 'RIDER'
-      );
-      setRiders(ridersList.map((u: any) => ({ ...u, name: u.name || u.full_name || u.email })));
+      const response = await api.get('/users', { params: { role: 'rider' } });
+      const users = response.data.data || [];
+      setRiders(users.map((u: any) => ({ ...u, name: u.name || u.full_name || u.email })));
     } catch (error) {
       console.error('Error fetching riders:', error);
     } finally {

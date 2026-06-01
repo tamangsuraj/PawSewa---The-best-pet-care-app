@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:flutter/services.dart';
@@ -117,8 +118,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (!_isMapReady) return;
-      // ignore: avoid_print
-      print('[DEBUG] MapController accessed. Verification: Widget Rendered = True.');
+      if (kDebugMode) debugPrint('[DEBUG] MapController accessed. Widget Rendered = True.');
       try {
         _mapController.move(center, zoom);
       } catch (_) {
@@ -131,8 +131,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (!_isMapReady) return;
-      // ignore: avoid_print
-      print('[DEBUG] MapController accessed. Verification: Widget Rendered = True.');
+      if (kDebugMode) debugPrint('[DEBUG] MapController accessed. Widget Rendered = True.');
       try {
         _mapController.fitCamera(
           CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),

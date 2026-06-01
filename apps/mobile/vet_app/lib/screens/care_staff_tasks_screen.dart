@@ -147,6 +147,7 @@ class _CareStaffTasksScreenState extends State<CareStaffTasksScreen> {
     return PartnerScaffold(
       title: 'Staff tasks',
       subtitle: 'Cleaning, walks, grooming — simple checklists',
+      roleAccent: const Color(AppConstants.careAccent),
       actions: [
         IconButton(
           tooltip: 'Pick date',

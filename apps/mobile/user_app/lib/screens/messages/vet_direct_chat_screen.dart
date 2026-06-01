@@ -24,10 +24,12 @@ class VetDirectChatScreen extends StatefulWidget {
     super.key,
     required this.vet,
     required this.ownerId,
+    this.petName,
   });
 
   final Map<String, dynamic> vet;
   final String ownerId;
+  final String? petName;
 
   @override
   State<VetDirectChatScreen> createState() => _VetDirectChatScreenState();
@@ -386,10 +388,24 @@ class _VetDirectChatScreenState extends State<VetDirectChatScreen> {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                _vetName,
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _vetName,
+                    style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                    Text(
+                      'Chatting about ${widget.petName}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
               ),
             ),
           ],

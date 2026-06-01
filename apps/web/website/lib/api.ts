@@ -5,6 +5,7 @@ import { getWebsiteApiBase, ngrokBrowserBypassHeaders } from './apiEnv';
 /** Same Node API as admin, user_app, and vet_app (one cluster + DB_NAME on the server). */
 const api = axios.create({
   baseURL: getWebsiteApiBase() || undefined,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
     ...ngrokBrowserBypassHeaders,

@@ -427,7 +427,7 @@ export default function CareBookingsPage() {
                   setTranscriptData(null);
                 }}
               >
-                ✕
+                x
               </button>
             </div>
             <div className="overflow-y-auto flex-1 p-4 text-sm">

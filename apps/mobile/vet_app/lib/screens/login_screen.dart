@@ -12,7 +12,6 @@ import '../widgets/editorial_canvas.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../services/push_notification_service.dart';
 import 'partner_home_screen.dart';
-import 'vet_dashboard_screen.dart';
 import 'auth/register_vet.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -93,17 +92,9 @@ class _LoginScreenState extends State<LoginScreen> {
     await PushNotificationService.instance.registerFcmTokenWithBackend();
 
     if (!mounted) return;
-    final r = role.toLowerCase();
-    if (r == 'rider') {
-      // Same hub as app cold start: Home shows assigned deliveries without opening Delivery jobs first.
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PartnerHomeScreen()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const VetDashboardScreen()),
-      );
-    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const PartnerHomeScreen()),
+    );
   }
 
   Future<void> _handleLogin() async {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import api from '@/lib/api';
@@ -14,8 +14,15 @@ interface Vet {
   currentShift: string;
   isAvailable: boolean;
   isVerified?: boolean;
+  isActive?: boolean;
   bio?: string;
+  zone?: string | { _id: string; name?: string };
   createdAt: string;
+}
+
+interface ZoneOption {
+  _id: string;
+  name: string;
 }
 
 export default function VeterinariansPage() {
@@ -32,19 +39,19 @@ export default function VeterinariansPage() {
   const [createEmail, setCreateEmail] = useState('');
   const [createPassword, setCreatePassword] = useState('');
   const [createConfirmPassword, setCreateConfirmPassword] = useState('');
+  const [createZoneId, setCreateZoneId] = useState('');
+  const [zones, setZones] = useState<ZoneOption[]>([]);
 
   useEffect(() => {
     fetchVets();
+    api.get('/zones').then((r) => setZones(r.data?.data ?? [])).catch(() => {});
   }, []);
 
   const fetchVets = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/users');
-      
-      const veterinarians = (response.data.data || []).filter(
-        (user: any) => user.role === 'veterinarian' || user.role === 'VET'
-      );
+      const response = await api.get('/users', { params: { role: 'veterinarian' } });
+      const veterinarians = response.data.data || [];
       setVets(veterinarians.map((u: any) => ({ ...u, name: u.name || u.full_name || u.email })));
       setError('');
     } catch (err: any) {
@@ -123,6 +130,7 @@ export default function VeterinariansPage() {
       const res = await api.post('/veterinarians', {
         email,
         password: pw,
+        zone: createZoneId || undefined,
       });
       const created = res.data?.data as Vet | undefined;
 
@@ -136,6 +144,7 @@ export default function VeterinariansPage() {
       setCreateEmail('');
       setCreatePassword('');
       setCreateConfirmPassword('');
+      setCreateZoneId('');
       fetchVets();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('pawsewa:admin-data-refresh'));
@@ -145,6 +154,34 @@ export default function VeterinariansPage() {
       alert(err.response?.data?.message || 'Failed to create veterinarian');
     } finally {
       setCreating(false);
+    }
+  };
+  const handleDeactivate = async (id: string, email: string) => {
+    if (!confirm(`Deactivate ${email}? They will be logged out and blocked from signing in.`)) return;
+    try {
+      await api.patch(`/users/${id}/deactivate`);
+      fetchVets();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to deactivate');
+    }
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await api.patch(`/users/${id}/reactivate`);
+      fetchVets();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to reactivate');
+    }
+  };
+
+  const handleDelete = async (id: string, email: string) => {
+    if (!confirm(`Permanently delete ${email}? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/users/${id}`);
+      fetchVets();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete');
     }
   };
 
@@ -233,6 +270,9 @@ export default function VeterinariansPage() {
                         Availability
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Active
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -269,6 +309,20 @@ export default function VeterinariansPage() {
                           )}
                         </td>
                         <td className="px-6 py-4">
+                          {vet.isActive !== false ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
+                              <CheckCircle className="w-3 h-3" />
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800 border border-red-300">
+                              <XCircle className="w-3 h-3" />
+                              Inactive
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => openEditModal(vet)}
                             className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
@@ -276,6 +330,28 @@ export default function VeterinariansPage() {
                             <Edit2 className="w-3 h-3" />
                             Manage Shift
                           </button>
+                          {vet.isActive !== false ? (
+                            <button
+                              onClick={() => handleDeactivate(vet._id, vet.email)}
+                              className="px-3 py-1 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600"
+                            >
+                              Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleReactivate(vet._id)}
+                              className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+                            >
+                              Reactivate
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDelete(vet._id, vet.email)}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -367,7 +443,7 @@ export default function VeterinariansPage() {
                       disabled={creating}
                       aria-label="Close"
                     >
-                      ✕
+                      x
                     </button>
                   </div>
 
@@ -393,6 +469,21 @@ export default function VeterinariansPage() {
                         placeholder="********"
                         autoComplete="new-password"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Zone</label>
+                      <select
+                        value={createZoneId}
+                        onChange={(e) => setCreateZoneId(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">No zone assigned</option>
+                        {zones.map((z) => (
+                          <option key={z._id} value={z._id}>
+                            {z.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>

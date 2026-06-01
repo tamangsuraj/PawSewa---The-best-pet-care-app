@@ -17,7 +17,7 @@ import 'care/hostel_detail_screen.dart';
 import 'care/pet_care_service_card.dart';
 import 'request_assistance_screen.dart';
 import 'shop/my_orders_screen.dart';
-import 'pro_coming_soon_screen.dart';
+import 'subscription_screen.dart';
 
 const Color _kBrown = Color(AppConstants.primaryColor);
 const Color _kTeal = Color(AppConstants.accentColor);
@@ -608,17 +608,21 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: Column(
+        child: LayoutBuilder(
+          builder: (ctx, constraints) {
+            final sz = (constraints.maxWidth * 0.72).clamp(36.0, 52.0);
+            final iconSz = sz * 0.50;
+            return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: sz,
+              height: sz,
               decoration: BoxDecoration(
                 color: bg,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(sz * 0.27),
               ),
-              child: Icon(icon, color: iconColor, size: 26),
+              child: Icon(icon, color: iconColor, size: iconSz),
             ),
             const SizedBox(height: 6),
             Text(
@@ -626,13 +630,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               maxLines: 2,
               textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
-                fontSize: 9,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                height: 1.1,
+                height: 1.2,
                 color: Colors.black87,
               ),
             ),
           ],
+            );
+          },
         ),
       ),
     );
@@ -660,7 +666,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     final dashProducts = _products;
     final cats = _effectiveShopCategories(dashProducts);
     const selected = _selectedShopCategorySlug;
-    final careListH = PetCareServiceCard.totalHeightForWidth(272) + 4;
+    final screenW = MediaQuery.sizeOf(context).width;
+    final careCardW = (screenW * 0.72).clamp(200.0, 272.0);
+    final careListH = PetCareServiceCard.totalHeightForWidth(careCardW) + 4;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,7 +718,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           children: [
             Expanded(
               child: Text(
-                'Care centers for your puppies:',
+                'Care centres',
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -755,7 +763,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 return PetCareServiceCard(
                   hostel: h,
                   serviceType: 'Hostel',
-                  cardWidth: 272,
+                  cardWidth: careCardW,
                   onTap: () => _openHomeCareCenter(h),
                 );
               },
@@ -993,7 +1001,7 @@ class _ProAppOpenAdDialog extends StatelessWidget {
                                       Navigator.of(context).push(
                                         MaterialPageRoute<void>(
                                           builder: (_) =>
-                                              const ProComingSoonScreen(),
+                                              const SubscriptionScreen(),
                                         ),
                                       );
                                     },

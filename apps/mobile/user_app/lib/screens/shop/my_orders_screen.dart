@@ -355,7 +355,10 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                   Navigator.pop(ctx);
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => TrackPackageScreen(order: Map<String, dynamic>.from(order)),
+                      builder: (_) => TrackPackageScreen(
+                        orderId: id,
+                        initialOrder: Map<String, dynamic>.from(order),
+                      ),
                     ),
                   );
                 },

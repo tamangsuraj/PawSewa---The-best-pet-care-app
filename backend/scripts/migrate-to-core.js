@@ -157,7 +157,7 @@ async function run() {
       // eslint-disable-next-line no-await-in-loop
       const n = await migrateCollection({ srcDb, destDb, name: colName });
       if (!destExisting.has(colName)) destExisting.add(colName);
-      log(`  ✓ ${colName}: upserted ${n}`);
+      log(`  [OK] ${colName}: upserted ${n}`);
     }
   }
 

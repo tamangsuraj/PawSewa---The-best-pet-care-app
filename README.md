@@ -176,3 +176,14 @@ Payment buttons across the apps use the brand brown `#703418` with white text.
 - **Vet app**: Appointments, cases, location, earnings; sees admin-assigned work per API (appointments and assistance cases).
 
 For detailed tunnel steps, see [backend/TUNNEL_SETUP.md](backend/TUNNEL_SETUP.md).
+
+## Performance Testing
+
+Prerequisites: Apache JMeter 5.6+, seeded test data, backend running on port 3000.
+
+1. Seed performance test users: `node backend/tests/performance/seedPerfUsers.js`
+2. Run login load test: `jmeter -n -t backend/tests/performance/loginTest.jmx -l results.jtl`
+3. Run health records test (set `PET_ID` and `JWT_TOKEN` in JMeter): `jmeter -n -t backend/tests/performance/healthRecordsTest.jmx -l health.jtl`
+4. View results: `jmeter -g results.jtl -o report/`
+
+See [testcase.md](testcase.md) for the full QA execution report (75/75 pass).

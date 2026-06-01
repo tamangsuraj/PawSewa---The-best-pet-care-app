@@ -11,6 +11,8 @@ const {
   patchCurrentUser,
   getAllUsers,
   deleteUser,
+  deactivateUser,
+  reactivateUser,
   updateUserRole,
   getDashboardStats,
   adminCreateUser,
@@ -55,6 +57,8 @@ router.get('/admin/:id/full-profile', protect, admin, getUserFullProfile); // Ge
 router.get('/:id', protect, admin, getUserById); // Get user by ID
 router.get('/', protect, admin, getAllUsers);
 router.delete('/:id', protect, admin, deleteUser);
+router.patch('/:id/deactivate', protect, admin, deactivateUser);
+router.patch('/:id/reactivate', protect, admin, reactivateUser);
 router.put('/:id/role', protect, admin, updateUserRole);
 
 module.exports = router;

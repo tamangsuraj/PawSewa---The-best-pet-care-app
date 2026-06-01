@@ -142,7 +142,7 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     final primary = const Color(AppConstants.primaryColor);
 
     return Scaffold(
-      backgroundColor: const Color(AppConstants.bentoBackgroundColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           _appBarTitle,

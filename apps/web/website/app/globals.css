@@ -6,14 +6,31 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ── Scroll-to-top button ─────────────────────────────────── */
+.scroll-top-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 60;
+  opacity: 0;
+  transform: translateY(12px) scale(0.92);
+  pointer-events: none;
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+.scroll-top-btn.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
 :root {
-  --background: #faf6f0;
+  --background: #ffffff;
   --foreground: #2a2118;
   /* PawSewa design system — organic editorial */
   --paw-ink: #5c2c14;
   --paw-bark: #703418;
   --paw-clay: #7a4a2a;
-  --paw-cream: #faf6f0;
+  --paw-cream: #ffffff;
   --paw-sand: #ebe3d6;
   --paw-haze: #f3ebe2;
   --paw-teal: #0f766e;
@@ -22,7 +39,7 @@ html {
   --paw-ink-rgb: 92 44 20;
   --paw-bark-rgb: 112 52 24;
   --paw-clay-rgb: 122 74 42;
-  --paw-cream-rgb: 250 246 240;
+  --paw-cream-rgb: 255 255 255;
   --paw-sand-rgb: 235 227 214;
   --paw-haze-rgb: 243 235 226;
   --paw-teal-rgb: 15 118 110;
@@ -80,6 +97,41 @@ h6 {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+@keyframes paw-slide-right {
+  from { opacity: 0; transform: translate3d(-1.5rem, 0, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes paw-slide-left {
+  from { opacity: 0; transform: translate3d(1.5rem, 0, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes paw-zoom-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes paw-spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes paw-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes paw-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes paw-ping-ring {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  80%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
 @keyframes paw-float {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
@@ -123,6 +175,33 @@ h6 {
   50% {
     opacity: 0.85;
   }
+}
+
+@keyframes paw-slide-down {
+  from { opacity: 0; transform: translate3d(0, -0.5rem, 0) scale(0.97); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes paw-pop {
+  0%   { transform: scale(1); }
+  38%  { transform: scale(1.28); }
+  68%  { transform: scale(0.91); }
+  100% { transform: scale(1); }
+}
+
+@keyframes paw-success-in {
+  from { opacity: 0; transform: translateY(0.4rem) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes paw-item-in {
+  from { opacity: 0; transform: translate3d(-0.75rem, 0, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes paw-tab-indicator {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 @layer components {
@@ -215,6 +294,143 @@ h6 {
     @apply h-px w-8 shrink-0;
     background-color: color-mix(in srgb, var(--paw-teal-mid) 50%, transparent);
   }
+
+  /* Bento grid card — spans or sits normally inside a CSS Grid */
+  .bento-card {
+    @apply relative overflow-hidden rounded-[1.6rem] border border-paw-bark/10 bg-white/90 backdrop-blur-sm shadow-paw transition-all duration-500 ease-out hover:shadow-paw-lg hover:-translate-y-1;
+  }
+
+  /* Gradient text — bark to teal sweep */
+  .paw-gradient-text {
+    background: linear-gradient(135deg, var(--paw-bark) 0%, var(--paw-teal-mid) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Shimmer badge — for "New", "Hot" labels */
+  .paw-shimmer-badge {
+    background: linear-gradient(90deg, var(--paw-bark) 0%, #b85c30 40%, var(--paw-bark) 100%);
+    background-size: 200% auto;
+    animation: paw-shimmer 2.8s linear infinite;
+  }
+
+  /* Mobile menu backdrop overlay */
+  .paw-mobile-overlay {
+    @apply fixed inset-0 z-40 bg-paw-ink/60 backdrop-blur-sm;
+    animation: paw-zoom-in 200ms ease forwards;
+  }
+
+  /* Mobile menu panel */
+  .paw-mobile-panel {
+    @apply fixed inset-y-0 right-0 z-50 w-[min(360px,88vw)] bg-white shadow-2xl;
+    animation: paw-slide-left 280ms cubic-bezier(0.22,1,0.36,1) forwards;
+  }
+
+  /* Step connector line */
+  .paw-step-line {
+    @apply absolute top-7 left-1/2 hidden h-px w-full -translate-x-0 bg-gradient-to-r from-paw-bark/25 to-paw-teal-mid/25 lg:block;
+  }
+
+  /* Ping ring — for live / online indicators */
+  .paw-ping-ring::after {
+    content: "";
+    @apply absolute inset-0 rounded-full;
+    animation: paw-ping-ring 2s ease-out infinite;
+    background: currentColor;
+  }
+
+  /* ── Dashboard primitives ─────────────────────────────────── */
+
+  /** Stat chip — number + label inside dashboard strip */
+  .paw-stat-chip {
+    @apply flex flex-col items-center gap-1 rounded-2xl border border-paw-bark/10 bg-white/80 px-5 py-4 text-center backdrop-blur-sm shadow-sm transition-all duration-300 hover:shadow-paw hover:-translate-y-0.5;
+  }
+
+  /** Quick-action card — large icon + label, 2×2 grid on dashboard */
+  .paw-action-card {
+    @apply relative flex flex-col gap-3 overflow-hidden rounded-[1.5rem] border border-paw-bark/10 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-paw cursor-pointer select-none;
+  }
+  .paw-action-card .icon-wrap {
+    @apply flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-300;
+  }
+
+  /** Appointment card row */
+  .paw-appt-card {
+    @apply flex flex-col gap-4 rounded-2xl border border-paw-bark/10 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-paw hover:-translate-y-0.5 sm:flex-row sm:items-start;
+  }
+
+  /** Tab navigation bar */
+  .paw-tab-bar {
+    @apply flex gap-1 rounded-2xl border border-paw-bark/10 bg-paw-haze/50 p-1.5 backdrop-blur-sm;
+  }
+  .paw-tab-item {
+    @apply flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-paw-bark/60 transition-all duration-200 hover:text-paw-ink;
+  }
+  .paw-tab-item[data-active="true"] {
+    @apply bg-white text-paw-ink shadow-sm;
+  }
+
+  /** Skeleton loading block */
+  .paw-skeleton {
+    @apply animate-pulse rounded-xl bg-paw-sand/60;
+  }
+
+  /** Timeline progress for service request */
+  .paw-timeline-step {
+    @apply relative flex flex-col items-center;
+  }
+  .paw-timeline-step::after {
+    content: "";
+    @apply absolute top-3.5 left-1/2 h-px w-full bg-paw-sand;
+  }
+  .paw-timeline-step:last-child::after {
+    display: none;
+  }
+  .paw-timeline-dot {
+    @apply relative z-10 flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold;
+  }
+  .paw-timeline-dot.done   { @apply border-paw-teal-mid bg-paw-teal-mid text-white; }
+  .paw-timeline-dot.active { @apply border-paw-bark bg-white text-paw-bark shadow-[0_0_0_3px_rgba(112,52,24,0.12)]; }
+  .paw-timeline-dot.future { @apply border-paw-sand bg-white text-paw-bark/30; }
+
+  /** Service showcase card */
+  .paw-service-card {
+    @apply relative flex flex-col overflow-hidden rounded-[1.75rem] border border-paw-bark/10 bg-white shadow-paw transition-all duration-500 ease-out hover:-translate-y-1.5 hover:shadow-paw-lg;
+  }
+
+  /** Gradient mesh card — for feature highlights on register */
+  .paw-feature-pill {
+    @apply flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-sm text-white/90 backdrop-blur-sm;
+  }
+
+  /* ── Stagger grid children (activated by parent paw-section-visible) ─── */
+  .paw-stagger-children > * {
+    transform: translateY(1.25rem);
+    transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .paw-stagger-children > *:nth-child(1) { transition-delay: 0.06s; }
+  .paw-stagger-children > *:nth-child(2) { transition-delay: 0.13s; }
+  .paw-stagger-children > *:nth-child(3) { transition-delay: 0.20s; }
+  .paw-stagger-children > *:nth-child(4) { transition-delay: 0.27s; }
+  .paw-stagger-children > *:nth-child(5) { transition-delay: 0.34s; }
+  .paw-stagger-children > *:nth-child(6) { transition-delay: 0.41s; }
+
+  .paw-section-visible .paw-stagger-children > * {
+    transform: none;
+  }
+
+  /* Dropdown slide-down (applied when element mounts) */
+  .paw-dropdown-enter {
+    animation: paw-slide-down 210ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    transform-origin: top right;
+  }
+
+  /* Success state fade-scale entrance */
+  .paw-success-in {
+    animation: paw-success-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }
 
 @layer utilities {
@@ -241,11 +457,22 @@ h6 {
     animation: paw-hero-glow 7s ease-in-out infinite;
   }
 
+  .paw-slide-right { animation: paw-slide-right 0.7s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .paw-slide-left  { animation: paw-slide-left  0.7s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .paw-zoom-in     { animation: paw-zoom-in     0.6s cubic-bezier(0.22,1,0.36,1) forwards; }
+  .paw-spin-slow   { animation: paw-spin-slow 18s linear infinite; }
+  .paw-marquee     { animation: paw-marquee 28s linear infinite; }
+  .paw-pop         { animation: paw-pop 360ms cubic-bezier(0.22,1,0.36,1); }
+  .paw-item-in     { animation: paw-item-in 300ms cubic-bezier(0.22,1,0.36,1) both; }
+
   @media (prefers-reduced-motion: reduce) {
     .paw-float,
     .paw-float-slow,
     .paw-drift,
-    .paw-hero-orb {
+    .paw-hero-orb,
+    .paw-shimmer-badge,
+    .paw-marquee,
+    .paw-spin-slow {
       animation: none !important;
     }
 
@@ -253,6 +480,18 @@ h6 {
       opacity: 1;
       animation: none !important;
       transform: none;
+    }
+
+    .paw-dropdown-enter,
+    .paw-success-in,
+    .paw-pop,
+    .paw-item-in {
+      animation: none !important;
+    }
+
+    .paw-stagger-children > * {
+      transform: none !important;
+      transition: none !important;
     }
   }
 }

@@ -2,6 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../core/constants.dart';
+import '../core/partner_role.dart';
+
+/// Role-specific design tokens — colors, icons, and labels keyed by PartnerRole.
+abstract final class RoleDesign {
+  static Color accentFor(String role) => switch (role) {
+    PartnerRole.vet    => const Color(AppConstants.vetAccent),
+    PartnerRole.rider  => const Color(AppConstants.riderAccent),
+    PartnerRole.seller => const Color(AppConstants.sellerAccent),
+    PartnerRole.care   => const Color(AppConstants.careAccent),
+    _                  => const Color(AppConstants.accentColor),
+  };
+
+  static IconData iconFor(String role) => switch (role) {
+    PartnerRole.vet    => Icons.medical_services_rounded,
+    PartnerRole.rider  => Icons.delivery_dining_rounded,
+    PartnerRole.seller => Icons.storefront_rounded,
+    PartnerRole.care   => Icons.home_work_rounded,
+    _                  => Icons.work_rounded,
+  };
+
+  static String labelFor(String role) => switch (role) {
+    PartnerRole.vet    => 'Vet Panel',
+    PartnerRole.rider  => 'Rider Panel',
+    PartnerRole.seller => 'Seller Panel',
+    PartnerRole.care   => 'Care Panel',
+    _                  => 'Partner',
+  };
+
+  static (Color bg, Color fg) statusColors(String status) {
+    final s = status.toLowerCase().replaceAll('_', '');
+    if (s.contains('complet') || s.contains('deliver') || s == 'prescribed' || s.contains('checkedout')) {
+      return (const Color(0xFFE8F5E9), const Color(0xFF16A34A));
+    }
+    if (s.contains('progress') || s.contains('way') || s == 'diagnosed' || s.contains('active')) {
+      return (const Color(0xFFE3F2FD), const Color(0xFF2563EB));
+    }
+    if (s.contains('pend') || s.contains('wait') || s.contains('triage') || s.contains('unconfirm')) {
+      return (const Color(0xFFFFF8E1), const Color(0xFFD97706));
+    }
+    if (s.contains('cancel') || s.contains('fail') || s.contains('reject')) {
+      return (const Color(0xFFFFEBEE), const Color(0xFFDC2626));
+    }
+    if (s.contains('confirm') || s.contains('checkin') || s.contains('checkedin')) {
+      return (const Color(0xFFF3E5F5), const Color(0xFF7C3AED));
+    }
+    return (const Color(0xFFF5F0EA), const Color(AppConstants.inkColor));
+  }
+}
 
 /// Partner app — same editorial pairing as customer web; deeper ink primary for authority.
 abstract final class PartnerTheme {
@@ -10,7 +58,7 @@ abstract final class PartnerTheme {
     const surface = Color(AppConstants.secondaryColor);
     const accent = Color(AppConstants.accentColor);
     const ink = Color(AppConstants.inkColor);
-    const onPrimary = Color(0xFFFAF6F0);
+    const onPrimary = Colors.white;
 
     final colorScheme = ColorScheme.light(
       primary: primary,
@@ -28,7 +76,7 @@ abstract final class PartnerTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: surface,
+      scaffoldBackgroundColor: Colors.white,
     );
 
     final outfit = GoogleFonts.outfitTextTheme(base.textTheme);
@@ -60,7 +108,7 @@ abstract final class PartnerTheme {
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: surface,
+        backgroundColor: Colors.white,
         foregroundColor: ink,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: GoogleFonts.fraunces(

@@ -368,6 +368,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
     return PartnerScaffold(
       title: 'Pet records',
       subtitle: 'Incoming guests and owner details',
+      roleAccent: const Color(AppConstants.careAccent),
       actions: [
         IconButton(
           tooltip: 'Refresh',

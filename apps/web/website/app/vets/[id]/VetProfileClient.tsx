@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Stethoscope, 
-  Building2, 
+import { useRouter } from 'next/navigation';
+import {
+  MapPin,
+  Phone,
+  Mail,
+  Stethoscope,
+  Building2,
   Calendar,
   ArrowLeft,
   Star,
@@ -43,6 +44,7 @@ interface Vet {
 }
 
 export default function VetProfileClient({ vetId }: { vetId: string }) {
+  const router = useRouter();
   const [vet, setVet] = useState<Vet | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,6 +55,7 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
       const apiBase = getWebsiteApiBase();
       const response = await axios.get(`${apiBase}/vets/public/${vetId}`, {
         headers: ngrokBrowserBypassHeaders,
+        timeout: 15000,
       });
       if (response.data.success) {
         setVet(response.data.data);
@@ -264,21 +267,20 @@ export default function VetProfileClient({ vetId }: { vetId: string }) {
               <div className="mt-8 space-y-3">
                 <button
                   type="button"
+                  onClick={() => router.push(`/services/request`)}
                   className="paw-cta-primary flex w-full items-center justify-center gap-2"
                 >
                   <Calendar className="h-5 w-5" />
                   Book appointment
                 </button>
 
-                <a
-                  href="https://play.google.com/store"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/services/request"
                   className="paw-cta-secondary flex w-full items-center justify-center gap-2"
                 >
-                  <Download className="h-5 w-5" />
-                  Download PawSewa app
-                </a>
+                  <Stethoscope className="h-5 w-5" />
+                  Request a vet visit
+                </Link>
               </div>
 
               <p className="mt-6 rounded-xl border border-paw-bark/10 bg-paw-haze/50 p-4 text-center text-sm text-paw-bark/75">

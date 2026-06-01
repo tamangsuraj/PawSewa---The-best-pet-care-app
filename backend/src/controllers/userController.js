@@ -1,9 +1,11 @@
+﻿const crypto = require('crypto');
 const User = require('../models/User');
 const Hostel = require('../models/Hostel');
 const Subscription = require('../models/Subscription');
 const bcrypt = require('bcryptjs');
 const generateToken = require('../utils/generateToken');
-const { generateOTP, sendOTPEmail, sendWelcomeEmail } = require('../utils/sendEmail');
+const { generateOTP, sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/sendEmail');
+const { logAction } = require('../utils/auditLogger');
 const asyncHandler = require('express-async-handler');
 const logger = require('../utils/logger');
 const { recordStaffLocationPulse } = require('../utils/staffLiveLocation');
@@ -69,8 +71,8 @@ const registerUser = asyncHandler(async (req, res) => {
   const userExists = await User.findOne({ email });
 
   if (userExists) {
-    res.status(400);
-    throw new Error('An account with this email already exists. Please login instead.');
+    res.status(409);
+    throw new Error('An account with this email already exists.');
   }
 
   // Generate OTP
@@ -108,7 +110,8 @@ const registerUser = asyncHandler(async (req, res) => {
       logger.info(`Verification code ${otp} sent to ${email.toString().toLowerCase().trim()}.`);
       res.status(201).json({
         success: true,
-        message: 'Registration successful. Please check your email for the verification code.',
+        message: 'Account created. OTP sent to your email — please verify to continue.',
+        email: user.email,
         data: {
           _id: user._id,
           name: user.name,
@@ -155,6 +158,11 @@ const loginUser = asyncHandler(async (req, res) => {
   const matches = user && (await passwordMatches(user.password, password));
 
   if (user && matches) {
+    if (user.isActive === false) {
+      res.status(403);
+      throw new Error('Your account has been deactivated. Please contact support.');
+    }
+
     const roleStr = String(user.role || '').trim();
     const roleU = roleStr.toUpperCase();
     const isVetRole =
@@ -469,6 +477,127 @@ const getAllUsers = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Forgot password — send reset link
+ * @route   POST /api/v1/auth/forgot-password
+ * @access  Public
+ */
+const forgotPassword = asyncHandler(async (req, res) => {
+  const email = (req.body?.email || '').toString().toLowerCase().trim();
+  if (!email) {
+    res.status(400);
+    throw new Error('Email is required');
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    res.status(400);
+    throw new Error('No account found with that email.');
+  }
+
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
+  user.resetPasswordToken = hashed;
+  user.resetPasswordExpire = new Date(Date.now() + 60 * 60 * 1000);
+  await user.save({ validateBeforeSave: false });
+
+  const baseUrl = process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:3000';
+  const resetUrl = `${String(baseUrl).replace(/\/$/, '')}/reset-password?token=${resetToken}`;
+
+  try {
+    await sendPasswordResetEmail(user.email, user.name, resetUrl);
+  } catch (e) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+    res.status(500);
+    throw new Error('Failed to send reset email. Please try again.');
+  }
+
+  res.json({ success: true, message: 'Password reset link sent to your email.' });
+});
+
+/**
+ * @desc    Reset password with token
+ * @route   POST /api/v1/auth/reset-password
+ * @access  Public
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body || {};
+  if (!token || !newPassword) {
+    res.status(400);
+    throw new Error('Token and new password are required');
+  }
+  if (String(newPassword).length < 6) {
+    res.status(400);
+    throw new Error('Password must be at least 6 characters');
+  }
+
+  const hashed = crypto.createHash('sha256').update(String(token)).digest('hex');
+  const user = await User.findOne({
+    resetPasswordToken: hashed,
+    resetPasswordExpire: { $gt: new Date() },
+  }).select('+resetPasswordToken +resetPasswordExpire');
+
+  if (!user) {
+    res.status(400);
+    throw new Error('Invalid or expired reset token.');
+  }
+
+  user.password = newPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
+  await user.save();
+
+  res.json({ success: true, message: 'Password reset successfully. Please log in.' });
+});
+
+/**
+ * @desc    Deactivate user (Admin) — preserves relational data
+ * @route   PATCH /api/v1/users/:id/deactivate
+ */
+const deactivateUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  user.isActive = false;
+  user.deactivatedAt = new Date();
+  await user.save();
+  await logAction({
+    action: 'deactivate_user',
+    performedBy: req.user._id,
+    targetModel: 'User',
+    targetId: user._id,
+    targetLabel: user.email,
+  });
+  res.json({ success: true, message: 'User deactivated successfully.' });
+});
+
+/**
+ * @desc    Reactivate user (Admin)
+ * @route   PATCH /api/v1/users/:id/reactivate
+ */
+const reactivateUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id);
+  if (!user) {
+    res.status(404);
+    throw new Error('User not found');
+  }
+  user.isActive = true;
+  user.deactivatedAt = undefined;
+  await user.save();
+  await logAction({
+    action: 'reactivate_user',
+    performedBy: req.user._id,
+    targetModel: 'User',
+    targetId: user._id,
+    targetLabel: user.email,
+  });
+  res.json({ success: true, message: 'User reactivated successfully.' });
+});
+
+/**
  * @desc    Delete user (Admin only)
  * @route   DELETE /api/v1/users/:id
  * @access  Private/Admin
@@ -477,7 +606,16 @@ const deleteUser = asyncHandler(async (req, res) => {
   const user = await User.findById(req.params.id);
 
   if (user) {
+    const label = user.email;
+    const targetId = user._id;
     await user.deleteOne();
+    await logAction({
+      action: 'delete_user',
+      performedBy: req.user._id,
+      targetModel: 'User',
+      targetId,
+      targetLabel: label,
+    });
     res.json({
       success: true,
       message: 'User deleted successfully',
@@ -531,6 +669,14 @@ const updateUserRole = asyncHandler(async (req, res) => {
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
   const Pet = require('../models/Pet');
+  const ServiceRequest = require('../models/ServiceRequest');
+  const PetOwnerSubscription = require('../models/PetOwnerSubscription');
+  const Order = require('../models/Order');
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
 
   // Get counts
   const totalUsers = await User.countDocuments();
@@ -540,6 +686,24 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const totalShopOwners = await User.countDocuments({ role: 'shop_owner' });
   const totalCareServices = await User.countDocuments({ role: 'care_service' });
   const totalRiders = await User.countDocuments({ role: { $in: ['rider', 'RIDER'] } });
+  const todayAppointments = await ServiceRequest.countDocuments({
+    createdAt: { $gte: startOfDay, $lte: endOfDay },
+    status: { $nin: ['cancelled', 'declined'] },
+  });
+  const activeSubscriptions = await PetOwnerSubscription.countDocuments({
+    status: 'active',
+    endDate: { $gt: new Date() },
+  });
+  const revenueAgg = await Order.aggregate([
+    {
+      $match: {
+        createdAt: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'cancelled' },
+      },
+    },
+    { $group: { _id: null, total: { $sum: '$totalAmount' } } },
+  ]);
+  const todayRevenue = revenueAgg[0]?.total ?? 0;
 
   // Get recent users
   const recentUsers = await User.find({})
@@ -558,6 +722,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         totalShopOwners,
         totalCareServices,
         totalRiders,
+        todayAppointments,
+        activeSubscriptions,
+        todayRevenue,
       },
       recentUsers,
     },
@@ -751,7 +918,8 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     imageUrls,
     // Rider fields
     vehicleType,
-    licenseNumber
+    licenseNumber,
+    zone,
   } = req.body;
 
   // Validate required fields
@@ -808,6 +976,8 @@ const adminCreateUser = asyncHandler(async (req, res) => {
     if (clinicLocation) userData.clinicLocation = clinicLocation;
     if (specialization) userData.specialization = specialization;
     if (clinicName) userData.clinicName = clinicName;
+    if (zone) userData.zone = zone;
+    userData.isAvailable = true;
   } else if (resolvedRole === 'shop_owner') {
     if (shopName) userData.shopName = shopName;
     if (businessLicense) userData.businessLicense = businessLicense;
@@ -842,6 +1012,14 @@ const adminCreateUser = asyncHandler(async (req, res) => {
       console.error('Failed to send welcome email:', error);
       // Continue anyway - email is optional
     }
+    await logAction({
+      action: 'create_user',
+      performedBy: req.user._id,
+      targetModel: 'User',
+      targetId: user._id,
+      targetLabel: user.email,
+      metadata: { role: resolvedRole },
+    });
 
     // Prepare response data based on role
     const responseData = {
@@ -1130,6 +1308,8 @@ const putMyAddresses = asyncHandler(async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  forgotPassword,
+  resetPassword,
   verifyOTP,
   resendOTP,
   getUserProfile,
@@ -1141,6 +1321,8 @@ module.exports = {
   putMyAddresses,
   getAllUsers,
   deleteUser,
+  deactivateUser,
+  reactivateUser,
   updateUserRole,
   getDashboardStats,
   adminCreateUser,

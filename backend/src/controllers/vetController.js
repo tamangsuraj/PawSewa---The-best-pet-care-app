@@ -46,6 +46,7 @@ const adminCreateVeterinarian = asyncHandler(async (req, res) => {
     clinicAddress,
     lat,
     lng,
+    zone,
   } = req.body || {};
 
   if (!email) {
@@ -92,6 +93,7 @@ const adminCreateVeterinarian = asyncHandler(async (req, res) => {
       },
       updatedAt: new Date(),
     },
+    zone: zone || undefined,
   });
 
   // eslint-disable-next-line no-console

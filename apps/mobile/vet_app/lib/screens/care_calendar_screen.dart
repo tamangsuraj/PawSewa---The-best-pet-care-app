@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../theme/partner_theme.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 
@@ -103,7 +105,7 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    const careAmber = Color(AppConstants.careAccent);
     final selectedStart = DateTime(_day.year, _day.month, _day.day);
     final selectedEnd = selectedStart.add(const Duration(days: 1));
     final todays = _bookings.where((b) {
@@ -125,6 +127,7 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
     return PartnerScaffold(
       title: 'Facility calendar',
       subtitle: 'Upcoming check‑ins and check‑outs',
+      roleAccent: careAmber,
       actions: [
         IconButton(
           tooltip: 'Pick day',
@@ -167,7 +170,7 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
                             icon: Icons.event_available_rounded,
                           )
                         : RefreshIndicator(
-                            color: primary,
+                            color: careAmber,
                             onRefresh: _load,
                             child: ListView.builder(
                               padding:
@@ -177,7 +180,7 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
                                 if (i == 0) {
                                   return Card(
                                     child: ListTile(
-                                      leading: Icon(Icons.today_rounded, color: primary),
+                                      leading: Icon(Icons.today_rounded, color: careAmber),
                                       title: Text(_fmtDay(selectedStart)),
                                       subtitle: Text(
                                         _agendaMode
@@ -225,13 +228,13 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
                                           height: 46,
                                           decoration: BoxDecoration(
                                             color:
-                                                primary.withValues(alpha: 0.10),
+                                                careAmber.withValues(alpha: 0.10),
                                             borderRadius:
                                                 BorderRadius.circular(16),
                                           ),
                                           child: Icon(
                                             Icons.calendar_today_rounded,
-                                            color: primary,
+                                            color: careAmber,
                                           ),
                                         ),
                                         const SizedBox(width: 12),
@@ -280,7 +283,7 @@ class _CareCalendarScreenState extends State<CareCalendarScreen> {
                                                       _Chip(text: serviceType),
                                                     if (range.isNotEmpty)
                                                       _Chip(text: range),
-                                                    _Chip(text: status),
+                                                    _CareStatusBadge(status: status),
                                                   ],
                                                 ),
                                               ],
@@ -322,6 +325,32 @@ class _Chip extends StatelessWidget {
               color: const Color(AppConstants.inkColor)
                   .withValues(alpha: 0.78),
             ),
+      ),
+    );
+  }
+}
+
+class _CareStatusBadge extends StatelessWidget {
+  const _CareStatusBadge({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = RoleDesign.statusColors(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.replaceAll('_', ' '),
+        style: GoogleFonts.outfit(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: fg,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }

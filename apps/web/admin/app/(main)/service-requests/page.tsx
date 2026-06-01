@@ -94,7 +94,23 @@ export default function ServiceRequestsPage() {
   useEffect(() => {
     fetchRequests();
     const interval = setInterval(fetchRequests, 30000);
-    return () => clearInterval(interval);
+
+    // Real-time socket updates: new bookings and status changes appear immediately.
+    const socket = getAdminSocket();
+    const onStatusChange = () => { void fetchRequests(); };
+    const onNewRequest = () => { void fetchRequests(); };
+    if (socket) {
+      socket.on('service_request_status_change', onStatusChange);
+      socket.on('new:service_request', onNewRequest);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (socket) {
+        socket.off('service_request_status_change', onStatusChange);
+        socket.off('new:service_request', onNewRequest);
+      }
+    };
   }, []);
 
   const fetchRequests = async () => {
@@ -472,14 +488,14 @@ export default function ServiceRequestsPage() {
                   </button>
                   <button
                     onClick={() => openAssignModal(req)}
-                    disabled={req.status !== 'pending'}
+                    disabled={req.status === 'completed' || req.status === 'cancelled'}
                     className={`px-3 py-2 rounded-lg text-sm font-semibold ${
-                      req.status === 'pending'
+                      req.status !== 'completed' && req.status !== 'cancelled'
                         ? 'bg-primary text-white hover:bg-primary/90'
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    Assign
+                    {req.status === 'pending' ? 'Assign' : 'Reassign'}
                   </button>
                 </div>
               </div>
@@ -597,7 +613,7 @@ export default function ServiceRequestsPage() {
             {chatMessages.map((msg, i) => (
               <div key={i} className="flex flex-col items-start">
                 <span className="text-xs text-gray-500 mb-0.5">
-                  {msg.senderName ?? msg.sender || 'User'} • {new Date(msg.timestamp).toLocaleTimeString()}
+                  {(msg.senderName ?? msg.sender) || 'User'} • {new Date(msg.timestamp).toLocaleTimeString()}
                 </span>
                 <span className="text-sm text-gray-900 bg-gray-100 rounded-lg px-3 py-2 max-w-full break-words">
                   {msg.text}

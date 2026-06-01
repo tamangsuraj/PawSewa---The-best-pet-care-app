@@ -24,6 +24,12 @@ async function broadcastShopOrder(orderId, kind = 'update') {
 
   const payload = { order };
 
+  const customerId =
+    order.user?._id?.toString?.() ||
+    (typeof order.user === 'string' ? order.user : '');
+  if (customerId) {
+    io.to(`user:${customerId}`).emit('orderUpdate', payload);
+  }
   io.emit('orderUpdate', payload);
   io.to('admin_room').emit('orderUpdate', payload);
 

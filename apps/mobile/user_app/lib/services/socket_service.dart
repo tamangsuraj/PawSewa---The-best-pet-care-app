@@ -31,6 +31,7 @@ class SocketService {
   final List<void Function(String event, Map<String, dynamic> payload)?>
       _careBookingListeners = [];
   final List<void Function(Map<String, dynamic>)?> _appointmentUpdateListeners = [];
+  final List<void Function(Map<String, dynamic>)?> _petMedicalRecordListeners = [];
   final List<void Function(Map<String, dynamic>)?> _incomingCallListeners = [];
   final List<void Function(Map<String, dynamic>)?> _callAnsweredListeners = [];
   final List<void Function(Map<String, dynamic>)?> _callEndedListeners = [];
@@ -240,6 +241,15 @@ class SocketService {
         final map = _toMap(data);
         if (map != null) {
           for (final cb in _appointmentUpdateListeners) {
+            cb?.call(map);
+          }
+        }
+      });
+
+      _socket!.on('pet_medical_record_updated', (data) {
+        final map = _toMap(data);
+        if (map != null) {
+          for (final cb in _petMedicalRecordListeners) {
             cb?.call(map);
           }
         }
@@ -710,6 +720,17 @@ class SocketService {
 
   void removeAppointmentUpdateListener(void Function(Map<String, dynamic>) listener) {
     _appointmentUpdateListeners.remove(listener);
+  }
+  void joinPetRoom(String petId) {
+    _socket?.emit('join_pet_room', {'petId': petId});
+  }
+
+  void addPetMedicalRecordListener(void Function(Map<String, dynamic>) listener) {
+    _petMedicalRecordListeners.add(listener);
+  }
+
+  void removePetMedicalRecordListener(void Function(Map<String, dynamic>) listener) {
+    _petMedicalRecordListeners.remove(listener);
   }
 
   void emitMakeCall({

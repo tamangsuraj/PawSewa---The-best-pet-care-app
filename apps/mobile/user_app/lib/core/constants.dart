@@ -31,7 +31,7 @@ class AppConstants {
   // Brand — Deep Brown primary (unified across web + mobile)
   static const int primaryColor = 0xFF703418;
   static const int inkColor = 0xFF5C2C14; // darker brown for body type
-  static const int secondaryColor = 0xFFFAF6F0; // cream surface
+  static const int secondaryColor = 0xFFFFFFFF; // white surface
   static const int accentColor = 0xFF0D9488; // care teal
   static const int accentWarmColor = 0xFFA67B5B; // warm tan chips / legacy accents
   static const int sandColor = 0xFFEBE3D6;

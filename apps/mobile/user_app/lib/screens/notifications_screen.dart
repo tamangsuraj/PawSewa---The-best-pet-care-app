@@ -134,10 +134,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     const brown = Color(AppConstants.primaryColor);
-    const cream = Color(AppConstants.secondaryColor);
 
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Notifications',
@@ -294,6 +293,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                             const SizedBox(height: 6),
                                             Text(
                                               message,
+                                              maxLines: 3,
+                                              overflow: TextOverflow.ellipsis,
                                               style: GoogleFonts.outfit(
                                                 fontSize: 13,
                                                 height: 1.35,

@@ -44,6 +44,7 @@ export default function RequestAssistancePage() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        timeout: 15000,
       });
 
       if (response.data.success) {
@@ -107,12 +108,12 @@ export default function RequestAssistancePage() {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          timeout: 15000,
         },
       );
 
       if (response.data.success) {
-        alert('Case submitted. Our team is assigning the best available Veterinarian to you. You will be notified once a veterinarian is assigned.');
-        router.push('/my-pets');
+        router.push('/my-cases');
       }
     } catch (err: unknown) {
       console.error('Error submitting case:', err);

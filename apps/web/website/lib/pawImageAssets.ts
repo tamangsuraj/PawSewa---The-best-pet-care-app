@@ -28,6 +28,9 @@ export const PAW_DECO_IMAGES = [
   unsplash('photo-1517849845537-4d257902454a', 400, 75),
 ] as const;
 
+/** Hero / split-panel images for auth pages (dog portrait). */
+export const PAW_DOG_HERO = unsplash('photo-1587300003388-59208cc962cb', 960, 85);
+
 /** Footer pet strip — order matches previous layout. */
 export const PAW_FOOTER_STRIP_IMAGES = [
   { alt: 'Dog portrait', src: unsplash('photo-1587300003388-59208cc962cb', 400, 75) },

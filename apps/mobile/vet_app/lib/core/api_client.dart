@@ -293,6 +293,10 @@ class ApiClient {
     );
   }
 
+  Future<Response> getServiceRequestById(String id) async {
+    return await _dio.get('/service-requests/$id');
+  }
+
   /// Legacy / alternate path: moves assigned (or arrived) request to `in_progress`.
   Future<Response> startServiceRequestVisit(String requestId) async {
     return await _dio.patch('/service-requests/$requestId/start');
@@ -382,6 +386,11 @@ class ApiClient {
     return await _dio.get('/products');
   }
 
+  /// Shop owner management view: returns all seller's products including out-of-stock / hidden.
+  Future<Response> getMyProducts() async {
+    return await _dio.get('/products', queryParameters: {'sellerView': '1'});
+  }
+
   Future<Response> getCategories() async {
     return await _dio.get('/categories');
   }
@@ -398,6 +407,11 @@ class ApiClient {
   Future<Response> createProductForm(FormData formData) async {
     // Content-Type is cleared for FormData in the interceptor so Dio sets multipart/form-data.
     return await _dio.post('/products', data: formData);
+  }
+
+  /// Update an existing product (name, price, stock, description, images, category, isAvailable).
+  Future<Response> updateProductForm(String id, FormData formData) async {
+    return await _dio.patch('/products/$id', data: formData);
   }
 
   Future<Response> updateProductStock({

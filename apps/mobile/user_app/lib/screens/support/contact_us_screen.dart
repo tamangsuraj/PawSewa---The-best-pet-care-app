@@ -9,7 +9,6 @@ class ContactUsScreen extends StatelessWidget {
   const ContactUsScreen({super.key});
 
   static const brown = Color(AppConstants.primaryColor);
-  static const cream = Color(AppConstants.secondaryColor);
 
   Future<void> _launch(Uri uri) async {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -19,7 +18,7 @@ class ContactUsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final ink = Colors.grey.shade900;
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: brown,
         foregroundColor: Colors.white,

@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+﻿const nodemailer = require('nodemailer');
 const logger = require('./logger');
 
 // Create transporter (Gmail SMTP with App Password)
@@ -425,8 +425,28 @@ const sendWelcomeEmail = async (email, name, role, tempPassword) => {
   }
 };
 
+/**
+ * Send password reset link email.
+ */
+const sendPasswordResetEmail = async (email, name, resetUrl) => {
+  const mailOptions = {
+    from: `"PawSewa" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Reset your PawSewa password',
+    html: `
+      <p>Hello ${name || 'there'},</p>
+      <p>We received a request to reset your PawSewa password.</p>
+      <p><a href="${resetUrl}">Reset Password</a></p>
+      <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
+    `,
+  };
+  await transporter.sendMail(mailOptions);
+  logger.success('Password reset email sent to', email);
+};
+
 module.exports = {
   generateOTP,
   sendOTPEmail,
   sendWelcomeEmail,
+  sendPasswordResetEmail,
 };

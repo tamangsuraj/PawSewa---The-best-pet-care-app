@@ -268,7 +268,7 @@ function OrderDetailModal({
     setUpdatingStatus(true);
     try {
       const resp = await api.patch<{ success: boolean; data?: Order }>(
-        `/orders/${order._id}/assign`,
+        `/orders/${order._id}/status`,
         { status: selectedStatus }
       );
       toast.success('Status updated');

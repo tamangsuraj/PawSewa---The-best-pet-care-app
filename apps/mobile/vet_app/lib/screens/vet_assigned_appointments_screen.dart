@@ -47,7 +47,7 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
 
   LatLng? _currentLatLng;
 
-  static const _primary = Color(AppConstants.primaryColor);
+  static const _primary = Color(AppConstants.vetAccent);
   static const _accent = Color(AppConstants.accentColor);
   static const _successGreen = Color(0xFF00C853);
 
@@ -372,6 +372,56 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
       );
     } finally {
       controller.dispose();
+    }
+  }
+  Future<void> _declineJob(Map<String, dynamic> job) async {
+    final id = job['_id']?.toString();
+    if (id == null || id.isEmpty) return;
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final controller = TextEditingController();
+        return AlertDialog(
+          title: const Text('Decline Appointment'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              hintText: 'Enter reason (e.g. Schedule conflict)',
+              labelText: 'Reason',
+            ),
+            maxLines: 2,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: const Text('Decline'),
+            ),
+          ],
+        );
+      },
+    );
+    if (reason == null || reason.isEmpty) return;
+    setState(() => _patchingId = id);
+    try {
+      await _api.updateServiceStatus(
+        requestId: id,
+        status: 'declined',
+        reason: reason,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Appointment declined')),
+      );
+      await _load();
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final msg = e.response?.data is Map
+          ? (e.response!.data['message']?.toString() ?? 'Decline failed')
+          : 'Decline failed';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } finally {
+      if (mounted) setState(() => _patchingId = null);
     }
   }
 
@@ -798,6 +848,18 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
                 ),
               ],
             ),
+            if (kind == 'service' && (job['status']?.toString() ?? '') == 'assigned') ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                label: Text(
+                  'Decline',
+                  style: GoogleFonts.outfit(color: Colors.red, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red)),
+                onPressed: isPatching ? null : () => unawaited(_declineJob(job)),
+              ),
+            ],
             if (swipe != null) ...[
               const SizedBox(height: 8),
               SwipeActionButton(
@@ -833,9 +895,19 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
+                    const SizedBox(height: 40),
                     Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(_error!, textAlign: TextAlign.center, style: GoogleFonts.outfit()),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: FilledButton.icon(
+                        onPressed: _load,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry'),
+                        style: FilledButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+                      ),
                     ),
                   ],
                 )
@@ -890,12 +962,22 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
+                    const SizedBox(height: 40),
                     Padding(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Text(
                         _historyError!,
                         textAlign: TextAlign.center,
                         style: GoogleFonts.outfit(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: FilledButton.icon(
+                        onPressed: _loadHistory,
+                        icon: const Icon(Icons.refresh_rounded),
+                        label: const Text('Retry'),
+                        style: FilledButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
                       ),
                     ),
                   ],

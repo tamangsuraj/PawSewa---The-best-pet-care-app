@@ -33,8 +33,9 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
     try {
       final response = await _apiClient.getMyCases();
       if (response.statusCode == 200) {
+        final raw = response.data;
         setState(() {
-          _cases = response.data['data'] ?? [];
+          _cases = (raw is Map ? (raw['data'] as List?) : null) ?? [];
           _isLoading = false;
         });
       }
@@ -58,7 +59,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'My Cases',

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+﻿const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 function normalizeRole(role) {
@@ -206,6 +206,14 @@ const userSchema = new mongoose.Schema(
     // Alias field expected by some clients/specs
     verificationToken: { type: String },
     verificationTokenExpires: { type: Date },
+    // password reset
+    resetPasswordToken: { type: String, select: false },
+    resetPasswordExpire: { type: Date, select: false },
+    // soft deactivate
+    isActive: { type: Boolean, default: true },
+    deactivatedAt: { type: Date },
+    // vet service zone
+    zone: { type: mongoose.Schema.Types.ObjectId, ref: 'Zone' },
     // Saved addresses for delivery/visit (Shop, Appointments)
     addresses: [
       {

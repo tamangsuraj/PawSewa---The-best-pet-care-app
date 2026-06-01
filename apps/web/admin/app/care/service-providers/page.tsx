@@ -39,7 +39,7 @@ export default function ServiceProvidersPage() {
       setError('');
       const resp = await api.get('/users');
       const all = resp.data?.data ?? [];
-      const list = all.filter((u: { role: string }) => PROVIDER_ROLES.includes(u.role));
+      const list = all.filter((u: { role: string }) => PROVIDER_ROLES.includes(u.role as typeof PROVIDER_ROLES[number]));
       setProviders(list);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string }; status?: number } };

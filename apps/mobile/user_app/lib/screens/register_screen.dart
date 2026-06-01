@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:user_app/widgets/paw_sewa_loader.dart';
+import '../widgets/app_spinner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
 import '../core/api_client.dart';
@@ -136,7 +136,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (response.data['success'] == true) {
         if (mounted) {
-          // Navigate to OTP verification screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Account created! Please check your email to verify your account.',
+              ),
+              backgroundColor: Color(0xFF1D6F42),
+              duration: Duration(seconds: 4),
+            ),
+          );
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => OTPVerificationScreen(
@@ -157,8 +165,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           errorMessage =
               'Cannot connect to server. Tap "Reconnect" or set server URL below.';
         } else if (e.toString().contains('409') ||
+            e.toString().contains('400') ||
             e.toString().contains('already exists')) {
-          errorMessage = 'Email already registered. Please login instead.';
+          errorMessage = 'An account with this email already exists.';
         } else if (e.toString().contains('400')) {
           errorMessage = 'Invalid registration data. Please check all fields.';
         } else {
@@ -535,7 +544,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       child: _isLoading
-                          ? const PawSewaLoader(width: 36, center: false)
+                          ? const AppSpinner(size: 7)
                           : Text(
                               'Create Account',
                               style: GoogleFonts.outfit(
@@ -625,7 +634,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: PawSewaLoader(width: 32, center: false),
+                              child: AppSpinner(size: 6),
                             )
                           : const Icon(
                               Icons.g_mobiledata,

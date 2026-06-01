@@ -243,7 +243,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       _error = null;
     });
     try {
-      final productsResp = await _apiClient.getProducts();
+      final productsResp = await _apiClient.getMyProducts();
       final categoriesResp = await _apiClient.getCategories();
       if (!mounted) return;
       setState(() {
@@ -353,6 +353,247 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to update stock: $e')));
     }
+  }
+
+  Future<void> _showEditProductDialog(Map<String, dynamic> product) async {
+    final id = product['_id']?.toString() ?? '';
+    if (id.isEmpty) return;
+
+    final nameCtrl = TextEditingController(text: product['name']?.toString() ?? '');
+    final priceCtrl = TextEditingController(text: (product['price'] as num?)?.toString() ?? '');
+    final stockCtrl = TextEditingController(text: product['stockQuantity']?.toString() ?? '');
+    final descCtrl = TextEditingController(text: product['description']?.toString() ?? '');
+    final imageUrlCtrl = TextEditingController();
+
+    String? selectedCat = product['category'] is Map
+        ? product['category']['_id']?.toString()
+        : _selectedCategoryId;
+    bool isAvailable = product['isAvailable'] as bool? ?? true;
+    List<XFile> newImages = [];
+    bool saving = false;
+
+    final primary = const Color(AppConstants.primaryColor);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(
+            'Edit Product',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          ),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Name *',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: priceCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Price (NPR) *',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: stockCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Stock *',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _categories.any((c) => c['_id']?.toString() == selectedCat)
+                        ? selectedCat
+                        : null,
+                    items: _categories
+                        .map((c) => DropdownMenuItem<String>(
+                              value: c['_id']?.toString(),
+                              child: Text(c['name']?.toString() ?? ''),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => selectedCat = v),
+                    decoration: const InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: descCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: imageUrlCtrl,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Replace with image URL (optional)',
+                      hintText: 'https://…',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final imgs = await _picker.pickMultiImage(imageQuality: 85);
+                            if (imgs.isNotEmpty) {
+                              setDialogState(() => newImages = imgs);
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(
+                            'Upload Images',
+                            style: GoogleFonts.outfit(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          newImages.isEmpty
+                              ? 'Keep existing images'
+                              : '${newImages.length} new image(s)',
+                          style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[700]),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Switch(
+                        value: isAvailable,
+                        onChanged: (v) => setDialogState(() => isAvailable = v),
+                        thumbColor: WidgetStateProperty.resolveWith<Color?>(
+                          (s) => s.contains(WidgetState.selected) ? primary : null,
+                        ),
+                      ),
+                      Text(
+                        'Active / visible',
+                        style: GoogleFonts.outfit(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.outfit()),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      final price = priceCtrl.text.trim();
+                      final stock = stockCtrl.text.trim();
+                      if (name.isEmpty || price.isEmpty || stock.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Name, price and stock are required')),
+                        );
+                        return;
+                      }
+                      setDialogState(() => saving = true);
+                      try {
+                        final formData = FormData();
+                        formData.fields.addAll([
+                          MapEntry('name', name),
+                          MapEntry('price', price),
+                          MapEntry('stockQuantity', stock),
+                          MapEntry('description', descCtrl.text.trim()),
+                          MapEntry('isAvailable', isAvailable ? 'true' : 'false'),
+                          if (selectedCat != null) MapEntry('category', selectedCat!),
+                        ]);
+                        for (final img in newImages) {
+                          final filename = img.name.contains('.') ? img.name : '${img.name}.jpg';
+                          formData.files.add(
+                            MapEntry(
+                              'images',
+                              await MultipartFile.fromFile(img.path, filename: filename),
+                            ),
+                          );
+                        }
+                        final urlTrim = imageUrlCtrl.text.trim();
+                        if (urlTrim.isNotEmpty &&
+                            (urlTrim.startsWith('http://') || urlTrim.startsWith('https://'))) {
+                          formData.fields.add(MapEntry('primaryImageUrl', urlTrim));
+                        }
+                        await _apiClient.updateProductForm(id, formData);
+                        if (!mounted) {
+                          Navigator.pop(ctx);
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        await _loadData();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Product updated')),
+                        );
+                      } catch (e) {
+                        setDialogState(() => saving = false);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              e is DioException && e.response?.data is Map
+                                  ? (e.response!.data as Map)['message']?.toString() ?? '$e'
+                                  : '$e',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+              style: FilledButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white),
+              child: Text(saving ? 'Saving…' : 'Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    nameCtrl.dispose();
+    priceCtrl.dispose();
+    stockCtrl.dispose();
+    descCtrl.dispose();
+    imageUrlCtrl.dispose();
   }
 
   @override
@@ -924,62 +1165,9 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                 Icons.edit,
                                                 size: 20,
                                               ),
+                                              tooltip: 'Edit product',
                                               onPressed: () async {
-                                                final controller =
-                                                    TextEditingController(
-                                                      text: stock,
-                                                    );
-                                                final result = await showDialog<String>(
-                                                  context: context,
-                                                  builder: (ctx) {
-                                                    return AlertDialog(
-                                                      title: const Text(
-                                                        'Update Stock',
-                                                      ),
-                                                      content: TextField(
-                                                        controller: controller,
-                                                        keyboardType:
-                                                            TextInputType
-                                                                .number,
-                                                        decoration:
-                                                            const InputDecoration(
-                                                              labelText:
-                                                                  'Stock quantity',
-                                                            ),
-                                                      ),
-                                                      actions: [
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.of(
-                                                                ctx,
-                                                              ).pop(),
-                                                          child: const Text(
-                                                            'Cancel',
-                                                          ),
-                                                        ),
-                                                        TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.of(
-                                                                ctx,
-                                                              ).pop(
-                                                                controller.text
-                                                                    .trim(),
-                                                              ),
-                                                          child: const Text(
-                                                            'Save',
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    );
-                                                  },
-                                                );
-                                                if (result != null &&
-                                                    result.isNotEmpty) {
-                                                  await _updateStock(
-                                                    id,
-                                                    result,
-                                                  );
-                                                }
+                                                await _showEditProductDialog(product);
                                               },
                                             ),
                                           ],

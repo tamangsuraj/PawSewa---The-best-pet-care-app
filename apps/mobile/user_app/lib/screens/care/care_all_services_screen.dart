@@ -28,6 +28,7 @@ class CareAllServicesScreen extends StatelessWidget {
         builder: (_) => HostelDetailScreen(
           hostel: hostel,
           onBooked: () {
+            if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Booking successful!')),
             );

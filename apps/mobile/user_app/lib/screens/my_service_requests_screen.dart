@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/constants.dart';
 import '../core/layout_utils.dart';
+import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 import '../widgets/premium_empty_state.dart';
 import '../widgets/premium_shimmer.dart';
@@ -18,6 +20,7 @@ import '../widgets/premium_info_chip.dart';
 import '../widgets/map_pin_marker.dart';
 import 'services/services_screen.dart';
 import 'service_request_tracking_screen.dart';
+import 'messages/vet_direct_chat_screen.dart';
 
 class MyServiceRequestsScreen extends StatefulWidget {
   const MyServiceRequestsScreen({super.key});
@@ -75,8 +78,9 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
     try {
       final response = await _apiClient.getMyServiceRequests();
       if (response.statusCode == 200 && mounted) {
+        final raw = response.data;
         setState(() {
-          _requests = response.data['data'] ?? [];
+          _requests = (raw is Map ? (raw['data'] as List?) : null) ?? [];
           _isLoading = false;
         });
       } else if (mounted) {
@@ -292,11 +296,10 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final cream = const Color(AppConstants.bentoBackgroundColor);
     final primary = const Color(AppConstants.primaryColor);
 
     return Scaffold(
-      backgroundColor: cream,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'My Services',
@@ -568,6 +571,35 @@ class _MyServiceRequestsScreenState extends State<MyServiceRequestsScreen>
                         ),
                       ),
                     ],
+                  ),
+                ],
+                if (staff != null &&
+                    (status == 'accepted' || status == 'assigned')) ...[
+                  const SizedBox(height: 10),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      final raw = await StorageService().getUser();
+                      if (!mounted) return;
+                      String ownerId = '';
+                      if (raw != null) {
+                        try {
+                          final m = jsonDecode(raw) as Map<String, dynamic>;
+                          ownerId = m['_id']?.toString() ?? '';
+                        } catch (_) {}
+                      }
+                      if (ownerId.isEmpty) return;
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => VetDirectChatScreen(
+                            vet: Map<String, dynamic>.from(staff),
+                            ownerId: ownerId,
+                            petName: pet?['name']?.toString(),
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.chat_outlined),
+                    label: const Text('Message Vet'),
                   ),
                 ],
                 if (request['location']?['address'] != null) ...[

@@ -54,6 +54,7 @@ class _SellerInquiriesScreenState extends State<SellerInquiriesScreen> {
     return PartnerScaffold(
       title: 'Inquiries',
       subtitle: 'Reply fast to convert more orders',
+      roleAccent: const Color(AppConstants.sellerAccent),
       actions: [
         IconButton(
           icon: const Icon(Icons.support_agent_rounded),

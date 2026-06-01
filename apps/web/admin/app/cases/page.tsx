@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '@/lib/api';
 import { getAdminSocketUrl } from '@/lib/apiConfig';
@@ -27,7 +27,7 @@ interface CaseItem {
   issueDescription: string;
   location: string;
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
-  assignedVet?: { _id: string; name: string; specialty?: string; currentShift?: string };
+  assignedVet?: { _id: string; name: string; specialty?: string; specialization?: string; currentShift?: string };
   createdAt: string;
   assignedAt?: string;
 }
@@ -84,17 +84,17 @@ export default function LiveCasesPage() {
 
   const TERMINAL_STATUSES = ['completed', 'cancelled'] as const;
 
-  useEffect(() => {
-    fetchAll();
-  }, [filterStatus]);
+  // Keep a ref to the latest fetchAll so the socket handler always calls the current version
+  // without the socket needing to reconnect on every filter change.
+  const fetchAllRef = useRef(fetchAll);
+  fetchAllRef.current = fetchAll;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onRefresh = () => fetchAll();
-    window.addEventListener('pawsewa:admin-data-refresh', onRefresh);
-    return () => window.removeEventListener('pawsewa:admin-data-refresh', onRefresh);
+    void fetchAll();
   }, [filterStatus]);
 
+  // Socket: mount-once, never reconnects on filter changes.
+  // Uses fetchAllRef.current so it always runs with the latest filterStatus.
   useEffect(() => {
     const token = getStoredAdminToken();
     if (!token) return;
@@ -106,30 +106,21 @@ export default function LiveCasesPage() {
       extraHeaders,
       transports: ['websocket', 'polling'],
     });
-    const bumpLiveCases = () => {
-      void fetchAll();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('pawsewa:admin-data-refresh'));
-      }
-    };
-    socket.on('case_status_change', bumpLiveCases);
-    socket.on('service_request_status_change', bumpLiveCases);
-    const bumpCare = () => {
-      void fetchAll();
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('pawsewa:admin-data-refresh'));
-      }
-    };
-    socket.on('care_booking:new', bumpCare);
-    socket.on('new_hostel_booking', bumpCare);
+    const bump = () => void fetchAllRef.current();
+    socket.on('case_status_change', bump);
+    socket.on('service_request_status_change', bump);
+    socket.on('new:service_request', bump);
+    socket.on('care_booking:new', bump);
+    socket.on('new_hostel_booking', bump);
     return () => {
-      socket.off('case_status_change', bumpLiveCases);
-      socket.off('service_request_status_change', bumpLiveCases);
-      socket.off('care_booking:new', bumpCare);
-      socket.off('new_hostel_booking', bumpCare);
+      socket.off('case_status_change', bump);
+      socket.off('service_request_status_change', bump);
+      socket.off('new:service_request', bump);
+      socket.off('care_booking:new', bump);
+      socket.off('new_hostel_booking', bump);
       socket.disconnect();
     };
-  }, [filterStatus]);
+  }, []);
 
   const fetchAll = async () => {
     try {
@@ -166,7 +157,9 @@ export default function LiveCasesPage() {
           : rawMerged;
 
       const isUnassigned = (row: LiveCaseRow) => {
-        const assigned = 'assignedVet' in row ? row.assignedVet : row.assignedStaff;
+        const assigned = row.type === 'assistance'
+          ? (row as CaseItem).assignedVet
+          : (row as ServiceRequestItem).assignedStaff;
         return !assigned;
       };
 
@@ -344,7 +337,7 @@ export default function LiveCasesPage() {
     );
   };
 
-  const getPet = (item: LiveCaseRow) => ('pet' in item ? item.pet : item.pet);
+  const getPet = (item: LiveCaseRow) => item.type === 'assistance' ? (item as CaseItem).pet : (item as ServiceRequestItem).pet;
   const getOwner = (item: LiveCaseRow) => ('customer' in item ? item.customer?.name : item.user?.name) ?? '—';
   const getDescription = (item: LiveCaseRow) =>
     item.type === 'assistance'
@@ -358,7 +351,7 @@ export default function LiveCasesPage() {
     item.type === 'assistance'
       ? (item as CaseItem).assignedVet
       : (item as ServiceRequestItem).assignedStaff;
-  const canAssign = (item: LiveCaseRow) => item.status === 'pending' && !getAssigned(item);
+  const canAssign = (item: LiveCaseRow) => !['completed', 'cancelled'].includes(item.status);
 
   const unassignedPendingCount = items.filter((i) => i.status === 'pending' && !getAssigned(i)).length;
   const assignedCount = items.filter((i) => i.status === 'assigned').length;
@@ -531,7 +524,7 @@ export default function LiveCasesPage() {
                             onClick={() => openAssignModal(item)}
                             className="px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90"
                           >
-                            Assign
+                            {getAssigned(item) ? 'Reassign' : 'Assign'}
                           </button>
                         )}
                         {canAdminMarkComplete(item) && (

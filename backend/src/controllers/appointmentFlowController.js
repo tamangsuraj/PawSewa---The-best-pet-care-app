@@ -1,4 +1,4 @@
-const asyncHandler = require('express-async-handler');
+﻿const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const { AppointmentUnified } = require('../models/unified');
 const User = require('../models/User');
@@ -62,6 +62,21 @@ const createAppointment = asyncHandler(async (req, res) => {
   if (!timeWindow) {
     res.status(400);
     throw new Error('timeWindow is required');
+  }
+
+  // duplicate clinic appointment guard
+  if (preferredDate && !Number.isNaN(preferredDate.getTime())) {
+    const oneHourBefore = new Date(preferredDate.getTime() - 60 * 60 * 1000);
+    const oneHourAfter = new Date(preferredDate.getTime() + 60 * 60 * 1000);
+    const conflict = await AppointmentUnified.findOne({
+      petId,
+      preferredDate: { $gte: oneHourBefore, $lte: oneHourAfter },
+      status: { $nin: ['cancelled', 'completed'] },
+    }).lean();
+    if (conflict) {
+      res.status(409);
+      throw new Error('This pet already has a booking at this time.');
+    }
   }
 
   const now = new Date();
@@ -263,7 +278,7 @@ const assignAppointment = asyncHandler(async (req, res) => {
     body: `You have a new PawSewa appointment. Open the Partner app to start.`,
     data: {
       type: 'appointment_assigned',
-      appointmentId: String(appointment._id),
+      id: String(appointment._id),
     },
   });
 

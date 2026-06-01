@@ -211,7 +211,7 @@ export default function CheckoutPage() {
 
   return (
     <PageShell>
-      <header className="border-b border-[#703418]/10 bg-[#faf6f0]/90 backdrop-blur-md">
+      <header className="border-b border-[#703418]/10 bg-[#ffffff]/90 backdrop-blur-md">
         <div className="container mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <PawSewaLogo variant="nav" height={44} />
@@ -310,7 +310,7 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-semibold text-[#2c241c]">Address title e.g. Home, Clinic *</label>
                   <input
                     {...form.register('addressTitle')}
-                    className="w-full rounded-xl border-2 border-transparent bg-[#faf6f0] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
+                    className="w-full rounded-xl border-2 border-transparent bg-[#ffffff] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
                     placeholder="Home"
                   />
                   {form.formState.errors.addressTitle ? (
@@ -321,7 +321,7 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-semibold text-[#2c241c]">Full name *</label>
                   <input
                     {...form.register('recipientName')}
-                    className="w-full rounded-xl border-2 border-transparent bg-[#faf6f0] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
+                    className="w-full rounded-xl border-2 border-transparent bg-[#ffffff] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
                   />
                   {form.formState.errors.recipientName ? (
                     <p className="mt-1 text-xs text-red-600">{form.formState.errors.recipientName.message}</p>
@@ -333,7 +333,7 @@ export default function CheckoutPage() {
                     {...form.register('recipientPhone')}
                     type="tel"
                     inputMode="tel"
-                    className="w-full rounded-xl border-2 border-transparent bg-[#faf6f0] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
+                    className="w-full rounded-xl border-2 border-transparent bg-[#ffffff] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
                     placeholder="98xxxxxxxx"
                   />
                   {form.formState.errors.recipientPhone ? (
@@ -344,7 +344,7 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-semibold text-[#2c241c]">House / flat no. *</label>
                   <input
                     {...form.register('houseFlat')}
-                    className="w-full rounded-xl border-2 border-transparent bg-[#faf6f0] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
+                    className="w-full rounded-xl border-2 border-transparent bg-[#ffffff] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
                     placeholder="Ward 12, Building B, Floor 3"
                   />
                   {form.formState.errors.houseFlat ? (
@@ -355,7 +355,7 @@ export default function CheckoutPage() {
                   <label className="mb-1 block text-xs font-semibold text-[#2c241c]">Landmark (optional)</label>
                   <input
                     {...form.register('landmark')}
-                    className="w-full rounded-xl border-2 border-transparent bg-[#faf6f0] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
+                    className="w-full rounded-xl border-2 border-transparent bg-[#ffffff] px-4 py-3 text-sm outline-none transition-[border-color,box-shadow] focus:border-[#703418] focus:ring-2 focus:ring-[#703418]/25"
                     placeholder="Near the pet clinic gate"
                   />
                 </div>
@@ -382,7 +382,7 @@ export default function CheckoutPage() {
 
           {step === 3 ? (
             <>
-              <section className="rounded-2xl border-2 border-[#703418] bg-gradient-to-b from-white to-[#faf6f0] p-5 shadow-[0_12px_40px_rgba(112,52,24,0.08)] sm:p-7">
+              <section className="rounded-2xl border-2 border-[#703418] bg-gradient-to-b from-white to-[#ffffff] p-5 shadow-[0_12px_40px_rgba(112,52,24,0.08)] sm:p-7">
                 <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[#703418]">
                   <ShoppingCart className="h-5 w-5" />
                   Order summary

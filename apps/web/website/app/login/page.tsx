@@ -2,38 +2,41 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { PawSewaLogo } from '@/components/PawSewaLogo';
-import { PawSewaLogoSpinner } from '@/components/PawSewaLogoSpinner';
-import { PageShell } from '@/components/layout/PageShell';
-import { PageContent } from '@/components/layout/PageContent';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useAuth } from '@/context/AuthContext';
+import { AlertCircle, Eye, EyeOff, Heart, Stethoscope, Truck } from 'lucide-react';
+import { PawSewaLogo } from '@/components/PawSewaLogo';
 import { WebGoogleSignInButton } from '@/components/auth/WebGoogleSignInButton';
 import { isGoogleSignInConfigured } from '@/components/OptionalGoogleOAuthProvider';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { PAW_CAT_HERO } from '@/lib/pawImageAssets';
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  // Login only checks presence; strength rules apply on register, not here.
+  email:    z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
 });
-
 type LoginFormValues = z.infer<typeof loginSchema>;
+
+const FEATURES = [
+  { icon: Stethoscope, text: 'Book verified vets, home or clinic' },
+  { icon: Truck,       text: 'Premium supplies delivered fast'    },
+  { icon: Heart,       text: 'Full health history for every pet'  },
+];
 
 export default function LoginPage() {
   const router = useRouter();
   const { login, sendLoginOtp, verifyOtpLogin, user, isLoading: authLoading } = useAuth();
+
   const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [otpMode, setOtpMode] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpBusy, setOtpBusy] = useState(false);
+  const [formError, setFormError]       = useState('');
+  const [otpMode, setOtpMode]           = useState(false);
+  const [otpSent, setOtpSent]           = useState(false);
+  const [otpCode, setOtpCode]           = useState('');
+  const [otpBusy, setOtpBusy]           = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -45,270 +48,279 @@ export default function LoginPage() {
     mode: 'onChange',
   });
 
-  // Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && user) {
-      router.push('/dashboard');
-    }
+    if (!authLoading && user) router.push('/dashboard');
   }, [user, authLoading, router]);
 
-  // Show loading while checking auth
   if (authLoading) {
     return (
-      <div className="min-h-dvh flex items-center justify-center">
-        <div className="text-center">
-          <PawSewaLogoSpinner size={64} className="mx-auto mb-4" />
-          <p className="text-gray-600">Loading...</p>
+      <div className="min-h-dvh flex items-center justify-center bg-paw-cream">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-2 border-paw-bark/20 border-t-paw-bark animate-spin" />
+          <p className="text-sm text-paw-bark/60">Loading…</p>
         </div>
       </div>
     );
   }
 
-  // Don't render if user is logged in (will redirect)
-  if (user) {
-    return null;
-  }
+  if (user) return null;
 
+  // ── handlers ────────────────────────────────────────────────────────────
   const onSubmit = async (values: LoginFormValues) => {
     setFormError('');
     try {
       await login(values.email, values.password);
-
-      // Check user role after login
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
-        const userData = JSON.parse(savedUser);
-
-        // Only allow pet_owner on customer website
+        const userData = JSON.parse(savedUser) as { role: string };
         if (userData.role !== 'pet_owner') {
-          // Clear the login
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-
-          // Show appropriate error message
-          if (userData.role === 'admin') {
-            const adminBase =
-              process.env.NEXT_PUBLIC_ADMIN_PANEL_URL?.trim() ||
-              process.env.NEXT_PUBLIC_DEV_ADMIN_PANEL_URL?.trim() ||
-              '';
-            setFormError(
-              adminBase
-                ? `Admin accounts cannot sign in here. Open the Admin Panel (${adminBase}).`
-                : 'Admin accounts cannot sign in here. Set NEXT_PUBLIC_ADMIN_PANEL_URL (or NEXT_PUBLIC_DEV_ADMIN_PANEL_URL) in .env — see .env.example.',
-            );
-          } else {
-            setFormError(
-              `This is the customer website. ${
-                userData.role === 'veterinarian'
-                  ? 'Veterinarians'
-                  : userData.role === 'shop_owner'
-                  ? 'Shop owners'
-                  : userData.role === 'care_service'
-                  ? 'Care service providers'
-                  : 'Riders'
-              } should use the Staff Mobile App.`,
-            );
-          }
+          const adminBase = process.env.NEXT_PUBLIC_ADMIN_PANEL_URL?.trim() || '';
+          setFormError(
+            userData.role === 'admin'
+              ? `Admin accounts sign in at the Admin Panel${adminBase ? ` (${adminBase})` : ''}.`
+              : 'This website is for pet owners only. Partners use the PawSewa mobile app.',
+          );
           return;
         }
       }
-
       router.push('/dashboard');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Login failed';
-      setFormError(msg);
+      setFormError(err instanceof Error ? err.message : 'Login failed');
     }
   };
 
   const handleSendOtp = async () => {
     setFormError('');
     const email = getValues('email');
-    if (!email?.trim()) {
-      setFormError('Enter your email address first.');
-      return;
-    }
+    if (!email?.trim()) { setFormError('Enter your email address first.'); return; }
     setOtpBusy(true);
     try {
       await sendLoginOtp(email.trim());
       setOtpSent(true);
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Could not send code');
-    } finally {
-      setOtpBusy(false);
-    }
+    } finally { setOtpBusy(false); }
   };
 
   const handleVerifyOtp = async () => {
     setFormError('');
     const email = getValues('email')?.trim();
-    const code = otpCode.trim();
-    if (!email || code.length !== 6) {
-      setFormError('Enter the 6-digit code from your email.');
-      return;
-    }
+    const code  = otpCode.trim();
+    if (!email || code.length !== 6) { setFormError('Enter the 6-digit code from your email.'); return; }
     setOtpBusy(true);
     try {
       await verifyOtpLogin(email, code);
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
-        const userData = JSON.parse(savedUser);
+        const userData = JSON.parse(savedUser) as { role: string };
         if (userData.role !== 'pet_owner') {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
-          setFormError('This is the customer website. Only pet owners can sign in here.');
+          setFormError('This website is for pet owners only.');
           return;
         }
       }
       router.push('/dashboard');
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Invalid OTP');
-    } finally {
-      setOtpBusy(false);
-    }
+    } finally { setOtpBusy(false); }
   };
 
+  // ── render ──────────────────────────────────────────────────────────────
   return (
-    <PageShell className="flex items-center justify-center">
-      <PageContent compact className="max-w-md py-10">
-        <div className="paw-surface-card p-8 sm:p-10">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center mb-5 px-2 py-2 bg-transparent">
-              <PawSewaLogo variant="nav" height={56} />
-            </div>
-            <p className="paw-eyebrow-center text-[0.65rem] mb-3">Member access</p>
-            <h2 className="font-display text-3xl sm:text-[2rem] font-semibold text-paw-ink tracking-tight mb-2">
-              Welcome back
+    <div className="min-h-dvh grid lg:grid-cols-[1fr_1fr] bg-paw-cream">
+
+      {/* ── Left panel: brand visual ─────────────────────────────────────── */}
+      <div className="relative hidden lg:flex flex-col overflow-hidden bg-gradient-to-br from-paw-bark via-[#5c2c14] to-paw-ink">
+        {/* Ambient glows */}
+        <div className="pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-paw-teal-mid/20 blur-[80px]" />
+        <div className="pointer-events-none absolute -left-10 bottom-20 h-64 w-64 rounded-full bg-paw-bark/50 blur-[60px]" />
+
+        {/* Pet photo with overlay */}
+        <div className="absolute inset-0">
+          <Image
+            src={PAW_CAT_HERO}
+            alt="Cat — PawSewa"
+            fill
+            className="object-cover opacity-20 mix-blend-luminosity"
+            sizes="50vw"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-paw-ink/80 via-paw-ink/20 to-transparent" />
+        </div>
+
+        {/* Content */}
+        <div className="relative flex flex-col justify-between h-full px-10 py-12">
+          <PawSewaLogo variant="nav" height={52} invertOnDark />
+
+          <div className="space-y-6">
+            <h2 className="font-display text-4xl font-semibold text-white leading-tight">
+              Your pet's health,<br />at your fingertips.
             </h2>
-            <p className="text-paw-bark/70 text-sm">Sign in to your PawSewa home</p>
+            <ul className="space-y-3.5">
+              {FEATURES.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-3 text-white/80 text-sm">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 backdrop-blur-sm">
+                    <Icon className="h-4 w-4" strokeWidth={1.75} />
+                  </div>
+                  {text}
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {formError && (
-            <div className="mb-6 p-4 bg-red-50/90 border border-red-200/80 rounded-2xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-red-800">Login Failed</p>
-                <p className="text-sm text-red-600">{formError}</p>
+          {/* Testimonial */}
+          <div className="rounded-2xl border border-white/10 bg-white/8 p-5 backdrop-blur-sm">
+            <p className="text-sm leading-relaxed text-white/80 italic">
+              "PawSewa got a vet to our home within two hours. The tracking made it completely stress-free."
+            </p>
+            <div className="mt-3 flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-full bg-paw-teal-mid/30 flex items-center justify-center text-xs font-bold text-white">
+                PS
               </div>
+              <p className="text-xs font-medium text-white/60">Priya S. — Dog owner, Kathmandu</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Right panel: form ────────────────────────────────────────────── */}
+      <div className="flex flex-col items-center justify-center px-5 py-12 sm:px-10">
+        {/* Mobile logo */}
+        <div className="mb-8 lg:hidden">
+          <PawSewaLogo variant="nav" height={52} />
+        </div>
+
+        <div className="w-full max-w-sm space-y-7">
+          {/* Header */}
+          <div className="space-y-1">
+            <h1 className="font-display text-3xl font-semibold tracking-tight text-paw-ink">
+              Welcome back
+            </h1>
+            <p className="text-sm text-paw-bark/60">
+              Sign in to manage your pets and bookings.
+            </p>
+          </div>
+
+          {/* Error */}
+          {formError && (
+            <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+              <AlertCircle className="h-4.5 w-4.5 shrink-0 text-red-500 mt-0.5" />
+              <p className="text-sm text-red-700">{formError}</p>
             </div>
           )}
 
-          {/* Login Form */}
+          {/* Form */}
           <form
             onSubmit={(e) => {
-              if (otpMode) {
-                e.preventDefault();
-                return;
-              }
+              if (otpMode) { e.preventDefault(); return; }
               void handleSubmit(onSubmit)(e);
             }}
             className="space-y-4"
           >
-            <div>
-              <Input
-                label="Email"
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-paw-ink">Email</label>
+              <input
                 type="email"
-                placeholder="john@example.com"
+                placeholder="you@email.com"
+                autoComplete="email"
+                className="paw-input"
                 {...register('email')}
-                required
               />
               {errors.email && (
-                <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
+                <p className="text-xs text-red-600">{errors.email.message}</p>
               )}
             </div>
 
             {!otpMode ? (
               <>
-                <div className="relative">
-                  <Input
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    {...register('password')}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-[42px] text-gray-500 hover:text-paw-teal-mid transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
+                {/* Password */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-paw-ink">Password</label>
+                    <Link href="/forgot-password" className="text-xs font-medium text-paw-teal-mid hover:underline">
+                      Forgot?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="paw-input pr-10"
+                      {...register('password')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-paw-bark/40 hover:text-paw-bark/70 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4.5 w-4.5" /> : <Eye className="h-4.5 w-4.5" />}
+                    </button>
+                  </div>
                   {errors.password && (
-                    <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
+                    <p className="text-xs text-red-600">{errors.password.message}</p>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="w-4 h-4 text-paw-bark focus:ring-paw-teal-mid rounded border-paw-bark/20"
-                    />
-                    <span className="text-gray-600">Remember me</span>
-                  </label>
-                  <Link href="/forgot-password" className="text-paw-teal-mid font-medium hover:underline">
-                    Forgot password?
-                  </Link>
-                </div>
-
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  className="w-full"
                   disabled={isSubmitting}
+                  className="paw-cta-primary w-full justify-center py-3"
                 >
-                  {isSubmitting ? 'Logging in...' : 'Login'}
-                </Button>
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Signing in…
+                    </span>
+                  ) : 'Sign in'}
+                </button>
               </>
             ) : (
-              <div className="space-y-4 rounded-2xl border border-paw-bark/10 bg-[#faf8f5]/90 p-4">
-                <p className="text-sm text-paw-bark/75">
-                  We&apos;ll email a 6-digit code. Same account as the PawSewa app — one backend, one profile.
+              /* OTP flow */
+              <div className="space-y-3 rounded-2xl border border-paw-bark/12 bg-paw-haze/50 p-4">
+                <p className="text-xs text-paw-bark/65">
+                  We'll email a 6-digit code — same account as the PawSewa app.
                 </p>
                 {!otpSent ? (
-                  <Button
+                  <button
                     type="button"
-                    variant="primary"
-                    className="w-full"
                     disabled={otpBusy}
                     onClick={handleSendOtp}
+                    className="paw-cta-primary w-full justify-center py-3 text-sm"
                   >
                     {otpBusy ? 'Sending…' : 'Send sign-in code'}
-                  </Button>
+                  </button>
                 ) : (
                   <>
-                    <Input
-                      label="6-digit code"
+                    <input
                       type="text"
                       inputMode="numeric"
                       autoComplete="one-time-code"
                       maxLength={6}
-                      placeholder="000000"
+                      placeholder="6-digit code"
                       value={otpCode}
                       onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="paw-input text-center text-xl tracking-[0.35em] font-bold"
                     />
-                    <Button
-                      type="button"
-                      variant="primary"
-                      className="w-full"
-                      disabled={otpBusy || otpCode.length !== 6}
-                      onClick={handleVerifyOtp}
-                    >
-                      {otpBusy ? 'Verifying…' : 'Verify & sign in'}
-                    </Button>
                     <button
                       type="button"
-                      className="w-full text-center text-sm text-paw-teal-mid font-medium hover:underline"
-                      onClick={() => {
-                        setOtpSent(false);
-                        setOtpCode('');
-                      }}
+                      disabled={otpBusy || otpCode.length !== 6}
+                      onClick={handleVerifyOtp}
+                      className="paw-cta-primary w-full justify-center py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Resend code to another email
+                      {otpBusy ? 'Verifying…' : 'Verify & sign in'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setOtpSent(false); setOtpCode(''); }}
+                      className="w-full text-center text-xs text-paw-teal-mid hover:underline"
+                    >
+                      Resend code
                     </button>
                   </>
                 )}
@@ -316,68 +328,48 @@ export default function LoginPage() {
             )}
           </form>
 
-          <div className="mt-3 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setOtpMode((v) => !v);
-                setOtpSent(false);
-                setOtpCode('');
-                setFormError('');
-                clearErrors();
-              }}
-              className="text-sm text-paw-teal-mid font-semibold hover:underline"
-            >
-              {otpMode ? 'Use password instead' : 'Sign in with email code'}
-            </button>
-          </div>
+          {/* OTP toggle */}
+          <button
+            type="button"
+            onClick={() => { setOtpMode((v) => !v); setOtpSent(false); setOtpCode(''); setFormError(''); clearErrors(); }}
+            className="w-full text-center text-sm font-medium text-paw-teal-mid hover:underline"
+          >
+            {otpMode ? '← Use password instead' : 'Sign in with email code'}
+          </button>
 
           {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white/90 text-paw-bark/50 font-medium tracking-widest">OR</span>
-            </div>
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-paw-bark/10" />
+            <span className="text-xs font-medium text-paw-bark/40 uppercase tracking-widest">or</span>
+            <div className="h-px flex-1 bg-paw-bark/10" />
           </div>
 
+          {/* Google */}
           {isGoogleSignInConfigured() ? (
             <WebGoogleSignInButton onError={setFormError} clearOtherErrors={clearErrors} />
           ) : (
-            <p className="rounded-2xl border border-dashed border-[#703418]/25 bg-[#faf6f0]/80 px-4 py-3 text-center text-xs text-[#703418]/70">
-              Google sign-in is not configured for this deployment. Set{' '}
-              <code className="rounded bg-white/80 px-1">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> to your Web OAuth
-              client ID (match <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code> on the API).
+            <p className="rounded-2xl border border-dashed border-paw-bark/15 bg-paw-haze/60 px-4 py-3 text-center text-xs text-paw-bark/55">
+              Google sign-in not configured.{' '}
+              <code className="rounded bg-white/80 px-1 font-mono text-[10px]">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> is unset.
             </p>
           )}
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-          </div>
-
-          {/* Register Link */}
-          <p className="text-center text-gray-600">
-            Don&apos;t have an account?{' '}
-            <Link href="/register" className="text-paw-teal-mid font-semibold hover:underline">
-              Create one now
+          {/* Register */}
+          <p className="text-center text-sm text-paw-bark/60">
+            No account?{' '}
+            <Link href="/register" className="font-semibold text-paw-ink hover:underline">
+              Create one free
             </Link>
           </p>
-        </div>
 
-        <p className="mt-8 text-center text-xs tracking-wide text-paw-bark/45">
-          By continuing, you agree to PawSewa&apos;s{' '}
-          <Link href="/terms" className="text-paw-teal-mid underline underline-offset-2">
-            Terms
-          </Link>{' '}
-          &amp;{' '}
-          <Link href="/privacy" className="text-paw-teal-mid underline underline-offset-2">
-            Privacy
-          </Link>
-        </p>
-      </PageContent>
-    </PageShell>
+          <p className="text-center text-[11px] text-paw-bark/35">
+            By continuing you agree to our{' '}
+            <Link href="/terms" className="underline underline-offset-2 hover:text-paw-bark/60">Terms</Link>
+            {' '}and{' '}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-paw-bark/60">Privacy Policy</Link>
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -83,13 +83,15 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         'otp': _otpController.text,
       });
 
-      if (response.data['success'] == true) {
+      final respData = response.data;
+      if (respData is Map && respData['success'] == true) {
         // Save token
-        final token = response.data['data']['token'];
-        await _storageService.saveToken(token);
+        final innerData = respData['data'];
+        final token = (innerData is Map ? innerData['token'] : null)?.toString() ?? '';
+        if (token.isNotEmpty) await _storageService.saveToken(token);
 
         // Save user data
-        final userData = response.data['data'];
+        final userData = innerData;
         await _storageService.saveUser(json.encode(userData));
         await PushNotificationService.instance.syncTokenIfLoggedIn();
 

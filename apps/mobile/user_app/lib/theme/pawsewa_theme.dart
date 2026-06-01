@@ -10,7 +10,7 @@ abstract final class PawsewaTheme {
     const surface = Color(AppConstants.secondaryColor);
     const accent = Color(AppConstants.accentColor);
     const ink = Color(AppConstants.inkColor);
-    const onPrimary = Color(0xFFFAF6F0);
+    const onPrimary = Colors.white;
 
     final colorScheme = ColorScheme.light(
       primary: primary,
@@ -28,7 +28,7 @@ abstract final class PawsewaTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: surface,
+      scaffoldBackgroundColor: Colors.white,
     );
 
     final outfit = GoogleFonts.outfitTextTheme(base.textTheme);
@@ -60,7 +60,7 @@ abstract final class PawsewaTheme {
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: surface,
+        backgroundColor: Colors.white,
         foregroundColor: ink,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: GoogleFonts.fraunces(

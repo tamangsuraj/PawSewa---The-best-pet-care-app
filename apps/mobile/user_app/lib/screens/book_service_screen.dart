@@ -105,7 +105,8 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
       final response = await _apiClient.getMyPets();
       if (response.statusCode == 200) {
         if (!mounted) return;
-        final list = response.data['data'] ?? [];
+        final raw = response.data;
+        final list = (raw is Map ? raw['data'] as List? : null) ?? [];
         setState(() {
           _pets = list;
           _isLoading = false;
@@ -805,12 +806,18 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Service location (Kathmandu Valley)',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+              Flexible(
+                child: Text(
+                  'Service location (Kathmandu Valley)',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
-              if (!_isInsideKathmandu)
+              if (!_isInsideKathmandu) ...[
+                const SizedBox(width: 8),
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.info_outline, size: 16, color: Colors.red),
                     const SizedBox(width: 4),
@@ -823,6 +830,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
                     ),
                   ],
                 ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -1132,7 +1140,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
           'Book Service',

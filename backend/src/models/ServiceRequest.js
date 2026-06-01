@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+﻿const mongoose = require('mongoose');
 const { ALL_STATUSES } = require('../constants/serviceRequestStatus');
 
 const KATHMANDU_BOUNDS = {
@@ -183,21 +183,21 @@ serviceRequestSchema.pre('save', async function () {
     throw err;
   }
 
-  // 2) Duplicate check: same pet, same date, pending
-  const startOfDay = new Date(this.preferredDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(this.preferredDate);
-  endOfDay.setHours(23, 59, 59, 999);
+  // 2) Duplicate check: same pet, overlapping time window
+  const prefDate = new Date(this.preferredDate);
+  const twoHoursBefore = new Date(prefDate.getTime() - 2 * 60 * 60 * 1000);
+  const twoHoursAfter = new Date(prefDate.getTime() + 2 * 60 * 60 * 1000);
 
   const existingRequest = await this.constructor.findOne({
     pet: this.pet,
-    preferredDate: { $gte: startOfDay, $lte: endOfDay },
-    status: 'pending',
+    preferredDate: { $gte: twoHoursBefore, $lte: twoHoursAfter },
+    status: { $nin: ['cancelled', 'completed', 'rejected', 'declined'] },
+    _id: { $ne: this._id },
   });
 
   if (existingRequest) {
-    const err = new Error('A request for this pet is already under review for this date.');
-    err.statusCode = 400;
+    const err = new Error('This pet already has a booking within 2 hours of that time.');
+    err.statusCode = 409;
     throw err;
   }
 });

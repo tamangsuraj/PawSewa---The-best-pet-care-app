@@ -52,7 +52,7 @@ const CARE_HUBS: {
 export default function PetCarePlusPage() {
   return (
     <PageShell>
-      <header className="border-b border-[#703418]/10 bg-[#faf6f0]/95 backdrop-blur-md">
+      <header className="border-b border-[#703418]/10 bg-[#ffffff]/95 backdrop-blur-md">
         <div className="container mx-auto flex max-w-4xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <PawSewaLogo variant="nav" height={48} className="!bg-transparent" />
@@ -98,7 +98,7 @@ export default function PetCarePlusPage() {
           ))}
         </ul>
 
-        <div className="mt-12 rounded-2xl border-2 border-dashed border-[#703418]/20 bg-[#faf6f0]/80 p-6 text-center">
+        <div className="mt-12 rounded-2xl border-2 border-dashed border-[#703418]/20 bg-[#ffffff]/80 p-6 text-center">
           <p className="text-sm text-[#2c241c]/75">
             Daycare uses the same API with <span className="font-semibold text-[#703418]">serviceType=Daycare</span>.
           </p>

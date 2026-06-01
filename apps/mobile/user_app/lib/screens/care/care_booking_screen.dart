@@ -243,7 +243,7 @@ class _CareBookingScreenState extends State<CareBookingScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'HOSTEL BOOKING',
+          '${(widget.hostel['serviceType']?.toString() ?? 'HOSTEL').toUpperCase()} BOOKING',
           style: GoogleFonts.outfit(
             fontWeight: FontWeight.bold,
             fontSize: 16,

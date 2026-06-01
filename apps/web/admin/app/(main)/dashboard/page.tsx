@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useState } from 'react';
 import api from '@/lib/api';
@@ -10,6 +10,9 @@ import {
   Package,
   MapPin,
   Sparkles,
+  Calendar,
+  Star,
+  Banknote,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ScrollableTableWrapper from '@/components/ui/ScrollableTableWrapper';
@@ -22,6 +25,9 @@ interface Stats {
   totalShopOwners: number;
   totalCareServices: number;
   totalRiders: number;
+  todayAppointments?: number;
+  activeSubscriptions?: number;
+  todayRevenue?: number;
 }
 
 interface RecentUser {
@@ -246,6 +252,43 @@ export default function DashboardPage() {
                     </div>
                     <p className="text-gray-600 text-sm font-medium mb-1">Riders</p>
                     <p className="text-3xl font-bold text-gray-900">{data?.stats.totalRiders || 0}</p>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow border border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-blue-600" />
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm font-medium mb-1">Today&apos;s Appointments</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {data?.stats.todayAppointments ?? 0}
+                    </p>
+                  </div>
+
+                  {/* Active Subscriptions */}
+                  <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow border border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center">
+                        <Star className="w-6 h-6 text-amber-600" />
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm font-medium mb-1">Active Subscriptions</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      {data?.stats.activeSubscriptions ?? 0}
+                    </p>
+                  </div>
+
+                  {/* Today's Revenue */}
+                  <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow border border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center">
+                        <Banknote className="w-6 h-6 text-emerald-600" />
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm font-medium mb-1">Today&apos;s Revenue</p>
+                    <p className="text-3xl font-bold text-gray-900">
+                      NPR {(data?.stats.todayRevenue ?? 0).toLocaleString()}
+                    </p>
                   </div>
 
                   {/* Total Pets */}

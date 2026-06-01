@@ -1,4 +1,4 @@
-const asyncHandler = require('express-async-handler');
+﻿const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
@@ -508,6 +508,9 @@ const deleteProduct = asyncHandler(async (req, res) => {
 // Public: GET /api/v1/products
 // Query: search, category, page, limit, minPrice, maxPrice, petTypes, userPetType (override),
 // sort (recommended|newest|price_asc|price_desc). Optional JWT: primary pet used for personalization.
+// Special query flags (authenticated only):
+//   sellerView=1  — shop_owner: skip stock/availability filters, show only their products (inc. out-of-stock)
+//   adminView=1   — admin: skip stock/availability filters, show all products
 const getProducts = asyncHandler(async (req, res) => {
   try {
     const {
@@ -522,11 +525,28 @@ const getProducts = asyncHandler(async (req, res) => {
       userPetType: userPetTypeQuery,
     } = req.query;
 
+    const isAdmin = req.user?.role === 'admin';
+    const isShopOwner = req.user?.role === 'shop_owner';
+    const adminView = req.query.adminView === '1' && isAdmin;
+    const sellerView = req.query.sellerView === '1' && isShopOwner;
+    const isManagementView = adminView || sellerView;
+
     const andConditions = [];
 
-    andConditions.push({
-      $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
-    });
+    if (!isManagementView) {
+      andConditions.push({
+        $or: [{ isAvailable: true }, { isAvailable: { $exists: false } }],
+      });
+      // hide out-of-stock from customer catalogue
+      andConditions.push({
+        $or: [{ stockQuantity: { $gt: 0 } }, { stockQuantity: { $exists: false } }],
+      });
+    }
+
+    // Seller management view: restrict to their own products only
+    if (sellerView) {
+      andConditions.push({ seller: req.user._id });
+    }
 
     if (category && category.toString().trim() !== '') {
       const cat = await Category.findOne({ slug: category.toString().trim() }).select('_id');
@@ -577,7 +597,12 @@ const getProducts = asyncHandler(async (req, res) => {
       andConditions.push({ $text: { $search: searchTrim } });
     }
 
-    const findQuery = andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+    const findQuery =
+      andConditions.length === 0
+        ? {}
+        : andConditions.length === 1
+        ? andConditions[0]
+        : { $and: andConditions };
 
     let userPetNorm = null;
     let primaryPetName = null;

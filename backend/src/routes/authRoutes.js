@@ -1,10 +1,10 @@
-const express = require('express');
+﻿const express = require('express');
 const axios = require('axios');
 const router = express.Router();
 const { OAuth2Client } = require('google-auth-library');
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
-const { loginUser } = require('../controllers/userController');
+const { loginUser, forgotPassword, resetPassword } = require('../controllers/userController');
 const {
   sendLoginOtp,
   verifyLoginOtp,
@@ -115,6 +115,8 @@ async function resolveGoogleIdentity(googleToken) {
 // @desc    Proxy to regular loginUser controller
 // @access  Public (rate-limited)
 router.post('/login', authLimiter, loginUser);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password', authLimiter, resetPassword);
 
 // Passwordless email OTP (single source of truth with MongoDB users collection)
 router.post('/send-otp', authLimiter, sendLoginOtp);

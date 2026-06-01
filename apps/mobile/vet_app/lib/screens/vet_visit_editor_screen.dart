@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
@@ -401,13 +403,13 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
       // 2) also add a clinical entry (bell notification + linked vet record)
       final petId = _petId();
       if (petId.isNotEmpty) {
-        _api.postPetClinicalEntry(
+        unawaited(_api.postPetClinicalEntry(
           petId: petId,
           diagnosis: diagnosis,
           prescription: _prescribedCtrl.text.trim().isEmpty ? null : _prescribedCtrl.text.trim(),
           notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           serviceRequestId: requestId,
-        );
+        ));
       }
 
       if (!mounted) return;
@@ -440,6 +442,7 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
     return PartnerScaffold(
       title: 'Visit notes',
       subtitle: '${_petName()} · ${_ownerName()}',
+      roleAccent: const Color(AppConstants.vetAccent),
       actions: [
         IconButton(
           tooltip: 'Task details',

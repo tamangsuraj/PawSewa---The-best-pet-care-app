@@ -98,113 +98,111 @@ export default function AppointmentsDeskPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 text-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-white">
-              <CalendarClock className="h-8 w-8 text-amber-400" />
-              Appointment desk
-            </h1>
-            <p className="mt-1 text-slate-400">
-              Pending clinic bookings (vaccination / checkup / vet). Assign a vet to notify their Partner app (FCM +
-              realtime).
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void loadPending()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Refresh
-          </button>
+    <div className="min-h-dvh bg-gray-50 p-8">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-3xl font-bold text-gray-900">
+            <CalendarClock className="h-8 w-8 text-primary" />
+            Appointment desk
+          </h1>
+          <p className="mt-1 text-gray-600">
+            Pending clinic bookings (vaccination / checkup / vet). Assign a vet to notify their Partner app (FCM +
+            realtime).
+          </p>
         </div>
-
-        {error && (
-          <div className="mb-6 rounded-xl border border-red-900/60 bg-red-950/40 px-4 py-3 text-red-200">{error}</div>
-        )}
-
-        {loading ? (
-          <div className="flex flex-col items-center gap-3 py-8 text-slate-400">
-            <PawSewaLoader width={140} />
-            <p>Loading pending appointments…</p>
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-10 text-center text-slate-400">
-            <Stethoscope className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-            No bookings waiting for admin.
-          </div>
-        ) : (
-          <ul className="space-y-4">
-            {rows.map((row) => {
-              const petName = row.petId?.name ?? 'Pet';
-              const ownerName = row.customerId?.name ?? 'Customer';
-              const when =
-                row.preferredDate != null
-                  ? new Date(row.preferredDate).toLocaleString(undefined, {
-                      dateStyle: 'medium',
-                      timeStyle: 'short',
-                    })
-                  : row.timeWindow ?? '—';
-              return (
-                <li
-                  key={row._id}
-                  className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-lg shadow-black/20"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-semibold text-white">
-                        {row.type} · {petName}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-400">
-                        Owner: {ownerName}
-                        {row.customerId?.phone ? ` · ${row.customerId.phone}` : ''}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-400">When: {when}</p>
-                      {row.description ? (
-                        <p className="mt-2 max-w-xl text-sm text-slate-300">{row.description}</p>
-                      ) : null}
-                      <p className="mt-2 inline-flex rounded-full bg-amber-500/15 px-3 py-0.5 text-xs font-medium text-amber-200">
-                        {row.status === 'pending' ? 'pending (legacy)' : row.status}
-                      </p>
-                    </div>
-                    <div className="flex min-w-[260px] flex-col gap-2 sm:items-end">
-                      <label className="flex w-full flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                        Veterinarian
-                        <select
-                          className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-                          value={selection[row._id] ?? ''}
-                          onChange={(ev) =>
-                            setSelection((prev) => ({ ...prev, [row._id]: ev.target.value }))
-                          }
-                        >
-                          <option value="">Select vet…</option>
-                          {vets.map((v) => (
-                            <option key={v._id} value={v._id}>
-                              {v.name}
-                              {v.email ? ` (${v.email})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        type="button"
-                        disabled={assigningId === row._id}
-                        onClick={() => void assign(row)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:opacity-50 sm:w-auto"
-                      >
-                        <UserCheck className="h-4 w-4" />
-                        {assigningId === row._id ? 'Assigning…' : 'Assign & notify'}
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <button
+          type="button"
+          onClick={() => void loadPending()}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </button>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="flex flex-col items-center gap-3 py-12 text-gray-500 bg-white rounded-xl shadow-sm">
+          <PawSewaLoader width={140} />
+          <p>Loading pending appointments…</p>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center text-gray-500">
+          <Stethoscope className="mx-auto mb-3 h-10 w-10 text-gray-400" />
+          No bookings waiting for admin.
+        </div>
+      ) : (
+        <ul className="space-y-4">
+          {rows.map((row) => {
+            const petName = row.petId?.name ?? 'Pet';
+            const ownerName = row.customerId?.name ?? 'Customer';
+            const when =
+              row.preferredDate != null
+                ? new Date(row.preferredDate).toLocaleString(undefined, {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })
+                : row.timeWindow ?? '—';
+            return (
+              <li
+                key={row._id}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm p-5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {row.type} · {petName}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Owner: {ownerName}
+                      {row.customerId?.phone ? ` · ${row.customerId.phone}` : ''}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-600">When: {when}</p>
+                    {row.description ? (
+                      <p className="mt-2 max-w-xl text-sm text-gray-700">{row.description}</p>
+                    ) : null}
+                    <span className="mt-2 inline-flex rounded-full bg-amber-100 text-amber-800 border border-amber-200 px-3 py-0.5 text-xs font-medium">
+                      {row.status === 'pending' ? 'Pending' : row.status}
+                    </span>
+                  </div>
+                  <div className="flex min-w-[260px] flex-col gap-2 sm:items-end">
+                    <label className="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Veterinarian
+                      <select
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-primary focus:border-primary"
+                        value={selection[row._id] ?? ''}
+                        onChange={(ev) =>
+                          setSelection((prev) => ({ ...prev, [row._id]: ev.target.value }))
+                        }
+                      >
+                        <option value="">Select vet…</option>
+                        {vets.map((v) => (
+                          <option key={v._id} value={v._id}>
+                            {v.name}
+                            {v.email ? ` (${v.email})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={assigningId === row._id}
+                      onClick={() => void assign(row)}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
+                    >
+                      <UserCheck className="h-4 w-4" />
+                      {assigningId === row._id ? 'Assigning…' : 'Assign & notify'}
+                    </button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

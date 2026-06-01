@@ -21,7 +21,10 @@ import '../widgets/swipe_action_button.dart';
 /// For riders: list of assigned pet-supplies orders with status updates.
 /// Flow: Select status → Processing (at shop) → On the way (left shop) → Delivered.
 class RiderDeliveryOrdersScreen extends StatefulWidget {
-  const RiderDeliveryOrdersScreen({super.key});
+  const RiderDeliveryOrdersScreen({super.key, this.initialFilter});
+
+  /// 'active' (default) or 'delivered' — pass 'delivered' when opening as History.
+  final String? initialFilter;
 
   @override
   State<RiderDeliveryOrdersScreen> createState() =>
@@ -34,7 +37,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   bool _loading = true;
   String? _error;
   String? _updatingOrderId;
-  String _filter = 'active'; // 'active' | 'delivered'
+  late String _filter; // 'active' | 'delivered'
 
   // UI-only online/offline status for outdoor visibility.
   // (Does not change socket/state wiring; it only refines presentation + logging.)
@@ -71,6 +74,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    _filter = widget.initialFilter ?? 'active';
     _last7Days = List.generate(7, (i) {
       final base = DateTime.now();
       final day = DateTime(base.year, base.month, base.day).subtract(Duration(days: 6 - i));
@@ -476,6 +480,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     const successGreen = Color(0xFF00C853);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
+    const riderBlue = Color(AppConstants.riderAccent);
 
     final bg = isDark ? Colors.black : const Color(AppConstants.secondaryColor);
     final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
@@ -490,7 +495,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       child: Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
-          backgroundColor: primary,
+          backgroundColor: riderBlue,
           foregroundColor: Colors.white,
           elevation: 0,
           title: Text(
@@ -642,14 +647,14 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                         colors: [
-                                          primary,
-                                          primary.withValues(alpha: 0.85),
+                                          riderBlue,
+                                          riderBlue.withValues(alpha: 0.82),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: primary.withValues(alpha: 0.22),
+                                          color: riderBlue.withValues(alpha: 0.28),
                                           blurRadius: 18,
                                           offset: const Offset(0, 8),
                                         ),
@@ -784,7 +789,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                               icon,
                                               size: narrow ? 18 : 20,
                                               color: selected
-                                                  ? primary
+                                                  ? riderBlue
                                                   : Colors.white,
                                             ),
                                             SizedBox(width: narrow ? 6 : 8),
@@ -794,7 +799,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: narrow ? 12.5 : 14,
                                                 color: selected
-                                                    ? primary
+                                                    ? riderBlue
                                                     : Colors.white,
                                               ),
                                             ),
@@ -823,7 +828,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
                               return Container(
                                 width: double.infinity,
-                                color: primary,
+                                color: riderBlue,
                                 padding: pad,
                                 child: narrow
                                     ? Column(

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/api_client.dart';
 import '../core/vet_visit_swipe_flow.dart';
 import '../core/constants.dart';
+import '../theme/partner_theme.dart';
 import 'service_task_detail_screen.dart';
 import 'vet_visit_editor_screen.dart';
 import '../widgets/editorial_canvas.dart';
@@ -119,9 +120,11 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
+    const vetAccent = Color(AppConstants.vetAccent);
     return PartnerScaffold(
-      title: 'Clinic queue',
-      subtitle: 'Today’s assigned visits',
+      title: "Clinic queue",
+      subtitle: "Today’s assigned visits",
+      roleAccent: vetAccent,
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh_rounded),
@@ -231,29 +234,7 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
                                                       ),
                                                     ),
                                                     if (st.isNotEmpty)
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(
-                                                          horizontal: 10,
-                                                          vertical: 6,
-                                                        ),
-                                                        decoration: BoxDecoration(
-                                                          color: const Color(AppConstants.sandColor)
-                                                              .withValues(alpha: 0.95),
-                                                          borderRadius: BorderRadius.circular(999),
-                                                          border: Border.all(
-                                                            color: primary.withValues(alpha: 0.10),
-                                                          ),
-                                                        ),
-                                                        child: Text(
-                                                          st,
-                                                          style: GoogleFonts.outfit(
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.w800,
-                                                            color: const Color(AppConstants.inkColor)
-                                                                .withValues(alpha: 0.75),
-                                                          ),
-                                                        ),
-                                                      ),
+                                                      _QueueStatusChip(status: st),
                                                   ],
                                                 ),
                                                 const SizedBox(height: 3),
@@ -306,6 +287,32 @@ class _ClinicQueueScreenState extends State<ClinicQueueScreen> {
                           ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QueueStatusChip extends StatelessWidget {
+  const _QueueStatusChip({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = RoleDesign.statusColors(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.replaceAll('_', ' '),
+        style: GoogleFonts.outfit(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: fg,
+          letterSpacing: 0.2,
+        ),
       ),
     );
   }

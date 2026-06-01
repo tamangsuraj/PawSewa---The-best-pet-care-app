@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/constants.dart';
-
 /// Soft editorial gradient behind screens (partner / rider surfaces).
 enum EditorialSurfaceVariant { customer, partner }
 
@@ -17,15 +15,17 @@ class EditorialCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // White background with a very subtle teal hint at the edge — keeps brand warmth
+    // without the cream backdrop the user asked to remove.
     final colors = variant == EditorialSurfaceVariant.customer
         ? const <Color>[
-            Color(0xFFFDF9F4),
-            Color(AppConstants.secondaryColor),
+            Colors.white,
+            Colors.white,
             Color(0xFFE8F5F3),
           ]
         : const <Color>[
-            Color(0xFFF2EBE4),
-            Color(AppConstants.secondaryColor),
+            Colors.white,
+            Colors.white,
             Color(0xFFD8EFEC),
           ];
 

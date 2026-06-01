@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/api_client.dart';
 import 'core/api_config.dart';
-import 'core/app_navigator.dart';
 import 'core/storage_service.dart';
 import 'core/constants.dart';
 import 'theme/pawsewa_theme.dart';
@@ -13,11 +12,12 @@ import 'services/socket_service.dart';
 import 'services/chat_unread_notify_service.dart';
 import 'services/notification_unread_notify_service.dart';
 import 'services/push_notification_service.dart';
+import 'services/navigation_service.dart';
 import 'services/ongoing_call_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
 import 'widgets/pawsewa_brand_logo.dart';
-import 'widgets/pawsewa_logo_spinner.dart';
+import 'widgets/app_spinner.dart';
 import 'cart/cart_service.dart';
 import 'cart/saved_addresses_service.dart';
 import 'services/payment_deep_link.dart';
@@ -76,7 +76,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: appNavigatorKey,
+      navigatorKey: NavigationService.navigatorKey,
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
       theme: PawsewaTheme.light(),
@@ -106,31 +106,38 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkLoginStatus() async {
     final storage = StorageService();
-    bool isLoggedIn = await storage.isLoggedIn();
+    final isLoggedIn = await storage.isLoggedIn();
 
-    // Validate persisted token against backend. If expired/invalid, clear and treat as logged out.
+    if (!mounted) return;
+
+    // Navigate immediately — no artificial delay, no blocking network call.
+    // If logged in: go to dashboard now, validate token in background.
+    //   The ApiClient 401/403 interceptor redirects to /login if the token is expired.
+    // If not logged in: go to login screen immediately.
     if (isLoggedIn) {
-      try {
-        await ApiClient().getUserProfile();
-      } catch (_) {
-        await storage.clearAll();
-        isLoggedIn = false;
-      }
+      SocketService.instance.connect();
+      unawaited(PushNotificationService.instance.syncTokenIfLoggedIn());
+      // Background token validation — does NOT block navigation.
+      unawaited(_validateTokenInBackground(storage));
     }
 
-    await Future.delayed(const Duration(seconds: 1));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) =>
+            isLoggedIn ? const PetDashboardScreen() : const LoginScreen(),
+      ),
+    );
+  }
 
-    if (mounted) {
-      if (isLoggedIn) {
-        SocketService.instance.connect();
-        unawaited(PushNotificationService.instance.syncTokenIfLoggedIn());
-      }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) =>
-              isLoggedIn ? const PetDashboardScreen() : const LoginScreen(),
-        ),
-      );
+  /// Validates the stored token against the backend after navigating away.
+  /// If invalid/expired, clears storage and redirects to login via the
+  /// ApiClient 401 interceptor (which already handles this automatically).
+  Future<void> _validateTokenInBackground(StorageService storage) async {
+    try {
+      await ApiClient().getUserProfile();
+    } catch (_) {
+      // 401/403 → ApiClient interceptor already clears storage and pushes /login.
+      // Any other error (network down, 500) is silently ignored — user stays logged in.
     }
   }
 
@@ -180,8 +187,8 @@ class _SplashScreenState extends State<SplashScreen> {
                       color: const Color(AppConstants.inkColor),
                     ),
               ),
-              const SizedBox(height: 24),
-              const PawSewaLogoSpinner(size: 48),
+              const SizedBox(height: 28),
+              const AppSpinner(size: 9),
             ],
           ),
         ),

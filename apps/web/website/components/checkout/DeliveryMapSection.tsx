@@ -167,7 +167,7 @@ export function DeliveryMapSection({
                 <button
                   type="button"
                   onClick={() => pickSuggestion(s)}
-                  className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs text-[#2c241c] hover:bg-[#faf6f0]"
+                  className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs text-[#2c241c] hover:bg-[#ffffff]"
                 >
                   <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#703418]" />
                   <span className="line-clamp-2">{s.displayName}</span>

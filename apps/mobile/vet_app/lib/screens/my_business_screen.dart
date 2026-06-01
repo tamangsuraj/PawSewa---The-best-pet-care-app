@@ -10,6 +10,7 @@ import '../services/socket_service.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/partner_scaffold.dart';
 import 'partner_marketplace_chat_screen.dart';
+import 'partner_support_chat_screen.dart';
 import 'payment_webview_screen.dart';
 import 'care_booking_detail_screen.dart';
 
@@ -273,8 +274,10 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
         IconButton(
           tooltip: 'Support',
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Support chat is in the top bar on Home')),
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PartnerSupportChatScreen(),
+              ),
             );
           },
           icon: const Icon(Icons.support_agent_rounded),
