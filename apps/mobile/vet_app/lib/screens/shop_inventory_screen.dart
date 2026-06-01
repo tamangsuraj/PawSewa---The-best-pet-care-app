@@ -513,7 +513,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                         );
                         return;
                       }
-                      // Capture messenger before async gap to avoid BuildContext warning.
+                      // Capture navigator and messenger before async gaps.
+                      final nav = Navigator.of(ctx);
                       final messenger = ScaffoldMessenger.of(context);
                       setDialogState(() => saving = true);
                       try {
@@ -542,10 +543,10 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                         }
                         await _apiClient.updateProductForm(id, formData);
                         if (!mounted) {
-                          Navigator.pop(ctx);
+                          nav.pop();
                           return;
                         }
-                        Navigator.pop(ctx);
+                        nav.pop();
                         await _loadData();
                         if (!mounted) return;
                         messenger.showSnackBar(
