@@ -336,24 +336,6 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     }
   }
 
-  Future<void> _updateStock(String productId, String newStock) async {
-    try {
-      await _apiClient.updateProductStock(
-        productId: productId,
-        stockQuantity: newStock,
-      );
-      await _loadData();
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Stock updated')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update stock: $e')));
-    }
-  }
 
   Future<void> _showEditProductDialog(Map<String, dynamic> product) async {
     final id = product['_id']?.toString() ?? '';
@@ -531,6 +513,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                         );
                         return;
                       }
+                      // Capture messenger before async gap to avoid BuildContext warning.
+                      final messenger = ScaffoldMessenger.of(context);
                       setDialogState(() => saving = true);
                       try {
                         final formData = FormData();
@@ -564,13 +548,13 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                         Navigator.pop(ctx);
                         await _loadData();
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           const SnackBar(content: Text('Product updated')),
                         );
                       } catch (e) {
                         setDialogState(() => saving = false);
                         if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           SnackBar(
                             content: Text(
                               e is DioException && e.response?.data is Map
@@ -1059,7 +1043,6 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                 itemBuilder: (context, index) {
                                   final product =
                                       _products[index] as Map<String, dynamic>;
-                                  final id = product['_id']?.toString() ?? '';
                                   final name =
                                       product['name']?.toString() ?? 'Product';
                                   final price =

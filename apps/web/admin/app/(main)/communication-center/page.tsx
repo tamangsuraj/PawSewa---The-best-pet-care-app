@@ -42,7 +42,15 @@ export default function CommunicationCenterPage() {
     loadHistory();
   }, []);
 
-  const filtered = useMemo(() => logs, [logs]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return logs;
+    return logs.filter(
+      (l) =>
+        l.title.toLowerCase().includes(q) ||
+        l.message.toLowerCase().includes(q)
+    );
+  }, [logs, search]);
 
   const onSend = async (e: React.FormEvent) => {
     e.preventDefault();

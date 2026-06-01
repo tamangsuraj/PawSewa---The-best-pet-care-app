@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../widgets/editorial_canvas.dart';
+import '../widgets/partner_scaffold.dart';
 
 /// Partner inbox: same `notifications` collection as customer app.
 class NotificationsScreen extends StatefulWidget {
@@ -123,196 +125,216 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     const brown = Color(AppConstants.primaryColor);
-    const cream = Color(AppConstants.secondaryColor);
+    final ink = const Color(AppConstants.inkColor);
 
-    return Scaffold(
-      backgroundColor: cream,
-      appBar: AppBar(
-        title: Text(
-          'Notifications',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: brown,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          if (_unreadCount > 0)
-            TextButton(
-              onPressed: _markAllRead,
-              child: Text(
-                'Mark all read',
-                style: GoogleFonts.outfit(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
+    return PartnerScaffold(
+      title: 'Notifications',
+      subtitle: _unreadCount > 0 ? '$_unreadCount unread' : 'All caught up',
+      actions: [
+        if (_unreadCount > 0)
+          TextButton(
+            onPressed: _markAllRead,
+            child: Text(
+              'Mark all read',
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
               ),
             ),
-        ],
-      ),
-      body: RefreshIndicator(
-        color: brown,
-        onRefresh: _load,
-        child: _loading
-            ? const Center(child: PawSewaLoader())
-            : _error != null
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(24),
-                    children: [
-                      Text(
-                        _error!,
-                        style: GoogleFonts.outfit(color: Colors.red.shade800),
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _load,
-                        style: FilledButton.styleFrom(backgroundColor: brown),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  )
-                : _items.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(32),
-                        children: [
-                          Icon(
-                            Icons.notifications_none_rounded,
-                            size: 64,
-                            color: Colors.grey.shade400,
+          ),
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded),
+          onPressed: _loading ? null : _load,
+          tooltip: 'Refresh',
+        ),
+      ],
+      body: Stack(
+        children: [
+          const EditorialBodyBackdrop(),
+          Positioned.fill(
+            child: RefreshIndicator(
+              color: brown,
+              onRefresh: _load,
+              child: _loading
+                  ? const Center(child: PawSewaLoader())
+                  : _error != null
+                      ? PartnerEmptyState(
+                          title: "Couldn't load notifications",
+                          body: _error!,
+                          icon: Icons.notifications_off_rounded,
+                          primaryAction: OutlinedButton.icon(
+                            onPressed: _load,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Retry'),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No alerts yet',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade800,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Hostel bookings and system messages appear here.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _items.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 10),
-                        itemBuilder: (context, i) {
-                          final item = _items[i];
-                          final title = item['title']?.toString() ?? 'Notice';
-                          final message = item['message']?.toString() ?? '';
-                          final read = item['isRead'] == true;
-                          final created = item['createdAt']?.toString() ?? '';
-                          final type = item['type']?.toString() ?? '';
+                        )
+                      : _items.isEmpty
+                          ? const PartnerEmptyState(
+                              title: 'No alerts yet',
+                              body: 'Assignments, bookings and system messages will appear here.',
+                              icon: Icons.notifications_none_rounded,
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                              itemCount: _items.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 8),
+                              itemBuilder: (context, i) {
+                                final item = _items[i];
+                                final title = item['title']?.toString() ?? 'Notice';
+                                final message = item['message']?.toString() ?? '';
+                                final read = item['isRead'] == true;
+                                final created = item['createdAt']?.toString() ?? '';
+                                final type = item['type']?.toString() ?? '';
+                                String timeStr = '';
+                                if (created.isNotEmpty) {
+                                  final dt = DateTime.tryParse(created);
+                                  if (dt != null) {
+                                    final local = dt.toLocal();
+                                    timeStr =
+                                        '${local.day}/${local.month}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+                                  }
+                                }
 
-                          return Material(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            elevation: 0.5,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
-                              onTap: () {
-                                _tapItem(item);
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(14),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 8,
-                                      height: 8,
-                                      margin: const EdgeInsets.only(top: 6, right: 10),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: read ? Colors.grey.shade300 : brown,
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Column(
+                                return Material(
+                                  color: read ? Colors.white : brown.withValues(alpha: 0.04),
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(16),
+                                    onTap: () => _tapItem(item),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Row(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  title,
-                                                  style: GoogleFonts.outfit(
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 15,
-                                                    color: Colors.black87,
-                                                  ),
-                                                ),
+                                          // Unread dot
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 6, right: 10),
+                                            child: AnimatedContainer(
+                                              duration: const Duration(milliseconds: 200),
+                                              width: 8,
+                                              height: 8,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: read
+                                                    ? Colors.transparent
+                                                    : brown,
                                               ),
-                                              if (type.isNotEmpty)
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 2,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: brown.withValues(alpha: 0.1),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    type,
+                                            ),
+                                          ),
+                                          // Icon
+                                          Container(
+                                            width: 42,
+                                            height: 42,
+                                            margin: const EdgeInsets.only(right: 12),
+                                            decoration: BoxDecoration(
+                                              color: brown.withValues(alpha: 0.08),
+                                              borderRadius: BorderRadius.circular(14),
+                                            ),
+                                            child: Icon(
+                                              _iconForType(type),
+                                              color: brown,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          // Content
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Expanded(
+                                                      child: Text(
+                                                        title,
+                                                        style: GoogleFonts.outfit(
+                                                          fontWeight: read ? FontWeight.w600 : FontWeight.w800,
+                                                          fontSize: 14.5,
+                                                          color: ink,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    if (type.isNotEmpty) ...[
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        padding: const EdgeInsets.symmetric(
+                                                          horizontal: 7,
+                                                          vertical: 2,
+                                                        ),
+                                                        decoration: BoxDecoration(
+                                                          color: brown.withValues(alpha: 0.08),
+                                                          borderRadius: BorderRadius.circular(6),
+                                                        ),
+                                                        child: Text(
+                                                          type.replaceAll('_', ' '),
+                                                          style: GoogleFonts.outfit(
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: brown,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ),
+                                                if (message.isNotEmpty) ...[
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    message,
                                                     style: GoogleFonts.outfit(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                      color: brown,
+                                                      fontSize: 13,
+                                                      height: 1.4,
+                                                      color: ink.withValues(alpha: 0.70),
                                                     ),
                                                   ),
-                                                ),
-                                            ],
+                                                ],
+                                                if (timeStr.isNotEmpty) ...[
+                                                  const SizedBox(height: 6),
+                                                  Text(
+                                                    timeStr,
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 11,
+                                                      color: ink.withValues(alpha: 0.42),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
+                                            ),
                                           ),
-                                          if (message.isNotEmpty) ...[
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              message,
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 13,
-                                                height: 1.35,
-                                                color: Colors.grey.shade800,
-                                              ),
-                                            ),
-                                          ],
-                                          if (created.isNotEmpty) ...[
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              created.length > 16
-                                                  ? created.substring(0, 16)
-                                                  : created,
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 11,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                          ],
                                         ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              ),
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'service_request':
+      case 'appointment_assigned':
+        return Icons.medical_services_rounded;
+      case 'shop_order':
+      case 'order':
+        return Icons.shopping_bag_rounded;
+      case 'care_booking':
+      case 'care_booking_request':
+        return Icons.home_work_rounded;
+      case 'reminder':
+        return Icons.alarm_rounded;
+      case 'system':
+        return Icons.info_rounded;
+      default:
+        return Icons.notifications_rounded;
+    }
   }
 }

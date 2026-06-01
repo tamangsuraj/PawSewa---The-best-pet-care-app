@@ -15,16 +15,21 @@ export default function ReportsPage() {
   const [to, setTo] = useState('');
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const reportRef = useRef<HTMLDivElement>(null);
 
   const generate = async () => {
     if (!from || !to) return;
     setLoading(true);
+    setError('');
+    setData(null);
     try {
       const res = await api.get('/admin/reports/revenue', { params: { from, to } });
       setData(res.data?.data ?? null);
-    } catch {
-      setData(null);
+      if (!res.data?.data) setError('No report data returned for this date range.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg || 'Failed to generate report. Check the date range and try again.');
     } finally {
       setLoading(false);
     }
@@ -79,6 +84,11 @@ export default function ReportsPage() {
           </button>
         )}
       </div>
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-800 text-sm">
+          {error}
+        </div>
+      )}
       {data && (
         <div
           ref={reportRef}

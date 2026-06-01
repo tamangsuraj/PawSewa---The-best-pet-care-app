@@ -60,13 +60,8 @@ export default function CareServicesPage() {
 
   const fetchCareServices = async () => {
     try {
-      const response = await api.get('/users');
-      const allUsers: unknown[] = response.data?.data ?? [];
-      const services: CareService[] = allUsers
-        .filter((u): u is Record<string, unknown> => typeof u === 'object' && u !== null)
-        .filter((u) => u['role'] === 'care_service')
-        .map((u) => u as unknown as CareService);
-      setCareServices(services);
+      const response = await api.get('/users', { params: { role: 'care_service' } });
+      setCareServices(response.data?.data ?? []);
     } catch (error) {
       console.error('Error fetching care services:', error);
     } finally {

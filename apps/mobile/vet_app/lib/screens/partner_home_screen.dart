@@ -875,15 +875,9 @@ class _AnalyticsHub extends StatelessWidget {
       PartnerRole.rider => <_HubTile>[
           _HubTile(
             icon: Icons.history_rounded,
-            title: 'History',
-            subtitle: 'Delivered drops and receipts',
+            title: 'Delivery history',
+            subtitle: 'Completed drops, receipts & earnings',
             onTap: () => onOpen(const RiderHistoryScreen()),
-          ),
-          _HubTile(
-            icon: Icons.attach_money_rounded,
-            title: 'Earnings',
-            subtitle: 'Delivery earnings view',
-            onTap: () => onOpen(const EarningsScreen()),
           ),
         ],
       PartnerRole.seller => <_HubTile>[

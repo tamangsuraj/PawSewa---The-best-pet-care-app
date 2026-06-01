@@ -1,7 +1,5 @@
-import 'dart:math' show max;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/api_client.dart';
@@ -9,554 +7,822 @@ import '../../core/constants.dart';
 import 'care_all_services_screen.dart';
 import 'hostel_detail_screen.dart';
 import 'pet_care_service_card.dart';
-import '../../widgets/premium_empty_state.dart';
-import '../../widgets/premium_shimmer.dart';
 
-/// Pet Care+ hub (care centres, daycare, grooming, etc.).
-///
-/// This widget is a **root tab body** inside the customer dashboard scaffold.
-/// The app bar (drawer, PawSewa title, “Pet Care+” subtitle, messages) lives on
-/// the parent — do not add a duplicate [AppBar] here.
-///
-/// Backend serviceType -> section header (reference layout order).
-const List<Map<String, String>> _sectionConfig = [
-  {'type': 'Hostel', 'header': 'Care centres (boarding & stays)'},
-  {'type': 'Daycare', 'header': 'Daycare Facilities'},
-  {'type': 'Grooming', 'header': 'Grooming Facilities'},
-  {'type': 'Spa', 'header': 'Spa Services'},
-  {'type': 'Training', 'header': 'Training Centres'},
-  {'type': 'Wash', 'header': 'Wash Your Puppies'},
+// ── Category tab data ──────────────────────────────────────────────────────
+const List<Map<String, dynamic>> _categories = [
+  {'type': 'All', 'label': 'All', 'icon': Icons.apps_rounded},
+  {'type': 'Hostel', 'label': 'Boarding', 'icon': Icons.home_work_rounded},
+  {'type': 'Grooming', 'label': 'Grooming', 'icon': Icons.content_cut_rounded},
+  {'type': 'Spa', 'label': 'Spa', 'icon': Icons.spa_rounded},
+  {'type': 'Daycare', 'label': 'Daycare', 'icon': Icons.child_care_rounded},
+  {'type': 'Training', 'label': 'Training', 'icon': Icons.sports_rounded},
+  {'type': 'Wash', 'label': 'Wash', 'icon': Icons.water_drop_rounded},
 ];
 
+const List<String> _backendTypes = [
+  'Hostel',
+  'Daycare',
+  'Grooming',
+  'Spa',
+  'Training',
+  'Wash',
+];
+
+/// Sort options.
+enum _SortMode { none, priceAsc, priceDesc, ratingDesc }
+
+/// OYO-style Pet Care+ hub: hero header, category tabs, vertical property cards.
 class CareScreen extends StatefulWidget {
   const CareScreen({super.key, this.onOpenMainDrawer});
-
-  /// Opens the root [PetDashboardScreen] drawer (e.g. after closing a pushed care sub-route).
   final VoidCallback? onOpenMainDrawer;
 
   @override
   State<CareScreen> createState() => _CareScreenState();
 }
 
-class _CareScreenState extends State<CareScreen> {
-  final _apiClient = ApiClient();
-  final _searchController = TextEditingController();
-  final _searchFocus = FocusNode();
+class _CareScreenState extends State<CareScreen>
+    with SingleTickerProviderStateMixin {
+  final _api = ApiClient();
+  final _searchCtrl = TextEditingController();
+  late final TabController _tabCtrl;
 
-  Map<String, List<Map<String, dynamic>>> _hostelsByType = {};
+  Map<String, List<Map<String, dynamic>>> _byType = {};
   bool _loading = true;
   String? _error;
+  _SortMode _sort = _SortMode.none;
 
-  /// null = all categories visible; otherwise only these serviceType keys.
-  Set<String>? _filterTypes;
+  static const _primary = Color(AppConstants.primaryColor);
+  static const _teal = Color(AppConstants.accentColor);
 
   @override
   void initState() {
     super.initState();
-    _loadHostels();
+    _tabCtrl = TabController(length: _categories.length, vsync: this);
+    _tabCtrl.addListener(() => setState(() {}));
+    _loadAll();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _searchFocus.dispose();
+    _tabCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadHostels() async {
+  Future<void> _loadAll() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final all = <String, List<Map<String, dynamic>>>{};
-      for (final c in _sectionConfig) {
-        final id = c['type']!;
-        final resp = await _apiClient.getHostels(serviceType: id);
-        if (resp.data is Map && resp.data['data'] is List) {
-          all[id] = List<Map<String, dynamic>>.from(
-            (resp.data['data'] as List).map(
-              (e) =>
-                  e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{},
-            ),
-          );
-        } else {
-          all[id] = [];
-        }
+      final results = await Future.wait(
+        _backendTypes.map((t) => _api.getHostels(serviceType: t)),
+      );
+      final map = <String, List<Map<String, dynamic>>>{};
+      for (int i = 0; i < _backendTypes.length; i++) {
+        final d = results[i].data;
+        map[_backendTypes[i]] = d is Map && d['data'] is List
+            ? List<Map<String, dynamic>>.from(
+                (d['data'] as List).map(
+                  (e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{},
+                ),
+              )
+            : [];
       }
-      if (mounted) {
-        setState(() {
-          _hostelsByType = all;
-          _loading = false;
-        });
-        if (kDebugMode) {
-          debugPrint(
-            '[SUCCESS] Services UI transformed: Reference matching design applied. Functionality preserved.',
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = 'Could not load care services. Please try again.';
-        });
-      }
+      if (mounted) setState(() { _byType = map; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; _error = 'Could not load care services.'; });
     }
   }
 
-  List<Map<String, dynamic>> _filteredForSection(
-    String serviceType,
-    List<Map<String, dynamic>> raw,
-  ) {
-    var list = List<Map<String, dynamic>>.from(raw);
-    if (_filterTypes != null && !_filterTypes!.contains(serviceType)) {
-      return [];
-    }
-    final q = _searchController.text.trim().toLowerCase();
-    if (q.isEmpty) return list;
-    return list.where((h) {
-      final name = (h['name'] ?? '').toString().toLowerCase();
-      String addr = '';
-      if (h['location'] is Map && h['location']['address'] != null) {
-        addr = h['location']['address'].toString().toLowerCase();
-      }
-      return name.contains(q) || addr.contains(q);
+  List<Map<String, dynamic>> get _allItems {
+    return _backendTypes.expand((t) {
+      return (_byType[t] ?? []).map((h) => {...h, '_serviceType': t});
     }).toList();
   }
 
-  void _openHostel(Map<String, dynamic> hostel) {
+  List<Map<String, dynamic>> _itemsForTab(int tabIdx) {
+    final cat = _categories[tabIdx];
+    final type = cat['type'] as String;
+    List<Map<String, dynamic>> list;
+    if (type == 'All') {
+      list = _allItems;
+    } else {
+      list = (_byType[type] ?? []).map((h) => {...h, '_serviceType': type}).toList();
+    }
+
+    // Search filter
+    final q = _searchCtrl.text.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((h) {
+        final name = (h['name'] ?? '').toString().toLowerCase();
+        final addr = h['location'] is Map
+            ? (h['location']['address'] ?? '').toString().toLowerCase()
+            : '';
+        return name.contains(q) || addr.contains(q);
+      }).toList();
+    }
+
+    // Sort
+    switch (_sort) {
+      case _SortMode.priceAsc:
+        list.sort((a, b) => _price(a).compareTo(_price(b)));
+      case _SortMode.priceDesc:
+        list.sort((a, b) => _price(b).compareTo(_price(a)));
+      case _SortMode.ratingDesc:
+        list.sort((a, b) => _rating(b).compareTo(_rating(a)));
+      case _SortMode.none:
+        break;
+    }
+    return list;
+  }
+
+  double _price(Map<String, dynamic> h) {
+    final p = h['pricePerNight'] ?? h['pricePerSession'] ?? 0;
+    return p is num ? p.toDouble() : double.tryParse(p.toString()) ?? 0;
+  }
+
+  double _rating(Map<String, dynamic> h) {
+    final r = h['rating'] ?? 0;
+    return r is num ? r.toDouble() : 0;
+  }
+
+  int _totalCount(String type) {
+    if (type == 'All') return _allItems.length;
+    return (_byType[type] ?? []).length;
+  }
+
+  void _openDetail(Map<String, dynamic> h) {
+    final type = (h['_serviceType'] ?? h['serviceType'] ?? 'Hostel').toString();
+    final hostelData = Map<String, dynamic>.from(h)..remove('_serviceType');
+    if (!hostelData.containsKey('serviceType')) hostelData['serviceType'] = type;
+
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, _, _) => HostelDetailScreen(
-          hostel: hostel,
+        pageBuilder: (c, a, b) => HostelDetailScreen(
+          hostel: hostelData,
           onBooked: () {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Booking successful!')),
+                SnackBar(
+                  content: Text('Booking confirmed!', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                  backgroundColor: _teal,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               );
             }
           },
         ),
-        transitionsBuilder: (_, animation, _, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-            child: SlideTransition(
-              position:
-                  Tween<Offset>(
-                    begin: const Offset(0, 0.05),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeOutCubic,
-                    ),
-                  ),
-              child: child,
-            ),
-          );
-        },
+        transitionsBuilder: (c, anim, b, child) => FadeTransition(
+          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+          child: child,
+        ),
       ),
     );
   }
 
-  void _openSeeAll(
-    String serviceType,
-    String header,
-    List<Map<String, dynamic>> fullList,
-  ) {
+  void _openSeeAll(int tabIdx) {
+    final cat = _categories[tabIdx];
+    final type = cat['type'] as String;
+    if (type == 'All') return;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CareAllServicesScreen(
-          serviceType: serviceType,
-          sectionTitle: header,
-          items: List<Map<String, dynamic>>.from(fullList),
+          serviceType: type,
+          sectionTitle: cat['label'] as String,
+          items: List<Map<String, dynamic>>.from(_byType[type] ?? []),
           onOpenMainDrawer: widget.onOpenMainDrawer,
         ),
       ),
     );
   }
 
-  void _showFilterSheet() {
-    const primary = Color(AppConstants.primaryColor);
-    final allTypes = {for (final c in _sectionConfig) c['type']!};
-    var working = Set<String>.from(_filterTypes ?? allTypes);
-
+  void _showSortSheet() {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModal) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Filter categories',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('Sort by', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              for (final entry in <(_SortMode, String)>[
+                (_SortMode.none, 'Default'),
+                (_SortMode.priceAsc, 'Price: Low to High'),
+                (_SortMode.priceDesc, 'Price: High to Low'),
+                (_SortMode.ratingDesc, 'Top Rated'),
+              ])
+                InkWell(
+                  onTap: () {
+                    setState(() => _sort = entry.$1);
+                    Navigator.pop(ctx);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _sort == entry.$1 ? _primary : Colors.grey.shade400,
+                              width: 2,
+                            ),
+                            color: _sort == entry.$1 ? _primary : Colors.transparent,
+                          ),
+                          child: _sort == entry.$1
+                              ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          entry.$2,
+                          style: GoogleFonts.outfit(
+                            fontSize: 15,
+                            fontWeight: _sort == entry.$1 ? FontWeight.w700 : FontWeight.w400,
+                            color: _sort == entry.$1 ? _primary : Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Hero header ────────────────────────────────────────────────────────────
+  Widget _buildHero() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF703418), Color(0xFF9C4A22)],
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pet Care+',
+                          style: GoogleFonts.fraunces(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_rounded, color: Color(0xFFFFD9A8), size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Kathmandu Valley',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13,
+                                color: const Color(0xFFFFD9A8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.pets, color: Colors.white, size: 22),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Search bar
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (_) => setState(() {}),
+                  style: GoogleFonts.outfit(fontSize: 14, color: Colors.black87),
+                  decoration: InputDecoration(
+                    hintText: 'Search grooming, boarding, spa…',
+                    hintStyle: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[400]),
+                    prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[500], size: 20),
+                    suffixIcon: _searchCtrl.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(Icons.clear_rounded, color: Colors.grey[400], size: 18),
+                            onPressed: () => setState(() => _searchCtrl.clear()),
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Category tabs ──────────────────────────────────────────────────────────
+  Widget _buildCategoryTabs() {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: List.generate(_categories.length, (i) {
+            final cat = _categories[i];
+            final type = cat['type'] as String;
+            final label = cat['label'] as String;
+            final icon = cat['icon'] as IconData;
+            final selected = _tabCtrl.index == i;
+            final count = _loading ? 0 : _totalCount(type);
+
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                _tabCtrl.animateTo(i);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected ? _primary : Colors.transparent,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: selected ? _primary : const Color(0xFFE5E7EB),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: selected ? Colors.white : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      'Choose which sections to show on Pet Care+.',
+                      label,
                       style: GoogleFonts.outfit(
                         fontSize: 13,
-                        color: Colors.grey[600],
+                        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected ? Colors.white : Colors.grey[700],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _sectionConfig.map((c) {
-                        final type = c['type']!;
-                        final label = c['header']!;
-                        final on = working.contains(type);
-                        return FilterChip(
-                          label: Text(
-                            label,
-                            style: GoogleFonts.outfit(fontSize: 12),
+                    if (count > 0 && !_loading) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? Colors.white.withValues(alpha: 0.25)
+                              : const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: selected ? Colors.white : Colors.grey[600],
                           ),
-                          selected: on,
-                          onSelected: (sel) {
-                            setModal(() {
-                              if (sel) {
-                                working.add(type);
-                              } else {
-                                working.remove(type);
-                              }
-                            });
-                          },
-                          selectedColor: primary.withValues(alpha: 0.2),
-                          checkmarkColor: primary,
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    FilledButton(
-                      onPressed: () {
-                        if (working.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Select at least one category.'),
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() {
-                          _filterTypes = working.length == allTypes.length
-                              ? null
-                              : Set<String>.from(working);
-                        });
-                        Navigator.pop(ctx);
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(
-                        'Apply',
-                        style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() => _filterTypes = null);
-                        Navigator.pop(ctx);
-                      },
-                      child: Text(
-                        'Reset — show all',
-                        style: GoogleFonts.outfit(
-                          color: primary,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
             );
-          },
-        );
-      },
+          }),
+        ),
+      ),
     );
   }
 
-  Widget _buildSearchRow() {
-    const primary = Color(AppConstants.primaryColor);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _searchController,
-            focusNode: _searchFocus,
-            onChanged: (_) => setState(() {}),
-            style: GoogleFonts.outfit(fontSize: 14, color: Colors.black87),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Search services nearby...',
-              hintStyle: GoogleFonts.outfit(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                color: Colors.grey[600],
-                size: 22,
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF3F4F6),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(999),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 14,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Material(
-          color: primary,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: _showFilterSheet,
-            child: const SizedBox(
-              width: 48,
-              height: 48,
-              child: Icon(Icons.tune_rounded, color: Colors.white, size: 22),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── Sort bar ────────────────────────────────────────────────────────────────
+  Widget _buildSortBar(int tabIdx) {
+    final cat = _categories[tabIdx];
+    final type = cat['type'] as String;
+    final items = _itemsForTab(tabIdx);
+    final sortLabel = switch (_sort) {
+      _SortMode.priceAsc => 'Price ↑',
+      _SortMode.priceDesc => 'Price ↓',
+      _SortMode.ratingDesc => 'Top Rated',
+      _SortMode.none => 'Sort',
+    };
+    final isSorted = _sort != _SortMode.none;
 
-  Widget _buildSection(
-    String serviceType,
-    String header,
-    List<Map<String, dynamic>> source,
-  ) {
-    if (_filterTypes != null && !_filterTypes!.contains(serviceType)) {
-      return const SizedBox.shrink();
-    }
-    const primary = Color(AppConstants.primaryColor);
-    final filtered = _filteredForSection(serviceType, source);
-    final width = MediaQuery.sizeOf(context).width;
-    const sidePad = 20.0;
-    final fullCardW = width - sidePad * 2;
-    // Hostel can show a full-width featured first card; other sections use fixed 272px
-    // width — row height must match the widest card or the strip looks too tall.
-    final listRowHeight = serviceType == 'Hostel'
-        ? PetCareServiceCard.totalHeightForWidth(max(fullCardW, 272.0)) + 4
-        : PetCareServiceCard.totalHeightForWidth(272.0) + 4;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+      color: const Color(0xFFF8F7F5),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Text(
-                    header,
-                    style: GoogleFonts.outfit(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: primary,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: source.isEmpty
-                      ? null
-                      : () => _openSeeAll(serviceType, header, source),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'See All',
-                    style: GoogleFonts.outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: primary,
-                    ),
-                  ),
-                ),
-              ],
+          Expanded(
+            child: Text(
+              _loading
+                  ? 'Loading…'
+                  : '${items.length} ${items.length == 1 ? 'place' : 'places'}',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          if (filtered.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+          // Sort button
+          GestureDetector(
+            onTap: _showSortSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isSorted ? _primary.withValues(alpha: 0.1) : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isSorted ? _primary : const Color(0xFFE5E7EB),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.sort_rounded,
+                    size: 14,
+                    color: isSorted ? _primary : Colors.grey[600],
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    sortLabel,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isSorted ? _primary : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (type != 'All') ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _openSeeAll(tabIdx),
               child: Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: primary.withValues(alpha: 0.10)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: primary.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(
-                        Icons.search_off_rounded,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        source.isEmpty
-                            ? 'No listings in this category yet.'
-                            : 'No services match your search.',
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(
-                            AppConstants.inkColor,
-                          ).withValues(alpha: 0.70),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'See all',
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
                 ),
-              ),
-            )
-          else
-            SizedBox(
-              height: listRowHeight,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: filtered.length,
-                separatorBuilder: (context, i) => const SizedBox(width: 14),
-                itemBuilder: (context, i) {
-                  final item = filtered[i];
-                  final isFirstHostelFeatured =
-                      serviceType == 'Hostel' && i == 0;
-                  final cardW = isFirstHostelFeatured ? fullCardW : 272.0;
-                  return PetCareServiceCard(
-                    hostel: item,
-                    serviceType: serviceType,
-                    cardWidth: cardW,
-                    onTap: () => _openHostel(item),
-                  );
-                },
               ),
             ),
+          ],
         ],
       ),
     );
   }
 
+  // ── Listing panel for one tab ───────────────────────────────────────────────
+  Widget _buildTabPanel(int tabIdx) {
+    if (_loading) {
+      return _buildShimmerList();
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFFCCC0B4)),
+              const SizedBox(height: 16),
+              Text(
+                "Couldn't load care services",
+                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: _loadAll,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text('Retry', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                style: FilledButton.styleFrom(backgroundColor: _primary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final items = _itemsForTab(tabIdx);
+    if (items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.search_off_rounded, size: 36, color: Color(0xFF703418)),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _searchCtrl.text.isNotEmpty
+                    ? 'No results for "${_searchCtrl.text}"'
+                    : 'No listings here yet',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _searchCtrl.text.isNotEmpty
+                    ? 'Try a different keyword or browse all categories.'
+                    : 'Check back soon — new providers are joining.',
+                style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              if (_searchCtrl.text.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => setState(() => _searchCtrl.clear()),
+                  child: Text('Clear search', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: _primary)),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 120),
+      itemCount: items.length,
+      itemBuilder: (_, i) {
+        final h = items[i];
+        final type = (h['_serviceType'] ?? h['serviceType'] ?? 'Hostel').toString();
+        return PetCareServiceCard(
+          hostel: h,
+          serviceType: type,
+          onTap: () => _openDetail(h),
+        );
+      },
+    );
+  }
+
+  Widget _buildShimmerList() {
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 6, bottom: 60),
+      itemCount: 5,
+      itemBuilder: (c, i) => _ShimmerCard(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
-
-    return ColoredBox(
-      color: const Color(0xFFF8F9FA),
-      child: RefreshIndicator(
-        onRefresh: _loadHostels,
-        color: primary,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                child: _buildSearchRow(),
-              ),
-            ),
-            if (_error != null)
-              SliverToBoxAdapter(
-                child: PremiumEmptyState(
-                  title: 'Couldn’t load care centers',
-                  body: _error!,
-                  icon: Icons.wifi_off_rounded,
-                  primaryAction: FilledButton.icon(
-                    onPressed: _loadHostels,
-                    style: FilledButton.styleFrom(backgroundColor: primary),
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      color: Colors.white,
-                    ),
-                    label: Text(
-                      'Retry',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-              )
-            else if (_loading)
-              SliverFillRemaining(
-                child: PremiumShimmer(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                    children: const [
-                      SkeletonBox(height: 16, width: 220, radius: 10),
-                      SizedBox(height: 12),
-                      SkeletonListTile(),
-                      SkeletonListTile(),
-                      SkeletonBox(height: 16, width: 260, radius: 10),
-                      SizedBox(height: 12),
-                      SkeletonListTile(),
-                    ],
-                  ),
-                ),
-              )
-            else
-              SliverToBoxAdapter(
-                child: Column(
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F7F5),
+      body: Column(
+        children: [
+          _buildHero(),
+          _buildCategoryTabs(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabCtrl,
+              children: List.generate(_categories.length, (i) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final c in _sectionConfig)
-                      _buildSection(
-                        c['type']!,
-                        c['header']!,
-                        _hostelsByType[c['type']!] ?? [],
+                    _buildSortBar(i),
+                    Expanded(
+                      child: RefreshIndicator(
+                        color: _primary,
+                        onRefresh: _loadAll,
+                        child: _buildTabPanel(i),
                       ),
-                    const SizedBox(height: 88),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shimmer loading card ───────────────────────────────────────────────────
+class _ShimmerCard extends StatefulWidget {
+  @override
+  State<_ShimmerCard> createState() => _ShimmerCardState();
+}
+
+class _ShimmerCardState extends State<_ShimmerCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (c, anim2) {
+        final shimmer = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFEAE0D6),
+            const Color(0xFFF5EDE4),
+            const Color(0xFFEAE0D6),
+          ],
+          stops: [
+            (_anim.value - 0.3).clamp(0.0, 1.0),
+            _anim.value.clamp(0.0, 1.0),
+            (_anim.value + 0.3).clamp(0.0, 1.0),
+          ],
+        );
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image placeholder
+              Container(
+                height: 190,
+                decoration: BoxDecoration(
+                  gradient: shimmer,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 16,
+                            decoration: BoxDecoration(
+                              gradient: shimmer,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40),
+                        Container(
+                          width: 60,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            gradient: shimmer,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      height: 12,
+                      width: 140,
+                      decoration: BoxDecoration(
+                        gradient: shimmer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        for (int i = 0; i < 3; i++) ...[
+                          Container(
+                            height: 24,
+                            width: 70,
+                            decoration: BoxDecoration(
+                              gradient: shimmer,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          if (i < 2) const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

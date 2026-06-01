@@ -48,10 +48,8 @@ export default function SettingsPage() {
 
   const fetchAdmins = async () => {
     try {
-      const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const adminUsers = allUsers.filter((u: any) => u.role === 'admin');
-      setAdmins(adminUsers);
+      const response = await api.get('/users', { params: { role: 'admin' } });
+      setAdmins(response.data.data || []);
     } catch (error) {
       console.error('Error fetching admins:', error);
     } finally {

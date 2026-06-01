@@ -30,6 +30,8 @@ import {
   PawPrint,
   Shield,
   MapPin,
+  Stethoscope,
+  CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAdminChatUnread } from '@/context/AdminChatUnreadContext';
@@ -86,6 +88,8 @@ const collapsibleNavGroups: NavGroup[] = [
 const flatNavItems: { name: string; href: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Live map', href: '/live-map', icon: Map },
+  { name: 'Service Requests', href: '/service-requests', icon: Stethoscope },
+  { name: 'Appointment Desk', href: '/appointments-desk', icon: CalendarClock },
   { name: 'Reminders', href: '/reminders', icon: BellRing },
   { name: 'Communication Center', href: '/communication-center', icon: Megaphone },
   { name: 'Support Hub', href: '/customer-chats', icon: MessageCircle },

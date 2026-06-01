@@ -264,7 +264,7 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
                                         ),
                                         if (amt is num && amt > 0)
                                           Text(
-                                            'NPR ${(amt as num).toStringAsFixed(0)}',
+                                            'NPR ${amt.toStringAsFixed(0)}',
                                             style: GoogleFonts.outfit(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
@@ -344,7 +344,7 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
                                     ),
                                     trailing: amt is num && amt > 0
                                         ? Text(
-                                            'NPR ${(amt as num).toStringAsFixed(0)}',
+                                            'NPR ${amt.toStringAsFixed(0)}',
                                             style: GoogleFonts.outfit(
                                               fontWeight: FontWeight.w700,
                                               color: primary,

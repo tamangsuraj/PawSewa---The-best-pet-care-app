@@ -1,13 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:user_app/widgets/paw_sewa_loader.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:user_app/widgets/paw_sewa_loader.dart';
 
 import '../../core/constants.dart';
 import 'care_booking_screen.dart';
 import 'grooming_booking_screen.dart';
 
+// ── Grooming service list (shown in Grooming / Spa detail) ─────────────────
 final _groomingServices = [
   ('Bath & Blow Dry', LucideIcons.droplets),
   ('Full Haircut', LucideIcons.scissors),
@@ -20,503 +22,390 @@ List<Map<String, dynamic>> _getStaffList(String serviceType, Map<String, dynamic
   if (serviceType != 'Grooming' && serviceType != 'Spa') return [];
   final staff = h['staff'];
   if (staff is List && staff.isNotEmpty) {
-    return staff.map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{}).toList();
+    return staff
+        .map((e) => e is Map ? Map<String, dynamic>.from(e) : <String, dynamic>{})
+        .toList();
   }
   final owner = h['ownerId'];
   if (owner is Map && owner['name'] != null) {
-    return [{'name': owner['name'].toString(), 'experienceYears': 3}];
+    return [
+      {'name': owner['name'].toString(), 'experienceYears': 3},
+    ];
   }
-  return [{'name': 'Lead Groomer', 'experienceYears': 5}];
+  return [
+    {'name': 'Lead Groomer', 'experienceYears': 5},
+  ];
 }
 
+// ── Color / style constants ─────────────────────────────────────────────────
+const _primary = Color(AppConstants.primaryColor);
+const _teal = Color(AppConstants.accentColor);
+const _bg = Color(0xFFF8F7F5);
+
 class HostelDetailScreen extends StatefulWidget {
+  const HostelDetailScreen({super.key, required this.hostel, this.onBooked});
+
   final Map<String, dynamic> hostel;
   final VoidCallback? onBooked;
-
-  const HostelDetailScreen({
-    super.key,
-    required this.hostel,
-    this.onBooked,
-  });
 
   @override
   State<HostelDetailScreen> createState() => _HostelDetailScreenState();
 }
 
 class _HostelDetailScreenState extends State<HostelDetailScreen> {
-  int _selectedImageIndex = 0;
+  final _pageCtrl = PageController();
+  int _imgIdx = 0;
+  late final List<String> _images;
+  late final String _serviceType;
+  late final bool _isSession;
+  late final num _price;
+  late final String _name;
+  late final String _address;
+  late final double _rating;
+  late final int _reviewCount;
+  late final String _desc;
+  late final List _amenities;
+  late final List _schedule;
 
   @override
-  Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
+  void initState() {
+    super.initState();
     final h = widget.hostel;
-    final images = h['images'] is List ? h['images'] as List : <dynamic>[];
-    final displayImages = images
+    final rawImgs = h['images'] is List ? h['images'] as List : <dynamic>[];
+    _images = rawImgs
         .where((e) => e != null && e.toString().trim().isNotEmpty)
         .map((e) => e.toString())
         .toList();
-    if (displayImages.isEmpty) displayImages.add('');
+    if (_images.isEmpty) _images.add('');
 
-    final desc = h['description']?.toString() ?? 'Quality care for your pet.';
-    final price = (h['pricePerNight'] ?? h['pricePerSession'] ?? 0) as num;
-    final serviceType = h['serviceType']?.toString() ?? 'Hostel';
-    final isSession = ['Grooming', 'Training', 'Wash', 'Spa'].contains(serviceType);
-    final amenities = h['amenities'] is List ? h['amenities'] as List : <dynamic>[];
-    final schedule = h['schedule'] is List ? h['schedule'] as List : <dynamic>[];
-    final rating = (h['rating'] ?? 0.0) is num ? (h['rating'] as num).toDouble() : 0.0;
-    final reviewCount = (h['reviewCount'] ?? 0) as int;
-    final address = h['location'] is Map && h['location']['address'] != null
+    _serviceType = h['serviceType']?.toString() ?? 'Hostel';
+    _isSession = ['Grooming', 'Training', 'Wash', 'Spa'].contains(_serviceType);
+    _price = (h['pricePerNight'] ?? h['pricePerSession'] ?? 0) as num;
+    _name = h['name']?.toString() ?? 'Care Service';
+    _desc = h['description']?.toString() ?? 'Quality care for your pet.';
+    _rating = (h['rating'] ?? 0.0) is num ? (h['rating'] as num).toDouble() : 0.0;
+    _reviewCount = (h['reviewCount'] ?? 0) as int;
+    _address = h['location'] is Map && h['location']['address'] != null
         ? h['location']['address'].toString()
         : '';
+    _amenities = h['amenities'] is List ? h['amenities'] as List : <dynamic>[];
+    _schedule = h['schedule'] is List ? h['schedule'] as List : <dynamic>[];
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(AppConstants.primaryColor)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          '$serviceType Details',
-          style: GoogleFonts.outfit(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: primary,
-          ),
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  void _book() {
+    final isGroomingFlow = [
+      'Grooming',
+      'Spa',
+      'Training',
+      'Wash',
+    ].contains(_serviceType);
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (c, a, b) => isGroomingFlow
+            ? GroomingBookingScreen(
+                hostel: widget.hostel,
+                onBooked: () {
+                  Navigator.popUntil(context, (r) => r.isFirst);
+                  widget.onBooked?.call();
+                },
+              )
+            : CareBookingScreen(
+                hostel: widget.hostel,
+                onBooked: () {
+                  Navigator.popUntil(context, (r) => r.isFirst);
+                  widget.onBooked?.call();
+                },
+              ),
+        transitionsBuilder: (c, anim, b, child) => SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+          child: child,
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Hero image carousel
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: displayImages[0].isEmpty
+    );
+  }
+
+  // ── Image gallery header ──────────────────────────────────────────────────
+  Widget _buildGallery() {
+    return SizedBox(
+      height: 300,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageCtrl,
+            itemCount: _images.length,
+            onPageChanged: (i) => setState(() => _imgIdx = i),
+            itemBuilder: (_, i) {
+              final url = _images[i];
+              return url.isEmpty
                   ? Container(
-                      color: Colors.grey[200],
-                      child: const Center(child: Icon(Icons.pets, size: 64, color: Color(AppConstants.primaryColor))),
+                      color: _primary.withValues(alpha: 0.08),
+                      child: const Center(child: Icon(Icons.pets, size: 72, color: _primary)),
                     )
-                  : Stack(
-                      children: [
-                        PageView.builder(
-                          itemCount: displayImages.length,
-                          onPageChanged: (i) => setState(() => _selectedImageIndex = i),
-                          itemBuilder: (_, i) => CachedNetworkImage(
-                            imageUrl: displayImages[i],
-                            fit: BoxFit.cover,
-                            placeholder: (_, _) => const Center(child: PawSewaLoader()),
-                            errorWidget: (_, _, _) => const Icon(Icons.pets, size: 64, color: Color(AppConstants.primaryColor)),
-                          ),
-                        ),
-                        if (displayImages.length > 1)
-                          Positioned(
-                            bottom: 12,
-                            left: 16,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${_selectedImageIndex + 1} / ${displayImages.length}',
-                                style: GoogleFonts.outfit(color: Colors.white, fontSize: 12),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-            if (displayImages.length > 1)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    displayImages.length,
-                    (i) => Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _selectedImageIndex == i ? primary : Colors.grey[300],
+                  : CachedNetworkImage(
+                      imageUrl: url,
+                      httpHeaders: const {'ngrok-skip-browser-warning': 'true'},
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      placeholder: (c, url) => Container(
+                        color: const Color(0xFFF3EDE7),
+                        child: const Center(child: PawSewaLoader()),
                       ),
-                    ),
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // About - different title for grooming/spa
-                  Text(
-                    isSession ? 'Professional Spa & Hygiene' : 'A Safe Home Away From Home',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    desc,
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      height: 1.5,
-                    ),
-                  ),
-                  if (isSession && (serviceType == 'Grooming' || serviceType == 'Spa')) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Included Services',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _IncludedServicesGrid(),
-                  ],
-                  if (_getStaffList(serviceType, h).isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Our Groomers',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _GroomersRow(staff: _getStaffList(serviceType, h), owner: h['ownerId']),
-                  ],
-                  if (amenities.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Amenities',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: amenities
-                          .take(8)
-                          .map((a) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  a.toString(),
-                                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[800]),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ],
-                  if (schedule.isNotEmpty && serviceType == 'Hostel') ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Daily schedule',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Column(
-                        children: schedule
-                            .take(6)
-                            .map((s) {
-                              final m = s is Map ? Map<String, dynamic>.from(s) : <String, dynamic>{};
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 70,
-                                      child: Text(
-                                        m['time']?.toString() ?? '',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.grey[800],
-                                        ),
-                                      ),
-                                    ),
-                                    Text(
-                                      m['activity']?.toString() ?? '',
-                                      style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[600]),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            })
-                            .toList(),
-                      ),
-                    ),
-                  ],
-                  if (address.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Location',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, size: 18, color: primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            address,
-                            style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[700]),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (rating > 0 || reviewCount > 0) ...[
-                    const SizedBox(height: 20),
-                    Text(
-                      'Reviews',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: primary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.star, size: 18, color: primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${rating.toStringAsFixed(1)} ($reviewCount+ reviews)',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 12,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Rs. ${price.toStringAsFixed(0)}',
-                    style: GoogleFonts.outfit(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: primary,
-                    ),
-                  ),
-                  Text(
-                    isSession ? 'per session' : 'per night',
-                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    final isGroomingFlow = serviceType == 'Grooming' || serviceType == 'Spa' || serviceType == 'Training' || serviceType == 'Wash';
-                    Navigator.push(
-                      context,
-                      PageRouteBuilder(
-                        pageBuilder: (_, _, _) => isGroomingFlow
-                            ? GroomingBookingScreen(
-                                hostel: widget.hostel,
-                                onBooked: () {
-                                  Navigator.popUntil(context, (r) => r.isFirst);
-                                  widget.onBooked?.call();
-                                },
-                              )
-                            : CareBookingScreen(
-                                hostel: widget.hostel,
-                                onBooked: () {
-                                  Navigator.popUntil(context, (r) => r.isFirst);
-                                  widget.onBooked?.call();
-                                },
-                              ),
-                        transitionsBuilder: (_, animation, _, child) {
-                          return SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 1),
-                              end: Offset.zero,
-                            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-                            child: child,
-                          );
-                        },
+                      errorWidget: (c, url, err) => Container(
+                        color: _primary.withValues(alpha: 0.06),
+                        child: const Center(child: Icon(Icons.pets, size: 72, color: _primary)),
                       ),
                     );
-                  },
-                  icon: const Icon(Icons.calendar_today, size: 18),
-                  label: const Text('Book Now'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            },
+          ),
+
+          // Gradient at top for back button visibility
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 90,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Back button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 12,
+            child: _CircleButton(
+              icon: Icons.arrow_back_rounded,
+              onTap: () => Navigator.pop(context),
+            ),
+          ),
+
+          // Photo count / thumbnail dots
+          if (_images.length > 1)
+            Positioned(
+              bottom: 14,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _images.length > 8 ? 8 : _images.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: _imgIdx == i ? 18 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: _imgIdx == i
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+
+          // Photo count badge
+          if (_images.length > 1)
+            Positioned(
+              bottom: 14,
+              right: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.photo_library_rounded, color: Colors.white, size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${_imgIdx + 1}/${_images.length}',
+                      style: GoogleFonts.outfit(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
-}
 
-class _IncludedServicesGrid extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _groomingServices.map((e) {
-        final (label, icon) = e;
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[200]!),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 20, color: primary),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                label.toUpperCase(),
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _GroomersRow extends StatelessWidget {
-  final List<Map<String, dynamic>> staff;
-  final dynamic owner;
-
-  const _GroomersRow({required this.staff, this.owner});
-
-  @override
-  Widget build(BuildContext context) {
-    const primary = Color(AppConstants.primaryColor);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: staff.map((s) {
-          final name = s['name']?.toString() ?? 'Groomer';
-          final exp = (s['experienceYears'] ?? 0) as int;
-          return Container(
-            width: 140,
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.all(12),
+  // ── Header info card ──────────────────────────────────────────────────────
+  Widget _buildHeaderCard() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Category pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
+              color: _primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: primary.withValues(alpha: 0.15),
-                  backgroundImage: s['photoUrl'] != null && s['photoUrl'].toString().isNotEmpty
-                      ? NetworkImage(s['photoUrl'].toString())
-                      : null,
-                  child: s['photoUrl'] == null || s['photoUrl'].toString().isEmpty
-                      ? Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: primary),
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  name,
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
+            child: Text(
+              _serviceType,
+              style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: _primary),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Name
+          Text(
+            _name,
+            style: GoogleFonts.outfit(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF1A1A1A),
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Location + badges row
+          Row(
+            children: [
+              const Icon(Icons.location_on_rounded, size: 15, color: Color(0xFF9CA3AF)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  _address.isNotEmpty ? _address : 'Kathmandu Valley',
+                  style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF6B7280)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Rating row
+          if (_rating > 0) ...[
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _teal,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, color: Colors.white, size: 15),
+                      const SizedBox(width: 4),
+                      Text(
+                        _rating.toStringAsFixed(1),
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                if (_reviewCount > 0)
+                  Text(
+                    '$_reviewCount review${_reviewCount == 1 ? '' : 's'}',
+                    style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF6B7280)),
+                  ),
+                const Spacer(),
+                // Verified badge
+                if (widget.hostel['isVerified'] == true)
+                  Row(
+                    children: [
+                      const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Verified',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF16A34A),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Key highlights ─────────────────────────────────────────────────────────
+  Widget _buildHighlights() {
+    final highlights = <(IconData, String)>[];
+    if (_isSession) {
+      highlights.addAll([
+        (Icons.access_time_rounded, 'Flexible timings'),
+        (Icons.workspace_premium_rounded, 'Certified staff'),
+        (Icons.sentiment_satisfied_alt_rounded, 'Stress-free'),
+      ]);
+    } else {
+      highlights.addAll([
+        (Icons.nights_stay_rounded, 'Overnight stays'),
+        (Icons.medical_services_outlined, 'Vet on call'),
+        (Icons.videocam_rounded, 'Live updates'),
+      ]);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: highlights.map((h) {
+          final (icon, label) = h;
+          return Expanded(
+            child: Column(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _primary.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 22, color: _primary),
+                ),
+                const SizedBox(height: 6),
                 Text(
-                  '$exp+ Years Exp',
-                  style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600]),
+                  label,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF374151),
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
@@ -525,4 +414,486 @@ class _GroomersRow extends StatelessWidget {
       ),
     );
   }
+
+  // ── Section header ─────────────────────────────────────────────────────────
+  Widget _sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: GoogleFonts.outfit(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF1A1A1A),
+        ),
+      ),
+    );
+  }
+
+  // ── About section ─────────────────────────────────────────────────────────
+  Widget _buildAbout() {
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('About'),
+          Text(
+            _desc,
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              color: const Color(0xFF4B5563),
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Included services (Grooming / Spa) ────────────────────────────────────
+  Widget _buildIncludedServices() {
+    if (!_isSession || (_serviceType != 'Grooming' && _serviceType != 'Spa')) {
+      return const SizedBox.shrink();
+    }
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader("What's included"),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 3.2,
+            children: _groomingServices.map((e) {
+              final (label, icon) = e;
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F7F5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 18, color: _primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Groomers ──────────────────────────────────────────────────────────────
+  Widget _buildGroomers() {
+    final staff = _getStaffList(_serviceType, widget.hostel);
+    if (staff.isEmpty) return const SizedBox.shrink();
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Our team'),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: staff.map((s) {
+                final nm = s['name']?.toString() ?? 'Groomer';
+                final yrs = s['experienceYears'];
+                return Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.all(14),
+                  width: 130,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F7F5),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: _primary.withValues(alpha: 0.1),
+                        child: Text(
+                          nm.isNotEmpty ? nm[0].toUpperCase() : 'G',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: _primary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        nm,
+                        style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF1A1A1A)),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (yrs != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${yrs}y exp',
+                          style: GoogleFonts.outfit(fontSize: 11, color: const Color(0xFF6B7280)),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Amenities ─────────────────────────────────────────────────────────────
+  Widget _buildAmenities() {
+    if (_amenities.isEmpty) return const SizedBox.shrink();
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Amenities'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _amenities.take(10).map((a) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F7F5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.check_circle_outline_rounded, size: 14, color: _teal),
+                    const SizedBox(width: 6),
+                    Text(
+                      a.toString(),
+                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Daily schedule (Hostel) ────────────────────────────────────────────────
+  Widget _buildSchedule() {
+    if (_schedule.isEmpty || _serviceType != 'Hostel') return const SizedBox.shrink();
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Daily schedule'),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F7F5),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              children: _schedule.take(6).toList().asMap().entries.map((e) {
+                final i = e.key;
+                final s = e.value is Map ? Map<String, dynamic>.from(e.value as Map) : <String, dynamic>{};
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    border: i > 0
+                        ? const Border(top: BorderSide(color: Color(0xFFE5E7EB)))
+                        : null,
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 72,
+                        child: Text(
+                          s['time']?.toString() ?? '',
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _primary,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          s['activity']?.toString() ?? '',
+                          style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF4B5563)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Location ──────────────────────────────────────────────────────────────
+  Widget _buildLocation() {
+    if (_address.isEmpty) return const SizedBox.shrink();
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Location'),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F7F5),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.location_on_rounded, size: 20, color: _primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _address,
+                    style: GoogleFonts.outfit(fontSize: 14, color: const Color(0xFF374151), height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Policies ──────────────────────────────────────────────────────────────
+  Widget _buildPolicies() {
+    final isHostel = _serviceType == 'Hostel' || _serviceType == 'Daycare';
+    if (!isHostel) return const SizedBox.shrink();
+    return _Section(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader('Policies'),
+          _PolicyRow(
+            icon: Icons.access_time_rounded,
+            label: _serviceType == 'Hostel' ? 'Check-in / Check-out' : 'Timings',
+            value: '9:00 AM – 6:00 PM',
+          ),
+          const SizedBox(height: 10),
+          _PolicyRow(
+            icon: Icons.pets,
+            label: 'Pets accepted',
+            value: 'Dogs, Cats & small pets',
+          ),
+          const SizedBox(height: 10),
+          _PolicyRow(
+            icon: Icons.no_food_rounded,
+            label: 'Meals included',
+            value: 'Yes – 3 meals/day',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Bottom booking bar ─────────────────────────────────────────────────────
+  Widget _buildBottomBar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 14,
+        bottom: MediaQuery.of(context).padding.bottom + 14,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Rs. ${_price.toStringAsFixed(0)}',
+                style: GoogleFonts.outfit(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: _primary,
+                ),
+              ),
+              Text(
+                _isSession ? 'per session' : 'per night',
+                style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF9CA3AF)),
+              ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: FilledButton(
+              onPressed: _book,
+              style: FilledButton.styleFrom(
+                backgroundColor: _primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.calendar_month_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Book Now',
+                    style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+    return Scaffold(
+      backgroundColor: _bg,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildGallery(),
+            _buildHeaderCard(),
+            _buildHighlights(),
+            _buildAbout(),
+            _buildIncludedServices(),
+            _buildGroomers(),
+            _buildAmenities(),
+            _buildSchedule(),
+            _buildLocation(),
+            _buildPolicies(),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
 }
+
+// ── Reusable section wrapper ────────────────────────────────────────────────
+class _Section extends StatelessWidget {
+  const _Section({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      color: Colors.white,
+      padding: const EdgeInsets.all(20),
+      child: child,
+    );
+  }
+}
+
+// ── Policy row ─────────────────────────────────────────────────────────────
+class _PolicyRow extends StatelessWidget {
+  const _PolicyRow({required this.icon, required this.label, required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: const Color(AppConstants.accentColor)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF9CA3AF), fontWeight: FontWeight.w500),
+              ),
+              Text(
+                value,
+                style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: const Color(0xFF374151)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Circle icon button (back / share) ──────────────────────────────────────
+class _CircleButton extends StatelessWidget {
+  const _CircleButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.40),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 20),
+      ),
+    );
+  }
+}
+

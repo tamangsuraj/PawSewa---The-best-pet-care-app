@@ -35,7 +35,7 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
       _error = null;
     });
     try {
-      final productsResp = await _api.getProducts();
+      final productsResp = await _api.getMyProducts();
       final ordersResp = await _api.getSellerAssignedOrders();
       final analyticsResp = await _api.getSellerShopAnalytics();
 

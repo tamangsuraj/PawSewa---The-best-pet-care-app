@@ -46,10 +46,8 @@ export default function CustomersPage() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await api.get('/users');
-      const allUsers = response.data.data;
-      const petOwners = allUsers.filter((u: any) => u.role === 'pet_owner');
-      setCustomers(petOwners);
+      const response = await api.get('/users', { params: { role: 'pet_owner' } });
+      setCustomers(response.data.data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
     } finally {
@@ -442,7 +440,11 @@ export default function CustomersPage() {
 
                     <div>
                       <label className="text-sm text-gray-500">Account Status</label>
-                      <p className="text-green-600 font-medium">Active</p>
+                      {selectedCustomer.isActive !== false ? (
+                        <span className="inline-flex mt-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium border border-green-200">Active</span>
+                      ) : (
+                        <span className="inline-flex mt-1 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium border border-red-200">Inactive</span>
+                      )}
                     </div>
 
                     <div>
