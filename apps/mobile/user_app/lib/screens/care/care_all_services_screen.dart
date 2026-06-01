@@ -57,10 +57,15 @@ class _CareAllServicesScreenState extends State<CareAllServicesScreen> {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Booking confirmed!', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                content: Text(
+                  'Booking confirmed!',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
+                ),
                 backgroundColor: const Color(AppConstants.accentColor),
                 behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             );
           },
@@ -120,11 +125,22 @@ class _CareAllServicesScreenState extends State<CareAllServicesScreen> {
                 style: GoogleFonts.outfit(fontSize: 14, color: Colors.black87),
                 decoration: InputDecoration(
                   hintText: 'Search ${widget.sectionTitle.toLowerCase()}…',
-                  hintStyle: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[400]),
-                  prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[500], size: 20),
+                  hintStyle: GoogleFonts.outfit(
+                    fontSize: 14,
+                    color: Colors.grey[400],
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Colors.grey[500],
+                    size: 20,
+                  ),
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? IconButton(
-                          icon: Icon(Icons.clear_rounded, size: 18, color: Colors.grey[400]),
+                          icon: Icon(
+                            Icons.clear_rounded,
+                            size: 18,
+                            color: Colors.grey[400],
+                          ),
                           onPressed: () => setState(() => _searchCtrl.clear()),
                         )
                       : null,
@@ -150,7 +166,11 @@ class _CareAllServicesScreenState extends State<CareAllServicesScreen> {
                         color: _primary.withValues(alpha: 0.07),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Icon(Icons.search_off_rounded, size: 36, color: _primary),
+                      child: const Icon(
+                        Icons.search_off_rounded,
+                        size: 36,
+                        color: _primary,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -170,7 +190,10 @@ class _CareAllServicesScreenState extends State<CareAllServicesScreen> {
                         onPressed: () => setState(() => _searchCtrl.clear()),
                         child: Text(
                           'Clear search',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: _primary),
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w600,
+                            color: _primary,
+                          ),
                         ),
                       ),
                     ],
