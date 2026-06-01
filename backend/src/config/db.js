@@ -1,5 +1,23 @@
+const dns = require('dns');
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
+
+/**
+ * Windows / some ISP resolvers return ECONNREFUSED for MongoDB Atlas SRV (_mongodb._tcp.*).
+ * Use reliable public DNS before mongoose.connect so Atlas SRV + TLS succeed.
+ * Override with MONGO_DNS_SERVERS=8.8.8.8,1.1.1.1 in backend/.env if needed.
+ */
+function configureMongoDnsResolvers() {
+  const fromEnv = (process.env.MONGO_DNS_SERVERS || '').trim();
+  const servers = fromEnv
+    ? fromEnv.split(',').map((s) => s.trim()).filter(Boolean)
+    : ['8.8.8.8', '1.1.1.1', '8.8.4.4'];
+  try {
+    dns.setServers(servers);
+  } catch (err) {
+    logger.warn(`MongoDB DNS: could not set resolvers (${err.message})`);
+  }
+}
 
 const EXPECTED_DB_NAME = 'pawsewa_core';
 
@@ -127,6 +145,7 @@ function getMongooseConnectionOptions(uri) {
 }
 
 const connectDB = async (retries = 3) => {
+  configureMongoDnsResolvers();
   const rawUri = getConnectionUri();
   const logicalDb = getConfiguredDbName();
   const withPath = withExplicitDatabasePathInUri(rawUri, logicalDb);
@@ -185,6 +204,7 @@ function startBackgroundReconnect() {
     }
     logger.info('[INFO] Re-establishing database handshake…');
     try {
+      configureMongoDnsResolvers();
       const rawUri = getConnectionUri();
       const logicalDb = getConfiguredDbName();
       const withPath = withExplicitDatabasePathInUri(rawUri, logicalDb);

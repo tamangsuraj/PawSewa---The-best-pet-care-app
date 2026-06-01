@@ -41,6 +41,17 @@ class SocketService {
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
 
+  Future<void> ensureConnected() async {
+    await connect();
+    for (var i = 0; i < 40; i++) {
+      if (isConnected) return;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    throw Exception(
+      'Cannot reach PawSewa server for calls. Check Wi‑Fi and that the backend is running.',
+    );
+  }
+
   Future<void> connect() async {
     if (_connecting || (_socket != null && _socket!.connected)) return;
     final token = await _storage.getToken();

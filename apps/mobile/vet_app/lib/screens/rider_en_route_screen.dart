@@ -290,7 +290,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
   @override
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const ink = Color(AppConstants.inkColor);
     const accent = Color(AppConstants.accentColor);
     const successGreen = Color(AppConstants.primaryColor);
     final order = widget.order;
@@ -390,7 +390,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                       style: GoogleFonts.outfit(
                         fontWeight: FontWeight.w700,
                         fontSize: 18,
-                        color: Colors.black87,
+                        color: const Color(AppConstants.inkColor),
                       ),
                     ),
                   ),
@@ -449,13 +449,13 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
             bottom: 0,
             child: Container(
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey.shade900 : Colors.white,
+                color: Colors.white,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(24),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.1),
+                    color: primary.withValues(alpha: 0.12),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),
@@ -474,7 +474,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                         style: GoogleFonts.outfit(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
-                          color: isDark ? Colors.white : Colors.black87,
+                          color: ink,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -489,7 +489,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                 address,
                                 style: GoogleFonts.outfit(
                                   fontSize: 13,
-                                  color: isDark ? Colors.white70 : Colors.grey[700],
+                                  color: Colors.grey[700],
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -542,7 +542,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                   widget.order['deliveryNotes'].toString().trim(),
                                   style: GoogleFonts.outfit(
                                     fontSize: 13,
-                                    color: isDark ? Colors.white : Colors.black87,
+                                    color: ink,
                                   ),
                                   maxLines: 3,
                                   overflow: TextOverflow.ellipsis,
@@ -567,7 +567,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                             style: GoogleFonts.outfit(
                               fontWeight: FontWeight.w600,
                               fontSize: 14,
-                              color: isDark ? Colors.white : Colors.black87,
+                              color: ink,
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -598,7 +598,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                         _paymentSummary(),
                         style: GoogleFonts.outfit(
                           fontSize: 12,
-                          color: isDark ? Colors.white70 : Colors.grey[600],
+                          color: Colors.grey[600],
                         ),
                       ),
                       if (_distanceKm != null) ...[
@@ -618,7 +618,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                               style: GoogleFonts.outfit(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white : Colors.black87,
+                                color: ink,
                               ),
                             ),
                             if (_etaMinutes != null) ...[
@@ -655,7 +655,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
                                 'Getting distance…',
                                 style: GoogleFonts.outfit(
                                   fontSize: 12,
-                                  color: isDark ? Colors.white70 : Colors.grey[600],
+                                  color: Colors.grey[600],
                                 ),
                               ),
                             ],

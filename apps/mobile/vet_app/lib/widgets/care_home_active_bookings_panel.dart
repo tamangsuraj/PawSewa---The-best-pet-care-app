@@ -216,7 +216,7 @@ class _CareHomeActiveBookingsPanelState extends State<CareHomeActiveBookingsPane
                           style: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Colors.black87,
+                            color: const Color(AppConstants.inkColor),
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -267,7 +267,7 @@ class _CareHomeActiveBookingsPanelState extends State<CareHomeActiveBookingsPane
                       style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: const Color(AppConstants.inkColor),
                       ),
                     ),
                 ],

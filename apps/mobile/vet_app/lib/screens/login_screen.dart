@@ -11,6 +11,8 @@ import '../core/constants.dart';
 import '../widgets/editorial_canvas.dart';
 import '../widgets/pawsewa_brand_logo.dart';
 import '../services/push_notification_service.dart';
+import '../services/socket_service.dart';
+import '../services/incoming_call_service.dart';
 import 'partner_home_screen.dart';
 import 'auth/register_vet.dart';
 
@@ -90,6 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
       defaultPartnerPanelForServerRole(userData['role']?.toString()),
     );
     await PushNotificationService.instance.registerFcmTokenWithBackend();
+    SocketService.instance.connect();
+    IncomingCallService.instance.init();
 
     if (!mounted) return;
     Navigator.of(context).pushReplacement(

@@ -9,8 +9,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/agora_config.dart';
+import '../../core/agora_call_errors.dart';
 import '../../core/api_client.dart';
+import '../../core/agora_channel_util.dart';
 import '../../core/constants.dart';
 import '../../services/ongoing_call_service.dart';
 import '../../services/socket_service.dart';
@@ -63,6 +64,9 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
   DateTime? _joinedAt;
   bool _cleanedUp = false;
   bool _beganOngoing = false;
+  late String _activeChannel;
+  Completer<void>? _joinWaiter;
+  bool _answerEmitted = false;
 
   // Hot-path state as ValueNotifiers — isolated rebuilds, no full-tree setState
   final _muted = ValueNotifier<bool>(false);
@@ -86,6 +90,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
   @override
   void initState() {
     super.initState();
+    _activeChannel = sanitizeAgoraChannel(widget.channelName);
     _pulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -98,7 +103,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
           _localUid = connection.localUid;
           _joinedAt ??= DateTime.now();
         });
-        _scheduleControlsHide();
+        unawaited(_onLocalJoinSuccess());
       },
       onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
         if (!mounted) return;
@@ -106,10 +111,27 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
       },
       onUserOffline: (RtcConnection connection, int remoteUid,
           UserOfflineReasonType reason) {
+        if (_joinedAt == null) return;
         if (remoteUid == _remoteUid) unawaited(_cleanup(remoteEnded: true));
+      },
+      onConnectionStateChanged: (RtcConnection connection,
+          ConnectionStateType state, ConnectionChangedReasonType reason) {
+        if (kDebugMode) {
+          debugPrint('[Agora] connection state=$state reason=$reason');
+        }
+        if (state == ConnectionStateType.connectionStateFailed &&
+            _joinWaiter != null &&
+            !_joinWaiter!.isCompleted) {
+          _joinWaiter!.completeError(
+            Exception('Connection failed (${reason.name}).'),
+          );
+        }
       },
       onError: (ErrorCodeType err, String msg) {
         if (kDebugMode) debugPrint('[Agora] onError $err $msg');
+        if (isFatalAgoraError(err)) {
+          _failCall(msg.isNotEmpty ? msg : 'Call error (${err.name})');
+        }
       },
     );
 
@@ -131,14 +153,97 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
   }
 
   void _onSocketCallEnded(Map<String, dynamic> data) {
-    if (data['channelName']?.toString() != widget.channelName) return;
+    if (data['channelName']?.toString() != _activeChannel) return;
     unawaited(_cleanup(remoteEnded: true));
   }
 
   void _onSocketCallAnswered(Map<String, dynamic> data) {
     if (!widget.iAmCaller) return;
-    if (data['channelName']?.toString() != widget.channelName) return;
+    if (data['channelName']?.toString() != _activeChannel) return;
     if (kDebugMode) debugPrint('[Agora] call_answered (socket)');
+  }
+
+  Future<void> _releaseEngineOnly() async {
+    try {
+      await _engine?.leaveChannel();
+    } catch (_) {}
+    try {
+      if (_engine != null) _engine!.unregisterEventHandler(_handler);
+      await _engine?.release();
+    } catch (_) {}
+    _engine = null;
+  }
+
+  void _failCall(String message) {
+    if (_cleanedUp || !mounted) return;
+    if (_joinWaiter != null && !_joinWaiter!.isCompleted) {
+      _joinWaiter!.completeError(Exception(message));
+    }
+    unawaited(_releaseEngineOnly());
+    setState(() {
+      _busy = false;
+      _error = message;
+    });
+  }
+
+  Future<void> _onLocalJoinSuccess() async {
+    final engine = _engine;
+    if (engine != null && widget.video) {
+      try {
+        await engine.enableVideo();
+        await engine.startPreview();
+        await engine.updateChannelMediaOptions(
+          const ChannelMediaOptions(
+            clientRoleType: ClientRoleType.clientRoleBroadcaster,
+            publishMicrophoneTrack: true,
+            publishCameraTrack: true,
+            autoSubscribeAudio: true,
+            autoSubscribeVideo: true,
+          ),
+        );
+      } catch (e) {
+        if (kDebugMode) debugPrint('[Agora] video after join: $e');
+      }
+    }
+
+    if (!widget.iAmCaller &&
+        !widget.answerAlreadySent &&
+        !_answerEmitted) {
+      _answerEmitted = true;
+      _socket.emitAnswerCall(
+        toUserId: widget.peerUserId,
+        channelName: _activeChannel,
+      );
+    }
+
+    if (_joinWaiter != null && !_joinWaiter!.isCompleted) {
+      _joinWaiter!.complete();
+    }
+    if (mounted) {
+      setState(() => _busy = false);
+      _scheduleControlsHide();
+    }
+  }
+
+  Future<Map<String, dynamic>> _awaitSocketAck(
+    void Function(void Function(dynamic) callback) emit,
+  ) {
+    final completer = Completer<Map<String, dynamic>>();
+    emit((response) {
+      if (completer.isCompleted) return;
+      if (response is Map) {
+        completer.complete(Map<String, dynamic>.from(response));
+      } else {
+        completer.complete({'success': false, 'message': 'Signaling failed'});
+      }
+    });
+    return completer.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => {
+        'success': false,
+        'message': 'Call signaling timed out. Check your connection.',
+      },
+    );
   }
 
   Future<void> _ensurePermissions() async {
@@ -155,7 +260,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
   }
 
   Future<Map<String, dynamic>> _fetchToken() async {
-    final res = await _api.getAgoraRtcToken(channelName: widget.channelName);
+    final res = await _api.getAgoraRtcToken(channelName: _activeChannel);
     final body = res.data;
     if (body is! Map || body['success'] != true) {
       throw Exception('Could not get call token.');
@@ -167,67 +272,96 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
 
   Future<void> _run() async {
     try {
+      await _socket.ensureConnected();
       await _ensurePermissions();
       final tokenPayload = await _fetchToken();
       final token = tokenPayload['token']?.toString() ?? '';
       final uid = (tokenPayload['uid'] is int)
           ? tokenPayload['uid'] as int
           : int.tryParse('${tokenPayload['uid']}') ?? 0;
-      if (token.isEmpty || uid < 1) throw Exception('Invalid token from server.');
+      if (token.isEmpty || uid < 1) {
+        throw Exception('Invalid token from server.');
+      }
+
+      final serverChannel = tokenPayload['channelName']?.toString().trim() ?? '';
+      if (serverChannel.isNotEmpty) _activeChannel = serverChannel;
+
+      final appId = tokenPayload['appId']?.toString().trim() ?? '';
+      if (appId.isEmpty) {
+        throw Exception(
+          'Agora is not configured on the server (AGORA_APP_ID).',
+        );
+      }
 
       if (widget.iAmCaller) {
-        _socket.emitMakeCall(
-          toUserId: widget.peerUserId,
-          channelName: widget.channelName,
-          callType: widget.video ? 'video' : 'audio',
-          callerName: widget.localDisplayName.isNotEmpty
-              ? widget.localDisplayName
-              : 'Caller',
+        final ack = await _awaitSocketAck(
+          (cb) => _socket.emitMakeCall(
+            toUserId: widget.peerUserId,
+            channelName: _activeChannel,
+            callType: widget.video ? 'video' : 'audio',
+            callerName: widget.localDisplayName.isNotEmpty
+                ? widget.localDisplayName
+                : 'Caller',
+            appointmentId: widget.appointmentId,
+            careBookingId: widget.careBookingId,
+            callback: cb,
+          ),
         );
-      } else if (!widget.answerAlreadySent) {
-        _socket.emitAnswerCall(
-          toUserId: widget.peerUserId,
-          channelName: widget.channelName,
-        );
+        if (ack['success'] != true) {
+          throw Exception(
+            ack['message']?.toString() ??
+                'Could not reach the other party. They may be offline.',
+          );
+        }
       }
 
       final engine = createAgoraRtcEngine();
       await engine.initialize(RtcEngineContext(
-        appId: AgoraConfig.appId,
+        appId: appId,
         channelProfile: ChannelProfileType.channelProfileCommunication,
-        areaCode: AreaCode.areaCodeAs.value(),
       ));
       engine.registerEventHandler(_handler);
       await engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
       await engine.enableAudio();
-      if (widget.video) {
-        await engine.enableVideo();
-        await engine.startPreview();
-      } else {
+      if (!widget.video) {
         await engine.disableVideo();
       }
       _engine = engine;
 
-      await engine.joinChannel(
-        token: token,
-        channelId: widget.channelName,
-        uid: uid,
-        options: ChannelMediaOptions(
-          channelProfile: ChannelProfileType.channelProfileCommunication,
-          clientRoleType: ClientRoleType.clientRoleBroadcaster,
-          publishMicrophoneTrack: true,
-          publishCameraTrack: widget.video,
-          autoSubscribeAudio: true,
-          autoSubscribeVideo: widget.video,
-        ),
-      );
-
-      if (mounted) setState(() => _busy = false);
+      _joinWaiter = Completer<void>();
+      try {
+        await engine.joinChannel(
+          token: token,
+          channelId: _activeChannel,
+          uid: uid,
+          options: ChannelMediaOptions(
+            channelProfile: ChannelProfileType.channelProfileCommunication,
+            clientRoleType: ClientRoleType.clientRoleBroadcaster,
+            publishMicrophoneTrack: true,
+            publishCameraTrack: false,
+            autoSubscribeAudio: true,
+            autoSubscribeVideo: widget.video,
+          ),
+        );
+        await _joinWaiter!.future.timeout(
+          const Duration(seconds: 20),
+          onTimeout: () => throw Exception(
+            'Could not connect to the call in time. Check network and try again.',
+          ),
+        );
+      } on AgoraRtcException catch (e) {
+        throw Exception(agoraErrorMessage(e));
+      } finally {
+        _joinWaiter = null;
+      }
     } on DioException catch (e) {
+      final status = e.response?.statusCode;
       final msg = e.response?.data is Map &&
               (e.response!.data as Map)['message'] != null
           ? (e.response!.data as Map)['message'].toString()
-          : e.message;
+          : (status == 503
+              ? 'Video calls are not configured on the server yet.'
+              : e.message);
       if (mounted) {
         setState(() {
           _busy = false;
@@ -235,14 +369,14 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = 'Connection error. Please try again.'; });
+      if (mounted) _failCall(agoraErrorMessage(e));
     }
   }
 
   Future<void> _postLog(int seconds) async {
     try {
       await _api.postCallLog({
-        'channelName': widget.channelName,
+        'channelName': _activeChannel,
         'durationSeconds': seconds,
         'callType': widget.video ? 'video' : 'audio',
         'peerUserId': widget.peerUserId,
@@ -273,7 +407,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
     if (!remoteEnded) {
       _socket.emitHangUp(
         toUserId: widget.peerUserId,
-        channelName: widget.channelName,
+        channelName: _activeChannel,
         durationSeconds: secs,
       );
       await _postLog(secs);
@@ -281,12 +415,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
 
     _ongoing?.end();
 
-    try { await _engine?.leaveChannel(); } catch (_) {}
-    try {
-      if (_engine != null) _engine!.unregisterEventHandler(_handler);
-      await _engine?.release();
-    } catch (_) {}
-    _engine = null;
+    await _releaseEngineOnly();
 
     if (!fromDispose && mounted) {
       Navigator.of(context, rootNavigator: true).maybePop();
@@ -388,7 +517,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
                 RepaintBoundary(
                   child: _DraggablePip(
                     engine: engine,
-                    channelName: widget.channelName,
+                    channelName: _activeChannel,
                     localUid: local,
                     offsetNotifier: _pipOffset,
                     videoEnabledNotifier: _videoEnabled,
@@ -433,7 +562,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
               sourceType: VideoSourceType.videoSourceRemote,
             ),
             connection: RtcConnection(
-              channelId: widget.channelName,
+              channelId: _activeChannel,
               localUid: local,
             ),
           ),

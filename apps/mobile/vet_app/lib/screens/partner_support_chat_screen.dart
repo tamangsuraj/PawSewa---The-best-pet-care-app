@@ -15,11 +15,15 @@ import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../widgets/messaging_call_bar.dart';
+import '../widgets/messaging_chat_composer.dart';
 import 'agora_vet_direct_call_screen.dart';
 
 /// PawSewa Customer Support (same thread model as user app — Marketplace SUPPORT).
 class PartnerSupportChatScreen extends StatefulWidget {
-  const PartnerSupportChatScreen({super.key});
+  const PartnerSupportChatScreen({super.key, this.embeddedInHub = false});
+
+  /// When true (Unified inbox → Support tab), omit duplicate app bar + header card.
+  final bool embeddedInHub;
 
   @override
   State<PartnerSupportChatScreen> createState() =>
@@ -64,7 +68,6 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     await _socket.connect();
     _socket.addCustomerCareMessageListener(_onCareMessage);
     _socket.addCustomerCareTypingListener(_onCareTyping);
-    _socket.addIncomingCallListener(_onIncomingCareCall);
     await _joinWhenReady();
   }
 
@@ -72,63 +75,6 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       _myUserId != null &&
       _careUserId != null &&
       _careUserId!.isNotEmpty;
-
-  void _onIncomingCareCall(Map<String, dynamic> data) {
-    final oid = _myUserId;
-    final cid = _careUserId;
-    if (oid == null || cid == null || cid.isEmpty) return;
-    final ch = data['channelName']?.toString() ?? '';
-    if (ch != customerCareRtcChannel(oid, cid)) return;
-    final fromId = data['fromUserId']?.toString() ?? '';
-    if (fromId.isEmpty) return;
-    final video = data['callType']?.toString() == 'video';
-    final callerName = data['callerName']?.toString() ?? 'Caller';
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(video ? 'Incoming video call' : 'Incoming call'),
-        content: Text('$callerName is calling…'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _socket.emitHangUp(
-                toUserId: fromId,
-                channelName: ch,
-                durationSeconds: 0,
-              );
-            },
-            child: const Text('Decline'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _socket.emitAnswerCall(toUserId: fromId, channelName: ch);
-              if (!mounted) return;
-              await Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  fullscreenDialog: true,
-                  builder: (_) => AgoraVetDirectCallScreen(
-                    channelName: ch,
-                    myUserId: oid,
-                    peerUserId: fromId,
-                    peerName: callerName,
-                    localDisplayName: _myDisplayName,
-                    video: video,
-                    iAmCaller: false,
-                    answerAlreadySent: true,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Accept'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _placeCareCall(bool video) async {
     final oid = _myUserId;
@@ -322,7 +268,6 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     _typingDebounce?.cancel();
     _socket.removeCustomerCareMessageListener(_onCareMessage);
     _socket.removeCustomerCareTypingListener(_onCareTyping);
-    _socket.removeIncomingCallListener(_onIncomingCareCall);
     final id = _conversationId;
     if (id != null) _socket.setCustomerCareTyping(id, false);
     _text.dispose();
@@ -330,10 +275,186 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
     super.dispose();
   }
 
+  Widget _buildChatContent() {
+    if (_loading) {
+      return const Center(child: PawSewaLoader());
+    }
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _loadThread,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        if (!widget.embeddedInHub) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: const Color(
+                    AppConstants.primaryColor,
+                  ).withValues(alpha: 0.15),
+                  child: const Icon(
+                    Icons.support_agent_rounded,
+                    color: Color(AppConstants.primaryColor),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _careName,
+                        style: GoogleFonts.outfit(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(AppConstants.primaryColor),
+                        ),
+                      ),
+                      Text(
+                        'We\'re here to help',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+        ],
+        if (widget.embeddedInHub && _canCareCall)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: MessagingCallBar(
+                onAudio: () => unawaited(_placeCareCall(false)),
+                onVideo: () => unawaited(_placeCareCall(true)),
+              ),
+            ),
+          ),
+        Expanded(
+          child: ListView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.all(16),
+            itemCount: _messages.length + (_typingRemote ? 1 : 0),
+            itemBuilder: (context, i) {
+              if (_typingRemote && i == _messages.length) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'Typing…',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                );
+              }
+              final m = _messages[i];
+              final mine =
+                  _myUserId != null &&
+                  m['senderId']?.toString() == _myUserId;
+              final t = m['text']?.toString() ?? '';
+              return Align(
+                alignment: mine
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.78,
+                  ),
+                  decoration: BoxDecoration(
+                    color: mine
+                        ? const Color(AppConstants.primaryColor)
+                        : const Color(AppConstants.sandColor),
+                    borderRadius: BorderRadius.circular(16),
+                    border: mine
+                        ? null
+                        : Border.all(
+                            color: const Color(AppConstants.primaryColor)
+                                .withValues(alpha: 0.12),
+                          ),
+                  ),
+                  child: Text(
+                    t,
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      color: mine
+                          ? Colors.white
+                          : const Color(AppConstants.inkColor),
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        MessagingChatComposer(
+          controller: _text,
+          hintText: 'Message Customer Care…',
+          onSend: _send,
+          onChanged: (v) {
+            final id = _conversationId;
+            if (id == null) return;
+            _typingDebounce?.cancel();
+            if (v.trim().isNotEmpty) {
+              _socket.setCustomerCareTyping(id, true);
+            } else {
+              _socket.setCustomerCareTyping(id, false);
+            }
+            _typingDebounce = Timer(
+              const Duration(milliseconds: 600),
+              () {
+                if (v.trim().isEmpty) {
+                  _socket.setCustomerCareTyping(id, false);
+                }
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.embeddedInHub) {
+      return ColoredBox(
+        color: const Color(AppConstants.bentoBackgroundColor),
+        child: _buildChatContent(),
+      );
+    }
+
     return Scaffold(
-      backgroundColor: const Color(AppConstants.secondaryColor),
+      backgroundColor: const Color(AppConstants.bentoBackgroundColor),
       appBar: AppBar(
         title: Text(
           'Customer Support',
@@ -357,183 +478,7 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: PawSewaLoader())
-          : _error != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(_error!, textAlign: TextAlign.center),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _loadThread,
-                      child: const Text('Retry'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: const Color(
-                          AppConstants.primaryColor,
-                        ).withValues(alpha: 0.15),
-                        child: const Icon(
-                          Icons.send_rounded,
-                          color: Color(AppConstants.primaryColor),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _careName,
-                              style: GoogleFonts.outfit(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(AppConstants.primaryColor),
-                              ),
-                            ),
-                            Text(
-                              'We\'re here to help',
-                              style: GoogleFonts.outfit(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_typingRemote ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (_typingRemote && i == _messages.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'Typing…',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        );
-                      }
-                      final m = _messages[i];
-                      final mine =
-                          _myUserId != null &&
-                          m['senderId']?.toString() == _myUserId;
-                      final t = m['text']?.toString() ?? '';
-                      return Align(
-                        alignment: mine
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 10,
-                          ),
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.78,
-                          ),
-                          decoration: BoxDecoration(
-                            color: mine
-                                ? const Color(AppConstants.primaryColor)
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            t,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              color: mine ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Material(
-                  color: const Color(AppConstants.secondaryColor),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _text,
-                            onChanged: (v) {
-                              final id = _conversationId;
-                              if (id == null) return;
-                              _typingDebounce?.cancel();
-                              if (v.trim().isNotEmpty) {
-                                _socket.setCustomerCareTyping(id, true);
-                              } else {
-                                _socket.setCustomerCareTyping(id, false);
-                              }
-                              _typingDebounce = Timer(
-                                const Duration(milliseconds: 600),
-                                () {
-                                  if (v.trim().isEmpty) {
-                                    _socket.setCustomerCareTyping(id, false);
-                                  }
-                                },
-                              );
-                            },
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: (_) => _send(),
-                            minLines: 1,
-                            maxLines: 4,
-                            decoration: InputDecoration(
-                              hintText: 'Message…',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: _send,
-                          tooltip: 'Send',
-                          icon: const Icon(
-                            Icons.send_rounded,
-                            color: Colors.white,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(
-                              AppConstants.primaryColor,
-                            ),
-                            padding: const EdgeInsets.all(14),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      body: _buildChatContent(),
     );
   }
 }

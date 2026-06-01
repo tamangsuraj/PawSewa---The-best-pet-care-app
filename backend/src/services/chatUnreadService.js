@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const ChatUnreadState = require('../models/ChatUnreadState');
 const User = require('../models/User');
 const MarketplaceConversation = require('../models/MarketplaceConversation');
@@ -135,9 +136,47 @@ async function setUnread(io, userId, threadKey, count) {
 async function getSummaryForUser(userId) {
   const doc = await ChatUnreadState.findOne({ user: String(userId) }).lean();
   const threads = normalizeThreads(doc?.threads);
+  const sectionUnread = { support: 0, vets: 0, care: 0, sellers: 0, delivery: 0 };
+
+  const convEntries = [];
+  for (const [key, raw] of Object.entries(threads)) {
+    const n = Number(raw) || 0;
+    if (n <= 0) continue;
+    if (key.startsWith(PREFIX_VET)) {
+      sectionUnread.vets += n;
+      continue;
+    }
+    if (key.startsWith(PREFIX_REQ)) {
+      sectionUnread.support += n;
+      continue;
+    }
+    if (key.startsWith(PREFIX_CONV)) {
+      convEntries.push({ id: key.slice(PREFIX_CONV.length), n });
+    }
+  }
+
+  if (convEntries.length > 0) {
+    const ids = convEntries.map((e) => e.id).filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (ids.length > 0) {
+      const convs = await MarketplaceConversation.find({ _id: { $in: ids } })
+        .select('type')
+        .lean();
+      const typeById = new Map(convs.map((c) => [c._id.toString(), c.type]));
+      for (const { id, n } of convEntries) {
+        const type = typeById.get(id);
+        if (type === 'SUPPORT') sectionUnread.support += n;
+        else if (type === 'CARE') sectionUnread.care += n;
+        else if (type === 'SELLER') sectionUnread.sellers += n;
+        else if (type === 'DELIVERY') sectionUnread.delivery += n;
+        else sectionUnread.support += n;
+      }
+    }
+  }
+
   return {
     totalUnread: sumThreads(threads),
     byChatId: threads,
+    sectionUnread,
   };
 }
 

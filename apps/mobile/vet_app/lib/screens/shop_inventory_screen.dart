@@ -194,13 +194,13 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     }
   }
 
-  Future<void> _createCategory() async {
+  Future<bool> _createCategory() async {
     final name = _categoryNameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Enter category name')));
-      return;
+      return false;
     }
     setState(() => _creatingCategory = true);
     try {
@@ -219,22 +219,161 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         );
       }
       await _apiClient.createCategoryForm(formData);
-      if (!mounted) return;
+      if (!mounted) return false;
       _categoryNameController.clear();
       setState(() => _categoryImage = null);
       await _loadData();
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Category created')));
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Could not create category. Please try again.')));
+      return false;
     } finally {
       if (mounted) setState(() => _creatingCategory = false);
     }
+  }
+
+  Future<void> _showAddCategoryDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(
+            'Add category',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: _categoryNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Category name *',
+                    hintText: 'e.g. Food, Toys, Medicine',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        final file = await _picker.pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 85,
+                        );
+                        if (file != null) {
+                          setDialogState(() => _categoryImage = file);
+                        }
+                      },
+                      child: const Text('Choose image'),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _categoryImage == null
+                            ? 'No image selected'
+                            : 'Image selected',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: _creatingCategory ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: _creatingCategory
+                  ? null
+                  : () async {
+                      final ok = await _createCategory();
+                      if (ok && ctx.mounted) Navigator.pop(ctx);
+                    },
+              child: Text(_creatingCategory ? 'Creating…' : 'Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProductCategoryDropdown(Color primary) {
+    final hasCategories = _categories.isNotEmpty;
+    final validSelection = _categories.any(
+      (c) => c['_id']?.toString() == _selectedCategoryId,
+    );
+
+    if (!hasCategories) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'No categories yet. Create one to assign products.',
+            style: GoogleFonts.outfit(fontSize: 13, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _showAddCategoryDialog,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add category'),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: validSelection ? _selectedCategoryId : null,
+          items: _categories
+              .map(
+                (c) => DropdownMenuItem<String>(
+                  value: c['_id']?.toString(),
+                  child: Text(c['name']?.toString() ?? 'Category'),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            setState(() => _selectedCategoryId = value);
+          },
+          decoration: InputDecoration(
+            labelText: 'Category *',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _showAddCategoryDialog,
+            icon: Icon(Icons.add_rounded, size: 18, color: primary),
+            label: Text(
+              'Add new category',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w600,
+                color: primary,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _loadData() async {
@@ -594,6 +733,13 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         ),
         backgroundColor: primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Add category',
+            onPressed: _showAddCategoryDialog,
+            icon: const Icon(Icons.category_outlined),
+          ),
+        ],
       ),
       backgroundColor: Colors.transparent,
       body: Stack(
@@ -816,7 +962,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            _buildCategorySection(primary),
+                            _buildProductCategoryDropdown(primary),
                             const SizedBox(height: 16),
                             _buildTextField(
                               controller: _nameController,
@@ -909,31 +1055,6 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                   ),
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              initialValue: _selectedCategoryId,
-                              items: _categories
-                                  .map(
-                                    (c) => DropdownMenuItem<String>(
-                                      value: c['_id']?.toString(),
-                                      child: Text(
-                                        c['name']?.toString() ?? 'Category',
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedCategoryId = value;
-                                });
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'Category *',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
                             ),
                             const SizedBox(height: 8),
                             _buildTextField(
@@ -1108,7 +1229,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                           style: GoogleFonts.outfit(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
-                                            color: Colors.black87,
+                                            color: const Color(AppConstants.inkColor),
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -1135,7 +1256,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                 style: GoogleFonts.outfit(
                                                   fontWeight: FontWeight.w500,
                                                   fontSize: 13,
-                                                  color: Colors.black87,
+                                                  color: const Color(AppConstants.inkColor),
                                                 ),
                                               ),
                                             ),
@@ -1166,87 +1287,6 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                       },
                     ),
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategorySection(Color primary) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Add Category',
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _buildTextField(
-            controller: _categoryNameController,
-            label: 'Category Name *',
-            hint: 'e.g. Food, Toys, Medicine',
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  final file = await _picker.pickImage(
-                    source: ImageSource.gallery,
-                    imageQuality: 85,
-                  );
-                  if (file != null) {
-                    setState(() => _categoryImage = file);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(
-                  'Choose Image',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w500),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  _categoryImage == null
-                      ? 'No image selected'
-                      : 'Image selected',
-                  style: GoogleFonts.outfit(
-                    fontSize: 12,
-                    color: Colors.grey[700],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _creatingCategory ? null : _createCategory,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-              ),
-              child: Text(
-                _creatingCategory ? 'Creating…' : 'Create Category',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w500),
-              ),
-            ),
           ),
         ],
       ),

@@ -414,6 +414,9 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                         final partner = conv['partner'];
                         final name =
                             partner is Map ? (partner['name']?.toString() ?? 'Rider') : 'Rider';
+                        final peerId = partner is Map
+                            ? (partner['_id'] ?? partner['id'])?.toString()
+                            : null;
                         if (context.mounted && cid != null) {
                           await Navigator.of(context).push(
                             MaterialPageRoute(
@@ -422,7 +425,7 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                                 threadType: 'DELIVERY',
                                 peerName: name,
                                 peerSubtitle: 'Your order',
-                                highContrast: true,
+                                peerUserId: peerId,
                               ),
                             ),
                           );
@@ -476,7 +479,6 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                                 threadType: 'SELLER',
                                 peerName: name,
                                 peerSubtitle: 'Shop',
-                                highContrast: true,
                               ),
                             ),
                           );
@@ -718,6 +720,9 @@ class _OrderCard extends StatelessWidget {
         final cid = conv['_id']?.toString();
         final partner = conv['partner'];
         final name = partner is Map ? (partner['name']?.toString() ?? 'Rider') : 'Rider';
+        final peerId = partner is Map
+            ? (partner['_id'] ?? partner['id'])?.toString()
+            : null;
         if (context.mounted && cid != null) {
           await Navigator.of(context).push(
             MaterialPageRoute(
@@ -726,7 +731,7 @@ class _OrderCard extends StatelessWidget {
                 threadType: 'DELIVERY',
                 peerName: name,
                 peerSubtitle: 'Your order',
-                highContrast: true,
+                peerUserId: peerId,
               ),
             ),
           );

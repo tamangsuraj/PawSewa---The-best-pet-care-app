@@ -574,17 +574,19 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   Widget build(BuildContext context) {
     const accent = Color(AppConstants.accentColor);
     const successGreen = Color(AppConstants.primaryColor);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
+    const ink = Color(AppConstants.inkColor);
     const riderAccent = Color(AppConstants.riderAccent);
 
-    final bg = isDark ? Colors.black : const Color(AppConstants.secondaryColor);
-    final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
-    final textStrong = isDark ? Colors.white : Colors.black87;
-    final textMuted = isDark ? Colors.white70 : Colors.grey.shade700;
-    final chipShadow = isDark
-        ? BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))
-        : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4));
+    const bg = Color(AppConstants.bentoBackgroundColor);
+    const cardBg = Color(AppConstants.secondaryColor);
+    const textStrong = ink;
+    final textMuted = Colors.grey.shade700;
+    final chipShadow = BoxShadow(
+      color: primary.withValues(alpha: 0.08),
+      blurRadius: 10,
+      offset: const Offset(0, 4),
+    );
 
     final tabIndex = widget.initialTabIndex.clamp(0, 1);
     return DefaultTabController(
@@ -655,8 +657,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [chipShadow],
                                 border: Border.all(
-                                  color: (isDark ? Colors.white : Colors.black)
-                                      .withValues(alpha: 0.08),
+                                  color: primary.withValues(alpha: 0.1),
                                 ),
                               ),
                               child: Column(
@@ -810,11 +811,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                             value: _rating
                                                 .toStringAsFixed(1),
                                             color: accent,
-                                            textStrong: isDark
-                                                ? Colors.white
-                                                : const Color(
-                                                    AppConstants.inkColor,
-                                                  ),
+                                            textStrong: ink,
                                           ),
                                           const SizedBox(width: 12),
                                           _MetricChip(
@@ -824,11 +821,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                             color: const Color(
                                               AppConstants.accentWarmColor,
                                             ),
-                                            textStrong: isDark
-                                                ? Colors.white
-                                                : const Color(
-                                                    AppConstants.inkColor,
-                                                  ),
+                                            textStrong: ink,
                                           ),
                                           const SizedBox(width: 12),
                                           _MetricChip(
@@ -836,11 +829,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                             value:
                                                 '${(_cancellationRate * 100).toStringAsFixed(0)}%',
                                             color: Colors.grey.shade600,
-                                            textStrong: isDark
-                                                ? Colors.white
-                                                : const Color(
-                                                    AppConstants.inkColor,
-                                                  ),
+                                            textStrong: ink,
                                           ),
                                         ],
                                       ),
@@ -1112,10 +1101,9 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     const accent = Color(AppConstants.accentColor);
     const successGreen = Color(AppConstants.primaryColor);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
-    final textStrong = isDark ? Colors.white : Colors.black87;
-    final textMuted = isDark ? Colors.white70 : Colors.grey.shade700;
+    const cardBg = Color(AppConstants.secondaryColor);
+    const textStrong = Color(AppConstants.inkColor);
+    final textMuted = Colors.grey.shade700;
 
     final id = order['_id']?.toString() ?? '';
     final shortId = id.length >= 6 ? id.substring(id.length - 6) : id;
@@ -1165,7 +1153,7 @@ class _OrderCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: isDark ? 2 : 6,
+      elevation: 2,
       color: cardBg,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1249,7 +1237,7 @@ class _OrderCard extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: const Color(AppConstants.inkColor),
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -1347,7 +1335,7 @@ class _OrderCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: isDark ? const Color(AppConstants.inkColor) : accent,
+                    backgroundColor: accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       vertical: 12,
@@ -1523,7 +1511,6 @@ class _EarningsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
     const accent = Color(AppConstants.accentColor);
     const successGreen = Color(AppConstants.primaryColor);
@@ -1605,7 +1592,7 @@ class _EarningsTab extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: const Color(AppConstants.inkColor),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1638,7 +1625,7 @@ class _EarningsTab extends StatelessWidget {
                               style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white70 : Colors.grey.shade700,
+                                color: Colors.grey.shade700,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -1657,7 +1644,7 @@ class _EarningsTab extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: const Color(AppConstants.inkColor),
                 ),
               ),
 
@@ -1667,22 +1654,22 @@ class _EarningsTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade900 : Colors.white,
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                      color: primary.withValues(alpha: 0.08),
                     ),
                   ),
                   child: Column(
                     children: [
-                      Icon(Icons.account_balance_wallet_outlined, size: 48, color: isDark ? Colors.white70 : Colors.grey.shade400),
+                      Icon(Icons.account_balance_wallet_outlined, size: 48, color: Colors.grey.shade400),
                       const SizedBox(height: 12),
                       Text(
                         'No completed deliveries yet',
                         style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white70 : Colors.grey.shade700,
+                          color: Colors.grey.shade700,
                         ),
                       ),
                     ],
@@ -1717,14 +1704,14 @@ class _EarningsTab extends StatelessWidget {
                     return Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.grey.shade900 : Colors.white,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+                          color: primary.withValues(alpha: 0.08),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+                            color: primary.withValues(alpha: 0.06),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           )
@@ -1741,7 +1728,7 @@ class _EarningsTab extends StatelessWidget {
                                 style: GoogleFonts.outfit(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
-                                  color: isDark ? Colors.white : Colors.black87,
+                                  color: const Color(AppConstants.inkColor),
                                 ),
                               ),
                               Container(
@@ -1769,7 +1756,7 @@ class _EarningsTab extends StatelessWidget {
                               style: GoogleFonts.outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? Colors.white70 : Colors.grey.shade600,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           const SizedBox(height: 10),
@@ -1824,7 +1811,7 @@ class _PayoutRow extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 12,
               fontWeight: FontWeight.w800,
-              color: Colors.black87,
+              color: const Color(AppConstants.inkColor),
             ),
           ),
         ],

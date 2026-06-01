@@ -162,7 +162,6 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                 conversationId: cid,
                 peerName: name,
                 peerSubtitle: 'Care booking',
-                highContrast: true,
               ),
             ),
           );

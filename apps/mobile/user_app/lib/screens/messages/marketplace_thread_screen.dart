@@ -14,7 +14,10 @@ import '../../core/constants.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/chat_unread_notify_service.dart';
+import '../../utils/marketplace_chat_calls.dart';
 import '../../widgets/chat_media_inline.dart';
+import '../../widgets/messaging_call_bar.dart';
+import '../../widgets/messaging_chat_app_bar.dart';
 
 class MarketplaceThreadScreen extends StatefulWidget {
   const MarketplaceThreadScreen({
@@ -24,7 +27,7 @@ class MarketplaceThreadScreen extends StatefulWidget {
     required this.peerName,
     this.peerSubtitle,
     this.productIdForFirstMessage,
-    this.highContrast = false,
+    this.peerUserId,
   });
 
   final String conversationId;
@@ -32,7 +35,7 @@ class MarketplaceThreadScreen extends StatefulWidget {
   final String peerName;
   final String? peerSubtitle;
   final String? productIdForFirstMessage;
-  final bool highContrast;
+  final String? peerUserId;
 
   @override
   State<MarketplaceThreadScreen> createState() =>
@@ -49,6 +52,8 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
   bool _loading = true;
   String? _error;
   String? _myUserId;
+  String? _peerUserId;
+  String _myDisplayName = 'You';
   List<Map<String, dynamic>> _messages = [];
   bool _typingRemote = false;
   Timer? _typingDebounce;
@@ -73,11 +78,42 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
 
   Future<void> _bootstrap() async {
     await _loadUserId();
+    await _loadPeer();
     await _loadMessages();
     await _socket.connect();
     _socket.addMarketplaceMessageListener(_onSocketMessage);
     _socket.addMarketplaceTypingListener(_onTyping);
     _joinRoom();
+  }
+
+  bool get _canCall =>
+      _myUserId != null &&
+      _peerUserId != null &&
+      _peerUserId!.isNotEmpty &&
+      !_loading &&
+      _error == null;
+
+  Future<void> _placeCall(bool video) async {
+    final me = _myUserId;
+    final peer = _peerUserId;
+    if (me == null || peer == null || peer.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Call is not available for this chat yet.')),
+        );
+      }
+      return;
+    }
+    await MarketplaceChatCalls.placeCall(
+      context: context,
+      socket: _socket,
+      conversationId: widget.conversationId,
+      myUserId: me,
+      peerUserId: peer,
+      peerName: widget.peerName,
+      myDisplayName: _myDisplayName,
+      video: video,
+    );
   }
 
   Future<void> _loadUserId() async {
@@ -87,6 +123,27 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
       final m = jsonDecode(raw) as Map<String, dynamic>;
       final id = m['_id'] ?? m['id'];
       if (id != null) _myUserId = id.toString();
+      final n = m['name']?.toString();
+      if (n != null && n.isNotEmpty) _myDisplayName = n;
+    } catch (_) {}
+  }
+
+  Future<void> _loadPeer() async {
+    if (widget.peerUserId != null && widget.peerUserId!.isNotEmpty) {
+      _peerUserId = widget.peerUserId;
+      return;
+    }
+    try {
+      final res = await _api.getMarketplaceConversation(widget.conversationId);
+      final body = res.data;
+      if (body is Map && body['success'] == true && body['data'] is Map) {
+        final conv = Map<String, dynamic>.from(body['data'] as Map);
+        final partner = conv['partner'];
+        if (partner is Map) {
+          final id = partner['_id'] ?? partner['id'];
+          if (id != null) _peerUserId = id.toString();
+        }
+      }
     } catch (_) {}
   }
 
@@ -363,42 +420,42 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
     super.dispose();
   }
 
+  IconData _threadLeadingIcon() {
+    switch (widget.threadType) {
+      case 'DELIVERY':
+        return Icons.delivery_dining_rounded;
+      case 'CARE':
+        return Icons.pets_rounded;
+      default:
+        return Icons.storefront_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final primary = const Color(AppConstants.primaryColor);
-    final bg = widget.highContrast ? const Color(0xFF121212) : Colors.white;
-    final fg = widget.highContrast ? Colors.white : Colors.black87;
-    final bubbleMine = widget.highContrast ? Colors.orange.shade700 : primary;
-    final bubbleOther = widget.highContrast
-        ? Colors.grey.shade800
-        : Colors.grey.shade200;
+    const primary = Color(AppConstants.primaryColor);
+    const ink = Color(AppConstants.inkColor);
+    const bg = Color(AppConstants.bentoBackgroundColor);
+    const bubbleOther = Color(AppConstants.sandColor);
 
     return Scaffold(
       backgroundColor: bg,
-      appBar: AppBar(
-        backgroundColor: widget.highContrast ? Colors.black : Colors.white,
-        foregroundColor: fg,
-        elevation: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.peerName,
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-            if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
-              Text(
-                widget.peerSubtitle!,
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  color: widget.highContrast ? Colors.white70 : Colors.grey,
+      appBar: MessagingChatAppBar(
+        title: widget.peerName,
+        subtitle: widget.peerSubtitle,
+        leadingIcon: _threadLeadingIcon(),
+        actions: [
+          if (_canCall)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 8),
+              child: Center(
+                child: MessagingCallBar(
+                  onAudio: () => unawaited(_placeCall(false)),
+                  onVideo: () => unawaited(_placeCall(true)),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
       body: _loading
           ? Center(
@@ -414,7 +471,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                     Text(
                       _error!,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: fg),
+                      style: GoogleFonts.outfit(color: ink),
                     ),
                     const SizedBox(height: 16),
                     FilledButton(
@@ -441,9 +498,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                             style: GoogleFonts.outfit(
                               fontSize: 12,
                               fontStyle: FontStyle.italic,
-                              color: widget.highContrast
-                                  ? Colors.white54
-                                  : Colors.grey,
+                              color: Colors.grey.shade600,
                             ),
                           ),
                         );
@@ -475,8 +530,13 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                             maxWidth: MediaQuery.of(context).size.width * 0.78,
                           ),
                           decoration: BoxDecoration(
-                            color: mine ? bubbleMine : bubbleOther,
+                            color: mine ? primary : bubbleOther,
                             borderRadius: BorderRadius.circular(16),
+                            border: mine
+                                ? null
+                                : Border.all(
+                                    color: primary.withValues(alpha: 0.12),
+                                  ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,11 +576,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                                   content,
                                   style: GoogleFonts.outfit(
                                     fontSize: 14,
-                                    color: mine
-                                        ? Colors.white
-                                        : (widget.highContrast
-                                              ? Colors.white
-                                              : Colors.black87),
+                                    color: mine ? Colors.white : ink,
                                   ),
                                 ),
                             ],
@@ -534,20 +590,23 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                   LinearProgressIndicator(
                     value: _uploadProgress,
                     minHeight: 3,
-                    backgroundColor: widget.highContrast ? Colors.grey.shade800 : null,
+                    color: primary,
+                    backgroundColor: const Color(AppConstants.sandColor),
                   ),
                 Material(
-                  color: bg,
+                  color: Colors.white,
+                  elevation: 8,
+                  shadowColor: primary.withValues(alpha: 0.08),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         IconButton(
                           onPressed: _uploading ? null : _showAttachmentOptions,
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.attach_file_rounded,
-                            color: widget.highContrast ? Colors.white70 : primary,
+                            color: primary,
                           ),
                           tooltip: 'Attach photo or video',
                         ),
@@ -557,25 +616,37 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                             onChanged: _onTextChanged,
                             textInputAction: TextInputAction.send,
                             onSubmitted: (_) => _send(),
-                            style: TextStyle(color: fg),
+                            style: GoogleFonts.outfit(color: ink),
                             minLines: 1,
                             maxLines: 4,
                             decoration: InputDecoration(
                               hintText: widget.threadType == 'DELIVERY'
                                   ? 'Message your rider…'
                                   : 'Message seller…',
-                              hintStyle: TextStyle(
-                                color: widget.highContrast
-                                    ? Colors.white38
-                                    : null,
+                              hintStyle: GoogleFonts.outfit(
+                                color: Colors.grey.shade500,
                               ),
+                              filled: true,
+                              fillColor: bg,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(20),
+                                borderSide: BorderSide(
+                                  color: primary.withValues(alpha: 0.2),
+                                ),
                               ),
-                              filled: widget.highContrast,
-                              fillColor: widget.highContrast
-                                  ? Colors.grey.shade900
-                                  : null,
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                borderSide: BorderSide(
+                                  color: primary.withValues(alpha: 0.15),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                borderSide: const BorderSide(
+                                  color: primary,
+                                  width: 1.5,
+                                ),
+                              ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16,
                                 vertical: 10,
@@ -592,9 +663,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
                             color: Colors.white,
                           ),
                           style: IconButton.styleFrom(
-                            backgroundColor: widget.highContrast
-                                ? Colors.orange.shade700
-                                : primary,
+                            backgroundColor: primary,
                             padding: const EdgeInsets.all(14),
                           ),
                         ),

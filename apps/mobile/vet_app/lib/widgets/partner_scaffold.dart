@@ -26,7 +26,7 @@ class PartnerScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final surface = const Color(AppConstants.secondaryColor);
+    final surface = const Color(AppConstants.bentoBackgroundColor);
     final ink = const Color(AppConstants.inkColor);
     final primary = scheme.primary;
     final accentLine = roleAccent ?? primary;

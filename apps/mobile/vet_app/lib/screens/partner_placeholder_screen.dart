@@ -78,7 +78,7 @@ class PartnerPlaceholderScreen extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: const Color(AppConstants.inkColor),
               ),
             ),
             const SizedBox(height: 10),

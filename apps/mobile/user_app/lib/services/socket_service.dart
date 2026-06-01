@@ -39,6 +39,18 @@ class SocketService {
   io.Socket? get socket => _socket;
   bool get isConnected => _socket?.connected ?? false;
 
+  /// Waits until the socket is connected (or throws after ~10s).
+  Future<void> ensureConnected() async {
+    await connect();
+    for (var i = 0; i < 40; i++) {
+      if (isConnected) return;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    throw Exception(
+      'Cannot reach PawSewa server for calls. Check Wi‑Fi and that the backend is running.',
+    );
+  }
+
   /// Connect with stored JWT. Call after login. Enables auto-reconnect.
   Future<void> connect() async {
     if (_connecting || (_socket != null && _socket!.connected)) return;

@@ -530,6 +530,10 @@ class ApiClient {
     return await _dio.get('/marketplace-chat/delivery/by-order/$orderId');
   }
 
+  Future<Response> getMarketplaceConversation(String conversationId) async {
+    return await _dio.get('/marketplace-chat/conversations/$conversationId');
+  }
+
   Future<Response> getMarketplaceMessages(String conversationId) async {
     return await _dio.get('/marketplace-chat/conversations/$conversationId/messages');
   }

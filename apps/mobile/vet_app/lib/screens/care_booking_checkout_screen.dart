@@ -100,7 +100,7 @@ class _CareBookingCheckoutScreenState extends State<CareBookingCheckoutScreen> {
               style: GoogleFonts.outfit(
                 fontSize: bold ? 17 : 14,
                 fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-                color: bold ? primary : Colors.black87,
+                color: bold ? primary : const Color(AppConstants.inkColor),
               ),
             ),
           ],

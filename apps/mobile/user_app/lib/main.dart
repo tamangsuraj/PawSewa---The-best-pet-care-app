@@ -14,6 +14,7 @@ import 'services/notification_unread_notify_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/navigation_service.dart';
 import 'services/ongoing_call_service.dart';
+import 'services/incoming_call_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/pet_dashboard_screen.dart';
 import 'widgets/pawsewa_brand_logo.dart';
@@ -116,6 +117,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // If not logged in: go to login screen immediately.
     if (isLoggedIn) {
       SocketService.instance.connect();
+      IncomingCallService.instance.init();
       unawaited(PushNotificationService.instance.syncTokenIfLoggedIn());
       // Background token validation — does NOT block navigation.
       unawaited(_validateTokenInBackground(storage));

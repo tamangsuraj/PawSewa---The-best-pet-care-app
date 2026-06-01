@@ -602,8 +602,8 @@ export function ChatHubProvider({ children }: { children: React.ReactNode }) {
                                 alt=""
                                 width={40}
                                 height={40}
-                                className="object-contain !bg-transparent border border-[#703418]/20 rounded-lg"
-                                style={{ backgroundColor: 'transparent' }}
+                                className="h-10 w-auto object-contain !bg-transparent border border-[#703418]/20 rounded-lg"
+                                style={{ backgroundColor: 'transparent', width: 'auto', height: 40 }}
                               />
                             ) : (
                               <div className="w-10 h-10 rounded-full bg-[#0d9488]/20 flex items-center justify-center text-[#703418] text-sm font-bold">

@@ -12,6 +12,8 @@ import '../widgets/pawsewa_brand_logo.dart';
 import '../services/google_auth_service.dart';
 import '../services/permission_service.dart';
 import '../services/push_notification_service.dart';
+import '../services/socket_service.dart';
+import '../services/incoming_call_service.dart';
 import 'pet_dashboard_screen.dart';
 import 'otp_verification_screen.dart';
 import 'register_screen.dart';
@@ -84,6 +86,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await _permissionService.requestNotificationPermission(context);
     }
     await PushNotificationService.instance.syncTokenIfLoggedIn();
+    SocketService.instance.connect();
+    IncomingCallService.instance.init();
 
     if (mounted) {
       Navigator.of(context).pushReplacement(

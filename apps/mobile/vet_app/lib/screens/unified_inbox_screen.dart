@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
+import '../core/partner_role.dart';
 import '../core/storage_service.dart';
 import '../services/ongoing_call_service.dart';
 import '../widgets/editorial_canvas.dart';
@@ -77,13 +78,23 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
         }
       }
 
-      final futures = await Future.wait<Response>([
-        safe(_api.getSellerMarketplaceInbox()),
-        safe(_api.getRiderMarketplaceInbox()),
-        safe(_api.getCareMarketplaceInbox()),
-      ]);
+      final panel = await _storage.getActivePartnerRole();
+      final futures = <Future<Response>>[];
+      if (panel == PartnerRole.seller || panel == PartnerRole.vet) {
+        futures.add(safe(_api.getSellerMarketplaceInbox()));
+      }
+      if (panel == PartnerRole.rider) {
+        futures.add(safe(_api.getRiderMarketplaceInbox()));
+      }
+      if (panel == PartnerRole.care) {
+        futures.add(safe(_api.getCareMarketplaceInbox()));
+      }
+      if (futures.isEmpty) {
+        futures.add(safe(_api.getRiderMarketplaceInbox()));
+      }
+      final responses = await Future.wait<Response>(futures);
       final all = <Map<String, dynamic>>[];
-      for (final r in futures) {
+      for (final r in responses) {
         final body = r.data;
         if (body is Map && body['success'] == true && body['data'] is List) {
           for (final e in body['data'] as List) {
@@ -160,7 +171,6 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
           conversationId: id,
           peerName: peerName,
           peerSubtitle: subtitle,
-          highContrast: false,
         ),
       ),
     );
@@ -238,7 +248,7 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
                         onMarkUnread: _markUnread,
                         onRetry: _loadChats,
                       ),
-                      const PartnerSupportChatScreen(),
+                      const PartnerSupportChatScreen(embeddedInHub: true),
                       const _CallsTab(),
                       const NotificationsScreen(),
                     ],

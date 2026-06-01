@@ -738,7 +738,7 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
                     style: GoogleFonts.outfit(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
-                      color: Colors.black87,
+                      color: const Color(AppConstants.inkColor),
                     ),
                   ),
                 ),
@@ -795,7 +795,7 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
                 style: GoogleFonts.outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: const Color(AppConstants.inkColor),
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

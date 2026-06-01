@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { sanitizeChannelName } = require('../controllers/agoraController');
 
 /**
  * Socket.io signaling for Agora 1:1 calls (ring / answer / hang-up).
@@ -14,7 +15,7 @@ function registerCallSignaling(io) {
       }
       const p = payload && typeof payload === 'object' ? payload : {};
       const toUserId = p.toUserId != null ? String(p.toUserId).trim() : '';
-      const channelName = p.channelName != null ? String(p.channelName).trim().slice(0, 64) : '';
+      const channelName = sanitizeChannelName(p.channelName);
       if (!toUserId || !channelName) {
         callback?.({ success: false, message: 'toUserId and channelName required' });
         return;
@@ -39,7 +40,7 @@ function registerCallSignaling(io) {
       }
       const p = payload && typeof payload === 'object' ? payload : {};
       const toUserId = p.toUserId != null ? String(p.toUserId).trim() : '';
-      const channelName = p.channelName != null ? String(p.channelName).trim().slice(0, 64) : '';
+      const channelName = sanitizeChannelName(p.channelName);
       if (!toUserId || !channelName) {
         callback?.({ success: false, message: 'toUserId and channelName required' });
         return;
@@ -56,7 +57,7 @@ function registerCallSignaling(io) {
       const from = socket.user?._id?.toString();
       const p = payload && typeof payload === 'object' ? payload : {};
       const toUserId = p.toUserId != null ? String(p.toUserId).trim() : '';
-      const channelName = p.channelName != null ? String(p.channelName).trim().slice(0, 64) : '';
+      const channelName = sanitizeChannelName(p.channelName);
       const durationSeconds = Math.max(0, parseInt(String(p.durationSeconds ?? 0), 10) || 0);
       if (toUserId) {
         io.to(`user:${toUserId}`).emit('call_ended', {

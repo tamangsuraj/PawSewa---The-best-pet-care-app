@@ -1499,7 +1499,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                           ? const Color(
                                               AppConstants.primaryColor,
                                             )
-                                          : Colors.black,
+                                          : const Color(AppConstants.inkColor),
                                     ),
                                   ),
                                 ],
@@ -1527,7 +1527,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                           ? const Color(
                                               AppConstants.primaryColor,
                                             )
-                                          : Colors.black,
+                                          : const Color(AppConstants.inkColor),
                                     ),
                                   ),
                                 ],
@@ -1555,7 +1555,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                           ? const Color(
                                               AppConstants.primaryColor,
                                             )
-                                          : Colors.black,
+                                          : const Color(AppConstants.inkColor),
                                     ),
                                   ),
                                 ],
@@ -1583,7 +1583,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                                           ? const Color(
                                               AppConstants.primaryColor,
                                             )
-                                          : Colors.black,
+                                          : const Color(AppConstants.inkColor),
                                     ),
                                   ),
                                 ],

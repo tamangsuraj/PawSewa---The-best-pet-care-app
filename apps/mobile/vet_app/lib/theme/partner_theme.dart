@@ -79,7 +79,7 @@ abstract final class PartnerTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: Colors.white,
+      scaffoldBackgroundColor: cream,
     );
 
     final outfit = GoogleFonts.outfitTextTheme(base.textTheme);

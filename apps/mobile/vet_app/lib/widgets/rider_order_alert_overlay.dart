@@ -83,7 +83,7 @@ class _RiderOrderAlertOverlayState extends State<RiderOrderAlertOverlay>
 
     // Inserted as an OverlayEntry — parent controls removal, no Navigator needed.
     return Material(
-      color: Colors.black.withValues(alpha: 0.82),
+      color: const Color(AppConstants.inkColor).withValues(alpha: 0.72),
       child: SafeArea(
           child: Column(
             children: [
@@ -145,7 +145,7 @@ class _RiderOrderAlertOverlayState extends State<RiderOrderAlertOverlay>
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
+                  color: const Color(AppConstants.bentoBackgroundColor),
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(28)),
                   boxShadow: [
@@ -191,7 +191,8 @@ class _RiderOrderAlertOverlayState extends State<RiderOrderAlertOverlay>
                             fontWeight: FontWeight.w700,
                             color: _countdown <= 10
                                 ? Colors.redAccent
-                                : Colors.white60,
+                                : const Color(AppConstants.inkColor)
+                                    .withValues(alpha: 0.55),
                           ),
                           child: Text('$_countdown s'),
                         ),
@@ -205,7 +206,7 @@ class _RiderOrderAlertOverlayState extends State<RiderOrderAlertOverlay>
                       style: GoogleFonts.outfit(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
-                        color: Colors.white,
+                        color: const Color(AppConstants.inkColor),
                       ),
                     ),
 
@@ -324,14 +325,18 @@ class _InfoRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 15, color: Colors.white38),
+        Icon(
+          icon,
+          size: 15,
+          color: const Color(AppConstants.primaryColor).withValues(alpha: 0.65),
+        ),
         const SizedBox(width: 8),
         Text(
           '$label: ',
           style: GoogleFonts.outfit(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Colors.white54,
+            color: const Color(AppConstants.inkColor).withValues(alpha: 0.65),
           ),
         ),
         Expanded(
@@ -340,7 +345,7 @@ class _InfoRow extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: const Color(AppConstants.inkColor),
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

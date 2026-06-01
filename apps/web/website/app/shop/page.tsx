@@ -249,7 +249,14 @@ function ShopPageInner() {
     } catch (err: unknown) {
       console.error('Error loading products:', err);
       setProducts([]);
-      setError('Failed to load products. Please try again.');
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 503) {
+        setError('Server is starting up or the database is unavailable. Please wait a moment and try again.');
+      } else if (!status) {
+        setError('Cannot reach the server. Please check your connection and try again.');
+      } else {
+        setError('Failed to load products. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

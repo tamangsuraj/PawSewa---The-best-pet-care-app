@@ -11,11 +11,14 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../core/api_client.dart';
 import '../core/constants.dart';
-import '../widgets/editorial_canvas.dart';
 import '../widgets/chat_media_inline.dart';
+import '../widgets/messaging_call_bar.dart';
+import '../widgets/messaging_chat_app_bar.dart';
+import '../widgets/messaging_chat_composer.dart';
 import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
+import '../utils/marketplace_chat_calls.dart';
 
 /// Real-time marketplace thread for partners (Socket.io + HTTP fallback).
 class PartnerMarketplaceChatScreen extends StatefulWidget {
@@ -24,13 +27,11 @@ class PartnerMarketplaceChatScreen extends StatefulWidget {
     required this.conversationId,
     required this.peerName,
     this.peerSubtitle,
-    this.highContrast = true,
   });
 
   final String conversationId;
   final String peerName;
   final String? peerSubtitle;
-  final bool highContrast;
 
   @override
   State<PartnerMarketplaceChatScreen> createState() =>
@@ -48,6 +49,8 @@ class _PartnerMarketplaceChatScreenState
   bool _loading = true;
   String? _error;
   String? _myUserId;
+  String? _peerUserId;
+  String _myDisplayName = 'You';
   List<Map<String, dynamic>> _messages = [];
   bool _typingRemote = false;
   Timer? _typingDebounce;
@@ -71,11 +74,42 @@ class _PartnerMarketplaceChatScreenState
 
   Future<void> _bootstrap() async {
     await _loadUserId();
+    await _loadPeer();
     await _loadMessages(silent: false);
     await _socket.connect();
     _socket.addMarketplaceMessageListener(_onSocketMessage);
     _socket.addMarketplaceTypingListener(_onTyping);
     _joinRoom();
+  }
+
+  bool get _canCall =>
+      _myUserId != null &&
+      _peerUserId != null &&
+      _peerUserId!.isNotEmpty &&
+      !_loading &&
+      _error == null;
+
+  Future<void> _placeCall(bool video) async {
+    final me = _myUserId;
+    final peer = _peerUserId;
+    if (me == null || peer == null || peer.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Call is not available for this chat yet.')),
+        );
+      }
+      return;
+    }
+    await MarketplaceChatCalls.placeCall(
+      context: context,
+      socket: _socket,
+      conversationId: widget.conversationId,
+      myUserId: me,
+      peerUserId: peer,
+      peerName: widget.peerName,
+      myDisplayName: _myDisplayName,
+      video: video,
+    );
   }
 
   Future<void> _loadUserId() async {
@@ -85,6 +119,23 @@ class _PartnerMarketplaceChatScreenState
       final m = jsonDecode(raw) as Map<String, dynamic>;
       final id = m['_id'] ?? m['id'];
       if (id != null) _myUserId = id.toString();
+      final n = m['name']?.toString();
+      if (n != null && n.isNotEmpty) _myDisplayName = n;
+    } catch (_) {}
+  }
+
+  Future<void> _loadPeer() async {
+    try {
+      final res = await _api.getMarketplaceConversation(widget.conversationId);
+      final body = res.data;
+      if (body is Map && body['success'] == true && body['data'] is Map) {
+        final conv = Map<String, dynamic>.from(body['data'] as Map);
+        final customer = conv['customer'];
+        if (customer is Map) {
+          final id = customer['_id'] ?? customer['id'];
+          if (id != null) _peerUserId = id.toString();
+        }
+      }
     } catch (_) {}
   }
 
@@ -360,10 +411,10 @@ class _PartnerMarketplaceChatScreenState
 
   @override
   Widget build(BuildContext context) {
-    final primary = const Color(AppConstants.primaryColor);
-    final bg = widget.highContrast ? Colors.black : Colors.white;
-    final fg = widget.highContrast ? Colors.white : Colors.black87;
-    final subColor = widget.highContrast ? Colors.white70 : Colors.grey;
+    const primary = Color(AppConstants.primaryColor);
+    const ink = Color(AppConstants.inkColor);
+    const bg = Color(AppConstants.bentoBackgroundColor);
+    const bubbleOther = Color(AppConstants.sandColor);
 
     final mainBody = _loading
         ? Center(
@@ -379,7 +430,7 @@ class _PartnerMarketplaceChatScreenState
                       Text(
                         _error!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: fg),
+                        style: GoogleFonts.outfit(color: ink),
                       ),
                       const SizedBox(height: 12),
                       FilledButton(
@@ -396,15 +447,18 @@ class _PartnerMarketplaceChatScreenState
                     LinearProgressIndicator(
                       value: _uploadProgress,
                       minHeight: 3,
-                      backgroundColor:
-                          widget.highContrast ? Colors.grey.shade800 : null,
+                      backgroundColor: primary.withValues(alpha: 0.12),
                     ),
                   if (_typingRemote)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         '${widget.peerName} is typing…',
-                        style: GoogleFonts.outfit(fontSize: 12, color: subColor),
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ),
                   Expanded(
@@ -423,15 +477,7 @@ class _PartnerMarketplaceChatScreenState
                         final mediaUrl = m['mediaUrl']?.toString();
                         final mediaType = m['mediaType']?.toString();
                         final pn = m['productName']?.toString();
-                        final bubbleMine = primary;
-                        final bubbleOther = widget.highContrast
-                            ? Colors.grey.shade900
-                            : Colors.grey.shade200;
-                        final textCol = mine
-                            ? Colors.white
-                            : (widget.highContrast
-                                  ? Colors.white
-                                  : Colors.black87);
+                        final textCol = mine ? Colors.white : ink;
                         return Align(
                           alignment: mine
                               ? Alignment.centerRight
@@ -447,8 +493,13 @@ class _PartnerMarketplaceChatScreenState
                                   MediaQuery.of(context).size.width * 0.78,
                             ),
                             decoration: BoxDecoration(
-                              color: mine ? bubbleMine : bubbleOther,
-                              borderRadius: BorderRadius.circular(14),
+                              color: mine ? primary : bubbleOther,
+                              borderRadius: BorderRadius.circular(16),
+                              border: mine
+                                  ? null
+                                  : Border.all(
+                                      color: primary.withValues(alpha: 0.12),
+                                    ),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -460,9 +511,7 @@ class _PartnerMarketplaceChatScreenState
                                       fontSize: 11,
                                       color: mine
                                           ? Colors.white70
-                                          : (widget.highContrast
-                                                ? Colors.white70
-                                                : primary),
+                                          : primary,
                                     ),
                                   ),
                                 if (mediaUrl != null &&
@@ -496,89 +545,40 @@ class _PartnerMarketplaceChatScreenState
                       },
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: _uploading ? null : _showAttachmentOptions,
-                          icon: Icon(
-                            Icons.attach_file_rounded,
-                            color: widget.highContrast ? Colors.white70 : primary,
-                          ),
-                          tooltip: 'Attach photo or video',
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _text,
-                            onChanged: _onTextChanged,
-                            style: TextStyle(color: fg),
-                            decoration: InputDecoration(
-                              hintText: 'Quick message…',
-                              hintStyle: TextStyle(
-                                color: widget.highContrast
-                                    ? Colors.white.withValues(alpha: 0.4)
-                                    : Colors.grey,
-                              ),
-                              filled: true,
-                              fillColor: widget.highContrast
-                                  ? Colors.grey.shade900
-                                  : Colors.grey.shade100,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: _send,
-                          style: FilledButton.styleFrom(
-                            shape: const CircleBorder(),
-                            padding: const EdgeInsets.all(14),
-                            backgroundColor: primary,
-                          ),
-                          child: const Icon(Icons.send_rounded),
-                        ),
-                      ],
+                  MessagingChatComposer(
+                    controller: _text,
+                    hintText: 'Quick message…',
+                    onSend: _send,
+                    onChanged: _onTextChanged,
+                    leading: IconButton(
+                      onPressed: _uploading ? null : _showAttachmentOptions,
+                      icon: Icon(Icons.attach_file_rounded, color: primary),
+                      tooltip: 'Attach photo or video',
                     ),
                   ),
                 ],
               );
 
     return Scaffold(
-      backgroundColor: widget.highContrast ? bg : Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: widget.highContrast ? Colors.black : Colors.white,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: fg,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.peerName,
-              style: GoogleFonts.outfit(
-                fontWeight: FontWeight.w600,
-                color: fg,
+      backgroundColor: bg,
+      appBar: MessagingChatAppBar(
+        title: widget.peerName,
+        subtitle: widget.peerSubtitle,
+        avatarLabel: widget.peerName,
+        actions: [
+          if (_canCall)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 8),
+              child: Center(
+                child: MessagingCallBar(
+                  onAudio: () => unawaited(_placeCall(false)),
+                  onVideo: () => unawaited(_placeCall(true)),
+                ),
               ),
             ),
-            if (widget.peerSubtitle != null && widget.peerSubtitle!.isNotEmpty)
-              Text(
-                widget.peerSubtitle!,
-                style: GoogleFonts.outfit(fontSize: 11, color: subColor),
-              ),
-          ],
-        ),
+        ],
       ),
-      body: widget.highContrast
-          ? mainBody
-          : Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const EditorialBodyBackdrop(),
-                Positioned.fill(child: mainBody),
-              ],
-            ),
+      body: mainBody,
     );
   }
 }

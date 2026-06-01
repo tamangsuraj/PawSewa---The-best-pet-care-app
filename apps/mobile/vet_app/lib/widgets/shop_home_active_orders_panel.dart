@@ -216,7 +216,7 @@ class _ShopHomeActiveOrdersPanelState extends State<ShopHomeActiveOrdersPanel> {
                             style: GoogleFonts.outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              color: const Color(AppConstants.inkColor),
                             ),
                           ),
                           if (riderName != null && riderName.isNotEmpty) ...[
@@ -258,7 +258,7 @@ class _ShopHomeActiveOrdersPanelState extends State<ShopHomeActiveOrdersPanel> {
                         style: GoogleFonts.outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: const Color(AppConstants.inkColor),
                         ),
                       ),
                   ],

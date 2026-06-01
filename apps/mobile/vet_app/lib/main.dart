@@ -17,6 +17,8 @@ import 'screens/login_screen.dart';
 import 'screens/partner_home_screen.dart';
 import 'services/chat_unread_notify_service.dart';
 import 'services/ongoing_call_service.dart';
+import 'services/incoming_call_service.dart';
+import 'services/socket_service.dart';
 
 Future<void> _logHealthCheck() async {
   try {
@@ -115,6 +117,11 @@ class _SplashScreenState extends State<SplashScreen> {
         await _storage.clearAll();
         isLoggedIn = false;
       }
+    }
+
+    if (isLoggedIn) {
+      SocketService.instance.connect();
+      IncomingCallService.instance.init();
     }
 
     if (mounted) {

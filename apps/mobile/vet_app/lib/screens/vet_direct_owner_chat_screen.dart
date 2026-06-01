@@ -15,6 +15,8 @@ import '../core/storage_service.dart';
 import '../services/socket_service.dart';
 import '../services/chat_unread_notify_service.dart';
 import '../widgets/messaging_call_bar.dart';
+import '../widgets/messaging_chat_app_bar.dart';
+import '../widgets/messaging_chat_composer.dart';
 import 'agora_vet_direct_call_screen.dart';
 
 /// Vet-side 1:1 chat with a pet owner (room id: ownerUserId_vetUserId).
@@ -72,7 +74,6 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
     await _socket.connect();
     _socket.addVetDirectMessageListener(_onMsg);
     _socket.addVetDirectTypingListener(_onTyping);
-    _socket.addIncomingCallListener(_onIncomingCall);
     _joinWhenReady();
   }
 
@@ -88,61 +89,6 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
         setState(() => _myName = n);
       }
     } catch (_) {}
-  }
-
-  void _onIncomingCall(Map<String, dynamic> data) {
-    if (_vetId.isEmpty) return;
-    final ch = data['channelName']?.toString() ?? '';
-    if (ch != vetDirectRtcChannel(widget.ownerId, _vetId)) return;
-    final fromId = data['fromUserId']?.toString() ?? '';
-    if (fromId.isEmpty) return;
-    final video = data['callType']?.toString() == 'video';
-    final callerName = data['callerName']?.toString() ?? 'Caller';
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(video ? 'Incoming video call' : 'Incoming call'),
-        content: Text('$callerName is calling…'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _socket.emitHangUp(
-                toUserId: fromId,
-                channelName: ch,
-                durationSeconds: 0,
-              );
-            },
-            child: const Text('Decline'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _socket.emitAnswerCall(toUserId: fromId, channelName: ch);
-              if (!mounted) return;
-              await Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  fullscreenDialog: true,
-                  builder: (_) => AgoraVetDirectCallScreen(
-                    channelName: ch,
-                    myUserId: _vetId,
-                    peerUserId: fromId,
-                    peerName: callerName,
-                    localDisplayName: _myName,
-                    video: video,
-                    iAmCaller: false,
-                    answerAlreadySent: true,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Accept'),
-          ),
-        ],
-      ),
-    );
   }
 
   Future<void> _placeCall(bool video) async {
@@ -365,7 +311,6 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
     _typingHide?.cancel();
     _socket.removeVetDirectMessageListener(_onMsg);
     _socket.removeVetDirectTypingListener(_onTyping);
-    _socket.removeIncomingCallListener(_onIncomingCall);
     if (_vetId.isNotEmpty) {
       _socket.setVetDirectTyping(
         ownerId: widget.ownerId,
@@ -381,41 +326,18 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primary = Color(AppConstants.primaryColor);
+    const ink = Color(AppConstants.inkColor);
+    const bg = Color(AppConstants.bentoBackgroundColor);
+    const bubbleOther = Color(AppConstants.sandColor);
+
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor:
-                  const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
-              backgroundImage: _pic != null && _pic!.isNotEmpty
-                  ? NetworkImage(_pic!)
-                  : null,
-              child: _pic == null || _pic!.isEmpty
-                  ? Text(
-                      _ownerName.isNotEmpty
-                          ? _ownerName[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(
-                        color: Color(AppConstants.primaryColor),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                _ownerName,
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: const Color(AppConstants.primaryColor),
-        foregroundColor: Colors.white,
+      backgroundColor: bg,
+      appBar: MessagingChatAppBar(
+        title: _ownerName,
+        subtitle: 'Pet owner',
+        avatarUrl: _pic,
+        avatarLabel: _ownerName,
         actions: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 8),
@@ -488,16 +410,20 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
                                     MediaQuery.of(context).size.width * 0.78,
                               ),
                               decoration: BoxDecoration(
-                                color: mine
-                                    ? const Color(AppConstants.primaryColor)
-                                    : Colors.grey.shade100,
+                                color: mine ? primary : bubbleOther,
                                 borderRadius: BorderRadius.circular(16),
+                                border: mine
+                                    ? null
+                                    : Border.all(
+                                        color: primary.withValues(alpha: 0.12),
+                                      ),
                               ),
                               child: Text(
                                 text,
                                 style: GoogleFonts.outfit(
                                   fontSize: 14,
-                                  color: mine ? Colors.white : Colors.black87,
+                                  color: mine ? Colors.white : ink,
+                                  height: 1.35,
                                 ),
                               ),
                             ),
@@ -505,39 +431,11 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
                         },
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _text,
-                              onChanged: _onChanged,
-                              minLines: 1,
-                              maxLines: 4,
-                              decoration: InputDecoration(
-                                hintText: 'Message pet owner…',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          FilledButton(
-                            onPressed: _send,
-                            style: FilledButton.styleFrom(
-                              shape: const CircleBorder(),
-                              padding: const EdgeInsets.all(14),
-                            ),
-                            child: const Icon(Icons.send_rounded, size: 22),
-                          ),
-                        ],
-                      ),
+                    MessagingChatComposer(
+                      controller: _text,
+                      hintText: 'Message pet owner…',
+                      onSend: _send,
+                      onChanged: _onChanged,
                     ),
                   ],
                 ),

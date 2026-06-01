@@ -248,7 +248,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: const Color(AppConstants.inkColor),
                 ),
               ),
               const SizedBox(height: 4),

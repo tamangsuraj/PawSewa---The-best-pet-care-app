@@ -130,7 +130,6 @@ class _SellerInquiriesScreenState extends State<SellerInquiriesScreen> {
                                               peerName: name,
                                               peerSubtitle:
                                                   product.isNotEmpty ? product : null,
-                                              highContrast: false,
                                             ),
                                           ),
                                         )

@@ -233,7 +233,7 @@ class _VetHomeAssignedAppointmentsPanelState
                         style: GoogleFonts.outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: const Color(AppConstants.inkColor),
                         ),
                       ),
                       Text(

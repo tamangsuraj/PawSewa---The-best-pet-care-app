@@ -14,10 +14,8 @@ import '../../core/pawsewa_call_channel.dart';
 import '../../core/storage_service.dart';
 import '../../services/socket_service.dart';
 import '../../services/chat_unread_notify_service.dart';
-import '../../widgets/pawsewa_brand_logo.dart';
 import '../../widgets/messaging_call_bar.dart';
 import 'agora_vet_direct_call_screen.dart';
-import 'vet_direct_chat_screen.dart';
 
 /// Customer Care chat — loads the default support conversation with PawSewa.
 class MessagesScreen extends StatefulWidget {
@@ -45,9 +43,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   bool _typingRemote = false;
   Timer? _typingDebounce;
   Timer? _typingHide;
-  List<Map<String, dynamic>> _myVets = [];
-  Map<String, bool> _vetOnline = {};
-  Timer? _presenceTimer;
   ChatUnreadNotifyService? _unreadNotify;
 
   @override
@@ -65,53 +60,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _bootstrap() async {
     await _loadUserId();
     await _loadThread();
-    await _loadMyVets();
     await _socket.connect();
     _socket.addCustomerCareMessageListener(_onCareMessage);
     _socket.addCustomerCareTypingListener(_onCareTyping);
-    _socket.addIncomingCallListener(_onIncomingCareCall);
     await _joinWhenReady();
-    _refreshVetPresence();
-    _presenceTimer?.cancel();
-    _presenceTimer = Timer.periodic(
-      const Duration(seconds: 25),
-      (_) => _refreshVetPresence(),
-    );
-  }
-
-  Future<void> _loadMyVets() async {
-    try {
-      final res = await _api.getChatsMyVets();
-      final body = res.data;
-      if (body is Map && body['success'] == true) {
-        final list = body['data'] as List<dynamic>? ?? [];
-        if (!mounted) return;
-        setState(() {
-          _myVets = list
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList();
-        });
-      }
-    } catch (_) {
-      /* optional feature */
-    }
-  }
-
-  void _refreshVetPresence() {
-    final ids = _myVets
-        .map((v) => v['_id']?.toString())
-        .whereType<String>()
-        .toList();
-    if (ids.isEmpty || !_socket.isConnected) return;
-    _socket.queryVetPresence(ids, (map) {
-      if (!mounted) return;
-      setState(() {
-        _vetOnline = {
-          for (final e in map.entries)
-            e.key: e.value == true || e.value == 'true',
-        };
-      });
-    });
   }
 
   Future<void> _loadUserId() async {
@@ -132,63 +84,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _myUserId != null &&
       _careUserId != null &&
       _careUserId!.isNotEmpty;
-
-  void _onIncomingCareCall(Map<String, dynamic> data) {
-    final oid = _myUserId;
-    final cid = _careUserId;
-    if (oid == null || cid == null || cid.isEmpty) return;
-    final ch = data['channelName']?.toString() ?? '';
-    if (ch != customerCareRtcChannel(oid, cid)) return;
-    final fromId = data['fromUserId']?.toString() ?? '';
-    if (fromId.isEmpty) return;
-    final video = data['callType']?.toString() == 'video';
-    final callerName = data['callerName']?.toString() ?? 'Caller';
-    if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(video ? 'Incoming video call' : 'Incoming call'),
-        content: Text('$callerName is calling…'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _socket.emitHangUp(
-                toUserId: fromId,
-                channelName: ch,
-                durationSeconds: 0,
-              );
-            },
-            child: const Text('Decline'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _socket.emitAnswerCall(toUserId: fromId, channelName: ch);
-              if (!mounted) return;
-              await Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  fullscreenDialog: true,
-                  builder: (_) => AgoraVetDirectCallScreen(
-                    channelName: ch,
-                    myUserId: oid,
-                    peerUserId: fromId,
-                    peerName: callerName,
-                    localDisplayName: _myDisplayName,
-                    video: video,
-                    iAmCaller: false,
-                    answerAlreadySent: true,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Accept'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _placeCareCall(bool video) async {
     final oid = _myUserId;
@@ -374,12 +269,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   @override
   void dispose() {
     _unreadNotify?.setActiveChatId(null);
-    _presenceTimer?.cancel();
     _typingDebounce?.cancel();
     _typingHide?.cancel();
     _socket.removeCustomerCareMessageListener(_onCareMessage);
     _socket.removeCustomerCareTypingListener(_onCareTyping);
-    _socket.removeIncomingCallListener(_onIncomingCareCall);
     final id = _conversationId;
     if (id != null) {
       _socket.setCustomerCareTyping(id, false);
@@ -423,166 +316,28 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (_myVets.isNotEmpty) ...[
+            if (_canCareCall)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 0, 8),
-                child: Text(
-                  'Your Pet\'s Vets',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(AppConstants.accentColor),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 104,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _myVets.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 16),
-                  itemBuilder: (context, i) {
-                    final v = _myVets[i];
-                    final id = v['_id']?.toString() ?? '';
-                    final name = v['name']?.toString() ?? 'Vet';
-                    final pic = v['profilePicture']?.toString();
-                    final online = _vetOnline[id] == true;
-                    return GestureDetector(
-                      onTap: () {
-                        final oid = _myUserId;
-                        if (oid == null) return;
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                VetDirectChatScreen(vet: v, ownerId: oid),
-                          ),
-                        );
-                      },
-                      child: SizedBox(
-                        width: 72,
-                        child: Column(
-                          children: [
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                CircleAvatar(
-                                  radius: 32,
-                                  backgroundColor: const Color(
-                                    AppConstants.primaryColor,
-                                  ).withValues(alpha: 0.12),
-                                  backgroundImage: pic != null && pic.isNotEmpty
-                                      ? NetworkImage(pic)
-                                      : null,
-                                  child: pic == null || pic.isEmpty
-                                      ? Text(
-                                          name.isNotEmpty
-                                              ? name[0].toUpperCase()
-                                              : '?',
-                                          style: const TextStyle(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(
-                                              AppConstants.primaryColor,
-                                            ),
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                if (online)
-                                  Positioned(
-                                    right: 2,
-                                    bottom: 2,
-                                    child: Container(
-                                      width: 14,
-                                      height: 14,
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white,
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              name.startsWith('Dr.') ? name : 'Dr. $name',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const Divider(height: 1),
-            ],
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: FittedBox(
-                      fit: BoxFit.contain,
-                      child: PawSewaBrandLogo(height: 48),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Customer Care',
-                          style: GoogleFonts.outfit(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        Text(
-                          _careName,
-                          style: GoogleFonts.outfit(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(AppConstants.accentColor),
-                          ),
-                        ),
-                        Text(
-                          'We\'re here to help you and your pet',
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_canCareCall)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(start: 8),
-                      child: MessagingCallBar(
-                        onAudio: () => unawaited(_placeCareCall(false)),
-                        onVideo: () => unawaited(_placeCareCall(true)),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Row(
+                  children: [
+                    Text(
+                      'Call Customer Care',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
                       ),
                     ),
-                ],
+                    const Spacer(),
+                    MessagingCallBar(
+                      onAudio: () => unawaited(_placeCareCall(false)),
+                      onVideo: () => unawaited(_placeCareCall(true)),
+                      iconColor: Colors.white,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Divider(height: 1),
             Expanded(
               child: ListView.builder(
                 controller: _scroll,

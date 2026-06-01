@@ -1,13 +1,14 @@
-import { getWebsiteApiBase } from './apiEnv';
+import { getWebsiteApiBase, getWebsiteSocketUrl, websiteApiUsesNgrokProxy } from './apiEnv';
 
 /** Socket.io origin: same host as REST, without `/api/v1` (matches mobile ApiConfig socket URL). */
 export function getSocketUrlFromApiBase(): string {
-  const raw = getWebsiteApiBase();
-  const u = raw.replace(/\/$/, '');
-  return u.replace(/\/api\/v1$/i, '');
+  const direct = getWebsiteSocketUrl();
+  if (direct) return direct;
+  const raw = getWebsiteApiBase().replace(/\/$/, '');
+  if (!raw || raw === '/api/v1') return '';
+  return raw.replace(/\/api\/v1$/i, '');
 }
 
 export function apiBaseIncludesNgrok(): boolean {
-  const raw = getWebsiteApiBase().toLowerCase();
-  return raw.includes('ngrok');
+  return websiteApiUsesNgrokProxy();
 }

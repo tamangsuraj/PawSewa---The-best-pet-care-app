@@ -14,6 +14,7 @@ const {
   isOrderDeliveryChatActive,
 } = require('../services/marketplaceChatService');
 const { getIO } = require('../sockets/socketStore');
+const { getSummaryForUser, convKey } = require('../services/chatUnreadService');
 
 function serializeConversation(conv, orderLean) {
   const c = conv.customer;
@@ -44,12 +45,15 @@ const getCustomerInbox = asyncHandler(async (req, res) => {
     .sort({ lastMessageAt: -1, updatedAt: -1 })
     .lean();
 
+  const { byChatId = {} } = await getSummaryForUser(uid);
+
   const sellers = [];
   const delivery = [];
   const care = [];
   let support = null;
   for (const conv of list) {
     const ord = conv.order;
+    const unread = Number(byChatId[convKey(conv._id)]) || 0;
     if (conv.type === 'SUPPORT') {
       support = {
         _id: conv._id,
@@ -58,15 +62,16 @@ const getCustomerInbox = asyncHandler(async (req, res) => {
         partner: conv.partner,
         lastMessageAt: conv.lastMessageAt,
         updatedAt: conv.updatedAt,
+        unreadCount: unread,
       };
     } else if (conv.type === 'SELLER') {
-      sellers.push(serializeConversation(conv, null));
+      sellers.push({ ...serializeConversation(conv, null), unreadCount: unread });
     } else if (conv.type === 'DELIVERY') {
-      if (isDeliveryThreadVisible(conv, ord)) {
-        delivery.push(serializeConversation(conv, ord));
+      if (isDeliveryThreadVisible(conv, ord) || unread > 0) {
+        delivery.push({ ...serializeConversation(conv, ord), unreadCount: unread });
       }
     } else if (conv.type === 'CARE') {
-      care.push(serializeConversation(conv, null));
+      care.push({ ...serializeConversation(conv, null), unreadCount: unread });
     }
   }
 

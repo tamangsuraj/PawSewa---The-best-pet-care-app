@@ -158,7 +158,6 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
             peerName: centre,
             peerSubtitle: 'Care booking updates',
             productIdForFirstMessage: null,
-            highContrast: true,
           ),
         ),
       );

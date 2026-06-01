@@ -105,8 +105,8 @@ export function InboxDropdown() {
                         alt=""
                         width={36}
                         height={36}
-                        className="object-contain !bg-transparent border border-[#703418]/15 rounded-lg"
-                        style={{ backgroundColor: 'transparent' }}
+                        className="h-9 w-auto object-contain !bg-transparent border border-[#703418]/15 rounded-lg"
+                        style={{ backgroundColor: 'transparent', width: 'auto', height: 36 }}
                       />
                     ) : (
                       <div className="w-9 h-9 rounded-full bg-[#0d9488]/15 flex items-center justify-center text-[#703418] text-xs font-bold shrink-0">
