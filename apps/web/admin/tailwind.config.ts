@@ -17,7 +17,8 @@ const config: Config = {
         danger: '#ef4444',
         success: '#10b981',
         /** Admin nav active / highlights (sidebar, accents) */
-        navActive: '#4facfe',
+        navActive: '#703418',
+        sand: '#F5EDE4',
         gray: {
           50: '#f9fafb',
           100: '#f3f4f6',

@@ -633,25 +633,25 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.assignment,
             'title': 'Current Cases',
             'value': _currentAssignmentsCount.toString(),
-            'color': Colors.blue,
+            'color': const Color(AppConstants.primaryColor),
           },
           {
             'icon': Icons.check_circle,
             'title': 'Completed',
             'value': _completedCasesCount.toString(),
-            'color': Colors.green,
+            'color': const Color(AppConstants.accentColor),
           },
           {
             'icon': Icons.folder,
             'title': 'Total Cases',
             'value': _totalCasesCount.toString(),
-            'color': Colors.orange,
+            'color': const Color(AppConstants.accentWarmColor),
           },
           {
             'icon': Icons.notifications_active,
             'title': 'New Alerts',
             'value': _newAssignmentsCount.toString(),
-            'color': Colors.red,
+            'color': const Color(AppConstants.inkColor),
           },
         ];
       case 'shop_owner':
@@ -678,7 +678,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.trending_up,
             'title': 'Sales',
             'value': '0',
-            'color': const Color(0xFF0F766E),
+            'color': const Color(AppConstants.accentColor),
           },
         ];
       case 'care_service':
@@ -687,25 +687,25 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.book_online,
             'title': 'Bookings',
             'value': '0',
-            'color': Colors.blue,
+            'color': const Color(AppConstants.primaryColor),
           },
           {
             'icon': Icons.pets,
             'title': 'Pets',
             'value': '0',
-            'color': Colors.green,
+            'color': const Color(AppConstants.accentColor),
           },
           {
             'icon': Icons.cleaning_services,
             'title': 'Grooming',
             'value': '0',
-            'color': Colors.orange,
+            'color': const Color(AppConstants.accentWarmColor),
           },
           {
             'icon': Icons.hotel,
             'title': 'Boarding',
             'value': '0',
-            'color': Colors.purple,
+            'color': const Color(AppConstants.accentColor),
           },
         ];
       case 'hostel_owner':
@@ -718,25 +718,25 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.store,
             'title': 'My Services',
             'value': '0',
-            'color': Colors.blue,
+            'color': const Color(AppConstants.primaryColor),
           },
           {
             'icon': Icons.event_available,
             'title': 'Bookings',
             'value': '0',
-            'color': Colors.green,
+            'color': const Color(AppConstants.accentColor),
           },
           {
             'icon': Icons.account_balance_wallet,
             'title': 'Subscription',
             'value': '—',
-            'color': Colors.orange,
+            'color': const Color(AppConstants.accentWarmColor),
           },
           {
             'icon': Icons.settings,
             'title': 'Availability',
             'value': '—',
-            'color': Colors.purple,
+            'color': const Color(AppConstants.accentColor),
           },
         ];
       case 'rider':
@@ -745,25 +745,25 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
             'icon': Icons.local_shipping,
             'title': 'Deliveries',
             'value': '0',
-            'color': Colors.blue,
+            'color': const Color(AppConstants.primaryColor),
           },
           {
             'icon': Icons.pending,
             'title': 'Pending',
             'value': '0',
-            'color': Colors.orange,
+            'color': const Color(AppConstants.accentWarmColor),
           },
           {
             'icon': Icons.check_circle,
             'title': 'Completed',
             'value': '0',
-            'color': Colors.green,
+            'color': const Color(AppConstants.accentColor),
           },
           {
             'icon': Icons.attach_money,
             'title': 'Earnings',
             'value': '\$0',
-            'color': Colors.purple,
+            'color': const Color(AppConstants.accentColor),
           },
         ];
       default:
@@ -1262,10 +1262,10 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                       margin: const EdgeInsets.only(bottom: 24),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
+                        gradient: const LinearGradient(
                           colors: [
-                            Colors.orange.shade600,
-                            Colors.orange.shade700,
+                            Color(AppConstants.accentWarmColor),
+                            Color(AppConstants.primaryColor),
                           ],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
@@ -1273,7 +1273,7 @@ class _VetDashboardScreenState extends State<VetDashboardScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.orange.withValues(alpha: 77 / 255),
+                            color: const Color(AppConstants.primaryColor).withValues(alpha: 77 / 255),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),

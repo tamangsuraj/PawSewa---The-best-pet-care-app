@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
@@ -116,7 +118,7 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not pick image: $e')),
+          const SnackBar(content: Text('Could not open gallery. Please check app permissions.')),
         );
       }
     }
@@ -198,7 +200,11 @@ class _OwnerProfileScreenState extends State<OwnerProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Could not save profile'
+                : 'Could not save profile. Please try again.',
+          )),
         );
       }
     } finally {

@@ -414,12 +414,6 @@ class _RoleHome extends StatelessWidget {
         ],
       PartnerRole.rider => <_ActionTileModel>[
           _ActionTileModel(
-            icon: Icons.local_shipping_rounded,
-            title: 'Delivery jobs',
-            subtitle: 'Accept → pickup → deliver',
-            onTap: () => onOpen(const RiderDeliveryOrdersScreen()),
-          ),
-          _ActionTileModel(
             icon: Icons.map_rounded,
             title: 'Live map',
             subtitle: 'Share GPS while on duty',
@@ -427,9 +421,17 @@ class _RoleHome extends StatelessWidget {
           ),
           _ActionTileModel(
             icon: Icons.history_rounded,
-            title: 'History',
-            subtitle: 'Delivered drops & receipts',
+            title: 'Delivery history',
+            subtitle: 'Completed drops & receipts',
             onTap: () => onOpen(const RiderHistoryScreen()),
+          ),
+          _ActionTileModel(
+            icon: Icons.account_balance_wallet_rounded,
+            title: 'Earnings history',
+            subtitle: 'Last 7 days & payouts',
+            onTap: () => onOpen(
+              const RiderDeliveryOrdersScreen(initialTabIndex: 1),
+            ),
           ),
           _ActionTileModel(
             icon: Icons.support_agent_rounded,
@@ -793,10 +795,10 @@ class _TasksHub extends StatelessWidget {
         ],
       PartnerRole.rider => <_HubTile>[
           _HubTile(
-            icon: Icons.local_shipping_rounded,
-            title: 'Delivery jobs',
-            subtitle: 'Assigned orders + status flow',
-            onTap: () => onOpen(const RiderDeliveryOrdersScreen()),
+            icon: Icons.history_rounded,
+            title: 'Delivery history',
+            subtitle: 'Completed drops & receipts',
+            onTap: () => onOpen(const RiderHistoryScreen()),
           ),
           _HubTile(
             icon: Icons.map_rounded,
@@ -876,8 +878,16 @@ class _AnalyticsHub extends StatelessWidget {
           _HubTile(
             icon: Icons.history_rounded,
             title: 'Delivery history',
-            subtitle: 'Completed drops, receipts & earnings',
+            subtitle: 'Completed drops & receipts',
             onTap: () => onOpen(const RiderHistoryScreen()),
+          ),
+          _HubTile(
+            icon: Icons.query_stats_rounded,
+            title: 'Earnings history',
+            subtitle: 'Weekly chart & transactions',
+            onTap: () => onOpen(
+              const RiderDeliveryOrdersScreen(initialTabIndex: 1),
+            ),
           ),
         ],
       PartnerRole.seller => <_HubTile>[
@@ -1021,9 +1031,9 @@ class _ProfileHubState extends State<_ProfileHub> {
     final ink = const Color(AppConstants.inkColor);
 
     final roleColor = switch (_role.toLowerCase()) {
-      'vet' || 'veterinarian' => const Color(0xFF2E7D32),
-      'rider' || 'delivery' => const Color(0xFF1565C0),
-      'seller' || 'shop_owner' => const Color(0xFF6A1B9A),
+      'vet' || 'veterinarian' => const Color(AppConstants.vetAccent),
+      'rider' || 'delivery' => const Color(AppConstants.riderAccent),
+      'seller' || 'shop_owner' => const Color(AppConstants.sellerAccent),
       _ => primary,
     };
 
@@ -1107,13 +1117,13 @@ class _ProfileHubState extends State<_ProfileHub> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Icon(Icons.verified_rounded, size: 13, color: Colors.green.shade600),
+                                Icon(Icons.verified_rounded, size: 13, color: const Color(AppConstants.accentColor)),
                                 const SizedBox(width: 4),
                                 Text(
                                   'Profile verified',
                                   style: GoogleFonts.outfit(
                                     fontSize: 11,
-                                    color: Colors.green.shade600,
+                                    color: const Color(AppConstants.accentColor),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),

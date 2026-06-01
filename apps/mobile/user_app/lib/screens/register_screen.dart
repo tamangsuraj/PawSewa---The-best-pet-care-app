@@ -171,7 +171,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         } else if (e.toString().contains('400')) {
           errorMessage = 'Invalid registration data. Please check all fields.';
         } else {
-          errorMessage = 'Error: ${e.toString()}';
+          errorMessage = 'Registration failed. Please try again.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -253,7 +253,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           errorMessage =
               'Cannot connect to server. Tap "Reconnect" or set server URL below.';
         } else {
-          errorMessage = 'Error: ${e.toString()}';
+          errorMessage = 'Registration failed. Please try again.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(

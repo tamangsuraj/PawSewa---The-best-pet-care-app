@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
@@ -96,7 +97,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
       if (kDebugMode) debugPrint('Load subscription: $e');
       setState(() {
         _loadingSubscription = false;
-        _error = e.toString();
+        _error = 'Could not load subscription data.';
       });
     }
   }
@@ -151,7 +152,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(content: Text('Could not update availability. Please try again.')),
         );
       }
     }
@@ -169,7 +170,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          const SnackBar(content: Text('Could not respond to booking. Please try again.')),
         );
       }
     }
@@ -201,7 +202,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          const SnackBar(content: Text('Action failed. Please try again.')),
         );
       }
     }
@@ -256,7 +257,11 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Payment failed: ${e.toString()}')),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Payment failed'
+                : 'Payment failed. Please try again.',
+          )),
         );
       }
     }
@@ -427,7 +432,7 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                   children: [
                     Icon(
                       isActive ? Icons.check_circle : Icons.info_outline,
-                      color: isActive ? Colors.green : Colors.orange,
+                      color: isActive ? const Color(AppConstants.primaryColor) : const Color(AppConstants.accentWarmColor),
                       size: 28,
                     ),
                     const SizedBox(width: 12),
@@ -650,8 +655,8 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                       ),
                       decoration: BoxDecoration(
                         color: isAvailable
-                            ? Colors.green.withValues(alpha: 0.12)
-                            : Colors.orange.withValues(alpha: 0.12),
+                            ? const Color(AppConstants.primaryColor).withValues(alpha: 0.12)
+                            : const Color(AppConstants.accentWarmColor).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -660,8 +665,8 @@ class _MyBusinessScreenState extends State<MyBusinessScreen>
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: isAvailable
-                              ? Colors.green[800]
-                              : Colors.orange[800],
+                              ? const Color(AppConstants.primaryColor)
+                              : const Color(AppConstants.accentWarmColor),
                         ),
                       ),
                     ),

@@ -197,7 +197,7 @@ class _VetVisitFlowScreenState extends State<VetVisitFlowScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not update status. Please try again.')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -236,7 +236,7 @@ class _VetVisitFlowScreenState extends State<VetVisitFlowScreen> {
   Widget build(BuildContext context) {
     const primary = Color(AppConstants.primaryColor);
     const accent = Color(AppConstants.accentColor);
-    const success = Color(0xFF2E7D32);
+    const success = Color(AppConstants.primaryColor);
     final pet = _task['pet'] is Map ? _task['pet'] as Map<String, dynamic> : null;
     final petName = pet?['name']?.toString() ?? 'Pet';
     final user = _task['user'] is Map ? _task['user'] as Map<String, dynamic> : null;

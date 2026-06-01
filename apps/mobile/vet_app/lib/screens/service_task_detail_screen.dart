@@ -212,7 +212,9 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
           backgroundColor: const Color(AppConstants.primaryColor),
           iconTheme: const IconThemeData(color: Colors.white),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: CircularProgressIndicator(color: Color(AppConstants.primaryColor)),
+        ),
       );
     }
 
@@ -447,7 +449,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                 child: FilledButton.icon(
                   onPressed: _completingVisit ? null : _markVisitOrCaseComplete,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF047857),
+                    backgroundColor: const Color(AppConstants.primaryColor),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -517,7 +519,7 @@ class _ServiceTaskDetailScreenState extends State<ServiceTaskDetailScreen> {
                                     height: 43,
                                     alignment: Alignment.bottomCenter,
                                     child: MapPinMarker(
-                                      color: Colors.teal.shade700,
+                                      color: const Color(AppConstants.primaryColor),
                                       size: 30,
                                     ),
                                   ),

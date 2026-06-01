@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
             e.toString().contains('404')) {
           errorMessage = 'Server endpoint not found';
         } else if (errorMessage == 'Login failed') {
-          errorMessage = 'Error: ${e.toString()}';
+          errorMessage = 'Login failed. Please check your credentials and try again.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -207,9 +207,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await _apiClient.reinitialize();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Server URL saved. Try logging in again.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Server URL saved. Try logging in again.'),
+            backgroundColor: const Color(AppConstants.primaryColor),
           ),
         );
       }

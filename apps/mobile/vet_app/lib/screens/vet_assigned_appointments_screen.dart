@@ -49,7 +49,7 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
 
   static const _primary = Color(AppConstants.vetAccent);
   static const _accent = Color(AppConstants.accentColor);
-  static const _successGreen = Color(0xFF00C853);
+  static const _successGreen = Color(AppConstants.primaryColor);
 
   @override
   void initState() {
@@ -318,7 +318,7 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Visit started', style: GoogleFonts.outfit()),
-            backgroundColor: Colors.blue.shade700,
+            backgroundColor: const Color(AppConstants.primaryColor),
           ),
         );
         await _load();
@@ -368,7 +368,7 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+        SnackBar(content: const Text('Could not complete case. Please try again.'), backgroundColor: Colors.red),
       );
     } finally {
       controller.dispose();
@@ -622,21 +622,21 @@ class _VetAssignedAppointmentsScreenState extends State<VetAssignedAppointmentsS
   Color _statusColor(Map<String, dynamic> job) {
     final s = job['status']?.toString() ?? '';
     if (job['_kind']?.toString() == 'case') {
-      if (s == 'assigned') return Colors.teal;
-      if (s == 'in_progress') return Colors.deepOrange;
+      if (s == 'assigned') return const Color(AppConstants.primaryColor);
+      if (s == 'in_progress') return const Color(AppConstants.accentWarmColor);
       return Colors.grey;
     }
     switch (s) {
       case 'assigned':
-        return Colors.teal;
+        return const Color(AppConstants.primaryColor);
       case 'accepted':
         return _accent;
       case 'en_route':
-        return Colors.blue.shade700;
+        return const Color(AppConstants.primaryColor);
       case 'arrived':
-        return Colors.orange.shade800;
+        return const Color(AppConstants.accentWarmColor);
       case 'in_progress':
-        return Colors.deepOrange;
+        return const Color(AppConstants.accentColor);
       default:
         return Colors.grey;
     }

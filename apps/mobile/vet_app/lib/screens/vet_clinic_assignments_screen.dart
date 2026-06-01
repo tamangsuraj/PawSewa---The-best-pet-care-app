@@ -78,7 +78,7 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
       if (mounted && !silent) {
         setState(() {
           _loading = false;
-          _error = e.toString();
+          _error = 'Network error. Please try again.';
         });
       }
     }
@@ -124,7 +124,7 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
       if (mounted) await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Action failed. Please try again.')));
       }
     }
   }
@@ -140,7 +140,7 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Action failed. Please try again.')));
       }
     }
   }
@@ -328,11 +328,11 @@ class _VetClinicAssignmentsScreenState extends State<VetClinicAssignmentsScreen>
                                       width: 40,
                                       height: 40,
                                       decoration: BoxDecoration(
-                                        color: Colors.green.shade50,
+                                        color: const Color(AppConstants.bentoBackgroundColor),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(Icons.check_circle_outline_rounded,
-                                          color: Colors.green.shade700, size: 22),
+                                          color: const Color(AppConstants.primaryColor), size: 22),
                                     ),
                                     title: Text(
                                       '$apptType · $petName',

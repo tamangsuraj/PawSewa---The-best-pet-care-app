@@ -24,6 +24,8 @@ class CartService extends ChangeNotifier {
   String? _deliveryAddress;
   String? _deliveryNotes;
   DateTime? _liveLocationCapturedAt;
+  String? _appliedPromoCode;
+  double _promoDiscount = 0;
 
   Map<String, CartItem> get items => _items;
   double? get deliveryLat => _deliveryLat;
@@ -31,6 +33,20 @@ class CartService extends ChangeNotifier {
   String? get deliveryAddress => _deliveryAddress;
   String? get deliveryNotes => _deliveryNotes;
   DateTime? get liveLocationCapturedAt => _liveLocationCapturedAt;
+  String? get appliedPromoCode => _appliedPromoCode;
+  double get promoDiscount => _promoDiscount;
+
+  void applyPromo(String code, double discount) {
+    _appliedPromoCode = code.toUpperCase();
+    _promoDiscount = discount;
+    notifyListeners();
+  }
+
+  void clearPromo() {
+    _appliedPromoCode = null;
+    _promoDiscount = 0;
+    notifyListeners();
+  }
 
   void addItem({
     required String productId,
@@ -92,6 +108,8 @@ class CartService extends ChangeNotifier {
   void clearCart() {
     _items.clear();
     _deliveryNotes = null;
+    _appliedPromoCode = null;
+    _promoDiscount = 0;
     notifyListeners();
   }
 

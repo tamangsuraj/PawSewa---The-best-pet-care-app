@@ -293,7 +293,7 @@ class _EarningsScreenState extends State<EarningsScreen> {
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green[700],
+                  color: primary,
                 ),
               ),
             ),

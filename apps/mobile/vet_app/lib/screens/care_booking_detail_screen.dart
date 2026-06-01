@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
@@ -105,14 +106,19 @@ class _CareBookingDetailScreenState extends State<CareBookingDetailScreen> {
             accept ? 'Booking confirmed.' : 'Booking declined.',
             style: GoogleFonts.outfit(),
           ),
-          backgroundColor: accept ? Colors.green.shade700 : Colors.orange.shade800,
+          backgroundColor: accept ? const Color(AppConstants.primaryColor) : const Color(AppConstants.accentWarmColor),
         ),
       );
       if (!accept) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e', style: GoogleFonts.outfit())),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
+            style: GoogleFonts.outfit(),
+          )),
         );
       }
     } finally {
@@ -133,13 +139,18 @@ class _CareBookingDetailScreenState extends State<CareBookingDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Checked in.', style: GoogleFonts.outfit()),
-          backgroundColor: Colors.green.shade700,
+          backgroundColor: const Color(AppConstants.primaryColor),
         ),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e', style: GoogleFonts.outfit())),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
+            style: GoogleFonts.outfit(),
+          )),
         );
       }
     } finally {
@@ -180,7 +191,12 @@ class _CareBookingDetailScreenState extends State<CareBookingDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e', style: GoogleFonts.outfit())),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
+            style: GoogleFonts.outfit(),
+          )),
         );
       }
     }
@@ -494,7 +510,7 @@ class _CareBookingDetailScreenState extends State<CareBookingDetailScreen> {
                               child: FilledButton(
                                 onPressed: _busy ? null : () => _respond(true),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.green.shade700,
+                                  backgroundColor: const Color(AppConstants.primaryColor),
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),

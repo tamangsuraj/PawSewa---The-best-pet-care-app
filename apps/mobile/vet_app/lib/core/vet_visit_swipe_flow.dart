@@ -19,8 +19,8 @@ class VetVisitSwipeStep {
 VetVisitSwipeStep? nextVetVisitSwipeStep(Map<String, dynamic> task) {
   const primary = Color(AppConstants.primaryColor);
   const accent = Color(AppConstants.accentColor);
-  const success = Color(0xFF2E7D32);
-  const orange = Color(0xFFE65100);
+  const success = Color(AppConstants.primaryColor);
+  const orange = Color(AppConstants.accentWarmColor);
   final s = task['status']?.toString() ?? '';
   switch (s) {
     case 'assigned':
@@ -68,14 +68,14 @@ bool vetVisitTaskIsActive(Map<String, dynamic> t) {
 
 /// Assistance case: assigned → start, in_progress → complete (handled in UI layer).
 VetVisitSwipeStep? nextVetCaseSwipeStep(Map<String, dynamic> c) {
-  const success = Color(0xFF2E7D32);
+  const success = Color(AppConstants.primaryColor);
   final s = c['status']?.toString() ?? '';
   switch (s) {
     case 'assigned':
       return const VetVisitSwipeStep(
         kVetCaseSwipeStart,
         'Swipe — Start visit',
-        Color(0xFF1565C0),
+        Color(AppConstants.primaryColor),
       );
     case 'in_progress':
       return const VetVisitSwipeStep(

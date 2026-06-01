@@ -114,7 +114,7 @@ class _MarketplaceThreadScreenState extends State<MarketplaceThreadScreen> {
           ? d['message'] as String
           : 'Could not load chat.';
     } catch (e) {
-      _error = e.toString();
+      _error = 'Network error. Please try again.';
     } finally {
       if (mounted) {
         _unreadNotify?.setActiveChatId('c:${widget.conversationId}');

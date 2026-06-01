@@ -175,7 +175,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
   };
 
   return (
-    <aside className="h-full w-full max-h-dvh bg-gradient-to-b from-white to-[#F7F4FC] flex flex-col overflow-hidden shadow-lg border-r border-white/60">
+    <aside className="h-full w-full max-h-dvh bg-gradient-to-b from-white to-sand flex flex-col overflow-hidden shadow-lg border-r border-primary/10">
       {/* Logo */}
       <div className="shrink-0 p-6 border-b border-white/70">
         <div className="flex items-center gap-3 min-w-0">
@@ -202,7 +202,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
               onClick={() => onNavigate?.()}
               className={cn(
                 'flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200',
-                isActive ? 'bg-[#4facfe] text-white shadow-lg' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
+                isActive ? 'bg-primary text-white shadow-lg' : 'text-gray-700 hover:bg-sand/80 hover:text-gray-900'
               )}
             >
               <Icon className="w-5 h-5" />
@@ -224,7 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
                 onClick={() => toggleGroup(group.label)}
                 className={cn(
                   'w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-left',
-                  isActive ? 'bg-[#4facfe]/15 text-[#171415]' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
+                  isActive ? 'bg-primary/15 text-accent' : 'text-gray-700 hover:bg-sand/80 hover:text-gray-900'
                 )}
               >
                 <div className="flex items-center space-x-3">
@@ -253,8 +253,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
                         className={cn(
                           'flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 relative',
                           isChildActive
-                            ? 'bg-[#4facfe] text-white shadow-md'
-                            : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'
+                            ? 'bg-primary text-white shadow-md'
+                            : 'text-gray-600 hover:bg-sand/80 hover:text-gray-900'
                         )}
                       >
                         <ChildIcon className="w-4 h-4" />
@@ -285,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
               onClick={() => onNavigate?.()}
               className={cn(
                 'relative flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200',
-                isActive ? 'bg-[#4facfe] text-white shadow-lg' : 'text-gray-700 hover:bg-white/70 hover:text-gray-900'
+                isActive ? 'bg-primary text-white shadow-lg' : 'text-gray-700 hover:bg-sand/80 hover:text-gray-900'
               )}
             >
               <Icon className="w-5 h-5 shrink-0" />
@@ -301,7 +301,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate }) => {
       </nav>
 
       {/* Footer — in flex flow so it stays visible and does not cover nav links */}
-      <div className="shrink-0 p-4 border-t border-gray-200 bg-gradient-to-b from-transparent to-[#F7F4FC]">
+      <div className="shrink-0 p-4 border-t border-primary/10 bg-gradient-to-b from-transparent to-sand">
         <p className="text-xs text-gray-500 text-center">Admin Portal v1.0</p>
       </div>
     </aside>

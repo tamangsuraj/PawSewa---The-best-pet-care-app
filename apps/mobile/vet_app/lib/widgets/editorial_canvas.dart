@@ -15,18 +15,16 @@ class EditorialCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // White background with a very subtle teal hint at the edge — keeps brand warmth
-    // without the cream backdrop the user asked to remove.
     final colors = variant == EditorialSurfaceVariant.customer
         ? const <Color>[
+            Color(0xFFF5EDE4),
             Colors.white,
-            Colors.white,
-            Color(0xFFE8F5F3),
+            Color(0xFFEBE3D6),
           ]
         : const <Color>[
+            Color(0xFFF5EDE4),
             Colors.white,
-            Colors.white,
-            Color(0xFFD8EFEC),
+            Color(0xFFEBE3D6),
           ];
 
     return DecoratedBox(

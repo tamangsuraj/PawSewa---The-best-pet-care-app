@@ -130,7 +130,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not connect. Check the URL/IP and try again. ($e)')),
+        const SnackBar(content: Text('Could not connect. Please verify the server URL and try again.')),
       );
     } finally {
       controller.dispose();

@@ -107,7 +107,7 @@ class PartnerPlaceholderScreen extends StatelessWidget {
                           height: 38,
                           alignment: Alignment.bottomCenter,
                           child: MapPinMarker(
-                            color: Colors.orange.shade800,
+                            color: const Color(AppConstants.primaryColor),
                             size: 28,
                           ),
                         ),

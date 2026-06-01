@@ -864,6 +864,9 @@ class _ShopScreenState extends State<ShopScreen> {
         'deliveryNotes': cart.deliveryNotes,
       if (paymentMethod != null && paymentMethod.isNotEmpty)
         'paymentMethod': paymentMethod,
+      // Promo code: backend validates, applies discount, and increments usedCount.
+      if (cart.appliedPromoCode != null && cart.appliedPromoCode!.isNotEmpty)
+        'promoCode': cart.appliedPromoCode,
     };
     final liveAt = cart.liveLocationCapturedAt;
     if (liveAt != null) {
@@ -2412,7 +2415,7 @@ class _AddToBasketSheetState extends State<_AddToBasketSheet> {
       if (outerContext.mounted) {
         ScaffoldMessenger.of(
           outerContext,
-        ).showSnackBar(SnackBar(content: Text('Could not open chat: $e')));
+        ).showSnackBar(const SnackBar(content: Text('Could not open chat. Please try again.')));
       }
     }
   }
@@ -3016,6 +3019,11 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             widget.onApplyPromo(
                               grandTotal,
                               (code, discountAmount) {
+                                // Store on CartService so _buildShopOrderPayload
+                                // picks it up and sends it to the backend.
+                                if (context.mounted) {
+                                  context.read<CartService>().applyPromo(code, discountAmount);
+                                }
                                 setState(() {
                                   _appliedPromoCode = code;
                                   _discountAmount = discountAmount;

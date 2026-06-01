@@ -60,7 +60,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = 'Network error. Please try again.';
         _loading = false;
       });
     }
@@ -221,7 +221,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                       await _api.updateBookingFacilityNotes(id, notesCtrl.text.trim());
                       if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Notes saved')));
                     } catch (e) {
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Action failed. Please try again.')));
                     }
                   },
                   style: FilledButton.styleFrom(backgroundColor: primary.withValues(alpha: 0.12), foregroundColor: primary),
@@ -261,7 +261,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                       labelCtrl.clear();
                       amountCtrl.clear();
                     } catch (e) {
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Action failed. Please try again.')));
                     }
                   },
                   child: const Text('Add charge'),
@@ -285,7 +285,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                       });
                       if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Intake saved')));
                     } catch (e) {
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Action failed. Please try again.')));
                     }
                   },
                   style: FilledButton.styleFrom(backgroundColor: primary.withValues(alpha: 0.12), foregroundColor: primary),
@@ -324,7 +324,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                       incidentTitleCtrl.clear();
                       incidentNotesCtrl.clear();
                     } catch (e) {
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Action failed. Please try again.')));
                     }
                   },
                   style: FilledButton.styleFrom(backgroundColor: primary.withValues(alpha: 0.12), foregroundColor: primary),
@@ -339,7 +339,7 @@ class _CarePetRecordsScreenState extends State<CarePetRecordsScreen> {
                       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Marked completed')));
                       await _load();
                     } catch (e) {
-                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                      if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Action failed. Please try again.')));
                     }
                   },
                   icon: const Icon(Icons.check_circle_rounded),

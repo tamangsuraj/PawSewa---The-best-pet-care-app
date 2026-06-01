@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
@@ -41,14 +42,17 @@ class _CareBookingCheckoutScreenState extends State<CareBookingCheckoutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Booking marked completed.', style: GoogleFonts.outfit()),
-          backgroundColor: Colors.green.shade700,
+          backgroundColor: const Color(AppConstants.primaryColor),
         ),
       );
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
+        final msg = e is DioException && e.response?.data is Map
+            ? (e.response!.data as Map)['message']?.toString() ?? 'Could not complete booking'
+            : 'Could not complete booking. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e', style: GoogleFonts.outfit())),
+          SnackBar(content: Text(msg, style: GoogleFonts.outfit())),
         );
       }
     } finally {

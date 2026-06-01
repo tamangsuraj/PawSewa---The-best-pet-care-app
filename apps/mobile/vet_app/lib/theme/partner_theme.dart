@@ -33,43 +33,46 @@ abstract final class RoleDesign {
   static (Color bg, Color fg) statusColors(String status) {
     final s = status.toLowerCase().replaceAll('_', '');
     if (s.contains('complet') || s.contains('deliver') || s == 'prescribed' || s.contains('checkedout')) {
-      return (const Color(0xFFE8F5E9), const Color(0xFF16A34A));
+      return (const Color(AppConstants.bentoBackgroundColor), const Color(AppConstants.accentColor));
     }
     if (s.contains('progress') || s.contains('way') || s == 'diagnosed' || s.contains('active')) {
-      return (const Color(0xFFE3F2FD), const Color(0xFF2563EB));
+      return (const Color(0xFFF5EDE4), const Color(AppConstants.primaryColor));
     }
     if (s.contains('pend') || s.contains('wait') || s.contains('triage') || s.contains('unconfirm')) {
-      return (const Color(0xFFFFF8E1), const Color(0xFFD97706));
+      return (const Color(AppConstants.sandColor), const Color(AppConstants.accentWarmColor));
     }
     if (s.contains('cancel') || s.contains('fail') || s.contains('reject')) {
       return (const Color(0xFFFFEBEE), const Color(0xFFDC2626));
     }
     if (s.contains('confirm') || s.contains('checkin') || s.contains('checkedin')) {
-      return (const Color(0xFFF3E5F5), const Color(0xFF7C3AED));
+      return (const Color(0xFFEBE3D6), const Color(AppConstants.accentColor));
     }
     return (const Color(0xFFF5F0EA), const Color(AppConstants.inkColor));
   }
 }
 
-/// Partner app — same editorial pairing as customer web; deeper ink primary for authority.
+/// Partner app — brown + white brand; no Material default blue accents.
 abstract final class PartnerTheme {
-  static ThemeData light() {
-    const primary = Color(AppConstants.primaryColor);
-    const surface = Color(AppConstants.secondaryColor);
-    const accent = Color(AppConstants.accentColor);
-    const ink = Color(AppConstants.inkColor);
-    const onPrimary = Colors.white;
+  static const Color primary = Color(AppConstants.primaryColor);
+  static const Color ink = Color(AppConstants.inkColor);
+  static const Color sand = Color(AppConstants.sandColor);
+  static const Color cream = Color(AppConstants.bentoBackgroundColor);
+  static const Color bronze = Color(AppConstants.accentColor);
+  static const Color onPrimary = Colors.white;
 
-    final colorScheme = ColorScheme.light(
+  static ThemeData light() {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primary,
+      brightness: Brightness.light,
       primary: primary,
       onPrimary: onPrimary,
-      primaryContainer: const Color(AppConstants.sandColor),
-      secondary: accent,
-      onSecondary: Colors.white,
-      tertiary: const Color(AppConstants.accentWarmColor),
-      surface: surface,
+      secondary: const Color(AppConstants.accentWarmColor),
+      onSecondary: onPrimary,
+      tertiary: bronze,
+      onTertiary: onPrimary,
+      surface: const Color(AppConstants.secondaryColor),
       onSurface: ink,
-      outline: primary.withValues(alpha: 0.2),
+      error: const Color(0xFFDC2626),
     );
 
     final base = ThemeData(
@@ -81,7 +84,6 @@ abstract final class PartnerTheme {
 
     final outfit = GoogleFonts.outfitTextTheme(base.textTheme);
     final fraunces = GoogleFonts.frauncesTextTheme(base.textTheme);
-
     return base.copyWith(
       textTheme: outfit.copyWith(
         displaySmall: fraunces.displaySmall?.copyWith(
@@ -117,9 +119,46 @@ abstract final class PartnerTheme {
           color: ink,
         ),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: primary.withValues(alpha: 0.12),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? primary : ink.withValues(alpha: 0.55),
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          return IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? primary
+                : ink.withValues(alpha: 0.5),
+          );
+        }),
+      ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         elevation: 3,
         highlightElevation: 6,
+        backgroundColor: primary,
+        foregroundColor: onPrimary,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          elevation: 0,
+          backgroundColor: primary,
+          foregroundColor: onPrimary,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+          textStyle: GoogleFonts.outfit(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -152,12 +191,48 @@ abstract final class PartnerTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: accent,
+          foregroundColor: primary,
           textStyle: GoogleFonts.outfit(
             fontWeight: FontWeight.w600,
             fontSize: 14,
           ),
         ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(foregroundColor: primary),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return onPrimary;
+          return ink.withValues(alpha: 0.35);
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return primary.withValues(alpha: 0.55);
+          }
+          return sand;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(primary.withValues(alpha: 0.2)),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primary;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(onPrimary),
+        side: BorderSide(color: primary.withValues(alpha: 0.45), width: 1.5),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primary;
+          return ink.withValues(alpha: 0.4);
+        }),
+      ),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: primary,
+        inactiveTrackColor: primary.withValues(alpha: 0.18),
+        thumbColor: primary,
+        overlayColor: primary.withValues(alpha: 0.12),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -174,7 +249,7 @@ abstract final class PartnerTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: accent, width: 2),
+          borderSide: const BorderSide(color: primary, width: 2),
         ),
       ),
       cardTheme: CardThemeData(
@@ -187,7 +262,7 @@ abstract final class PartnerTheme {
         shadowColor: ink.withValues(alpha: 0.1),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(AppConstants.sandColor),
+        backgroundColor: sand,
         labelStyle: GoogleFonts.outfit(
           fontSize: 12,
           fontWeight: FontWeight.w500,
@@ -221,7 +296,7 @@ abstract final class PartnerTheme {
         ),
       ),
       tabBarTheme: TabBarThemeData(
-        indicatorColor: accent,
+        indicatorColor: primary,
         labelColor: primary,
         unselectedLabelColor: ink.withValues(alpha: 0.5),
         labelStyle: GoogleFonts.outfit(
@@ -234,19 +309,48 @@ abstract final class PartnerTheme {
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: accent,
+        color: primary,
         circularTrackColor: primary.withValues(alpha: 0.12),
       ),
       dividerTheme: DividerThemeData(
         color: primary.withValues(alpha: 0.14),
         thickness: 1,
       ),
-      bottomSheetTheme: BottomSheetThemeData(
+      bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
+      ),
+      listTileTheme: ListTileThemeData(
+        iconColor: primary,
+        textColor: ink,
+      ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        menuStyle: MenuStyle(
+          surfaceTintColor: WidgetStateProperty.all(Colors.transparent),
+        ),
+      ),
+      datePickerTheme: DatePickerThemeData(
+        headerBackgroundColor: primary,
+        headerForegroundColor: onPrimary,
+        todayForegroundColor: WidgetStateProperty.all(primary),
+        dayForegroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return onPrimary;
+          return ink;
+        }),
+        dayBackgroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return primary;
+          return null;
+        }),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        dialHandColor: primary,
+        hourMinuteColor: sand,
+        hourMinuteTextColor: ink,
+        dayPeriodColor: primary.withValues(alpha: 0.12),
+        dayPeriodTextColor: primary,
       ),
     );
   }

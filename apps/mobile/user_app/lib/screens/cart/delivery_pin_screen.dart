@@ -223,7 +223,7 @@ class _DeliveryPinScreenState extends State<DeliveryPinScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not get location: $e')),
+          const SnackBar(content: Text('Could not get your location. Please check GPS permissions.')),
         );
       }
     } finally {

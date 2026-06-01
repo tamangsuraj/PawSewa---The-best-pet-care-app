@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -55,7 +56,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start Khalti payment: $e', style: GoogleFonts.outfit()),
+          content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Could not start Khalti payment'
+                : e.toString().replaceFirst('Exception: ', ''),
+            style: GoogleFonts.outfit(),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -81,7 +87,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start eSewa payment: $e', style: GoogleFonts.outfit()),
+          content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Could not start eSewa payment'
+                : e.toString().replaceFirst('Exception: ', ''),
+            style: GoogleFonts.outfit(),
+          ),
           backgroundColor: Colors.red,
         ),
       );

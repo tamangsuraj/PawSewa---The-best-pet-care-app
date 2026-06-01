@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -116,13 +117,17 @@ class _RiderProofOfDeliveryScreenState extends State<RiderProofOfDeliveryScreen>
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delivered with proof'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('Delivered with proof'), backgroundColor: Color(AppConstants.primaryColor)),
       );
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to deliver: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Delivery submission failed'
+                : 'Delivery submission failed. Please try again.',
+          ), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

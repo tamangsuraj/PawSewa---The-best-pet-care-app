@@ -54,7 +54,8 @@ class _PatientChatsScreenState extends State<PatientChatsScreen> {
           : 'Could not load list.';
       setState(() => _loading = false);
     } catch (e) {
-      _error = e.toString();
+      if (!mounted) return;
+      _error = 'Could not load patient chats. Please try again.';
       setState(() => _loading = false);
     }
   }

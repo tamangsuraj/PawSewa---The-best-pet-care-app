@@ -246,8 +246,6 @@ function ShopPageInner() {
           primaryPetName: m.primaryPetName ? String(m.primaryPetName) : null,
         });
       }
-      console.log('[WEB-SHOP] Pixel-perfect grid rendered and bound to MongoDB.');
-      console.log('[WEB-SHOP] Dynamic filtering and Cart Widget active.');
     } catch (err: unknown) {
       console.error('Error loading products:', err);
       setProducts([]);

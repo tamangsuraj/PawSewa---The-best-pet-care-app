@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -43,8 +46,9 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
   bool _creating = false;
   bool _paying = false;
   String? _error;
-  final String _userAddress = '';
+  String _userAddress = '';
   String _userPhone = '';
+  bool _savingContact = false;
 
   static const _timeSlots = [
     '09:00 AM', '11:30 AM', '02:00 PM', '04:30 PM', '06:00 PM',
@@ -112,12 +116,206 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
 
   Future<void> _loadUserInfo() async {
     try {
-      final user = await _storage.getUser();
-      if (user != null) {
-        final phoneMatch = RegExp(r'"phone"\s*:\s*"([^"]*)"').firstMatch(user);
-        _userPhone = phoneMatch?.group(1) ?? '';
+      final userRaw = await _storage.getUser();
+      if (userRaw != null && userRaw.isNotEmpty) {
+        final decoded = jsonDecode(userRaw);
+        if (decoded is Map) {
+          _userPhone = decoded['phone']?.toString() ?? '';
+        }
+      }
+      final addrResp = await _apiClient.getMySavedAddresses();
+      final body = addrResp.data;
+      if (body is Map && body['data'] is List) {
+        final list = body['data'] as List;
+        if (list.isNotEmpty && list.first is Map) {
+          final a = Map<String, dynamic>.from(list.first as Map);
+          final street = a['street']?.toString().trim() ?? '';
+          final landmark = a['landmark']?.toString().trim() ?? '';
+          _userAddress = [street, landmark].where((s) => s.isNotEmpty).join(', ');
+          if (_userAddress.isEmpty) {
+            final lat = a['lat'];
+            final lng = a['lng'];
+            if (lat != null && lng != null) {
+              _userAddress = '$lat, $lng';
+            }
+          }
+        }
       }
     } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _editLocation() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => const DeliveryPinScreen(
+          returnAddress: true,
+          returnLocationPayload: true,
+        ),
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    final lat = (result['lat'] as num?)?.toDouble();
+    final lng = (result['lng'] as num?)?.toDouble();
+    final addr = result['address']?.toString().trim() ?? '';
+    if (lat == null || lng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not read map location. Try again.')),
+      );
+      return;
+    }
+
+    setState(() => _savingContact = true);
+    try {
+      await _apiClient.putMySavedAddress(
+        lat: lat,
+        lng: lng,
+        label: 'Home',
+        street: addr,
+      );
+      if (!mounted) return;
+      setState(() {
+        _userAddress = addr.isNotEmpty ? addr : '$lat, $lng';
+        _savingContact = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location saved'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _userAddress = addr.isNotEmpty ? addr : '$lat, $lng';
+        _savingContact = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Location set locally; save failed: ${e.toString().replaceFirst('Exception: ', '')}',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _editPhone() async {
+    final ctrl = TextEditingController(text: _userPhone);
+    final primary = const Color(AppConstants.primaryColor);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Phone number', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.phone,
+          autofocus: true,
+          decoration: InputDecoration(
+            hintText: '98XXXXXXXX',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.outfit()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: primary),
+            child: Text('Save', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    final phone = ctrl.text.trim();
+    ctrl.dispose();
+    if (saved != true || !mounted) return;
+    if (phone.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid phone number')),
+      );
+      return;
+    }
+
+    setState(() => _savingContact = true);
+    try {
+      final resp = await _apiClient.updateProfile({'phone': phone});
+      if (resp.statusCode != 200) {
+        throw Exception('Could not update phone');
+      }
+      final raw = await _storage.getUser();
+      if (raw != null && raw.isNotEmpty) {
+        try {
+          final u = jsonDecode(raw);
+          if (u is Map) {
+            final um = Map<String, dynamic>.from(u);
+            um['phone'] = phone;
+            await _storage.saveUser(jsonEncode(um));
+          }
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      setState(() {
+        _userPhone = phone;
+        _savingContact = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number saved'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _savingContact = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
+  }
+
+  Widget _contactRow({
+    required IconData icon,
+    required String value,
+    required String emptyHint,
+    required VoidCallback onEdit,
+  }) {
+    const primary = Color(AppConstants.primaryColor);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value.isEmpty ? emptyHint : value,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              color: value.isEmpty ? Colors.grey[600] : Colors.black87,
+              height: 1.35,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: _savingContact ? null : onEdit,
+          child: Text(
+            value.isEmpty ? 'Add' : 'Edit',
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: primary,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _createBooking({required bool paymentOnline}) async {
@@ -284,28 +482,113 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
     final dates = List.generate(7, (i) => now.add(Duration(days: i)));
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle('SELECT PET'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           if (_loadingPets)
-            const Center(child: PawSewaLoader())
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(child: PawSewaLoader()),
+            )
           else if (_pets.isEmpty)
             _emptyHint('Add a pet from My Pets first.')
           else
-            DropdownButtonFormField<Pet>(
-              initialValue: _selectedPet,
-              decoration: _inputDecoration(),
-              items: _pets.map((p) => DropdownMenuItem(value: p, child: Text('${p.name} (ID: ${p.pawId ?? p.id})'))).toList(),
-              onChanged: (v) => setState(() => _selectedPet = v),
+            SizedBox(
+              height: 118,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: _pets.length,
+                itemBuilder: (context, i) {
+                  final pet = _pets[i];
+                  final selected = _selectedPet?.id == pet.id;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedPet = pet),
+                    child: Container(
+                      width: 200,
+                      margin: const EdgeInsets.only(right: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected ? primary : Colors.grey.shade300,
+                          width: selected ? 2 : 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 28,
+                            backgroundColor: primary.withValues(alpha: 0.12),
+                            backgroundImage: pet.photoUrl != null &&
+                                    pet.photoUrl!.isNotEmpty
+                                ? CachedNetworkImageProvider(pet.photoUrl!)
+                                : null,
+                            child: pet.photoUrl == null || pet.photoUrl!.isEmpty
+                                ? Text(
+                                    pet.name.isNotEmpty
+                                        ? pet.name[0].toUpperCase()
+                                        : '?',
+                                    style: GoogleFonts.outfit(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 20,
+                                      color: primary,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  pet.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'ID: ${pet.pawId ?? pet.id}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (selected)
+                            Icon(Icons.check_circle_rounded, color: primary, size: 22),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _sectionTitle('CHOOSE GROOMING PACKAGE'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
-            height: 130,
+            height: 152,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: _packages.length,
@@ -319,21 +602,26 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                 return GestureDetector(
                   onTap: () => setState(() => _selectedPackage = p),
                   child: Container(
-                    width: 180,
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.all(12),
+                    width: 200,
+                    margin: const EdgeInsets.only(right: 14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selected ? primary.withValues(alpha: 0.08) : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: selected ? primary : Colors.grey.shade300, width: selected ? 2 : 1),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('NPR ${price.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: primary)),
-                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 14)),
-                        if (desc.isNotEmpty) Text(desc, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600])),
+                        Text('NPR ${price.toStringAsFixed(0)}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 17, color: primary)),
+                        const SizedBox(height: 4),
+                        Text(name, style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15)),
+                        if (desc.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(desc, maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600], height: 1.25)),
+                        ],
+                        const SizedBox(height: 6),
                         Row(
                           children: [
                             Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
@@ -347,9 +635,9 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
               },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _sectionTitle('SERVICE DELIVERY'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Row(
             children: [
               _deliveryCard('home_visit', 'Request Pickup', 'We’ll pick up your pet from your location', Icons.local_taxi_rounded),
@@ -358,9 +646,9 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
             ],
           ),
           if (_serviceDelivery == 'home_visit') ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(12),
@@ -408,18 +696,19 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _sectionTitle('ADD-ONS'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: _addOns.map((a) {
               final name = a['name']?.toString() ?? '';
               final price = (a['price'] ?? 0) as num;
               final sel = _selectedAddOns.contains(name);
               return FilterChip(
-                label: Text('$name (+Rs. ${price.toStringAsFixed(0)})'),
+                label: Text('$name (+Rs. ${price.toStringAsFixed(0)})', style: GoogleFonts.outfit(fontSize: 13)),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
                 selected: sel,
                 onSelected: (v) => setState(() {
                   if (v) {
@@ -433,11 +722,11 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _sectionTitle('SELECT DATE & TIME'),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
-            height: 50,
+            height: 64,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: dates.length,
@@ -448,17 +737,18 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
                 return GestureDetector(
                   onTap: () => setState(() => _selectedDate = d),
                   child: Container(
-                    width: 56,
-                    margin: const EdgeInsets.only(right: 8),
+                    width: 62,
+                    margin: const EdgeInsets.only(right: 10),
                     decoration: BoxDecoration(
                       color: sel ? primary : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(weekday, style: GoogleFonts.outfit(fontSize: 10, color: sel ? Colors.white : Colors.grey[700])),
-                        Text('${d.day}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 14, color: sel ? Colors.white : Colors.grey[800])),
+                        Text(weekday, style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: sel ? Colors.white : Colors.grey[700])),
+                        const SizedBox(height: 2),
+                        Text('${d.day}', style: GoogleFonts.outfit(fontWeight: FontWeight.bold, fontSize: 16, color: sel ? Colors.white : Colors.grey[800])),
                       ],
                     ),
                   ),
@@ -466,54 +756,58 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
               },
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 10,
+            runSpacing: 10,
             children: _timeSlots.map((t) {
               final sel = _selectedTimeSlot == t;
               return GestureDetector(
                 onTap: () => setState(() => _selectedTimeSlot = t),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   decoration: BoxDecoration(
                     color: sel ? primary : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(t, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: sel ? Colors.white : Colors.grey[800])),
+                  child: Text(t, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13, color: sel ? Colors.white : Colors.grey[800])),
                 ),
               );
             }).toList(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _sectionTitle('LOCATION & CONTACT'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey[200]!)),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
             child: Column(
               children: [
-                Row(children: [
-                  Icon(Icons.location_on, size: 18, color: primary),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_userAddress.isEmpty ? 'Add address in profile' : _userAddress, style: GoogleFonts.outfit(fontSize: 13))),
-                  Text('Edit', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: primary)),
-                ]),
-                const SizedBox(height: 8),
-                Row(children: [
-                  Icon(Icons.phone, size: 18, color: primary),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(_userPhone.isEmpty ? 'Add phone in profile' : _userPhone, style: GoogleFonts.outfit(fontSize: 13))),
-                  Text('Edit', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: primary)),
-                ]),
+                _contactRow(
+                  icon: Icons.location_on_rounded,
+                  value: _userAddress,
+                  emptyHint: 'Tap Add to pin your location on the map',
+                  onEdit: _editLocation,
+                ),
+                const Divider(height: 20),
+                _contactRow(
+                  icon: Icons.phone_rounded,
+                  value: _userPhone,
+                  emptyHint: 'Tap Add to enter your contact number',
+                  onEdit: _editPhone,
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           _sectionTitle('PAYMENT & SUMMARY'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey[200]!)),
             child: Column(
               children: [
@@ -544,13 +838,6 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
     );
   }
 
-  InputDecoration _inputDecoration() {
-    return InputDecoration(
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    );
-  }
-
   Widget _emptyHint(String text) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -566,19 +853,20 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
       child: GestureDetector(
         onTap: () => setState(() => _serviceDelivery = value),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: selected ? primary : Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? primary : Colors.grey.shade300, width: selected ? 2 : 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 24, color: primary),
-              const SizedBox(height: 8),
-              Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
-              Text(subtitle, style: GoogleFonts.outfit(fontSize: 11, color: Colors.grey[600])),
+              Icon(icon, size: 28, color: primary),
+              const SizedBox(height: 10),
+              Text(title, style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 4),
+              Text(subtitle, style: GoogleFonts.outfit(fontSize: 12, color: Colors.grey[600], height: 1.3)),
             ],
           ),
         ),
@@ -601,29 +889,86 @@ class _GroomingBookingScreenState extends State<GroomingBookingScreen> {
 
   Widget _buildBookFooter() {
     const primary = Color(AppConstants.primaryColor);
-    final disabled = _creating || _pets.isEmpty || _selectedPackage == null || _selectedDate == null || _selectedTimeSlot == null;
+    const khaltiPurple = Color(0xFF5C2D91);
+    final disabled = _creating ||
+        _pets.isEmpty ||
+        _selectedPackage == null ||
+        _selectedDate == null ||
+        _selectedTimeSlot == null;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ElevatedButton(
-              onPressed: disabled ? null : () => _createBooking(paymentOnline: true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-          child: _creating
-              ? const SizedBox(height: 24, width: 24, child: PawSewaLoader(width: 36, center: false))
-              : Text('Confirm & Pay with Khalti', style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 15)),
-        ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: disabled ? null : () => _createBooking(paymentOnline: false),
-              child: Text('Book & Pay at Center (COD)', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: disabled ? null : () => _createBooking(paymentOnline: true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: khaltiPurple,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade300,
+                  disabledForegroundColor: Colors.grey.shade600,
+                  elevation: disabled ? 0 : 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _creating
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: PawSewaLoader(width: 36, center: false),
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.account_balance_wallet_rounded, size: 22),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Confirm & Pay with Khalti',
+                            style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: disabled ? null : () => _createBooking(paymentOnline: false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primary,
+                  side: BorderSide(color: primary.withValues(alpha: 0.5), width: 1.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: Text(
+                  'Book & Pay at Center (COD)',
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

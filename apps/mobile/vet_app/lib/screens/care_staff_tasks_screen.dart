@@ -60,7 +60,7 @@ class _CareStaffTasksScreenState extends State<CareStaffTasksScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = 'Network error. Please try again.';
         _loading = false;
       });
     }

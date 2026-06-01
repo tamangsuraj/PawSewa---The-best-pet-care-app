@@ -74,7 +74,7 @@ class _MyClinicAppointmentsScreenState extends State<MyClinicAppointmentsScreen>
       if (mounted && !silent) {
         setState(() {
           _loading = false;
-          _error = e.toString();
+          _error = 'Network error. Please try again.';
         });
       }
     }

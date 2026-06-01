@@ -74,7 +74,7 @@ class _AddPetScreenState extends State<AddPetScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
+          const SnackBar(content: Text('Could not open gallery. Please check app permissions.')),
         );
       }
     }

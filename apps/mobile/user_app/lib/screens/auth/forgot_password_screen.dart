@@ -51,7 +51,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             : 'Request failed';
       });
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = 'Network error. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -17,14 +18,22 @@ import 'rider_en_route_screen.dart';
 import 'partner_marketplace_chat_screen.dart';
 import 'order_proof_view_screen.dart';
 import '../widgets/swipe_action_button.dart';
+import '../widgets/rider_order_alert_overlay.dart';
 
 /// For riders: list of assigned pet-supplies orders with status updates.
 /// Flow: Select status → Processing (at shop) → On the way (left shop) → Delivered.
 class RiderDeliveryOrdersScreen extends StatefulWidget {
-  const RiderDeliveryOrdersScreen({super.key, this.initialFilter});
+  const RiderDeliveryOrdersScreen({
+    super.key,
+    this.initialFilter,
+    this.initialTabIndex = 0,
+  });
 
   /// 'active' (default) or 'delivered' — pass 'delivered' when opening as History.
   final String? initialFilter;
+
+  /// 0 = Deliveries, 1 = Earnings history (optional deep link from home).
+  final int initialTabIndex;
 
   @override
   State<RiderDeliveryOrdersScreen> createState() =>
@@ -58,17 +67,84 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   String? _riderId;
   Timer? _liveMapPulseTimer;
 
+  // ── Incoming-order alert (Uber-style) ─────────────────────────────────────
+  final AudioPlayer _alertPlayer = AudioPlayer();
+  bool _alertShowing = false;
+  OverlayEntry? _alertEntry;
+
   void _onShopOrderSocket(String event, Map<String, dynamic> payload) {
-    if (event != 'job:available' &&
-        event != 'order:assigned_rider' &&
-        event != 'orderUpdate') {
-      return;
-    }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('New delivery assignment')),
-    );
-    _load();
+    if (event == 'order:assigned_rider' || event == 'job:available') {
+      _triggerOrderAlert(Map<String, dynamic>.from(payload));
+    } else if (event == 'orderUpdate') {
+      // Some backends emit orderUpdate (not order:assigned_rider) when status
+      // flips to assigned_to_rider — handle both so nothing is missed.
+      final status = payload['status']?.toString();
+      if (status == 'assigned_to_rider') {
+        _triggerOrderAlert(Map<String, dynamic>.from(payload));
+      } else {
+        _load();
+      }
+    }
+  }
+
+  void _triggerOrderAlert(Map<String, dynamic> order) {
+    if (_alertShowing) return;
+    _alertShowing = true;
+    _startAlertRinging();
+    // addPostFrameCallback ensures we never mutate the overlay during a build
+    // frame, which would throw — safe to call from any socket callback.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _alertShowing = false;
+        _stopAlertRinging();
+        return;
+      }
+      _alertEntry?.remove();
+      _alertEntry = OverlayEntry(
+        builder: (_) => RiderOrderAlertOverlay(
+          order: order,
+          onAccept: _dismissAlert,
+          onDecline: () {
+            final orderId = order['_id']?.toString() ?? '';
+            _dismissAlert();
+            if (orderId.isNotEmpty) _declineOrder(orderId);
+          },
+        ),
+      );
+      Overlay.of(context).insert(_alertEntry!);
+    });
+  }
+
+  void _dismissAlert() {
+    _alertEntry?.remove();
+    _alertEntry = null;
+    _alertShowing = false;
+    _stopAlertRinging();
+    if (mounted) _load();
+  }
+
+  Future<void> _startAlertRinging() async {
+    try {
+      await _alertPlayer.setReleaseMode(ReleaseMode.loop);
+      await _alertPlayer.play(AssetSource('sounds/notification.mp3'));
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RiderAlert] sound: $e');
+    }
+  }
+
+  Future<void> _stopAlertRinging() async {
+    try {
+      await _alertPlayer.stop();
+    } catch (_) {}
+  }
+
+  Future<void> _declineOrder(String orderId) async {
+    try {
+      await _apiClient.updateOrderStatus(orderId: orderId, status: 'pending');
+    } catch (e) {
+      if (kDebugMode) debugPrint('[RiderAlert] decline: $e');
+    }
   }
 
   @override
@@ -93,6 +169,9 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   void dispose() {
     _liveMapPulseTimer?.cancel();
     SocketService.instance.removeShopOrderListener(_onShopOrderSocket);
+    _alertEntry?.remove();
+    _alertEntry = null;
+    _alertPlayer.dispose();
     super.dispose();
   }
 
@@ -175,14 +254,33 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
     }
   }
 
-  void _computeDerivedState(List<Map<String, dynamic>> list) {
-    _transactions = list
-        .where((o) =>
-            o['status']?.toString() == 'delivered' &&
-            o['paymentStatus']?.toString() == 'paid')
-        .toList();
+  bool _isDelivered(Map<String, dynamic> o) =>
+      o['status']?.toString() == 'delivered';
 
-    _totalTasksCompleted = list.where((o) => o['status']?.toString() == 'delivered').length;
+  /// When the rider completed the drop (not when the order was placed).
+  DateTime? _orderDeliveredAt(Map<String, dynamic> o) {
+    final deliveredAt = _parseOrderDate(o['deliveredAt']);
+    if (deliveredAt != null) return deliveredAt;
+    final pod = o['proofOfDelivery'];
+    if (pod is Map) {
+      final submitted = _parseOrderDate(pod['submittedAt']);
+      if (submitted != null) return submitted;
+    }
+    return _parseOrderDate(o['updatedAt']);
+  }
+
+  double _riderPayoutForOrder(Map<String, dynamic> o) {
+    // Rider earns the delivery fee per drop (COD/Khalti — paymentStatus is separate).
+    return AppConstants.riderDeliveryEarningNpr;
+  }
+
+  bool _isOnCalendarDay(DateTime dt, DateTime day) =>
+      dt.year == day.year && dt.month == day.month && dt.day == day.day;
+
+  void _computeDerivedState(List<Map<String, dynamic>> list) {
+    _transactions = list.where(_isDelivered).toList();
+
+    _totalTasksCompleted = _transactions.length;
     _todaysEarnings = _sumEarningsForDate(_transactions, DateTime.now());
 
     final total = list.length;
@@ -205,29 +303,27 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
   double _sumEarningsForDate(
       List<Map<String, dynamic>> orders, DateTime day) {
-    final start = DateTime(day.year, day.month, day.day);
-    final end = DateTime(day.year, day.month, day.day, 23, 59, 59, 999);
+    final today = DateTime(day.year, day.month, day.day);
     double sum = 0;
     for (final o in orders) {
-      final createdAt = _parseOrderDate(o['createdAt']);
-      if (createdAt == null) continue;
-      if (createdAt.isAfter(start) && createdAt.isBefore(end)) {
-        final amount = (o['totalAmount'] as num?)?.toDouble() ?? 0;
-        sum += amount;
+      final deliveredAt = _orderDeliveredAt(o);
+      if (deliveredAt == null || !_isOnCalendarDay(deliveredAt, today)) {
+        continue;
       }
+      sum += _riderPayoutForOrder(o);
     }
     return sum;
   }
 
   List<double> _computeDailyEarnings(
-      List<Map<String, dynamic>> deliveredPaid) {
+      List<Map<String, dynamic>> delivered) {
     final sums = List<double>.filled(7, 0);
-    for (final o in deliveredPaid) {
-      final createdAt = _parseOrderDate(o['createdAt']);
-      if (createdAt == null) continue;
-      final idx = _indexForDay(createdAt);
+    for (final o in delivered) {
+      final deliveredAt = _orderDeliveredAt(o);
+      if (deliveredAt == null) continue;
+      final idx = _indexForDay(deliveredAt);
       if (idx != null) {
-        sums[idx] += (o['totalAmount'] as num?)?.toDouble() ?? 0;
+        sums[idx] += _riderPayoutForOrder(o);
       }
     }
     return sums;
@@ -392,7 +488,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Status updated to ${_statusLabel(status)}'),
-          backgroundColor: Colors.green,
+          backgroundColor: const Color(AppConstants.primaryColor),
         ),
       );
       if (status == 'out_for_delivery') {
@@ -477,10 +573,10 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     const accent = Color(AppConstants.accentColor);
-    const successGreen = Color(0xFF00C853);
+    const successGreen = Color(AppConstants.primaryColor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
-    const riderBlue = Color(AppConstants.riderAccent);
+    const riderAccent = Color(AppConstants.riderAccent);
 
     final bg = isDark ? Colors.black : const Color(AppConstants.secondaryColor);
     final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
@@ -490,12 +586,14 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
         ? BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 4))
         : BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4));
 
+    final tabIndex = widget.initialTabIndex.clamp(0, 1);
     return DefaultTabController(
       length: 2,
+      initialIndex: tabIndex,
       child: Scaffold(
         backgroundColor: bg,
         appBar: AppBar(
-          backgroundColor: riderBlue,
+          backgroundColor: riderAccent,
           foregroundColor: Colors.white,
           elevation: 0,
           title: Text(
@@ -647,14 +745,14 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                         colors: [
-                                          riderBlue,
-                                          riderBlue.withValues(alpha: 0.82),
+                                          riderAccent,
+                                          riderAccent.withValues(alpha: 0.82),
                                         ],
                                       ),
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: riderBlue.withValues(alpha: 0.28),
+                                          color: riderAccent.withValues(alpha: 0.28),
                                           blurRadius: 18,
                                           offset: const Offset(0, 8),
                                         ),
@@ -789,7 +887,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                               icon,
                                               size: narrow ? 18 : 20,
                                               color: selected
-                                                  ? riderBlue
+                                                  ? riderAccent
                                                   : Colors.white,
                                             ),
                                             SizedBox(width: narrow ? 6 : 8),
@@ -799,7 +897,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: narrow ? 12.5 : 14,
                                                 color: selected
-                                                    ? riderBlue
+                                                    ? riderAccent
                                                     : Colors.white,
                                               ),
                                             ),
@@ -828,7 +926,7 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
 
                               return Container(
                                 width: double.infinity,
-                                color: riderBlue,
+                                color: riderAccent,
                                 padding: pad,
                                 child: narrow
                                     ? Column(
@@ -974,9 +1072,11 @@ class _RiderDeliveryOrdersScreenState extends State<RiderDeliveryOrdersScreen> {
             // Earnings tab (dedicated module + bar chart)
             _EarningsTab(
               orders: _orders,
+              todaysEarnings: _todaysEarnings,
               dailyEarnings: _dailyEarnings,
               last7Days: _last7Days,
               transactions: _transactions,
+              onRefresh: _load,
             ),
           ],
         ),
@@ -1011,7 +1111,7 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const accent = Color(AppConstants.accentColor);
-    const successGreen = Color(0xFF00C853);
+    const successGreen = Color(AppConstants.primaryColor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = isDark ? Colors.grey.shade900 : Colors.white;
     final textStrong = isDark ? Colors.white : Colors.black87;
@@ -1247,7 +1347,7 @@ class _OrderCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: isDark ? Colors.orange.shade800 : accent,
+                    backgroundColor: isDark ? const Color(AppConstants.inkColor) : accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       vertical: 12,
@@ -1319,17 +1419,17 @@ class _OrderCard extends StatelessWidget {
     switch (status) {
       case 'pending_confirmation':
       case 'pending':
-        return Colors.orange;
+        return const Color(AppConstants.accentWarmColor);
       case 'processing':
       case 'ready_for_pickup':
       case 'packed':
         return const Color(AppConstants.accentColor);
       case 'assigned_to_rider':
-        return Colors.teal;
+        return const Color(AppConstants.primaryColor);
       case 'out_for_delivery':
-        return Colors.deepOrange;
+        return const Color(AppConstants.primaryColor);
       case 'delivered':
-        return Colors.green;
+        return const Color(AppConstants.accentColor);
       default:
         return Colors.grey;
     }
@@ -1397,15 +1497,19 @@ class _MetricChip extends StatelessWidget {
 class _EarningsTab extends StatelessWidget {
   const _EarningsTab({
     required this.orders,
+    required this.todaysEarnings,
     required this.dailyEarnings,
     required this.last7Days,
     required this.transactions,
+    required this.onRefresh,
   });
 
   final List<Map<String, dynamic>> orders;
+  final double todaysEarnings;
   final List<double> dailyEarnings;
   final List<DateTime> last7Days;
   final List<Map<String, dynamic>> transactions;
+  final Future<void> Function() onRefresh;
 
   String _formatDay(DateTime dt) {
     const short = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -1422,17 +1526,13 @@ class _EarningsTab extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const primary = Color(AppConstants.primaryColor);
     const accent = Color(AppConstants.accentColor);
-    const successGreen = Color(0xFF00C853);
+    const successGreen = Color(AppConstants.primaryColor);
 
     final total = transactions.length;
-    final todaysSum = dailyEarnings.isNotEmpty ? dailyEarnings.last : 0;
     final maxVal = dailyEarnings.isNotEmpty ? dailyEarnings.reduce((a, b) => a > b ? a : b) : 0;
 
     return RefreshIndicator(
-      onRefresh: () async {
-        // Earnings are derived from already-loaded orders in this screen instance.
-        // Parent pull-to-refresh remains the source of truth for new data.
-      },
+      onRefresh: onRefresh,
       color: primary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -1476,7 +1576,7 @@ class _EarningsTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Rs. ${todaysSum.toStringAsFixed(0)}',
+                      'Rs. ${todaysEarnings.toStringAsFixed(0)}',
                       style: GoogleFonts.fraunces(
                         fontSize: 34,
                         fontWeight: FontWeight.w700,
@@ -1599,11 +1699,17 @@ class _EarningsTab extends StatelessWidget {
                     final t = transactions[index];
                     final id = t['_id']?.toString() ?? '';
                     final shortId = id.length >= 6 ? id.substring(id.length - 6) : id;
-                    final dt = _parseDate(t['createdAt']);
+                    final dt = _parseDate(t['deliveredAt']) ??
+                        _parseDate(
+                          t['proofOfDelivery'] is Map
+                              ? (t['proofOfDelivery'] as Map)['submittedAt']
+                              : null,
+                        ) ??
+                        _parseDate(t['updatedAt']);
                     final dateStr = dt == null ? '' : '${dt.day}/${dt.month}/${dt.year}';
                     final timeStr = dt == null ? '' : '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 
-                    final basePay = (t['totalAmount'] as num?)?.toDouble() ?? 0;
+                    final basePay = AppConstants.riderDeliveryEarningNpr;
                     final tips = 0.0;
                     final bonus = 0.0;
                     final payoutTotal = basePay + tips + bonus;

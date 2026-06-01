@@ -25,17 +25,24 @@ class AppConstants {
   static const String userKey = "partner_user_data";
   static const String partnerRoleKey = "partner_active_role";
 
-  // Brand — Deep Brown primary (unified with customer web + user_app)
+  // Brand — deep brown + white (aligned with user_app / web)
   static const int primaryColor = 0xFF703418;
-  static const int inkColor = 0xFF5C2C14; // deeper type on cream
-  static const int secondaryColor = 0xFFFFFFFF; // white
-  static const int accentColor = 0xFF14B8A6; // bright teal CTA
-  static const int accentWarmColor = 0xFF9A6B45; // warm bronze chips
-  static const int sandColor = 0xFFE8DFD4;
+  static const int inkColor = 0xFF5C2C14;
+  static const int secondaryColor = 0xFFFFFFFF;
+  static const int accentColor = 0xFF9A6B45; // warm bronze secondary
+  static const int accentWarmColor = 0xFFA67B5B;
+  static const int sandColor = 0xFFEBE3D6;
+  static const int bentoBackgroundColor = 0xFFF5EDE4;
 
-  // Role-panel accent colors
-  static const int vetAccent    = 0xFF0D9488; // teal-600 — clinical trust
-  static const int riderAccent  = 0xFF2563EB; // blue-600  — movement & logistics
-  static const int sellerAccent = 0xFF7C3AED; // violet-600 — commerce & premium
-  static const int careAccent   = 0xFFD97706; // amber-600 — warmth & nurturing
+  // Role accents — brown family (no blue/teal/violet panels)
+  static const int vetAccent = primaryColor;
+  static const int riderAccent = 0xFF8B5E3C;
+  static const int sellerAccent = accentColor;
+  static const int careAccent = accentWarmColor;
+
+  /// Primary actions / success feedback — brand brown (not green/blue).
+  static const int actionColor = primaryColor;
+
+  /// Rider payout per completed delivery (matches customer app delivery fee).
+  static const double riderDeliveryEarningNpr = 80;
 }

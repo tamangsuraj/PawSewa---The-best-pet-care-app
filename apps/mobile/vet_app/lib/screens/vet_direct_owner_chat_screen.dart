@@ -230,7 +230,8 @@ class _VetDirectOwnerChatScreenState extends State<VetDirectOwnerChatScreen> {
           : 'Could not load chat.';
       setState(() => _loading = false);
     } catch (e) {
-      _error = e.toString();
+      if (!mounted) return;
+      _error = 'Network error. Please try again.';
       setState(() => _loading = false);
     }
   }

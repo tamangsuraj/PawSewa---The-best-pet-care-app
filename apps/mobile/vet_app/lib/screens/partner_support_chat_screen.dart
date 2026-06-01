@@ -233,7 +233,7 @@ class _PartnerSupportChatScreenState extends State<PartnerSupportChatScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = 'Network error. Please try again.';
       });
     }
   }

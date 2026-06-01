@@ -84,7 +84,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       }
     } catch (e) {
       setState(() {
-        _loadError = 'Failed to load pets: $e';
+        _loadError = 'Could not load pets. Please check your connection.';
         _loadingPets = false;
       });
     }
@@ -185,7 +185,7 @@ class _CarePlusFlowScreenState extends State<CarePlusFlowScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to submit: $e', style: GoogleFonts.outfit()),
+          content: Text('Could not submit. Please try again.', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );

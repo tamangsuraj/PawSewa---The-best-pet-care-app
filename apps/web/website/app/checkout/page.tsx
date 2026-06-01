@@ -88,15 +88,16 @@ export default function CheckoutPage() {
   const deliveryFee = subtotal >= K_FREE_DELIVERY_ABOVE ? 0 : K_DELIVERY_FEE;
   const grandTotal = subtotal + deliveryFee;
 
-  const canAdvanceFromStep1 = useMemo(() => {
-    return Boolean(!mapLoading && mapAddress && mapAddress.trim().length > 0);
-  }, [mapLoading, mapAddress]);
+  // Coordinates are always valid (default Kathmandu or wherever the user tapped).
+  // Only block if a geocode fetch is actively in-flight so the address has a
+  // chance to resolve; a failed geocode is fine — houseFlat covers specifics.
+  const canAdvanceFromStep1 = !mapLoading;
 
   const goNext = async () => {
     setError('');
     if (step === 1) {
-      if (!canAdvanceFromStep1) {
-        setError('Place the pin and wait for the address to load.');
+      if (mapLoading) {
+        setError('Fetching address — please wait a moment.');
         return;
       }
       setStep(2);
@@ -121,8 +122,8 @@ export default function CheckoutPage() {
       setError('Your cart is empty.');
       return;
     }
-    if (!canAdvanceFromStep1) {
-      setError('Delivery location is incomplete.');
+    if (mapLoading) {
+      setError('Address is still loading — please wait a moment.');
       return;
     }
     if (payment === 'esewa' || payment === 'card') {

@@ -7,6 +7,7 @@ const User = require('../models/User');
 const Payment = require('../models/Payment');
 const logger = require('../utils/logger');
 const Notification = require('../models/Notification');
+const PromoCode = require('../models/PromoCode');
 const { broadcastShopOrder } = require('../services/orderSocketNotify');
 const {
   ensureDeliveryConversationForOrder,
@@ -185,7 +186,7 @@ const createOrder = asyncHandler(async (req, res) => {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 
-  const { items, deliveryLocation, deliveryNotes, paymentMethod, location } = req.body || {};
+  const { items, deliveryLocation, deliveryNotes, paymentMethod, location, promoCode: rawPromoCode } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, message: 'Order items are required' });
   }
@@ -248,6 +249,34 @@ const createOrder = asyncHandler(async (req, res) => {
     };
   });
 
+  // ── Promo code: validate and apply discount ─────────────────────────────────
+  const enteredPromoCode = typeof rawPromoCode === 'string' ? rawPromoCode.trim().toUpperCase() : null;
+  let promoDiscount = 0;
+  let validatedPromoCode = null;
+  let promoDocId = null;
+
+  if (enteredPromoCode) {
+    const promo = await PromoCode.findOne({ code: enteredPromoCode, isActive: true });
+    if (promo) {
+      const now = new Date();
+      const eligible =
+        now <= new Date(promo.expiryDate) &&
+        promo.usedCount < promo.usageLimit &&
+        total >= promo.minOrderAmount;
+      if (eligible) {
+        const rawDiscount = (total * promo.discountPercentage) / 100;
+        promoDiscount = promo.maxDiscountAmount != null
+          ? Math.min(rawDiscount, promo.maxDiscountAmount)
+          : rawDiscount;
+        promoDiscount = Math.round(promoDiscount * 100) / 100;
+        validatedPromoCode = promo.code;
+        promoDocId = promo._id;
+      }
+    }
+  }
+
+  const finalTotal = Math.max(0, total - promoDiscount);
+
   const payMethod = typeof paymentMethod === 'string' && paymentMethod.trim() ? paymentMethod.trim().toLowerCase() : null;
   const isCodOrFonepay = payMethod && ['cod', 'cash_on_delivery', 'fonepay', 'cash on delivery'].includes(payMethod);
   const isKhaltiDeferred = payMethod === 'khalti' || payMethod === 'khalti_epay';
@@ -259,7 +288,11 @@ const createOrder = asyncHandler(async (req, res) => {
       assignedSeller: primarySeller,
       shopId: primarySeller,
       items: orderItems,
-      totalAmount: total,
+      totalAmount: finalTotal,
+      ...(validatedPromoCode && {
+        promoCode: validatedPromoCode,
+        discountAmount: promoDiscount,
+      }),
       deliveryLocation: {
         address,
         point: {
@@ -284,12 +317,13 @@ const createOrder = asyncHandler(async (req, res) => {
     const checkoutPayment = await Payment.create({
       user: userId,
       targetType: 'shop_order',
-      amount: total,
+      amount: finalTotal,
       currency: 'NPR',
       gateway: 'khalti',
       status: 'pending',
       metadata: {
         draft,
+        ...(validatedPromoCode && { promoCode: validatedPromoCode, promoDocId: String(promoDocId) }),
       },
     });
     logger.info(`Shop Khalti checkout created: payment=${checkoutPayment._id} (order deferred)`);
@@ -297,7 +331,7 @@ const createOrder = asyncHandler(async (req, res) => {
       success: true,
       data: {
         checkoutPaymentId: checkoutPayment._id,
-        amount: total,
+        amount: finalTotal,
         deferred: true,
       },
     });
@@ -309,7 +343,11 @@ const createOrder = asyncHandler(async (req, res) => {
     assignedSeller: primarySeller,
     shopId: primarySeller,
     items: orderItems,
-    totalAmount: total,
+    totalAmount: finalTotal,
+    ...(validatedPromoCode && {
+      promoCode: validatedPromoCode,
+      discountAmount: promoDiscount,
+    }),
     deliveryLocation: {
       address,
       point: {
@@ -331,6 +369,13 @@ const createOrder = asyncHandler(async (req, res) => {
     orderPayload.liveLocation = liveLoc;
   }
   const order = await Order.create(orderPayload);
+
+  // Increment promo usage count after successful order creation (fire-and-forget).
+  if (promoDocId) {
+    PromoCode.findByIdAndUpdate(promoDocId, { $inc: { usedCount: 1 } }).catch((err) => {
+      logger.warn('Failed to increment promo usedCount:', err?.message || String(err));
+    });
+  }
 
   logger.info(`Order ${order._id}: GPS Coordinates captured (Lat: ${lat}, Lng: ${lng}).`);
   logger.success('[SUCCESS] GPS Order Logged', String(order._id), `lat=${lat}`, `lng=${lng}`);

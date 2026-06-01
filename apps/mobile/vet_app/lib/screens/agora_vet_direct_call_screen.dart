@@ -235,7 +235,7 @@ class _AgoraVetDirectCallScreenState extends State<AgoraVetDirectCallScreen>
         });
       }
     } catch (e) {
-      if (mounted) setState(() { _busy = false; _error = e.toString(); });
+      if (mounted) setState(() { _busy = false; _error = 'Connection error. Please try again.'; });
     }
   }
 

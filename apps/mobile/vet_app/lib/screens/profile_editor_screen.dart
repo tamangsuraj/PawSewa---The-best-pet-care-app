@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pawsewa_partner/widgets/paw_sewa_loader.dart';
@@ -109,7 +110,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         });
       }
     } catch (e) {
-      _showError('Failed to pick image: $e');
+      _showError('Could not open gallery. Please check app permissions.');
     }
   }
 
@@ -189,7 +190,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                 isComplete ? 'Profile verified and public.' : 'Profile updated successfully.',
                 style: GoogleFonts.outfit(),
               ),
-              backgroundColor: isComplete ? Colors.green : const Color(AppConstants.primaryColor),
+              backgroundColor: const Color(AppConstants.primaryColor),
               duration: const Duration(seconds: 3),
             ),
           );
@@ -197,7 +198,10 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         }
       }
     } catch (e) {
-      _showError('Failed to save profile: $e');
+      final msg = e is DioException && e.response?.data is Map
+          ? (e.response!.data as Map)['message']?.toString() ?? 'Failed to save profile'
+          : 'Failed to save profile. Please check your connection.';
+      _showError(msg);
     } finally {
       setState(() {
         _isLoading = false;

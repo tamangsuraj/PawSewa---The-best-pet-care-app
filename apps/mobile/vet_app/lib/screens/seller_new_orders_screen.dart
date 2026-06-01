@@ -75,7 +75,11 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
             .toList();
       }
     } catch (e) {
-      _error = e is DioException ? '${e.response?.data ?? e.message}' : '$e';
+      _error = e is DioException
+          ? (e.response?.data is Map
+              ? (e.response!.data as Map)['message']?.toString() ?? 'Failed to load orders'
+              : e.message ?? 'Failed to load orders')
+          : 'Failed to load orders';
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -138,7 +142,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        const SnackBar(content: Text('Could not confirm stock. Please try again.')),
       );
     }
   }
@@ -164,7 +168,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e')),
+        const SnackBar(content: Text('Could not dispatch order. Please try again.')),
       );
     } finally {
       if (mounted) setState(() => _dispatchingOrderId = null);
@@ -185,8 +189,8 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
         SnackBar(
           content: Text(
             e is DioException && e.response?.data is Map
-                ? (e.response!.data as Map)['message']?.toString() ?? '$e'
-                : '$e',
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
           ),
         ),
       );
@@ -214,14 +218,14 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Action failed. Please try again.')));
       }
     }
   }
 
   Widget _orderCard(Map<String, dynamic> o, Color primary) {
-    const successGreen = Color(0xFF00C853);
-    const sellerPurple = Color(AppConstants.sellerAccent);
+    const successGreen = Color(AppConstants.primaryColor);
+    const sellerAccent = Color(AppConstants.sellerAccent);
     final id = o['_id']?.toString() ?? '';
     final short = id.length > 6 ? id.substring(id.length - 6) : id;
     final user = o['user'];
@@ -336,7 +340,7 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
             FilledButton(
               onPressed: id.isEmpty ? null : () => _confirm(id),
               style: FilledButton.styleFrom(
-                backgroundColor: sellerPurple,
+                backgroundColor: sellerAccent,
                 foregroundColor: Colors.white,
               ),
               child: Text('Confirm stock', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
@@ -345,8 +349,8 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
             FilledButton.tonal(
               onPressed: id.isEmpty ? null : () => _markPacked(id),
               style: FilledButton.styleFrom(
-                backgroundColor: sellerPurple.withValues(alpha: 0.12),
-                foregroundColor: sellerPurple,
+                backgroundColor: sellerAccent.withValues(alpha: 0.12),
+                foregroundColor: sellerAccent,
               ),
               child: Text('Mark ready for pickup', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
             ),
@@ -368,11 +372,11 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
   @override
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
-    const sellerPurple = Color(AppConstants.sellerAccent);
+    const sellerAccent = Color(AppConstants.sellerAccent);
     return PartnerScaffold(
       title: 'New orders',
       subtitle: 'Confirm stock → ready for rider',
-      roleAccent: sellerPurple,
+      roleAccent: sellerAccent,
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh_rounded),
@@ -390,9 +394,9 @@ class _SellerNewOrdersScreenState extends State<SellerNewOrdersScreen>
                   color: Colors.white.withValues(alpha: 0.92),
                   child: TabBar(
                     controller: _tabs,
-                    labelColor: sellerPurple,
+                    labelColor: sellerAccent,
                     unselectedLabelColor: Colors.grey.shade600,
-                    indicatorColor: sellerPurple,
+                    indicatorColor: sellerAccent,
                     tabs: [
                       Tab(text: 'Incoming (${_incoming.length})'),
                       Tab(text: 'Pipeline (${_ready.length})'),

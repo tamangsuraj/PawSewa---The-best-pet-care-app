@@ -335,9 +335,9 @@ class _PartnerMarketplaceChatScreenState
     } catch (e) {
       if (!silent && mounted) {
         setState(() {
-          _error = e is DioException
-              ? (e.response?.data?.toString() ?? 'Failed to load')
-              : '$e';
+          _error = e is DioException && e.response?.data is Map
+              ? (e.response!.data as Map)['message']?.toString() ?? 'Network error'
+              : 'Network error. Please try again.';
         });
       }
     } finally {
@@ -423,9 +423,7 @@ class _PartnerMarketplaceChatScreenState
                         final mediaUrl = m['mediaUrl']?.toString();
                         final mediaType = m['mediaType']?.toString();
                         final pn = m['productName']?.toString();
-                        final bubbleMine = widget.highContrast
-                            ? Colors.orange.shade800
-                            : primary;
+                        final bubbleMine = primary;
                         final bubbleOther = widget.highContrast
                             ? Colors.grey.shade900
                             : Colors.grey.shade200;
@@ -463,7 +461,7 @@ class _PartnerMarketplaceChatScreenState
                                       color: mine
                                           ? Colors.white70
                                           : (widget.highContrast
-                                                ? Colors.orangeAccent
+                                                ? Colors.white70
                                                 : primary),
                                     ),
                                   ),
@@ -538,9 +536,7 @@ class _PartnerMarketplaceChatScreenState
                           style: FilledButton.styleFrom(
                             shape: const CircleBorder(),
                             padding: const EdgeInsets.all(14),
-                            backgroundColor: widget.highContrast
-                                ? Colors.orange.shade700
-                                : primary,
+                            backgroundColor: primary,
                           ),
                           child: const Icon(Icons.send_rounded),
                         ),

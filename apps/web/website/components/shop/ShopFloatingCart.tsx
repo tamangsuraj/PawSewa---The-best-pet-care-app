@@ -9,7 +9,8 @@ export function ShopFloatingCart() {
 
   if (!hydrated) return null;
 
-  const deliveryLabel = subtotal > 0 ? 'FREE' : '—';
+  const deliveryLabel =
+    subtotal === 0 ? '—' : subtotal >= 1000 ? 'FREE' : 'Rs. 80';
 
   return (
     <div className="pointer-events-none fixed bottom-6 right-4 z-40 w-[min(100%,320px)] sm:right-8">

@@ -117,7 +117,7 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _chatError = '$e';
+        _chatError = 'Network error. Please try again.';
         _loadingChats = false;
       });
     }
@@ -399,7 +399,7 @@ class _CallsTab extends StatelessWidget {
         if (active)
           Card(
             child: ListTile(
-              leading: const Icon(Icons.call_rounded, color: Colors.green),
+              leading: const Icon(Icons.call_rounded, color: Color(AppConstants.primaryColor)),
               title: const Text('Call in progress'),
               subtitle: Text(ongoing.label ?? 'Tap to return to the call'),
               trailing: const Icon(Icons.arrow_forward_rounded),

@@ -250,7 +250,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
           ? d['message'] as String
           : 'Could not load messages.';
     } catch (e) {
-      _error = e.toString();
+      _error = 'Network error. Please try again.';
     } finally {
       if (mounted) {
         final cid = _conversationId;

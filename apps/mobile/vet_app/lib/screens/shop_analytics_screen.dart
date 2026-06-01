@@ -105,7 +105,7 @@ class _ShopAnalyticsScreenState extends State<ShopAnalyticsScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = 'Network error. Please try again.';
         _loading = false;
       });
     }
@@ -268,14 +268,14 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const sellerPurple = Color(AppConstants.sellerAccent);
+    const sellerAccent = Color(AppConstants.sellerAccent);
     final ink = const Color(AppConstants.inkColor);
     final badge = highlight
         ? const Color(0xFFDC2626)
-        : sellerPurple;
+        : sellerAccent;
     final badgeBg = highlight
         ? const Color(0xFFFFEBEE)
-        : sellerPurple.withValues(alpha: 0.10);
+        : sellerAccent.withValues(alpha: 0.10);
 
     return Card(
       child: Padding(

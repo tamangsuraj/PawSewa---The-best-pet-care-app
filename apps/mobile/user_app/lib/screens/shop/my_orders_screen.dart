@@ -388,7 +388,7 @@ Future<void> _showShopOrderSheet(BuildContext context, Map<String, dynamic> orde
                   } catch (e) {
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        SnackBar(content: Text('Could not load invoice: $e')),
+                        const SnackBar(content: Text('Could not load invoice. Please try again.')),
                       );
                     }
                   }

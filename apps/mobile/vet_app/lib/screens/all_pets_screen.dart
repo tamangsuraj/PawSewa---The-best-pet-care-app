@@ -234,7 +234,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Visit completed and notes saved!', style: GoogleFonts.outfit()),
-            backgroundColor: Colors.green,
+            backgroundColor: const Color(AppConstants.primaryColor),
           ),
         );
         _loadCases(); // Reload cases
@@ -243,7 +243,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to complete visit: $e', style: GoogleFonts.outfit()),
+          content: Text('Could not complete visit. Please try again.', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -266,7 +266,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Visit started!', style: GoogleFonts.outfit()),
-            backgroundColor: Colors.blue,
+            backgroundColor: const Color(AppConstants.primaryColor),
           ),
         );
         _loadCases(); // Reload cases
@@ -275,7 +275,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start visit: $e', style: GoogleFonts.outfit()),
+          content: Text('Could not start visit. Please try again.', style: GoogleFonts.outfit()),
           backgroundColor: Colors.red,
         ),
       );
@@ -367,7 +367,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                                 child: _buildStatChip(
                                   'Active',
                                   _activeCount,
-                                  Colors.orange,
+                                  const Color(AppConstants.accentWarmColor),
                                   Icons.pending_actions,
                                 ),
                               ),
@@ -376,7 +376,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                                 child: _buildStatChip(
                                   'Completed',
                                   _completedCount,
-                                  Colors.green,
+                                  const Color(AppConstants.accentColor),
                                   Icons.check_circle,
                                 ),
                               ),
@@ -565,15 +565,15 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
     String statusText;
     switch (status) {
       case 'assigned':
-        statusColor = Colors.blue;
+        statusColor = const Color(AppConstants.primaryColor);
         statusText = 'Assigned';
         break;
       case 'in_progress':
-        statusColor = Colors.orange;
+        statusColor = const Color(AppConstants.accentWarmColor);
         statusText = 'In Progress';
         break;
       case 'completed':
-        statusColor = Colors.green;
+        statusColor = const Color(AppConstants.accentColor);
         statusText = 'Completed';
         break;
       default:
@@ -704,7 +704,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.15),
+                      color: const Color(AppConstants.primaryColor).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -712,7 +712,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                       style: GoogleFonts.outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: Colors.green.shade800,
+                        color: const Color(AppConstants.primaryColor),
                       ),
                     ),
                   ),
@@ -883,7 +883,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                 child: ElevatedButton(
                   onPressed: () => _startCase(caseData),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: const Color(AppConstants.primaryColor),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -905,7 +905,7 @@ class _AllPetsScreenState extends State<AllPetsScreen> {
                 child: ElevatedButton(
                   onPressed: () => _completeCase(caseData),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: const Color(AppConstants.primaryColor),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -121,14 +122,19 @@ class _CareHomeActiveBookingsPanelState extends State<CareHomeActiveBookingsPane
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Booking confirmed.', style: GoogleFonts.outfit()),
-          backgroundColor: Colors.green.shade700,
+          backgroundColor: const Color(AppConstants.primaryColor),
         ),
       );
       await _load();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e', style: GoogleFonts.outfit())),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
+            style: GoogleFonts.outfit(),
+          )),
         );
       }
     } finally {

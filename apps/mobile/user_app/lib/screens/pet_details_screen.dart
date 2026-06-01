@@ -56,7 +56,7 @@ class _PetDetailsScreenState extends State<PetDetailsScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = e.toString();
+          _error = 'Could not load pet details. Please try again.';
         });
       }
     }

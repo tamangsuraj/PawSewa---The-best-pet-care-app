@@ -99,6 +99,18 @@ const orderSchema = new mongoose.Schema(
       ],
       default: 'pending_confirmation',
     },
+    /** Applied promo code (stored for analytics + admin view). */
+    promoCode: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    /** Discount amount applied via promo code (NPR). */
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     /** Seller / carrier tracking reference (optional). */
     trackingNumber: {
       type: String,

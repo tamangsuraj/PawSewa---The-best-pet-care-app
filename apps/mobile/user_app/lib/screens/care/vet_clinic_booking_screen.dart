@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:user_app/widgets/paw_sewa_loader.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -66,7 +67,7 @@ class _VetClinicBookingScreenState extends State<VetClinicBookingScreen> {
       if (mounted) {
         setState(() {
           _loadingPets = false;
-          _error = e.toString();
+          _error = 'Could not load data. Please try again.';
         });
       }
     }
@@ -120,7 +121,11 @@ class _VetClinicBookingScreenState extends State<VetClinicBookingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Booking failed'
+                : 'Booking failed. Please try again.',
+          )),
         );
       }
     } finally {

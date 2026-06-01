@@ -145,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
             e.toString().contains('404')) {
           errorMessage = 'Server endpoint not found';
         } else if (errorMessage == 'Login failed') {
-          errorMessage = 'Error: ${e.toString()}';
+          errorMessage = 'Login failed. Please check your credentials.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -348,7 +348,7 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage =
               'Cannot connect to server. Tap "Reconnect" or set server URL below.';
         } else if (errorMessage == 'Google Sign-In failed') {
-          errorMessage = 'Error: ${e.toString()}';
+          errorMessage = 'Google Sign-In failed. Please try again.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(

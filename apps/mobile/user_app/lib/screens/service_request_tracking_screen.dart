@@ -175,7 +175,7 @@ class _ServiceRequestTrackingScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Failed to load tracking data: $e';
+        _error = 'Could not load tracking data. Please try again.';
         _loading = false;
       });
       _stopPolling();

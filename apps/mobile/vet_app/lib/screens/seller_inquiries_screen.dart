@@ -42,7 +42,11 @@ class _SellerInquiriesScreenState extends State<SellerInquiriesScreen> {
         _rows = (body['data'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
       }
     } catch (e) {
-      _error = e is DioException ? '${e.response?.data ?? e.message}' : '$e';
+      _error = e is DioException
+          ? (e.response?.data is Map
+              ? (e.response!.data as Map)['message']?.toString() ?? 'Failed to load inquiries'
+              : e.message ?? 'Failed to load inquiries')
+          : 'Failed to load inquiries';
     } finally {
       if (mounted) setState(() => _loading = false);
     }

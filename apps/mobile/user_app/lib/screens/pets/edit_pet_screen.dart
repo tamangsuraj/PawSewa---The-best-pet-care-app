@@ -58,7 +58,7 @@ class _EditPetScreenState extends State<EditPetScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save: $e')),
+          const SnackBar(content: Text('Could not save pet details. Please try again.')),
         );
       }
     } finally {

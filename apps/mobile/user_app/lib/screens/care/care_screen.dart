@@ -31,7 +31,7 @@ const List<String> _backendTypes = [
 /// Sort options.
 enum _SortMode { none, priceAsc, priceDesc, ratingDesc }
 
-/// OYO-style Pet Care+ hub: hero header, category tabs, vertical property cards.
+/// Pet Care+ hub: search, category tabs, vertical property cards.
 class CareScreen extends StatefulWidget {
   const CareScreen({super.key, this.onOpenMainDrawer});
   final VoidCallback? onOpenMainDrawer;
@@ -278,102 +278,39 @@ class _CareScreenState extends State<CareScreen>
     );
   }
 
-  // ── Hero header ────────────────────────────────────────────────────────────
-  Widget _buildHero() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF703418), Color(0xFF9C4A22)],
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _primary.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Pet Care+',
-                          style: GoogleFonts.fraunces(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(Icons.location_on_rounded, color: Color(0xFFFFD9A8), size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Kathmandu Valley',
-                              style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                color: const Color(0xFFFFD9A8),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.pets, color: Colors.white, size: 22),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Search bar
-              Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (_) => setState(() {}),
-                  style: GoogleFonts.outfit(fontSize: 14, color: Colors.black87),
-                  decoration: InputDecoration(
-                    hintText: 'Search grooming, boarding, spa…',
-                    hintStyle: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[400]),
-                    prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[500], size: 20),
-                    suffixIcon: _searchCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.clear_rounded, color: Colors.grey[400], size: 18),
-                            onPressed: () => setState(() => _searchCtrl.clear()),
-                          )
-                        : null,
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
-              ),
-            ],
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: (_) => setState(() {}),
+          style: GoogleFonts.outfit(fontSize: 14, color: Colors.black87),
+          decoration: InputDecoration(
+            hintText: 'Search grooming, boarding, spa…',
+            hintStyle: GoogleFonts.outfit(fontSize: 14, color: Colors.grey[400]),
+            prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[500], size: 20),
+            suffixIcon: _searchCtrl.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.clear_rounded, color: Colors.grey[400], size: 18),
+                    onPressed: () => setState(() => _searchCtrl.clear()),
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
         ),
       ),
@@ -666,7 +603,7 @@ class _CareScreenState extends State<CareScreen>
       backgroundColor: const Color(0xFFF8F7F5),
       body: Column(
         children: [
-          _buildHero(),
+          _buildSearchBar(),
           _buildCategoryTabs(),
           Expanded(
             child: TabBarView(

@@ -292,7 +292,7 @@ class _RiderEnRouteScreenState extends State<RiderEnRouteScreen> {
     const primary = Color(AppConstants.primaryColor);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     const accent = Color(AppConstants.accentColor);
-    const successGreen = Color(0xFF00C853);
+    const successGreen = Color(AppConstants.primaryColor);
     final order = widget.order;
     final id = order['_id']?.toString() ?? '';
     final shortId = id.length >= 6 ? id.substring(id.length - 6) : id;

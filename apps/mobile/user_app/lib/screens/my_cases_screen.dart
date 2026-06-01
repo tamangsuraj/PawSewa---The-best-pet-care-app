@@ -41,7 +41,7 @@ class _MyCasesScreenState extends State<MyCasesScreen> {
       }
     } catch (e) {
       setState(() {
-        _error = 'Failed to load cases: $e';
+        _error = 'Could not load cases. Please try again.';
         _isLoading = false;
       });
     }

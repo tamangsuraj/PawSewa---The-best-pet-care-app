@@ -166,7 +166,11 @@ class _MyCareBookingsScreenState extends State<MyCareBookingsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(
+            e is DioException && e.response?.data is Map
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
+          )),
         );
       }
     }

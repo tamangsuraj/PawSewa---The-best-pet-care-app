@@ -114,7 +114,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+      ).showSnackBar(const SnackBar(content: Text('Action failed. Please try again.')));
     }
   }
 
@@ -132,8 +132,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
         SnackBar(
           content: Text(
             e is DioException && e.response?.data is Map
-                ? (e.response!.data as Map)['message']?.toString() ?? '$e'
-                : '$e',
+                ? (e.response!.data as Map)['message']?.toString() ?? 'Action failed'
+                : 'Action failed. Please try again.',
           ),
         ),
       );
@@ -176,7 +176,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
     } catch (e) {
       ctrl.dispose();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not save tracking number.')));
     }
   }
 
@@ -190,7 +190,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invoice failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not load invoice.')));
     }
   }
 
@@ -231,7 +231,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to create category: $e')));
+      ).showSnackBar(const SnackBar(content: Text('Could not create category. Please try again.')));
     } finally {
       if (mounted) setState(() => _creatingCategory = false);
     }
@@ -326,7 +326,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Failed to create product: $e')));
+      ).showSnackBar(const SnackBar(content: Text('Could not create product. Please try again.')));
     } finally {
       if (mounted) {
         setState(() {
@@ -559,8 +559,8 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                           SnackBar(
                             content: Text(
                               e is DioException && e.response?.data is Map
-                                  ? (e.response!.data as Map)['message']?.toString() ?? '$e'
-                                  : '$e',
+                                  ? (e.response!.data as Map)['message']?.toString() ?? 'Could not update product'
+                                  : 'Could not update product. Please try again.',
                             ),
                           ),
                         );
@@ -700,7 +700,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                           Text(
                                             'Stock confirmed',
                                             style: GoogleFonts.outfit(
-                                              color: Colors.green[700],
+                                              color: const Color(AppConstants.primaryColor),
                                               fontWeight: FontWeight.w500,
                                             ),
                                           )
@@ -728,7 +728,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                 ElevatedButton(
                                                   onPressed: () => _markPacked(id),
                                                   style: ElevatedButton.styleFrom(
-                                                    backgroundColor: Colors.teal.shade700,
+                                                    backgroundColor: const Color(AppConstants.primaryColor),
                                                     foregroundColor: Colors.white,
                                                   ),
                                                   child: Text(
@@ -762,7 +762,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                                                   : 'Packed — waiting for rider pickup',
                                               style: GoogleFonts.outfit(
                                                 fontSize: 12,
-                                                color: Colors.teal.shade800,
+                                                color: const Color(AppConstants.primaryColor),
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),

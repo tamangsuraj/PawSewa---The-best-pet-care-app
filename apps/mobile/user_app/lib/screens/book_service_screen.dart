@@ -123,7 +123,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showError('Failed to load pets: $e');
+      _showError('Could not load pets. Please check your connection.');
     }
   }
 
@@ -251,7 +251,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
           : (e.message ?? 'Failed to submit request.');
       _showError(message);
     } catch (e) {
-      _showError('Failed to submit request: $e');
+      _showError('Could not submit request. Please try again.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -364,7 +364,7 @@ class _BookServiceScreenState extends State<BookServiceScreen> {
             : 'Service restricted to Kathmandu Valley. Please move the pin inside the boundary.';
       });
     } catch (e) {
-      _showError('Failed to confirm location: $e');
+      _showError('Could not confirm location. Please try again.');
     } finally {
       if (mounted) {
         setState(() {

@@ -84,44 +84,6 @@ export default function LiveCasesPage() {
 
   const TERMINAL_STATUSES = ['completed', 'cancelled'] as const;
 
-  // Keep a ref to the latest fetchAll so the socket handler always calls the current version
-  // without the socket needing to reconnect on every filter change.
-  const fetchAllRef = useRef(fetchAll);
-  fetchAllRef.current = fetchAll;
-
-  useEffect(() => {
-    void fetchAll();
-  }, [filterStatus]);
-
-  // Socket: mount-once, never reconnects on filter changes.
-  // Uses fetchAllRef.current so it always runs with the latest filterStatus.
-  useEffect(() => {
-    const token = getStoredAdminToken();
-    if (!token) return;
-    const socketUrl = getAdminSocketUrl();
-    if (!socketUrl) return;
-    const extraHeaders = { 'ngrok-skip-browser-warning': 'true' };
-    const socket: Socket = io(socketUrl, {
-      auth: { token },
-      extraHeaders,
-      transports: ['websocket', 'polling'],
-    });
-    const bump = () => void fetchAllRef.current();
-    socket.on('case_status_change', bump);
-    socket.on('service_request_status_change', bump);
-    socket.on('new:service_request', bump);
-    socket.on('care_booking:new', bump);
-    socket.on('new_hostel_booking', bump);
-    return () => {
-      socket.off('case_status_change', bump);
-      socket.off('service_request_status_change', bump);
-      socket.off('new:service_request', bump);
-      socket.off('care_booking:new', bump);
-      socket.off('new_hostel_booking', bump);
-      socket.disconnect();
-    };
-  }, []);
-
   const fetchAll = async () => {
     try {
       setLoading(true);
@@ -202,6 +164,44 @@ export default function LiveCasesPage() {
       setLoading(false);
     }
   };
+
+  // Keep a ref to the latest fetchAll so the socket handler always calls the current version
+  // without the socket needing to reconnect on every filter change.
+  const fetchAllRef = useRef(fetchAll);
+  fetchAllRef.current = fetchAll;
+
+  useEffect(() => {
+    void fetchAll();
+  }, [filterStatus]);
+
+  // Socket: mount-once, never reconnects on filter changes.
+  // Uses fetchAllRef.current so it always runs with the latest filterStatus.
+  useEffect(() => {
+    const token = getStoredAdminToken();
+    if (!token) return;
+    const socketUrl = getAdminSocketUrl();
+    if (!socketUrl) return;
+    const extraHeaders = { 'ngrok-skip-browser-warning': 'true' };
+    const socket: Socket = io(socketUrl, {
+      auth: { token },
+      extraHeaders,
+      transports: ['websocket', 'polling'],
+    });
+    const bump = () => void fetchAllRef.current();
+    socket.on('case_status_change', bump);
+    socket.on('service_request_status_change', bump);
+    socket.on('new:service_request', bump);
+    socket.on('care_booking:new', bump);
+    socket.on('new_hostel_booking', bump);
+    return () => {
+      socket.off('case_status_change', bump);
+      socket.off('service_request_status_change', bump);
+      socket.off('new:service_request', bump);
+      socket.off('care_booking:new', bump);
+      socket.off('new_hostel_booking', bump);
+      socket.disconnect();
+    };
+  }, []);
 
   const fetchVets = async () => {
     try {

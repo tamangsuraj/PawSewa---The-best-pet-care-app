@@ -18,12 +18,85 @@ import '../screens/service_task_detail_screen.dart';
 
 const String _androidChannelId = 'pawsewa_system';
 
+/// High-priority channel used for incoming delivery alerts (rider).
+/// Shows as a full-screen notification over the lock screen and other apps.
+const String _riderAlertChannelId = 'rider_delivery_alert';
+// Int64List is not a compile-time constant, so the channel can't be const.
+final AndroidNotificationChannel _riderAlertChannel = AndroidNotificationChannel(
+  _riderAlertChannelId,
+  'Delivery Alerts',
+  description: 'Incoming delivery orders for riders',
+  importance: Importance.max,
+  playSound: true,
+  enableVibration: true,
+  vibrationPattern: Int64List.fromList([0, 500, 300, 500, 300, 500]),
+  sound: const RawResourceAndroidNotificationSound('rider_alert'),
+);
+
+/// FCM background/terminated handler — must be top-level and @pragma annotated.
+/// Shows a full-screen intent notification so the alert appears over other apps
+/// and over the lock screen, identical to an incoming phone call.
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  if (kDebugMode) {
-    debugPrint('[FCM] background message: ${message.messageId}');
-  }
+
+  if (message.data['type']?.toString() != 'new_order_delivery') return;
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  await plugin.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@drawable/ic_stat_pawsewa'),
+    ),
+  );
+
+  // Ensure the alert channel exists in this isolate too.
+  await plugin
+      .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(_riderAlertChannel);
+
+  final summary = _buildOrderSummary(message.data);
+
+  await plugin.show(
+    message.hashCode,
+    '🛵 New Delivery Request',
+    summary,
+    NotificationDetails(
+      android: AndroidNotificationDetails(
+        _riderAlertChannelId,
+        'Delivery Alerts',
+        channelDescription: 'Incoming delivery orders for riders',
+        importance: Importance.max,
+        priority: Priority.max,
+        // fullScreenIntent = true causes Android to display the notification
+        // as a full-screen activity (over lock screen) or heads-up HUD (while
+        // using another app) — exactly like an incoming phone call.
+        fullScreenIntent: true,
+        category: AndroidNotificationCategory.call,
+        playSound: true,
+        sound: const RawResourceAndroidNotificationSound('rider_alert'),
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 500, 300, 500, 300, 500]),
+        icon: '@drawable/ic_stat_pawsewa',
+        ongoing: false,
+        autoCancel: true,
+        // Ensures the notification wakes the screen.
+        enableLights: true,
+        color: const Color(0xFFF5A623),
+      ),
+    ),
+    payload: jsonEncode(message.data),
+  );
+}
+
+String _buildOrderSummary(Map<String, dynamic> data) {
+  final orderId = data['orderId']?.toString() ?? data['_id']?.toString() ?? '';
+  final shortId = orderId.length >= 6 ? '#${orderId.substring(orderId.length - 6).toUpperCase()}' : '';
+  final amount = data['totalAmount']?.toString() ?? '';
+  final parts = <String>[
+    if (shortId.isNotEmpty) shortId,
+    if (amount.isNotEmpty) 'Rs. $amount',
+  ];
+  return parts.isEmpty ? 'Tap to accept or decline' : '${parts.join(' · ')} — Tap to respond';
 }
 
 class PushNotificationService {
@@ -55,7 +128,7 @@ class PushNotificationService {
       },
     );
 
-    await _ensureAndroidChannel();
+    await _ensureChannels();
 
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(alert: true, badge: true, sound: true);
@@ -125,21 +198,35 @@ class PushNotificationService {
     }
   }
 
-  Future<void> _ensureAndroidChannel() async {
-    const channel = AndroidNotificationChannel(
-      _androidChannelId,
-      'System notifications',
-      description: 'Operational and broadcast messages',
-      importance: Importance.high,
+  Future<void> _ensureChannels() async {
+    final android = _local
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+    // General system notifications channel (low-priority).
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _androidChannelId,
+        'System notifications',
+        description: 'Operational and broadcast messages',
+        importance: Importance.high,
+      ),
     );
-    await _local
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+
+    // Rider delivery alert channel (max-priority, full-screen capable).
+    await android?.createNotificationChannel(_riderAlertChannel);
   }
 
   Future<void> _onForegroundMessage(RemoteMessage message) async {
+    final type = message.data['type']?.toString();
+
+    // For incoming delivery alerts the socket already triggers the in-app
+    // overlay (RiderOrderAlertOverlay). Skip showing a redundant notification
+    // when the app is in the foreground.
+    if (type == 'new_order_delivery') return;
+
     final n = message.notification;
     if (n == null) return;
+
     final payload = message.data.isNotEmpty ? jsonEncode(message.data) : null;
     const details = NotificationDetails(
       android: AndroidNotificationDetails(

@@ -12,7 +12,7 @@ export const Header: React.FC = () => {
   const { totalUnread } = useAdminChatUnread();
 
   return (
-    <header className="sticky top-0 z-20 shrink-0 border-b border-white/70 bg-[#F7F4FC]/80 shadow-sm backdrop-blur-md">
+    <header className="sticky top-0 z-20 shrink-0 border-b border-primary/10 bg-sand/80 shadow-sm backdrop-blur-md">
       <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="hidden shrink-0 rounded-xl border border-primary/20 bg-transparent p-1.5 sm:block">
@@ -40,7 +40,7 @@ export const Header: React.FC = () => {
           </Link>
           {user && (
             <div className="flex items-center space-x-3 px-4 py-2 bg-white/80 rounded-xl border border-white/70 shadow-sm">
-              <User className="w-5 h-5 text-[#4facfe]" />
+              <User className="w-5 h-5 text-primary" />
               <div>
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
                 <p className="text-xs text-gray-600">{user.email}</p>

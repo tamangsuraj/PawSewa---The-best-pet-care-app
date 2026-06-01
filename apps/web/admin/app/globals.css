@@ -4,7 +4,7 @@
 
 body {
   color: #171415; /* charcoal */
-  background: radial-gradient(circle at top left, #ffffff 0, #F7F4FC 42%, #e6ddff 100%);
+  background: radial-gradient(circle at top left, #ffffff 0, #f5ede4 42%, #ebe3d6 100%);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
 

@@ -97,7 +97,7 @@ class _RegisterVetScreenState extends State<RegisterVetScreen> {
             'Submitted. After admin approval, sign in with your email and password.',
             style: GoogleFonts.outfit(),
           ),
-          backgroundColor: Colors.green.shade700,
+          backgroundColor: const Color(AppConstants.primaryColor),
           duration: const Duration(seconds: 4),
         ),
       );

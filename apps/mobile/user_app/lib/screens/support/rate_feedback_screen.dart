@@ -66,7 +66,7 @@ class _RateFeedbackScreenState extends State<RateFeedbackScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = 'Could not submit feedback. Please try again.';
         _sending = false;
       });
     }

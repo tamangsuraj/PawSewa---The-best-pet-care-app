@@ -426,7 +426,7 @@ class _VetVisitEditorScreenState extends State<VetVisitEditorScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not complete visit: $e')),
+        const SnackBar(content: Text('Could not complete visit. Please check your connection.')),
       );
     } finally {
       if (mounted) setState(() => _completing = false);

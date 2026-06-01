@@ -51,7 +51,7 @@ interface ServiceRequest {
 interface OrderRow {
   _id?: string;
   status?: string;
-  total?: number;
+  totalAmount?: number;
   createdAt?: string;
   items?: Array<{ name?: string; quantity?: number }>;
   deliveryLocation?: { address?: string };
@@ -443,9 +443,9 @@ export default function DashboardPage() {
                       {o.createdAt && (
                         <p className="mt-0.5 text-xs text-paw-bark/50">{fmtDate(o.createdAt)}</p>
                       )}
-                      {o.total != null && (
+                      {o.totalAmount != null && (
                         <p className="mt-2 text-sm font-bold text-paw-bark">
-                          रू {Number(o.total).toLocaleString()}
+                          Rs. {Number(o.totalAmount).toLocaleString('en-NP')}
                         </p>
                       )}
                     </div>
