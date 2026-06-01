@@ -408,7 +408,7 @@ class _ShopInventoryScreenState extends State<ShopInventoryScreen> {
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    value: _categories.any((c) => c['_id']?.toString() == selectedCat)
+                    initialValue: _categories.any((c) => c['_id']?.toString() == selectedCat)
                         ? selectedCat
                         : null,
                     items: _categories

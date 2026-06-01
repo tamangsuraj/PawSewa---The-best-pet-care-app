@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -204,7 +204,7 @@ class _UnifiedInboxScreenState extends State<UnifiedInboxScreen> with SingleTick
                     onChanged: (v) => setState(() => _query = v),
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Icons.search_rounded),
-                      hintText: 'Search chats, customers, productsâ€¦',
+                      hintText: 'Search chats, customers, products...',
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
@@ -279,13 +279,13 @@ class _CustomerChatsTab extends StatelessWidget {
     }
     if (error != null) {
       return PartnerEmptyState(
-        title: "Couldnâ€™t load inbox",
+        title: "Couldn't load inbox",
         body: error!,
         icon: Icons.wifi_off_rounded,
         primaryAction: OutlinedButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh_rounded),
-          label: const Text(â€˜Retryâ€™),
+          label: const Text('Retry'),
         ),
       );
     }
@@ -363,7 +363,7 @@ class _CustomerChatsTab extends StatelessWidget {
                         if (id.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(
-                            'Longâ€‘press â†’ Mark unread',
+                            'Long-press -> Mark unread',
                             style: GoogleFonts.outfit(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w600,
